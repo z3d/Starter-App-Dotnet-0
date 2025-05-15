@@ -1,13 +1,39 @@
-# Create migrations directory if it doesn't exist
-$migrationsDir = "c:\dev\scratchpad\dockerlearning\src\DockerLearningApi\Migrations"
-if (-not (Test-Path $migrationsDir)) {
-    New-Item -ItemType Directory -Path $migrationsDir | Out-Null
+# Script to create a new DbUp SQL migration script
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$MigrationName
+)
+
+# Define directories
+$sqlScriptsDir = "c:\dev\scratchpad\dockerlearning\src\DockerLearningApi\SqlScripts"
+if (-not (Test-Path $sqlScriptsDir)) {
+    New-Item -ItemType Directory -Path $sqlScriptsDir | Out-Null
 }
 
-# Navigate to the API project directory
-Set-Location -Path "c:\dev\scratchpad\dockerlearning\src\DockerLearningApi"
+# Get current scripts to determine next number
+$existingScripts = Get-ChildItem -Path $sqlScriptsDir -Filter "*.sql" | Sort-Object Name
+$nextNumber = 1
 
-# Create the initial migration
-dotnet ef migrations add InitialCreate
+if ($existingScripts.Count -gt 0) {
+    # Extract highest number from existing scripts
+    $lastScript = $existingScripts | Select-Object -Last 1
+    if ($lastScript.Name -match '^(\d+)_') {
+        $nextNumber = [int]$matches[1] + 1
+    }
+}
 
-Write-Output "Migrations created successfully. You can apply them with 'dotnet ef database update' when SQL Server is running."
+# Format the new file name with padded zeros
+$newFileName = "{0:D4}_{1}.sql" -f $nextNumber, $MigrationName
+$newFilePath = Join-Path -Path $sqlScriptsDir -ChildPath $newFileName
+
+# Create the new SQL script file with a template
+@"
+-- Migration: $MigrationName
+-- Created: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+
+-- Your SQL migration script here
+
+"@ | Out-File -FilePath $newFilePath -Encoding utf8
+
+Write-Output "Created new DbUp SQL migration script: $newFilePath"
+Write-Output "Edit this file to add your database changes."

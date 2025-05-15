@@ -46,6 +46,9 @@ public class ProductsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Product>> CreateProduct(Product product)
     {
+        // Set LastUpdated to current UTC time
+        product.LastUpdated = DateTime.UtcNow;
+        
         _context.Products.Add(product);
         await _context.SaveChangesAsync();
 
@@ -62,6 +65,9 @@ public class ProductsController : ControllerBase
             return BadRequest();
         }
 
+        // Set LastUpdated to current UTC time
+        product.LastUpdated = DateTime.UtcNow;
+        
         _context.Entry(product).State = EntityState.Modified;
 
         try

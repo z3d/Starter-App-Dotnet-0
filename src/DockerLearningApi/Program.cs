@@ -27,13 +27,14 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-// Apply migrations automatically during startup in non-production environments
-if (!app.Environment.IsProduction())
+// Use DbUp for database migrations instead of EF Core
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!DatabaseMigrator.MigrateDatabase(connectionString))
 {
-    using (var scope = app.Services.CreateScope())
+    // If migrations fail, we might want to stop the application from fully starting
+    if (!app.Environment.IsDevelopment())
     {
-        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        dbContext.Database.Migrate();
+        return 1;
     }
 }
 
@@ -44,3 +45,4 @@ app.MapControllers();
 app.MapGet("/health", () => "Healthy");
 
 app.Run();
+return 0;
