@@ -6,14 +6,20 @@ public class Product
 {
     // Private setters to enforce immutability and encapsulation
     public int Id { get; private set; }
-    public string Name { get; private set; }
-    public string Description { get; private set; }
-    public Money Price { get; private set; }
+    public string Name { get; private set; } = string.Empty;
+    public string Description { get; private set; } = string.Empty;
+    public Money Price { get; private set; } = null!;
     public int Stock { get; private set; }
     public DateTime LastUpdated { get; private set; }
 
     // Private constructor to enforce factory method pattern
-    private Product() { }
+    private Product() 
+    {
+        // Initialize default values to satisfy non-nullable warnings
+        Name = string.Empty;
+        Description = string.Empty;
+        LastUpdated = DateTime.UtcNow;
+    }
 
     // Factory method
     public static Product Create(string name, string description, Money price, int stock)
