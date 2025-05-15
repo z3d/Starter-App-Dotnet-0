@@ -1,5 +1,8 @@
 using DockerLearningApi.Data;
+using DockerLearningApi.Domain.Interfaces;
+using DockerLearningApi.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +18,13 @@ builder.Services.AddOpenApi();
 // Add Database context
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Add repositories
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+
+// Add MediatR
+builder.Services.AddMediatR(cfg => 
+    cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 
 // Add controller support
 builder.Services.AddControllers();

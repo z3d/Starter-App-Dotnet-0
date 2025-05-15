@@ -1,7 +1,8 @@
-using DockerLearningApi.Data;
-using DockerLearningApi.Models;
+using DockerLearningApi.Application.Commands;
+using DockerLearningApi.Application.DTOs;
+using DockerLearningApi.Application.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace DockerLearningApi.Controllers;
 
@@ -9,80 +10,73 @@ namespace DockerLearningApi.Controllers;
 [Route("api/[controller]")]
 public class ProductsController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IMediator _mediator;
     private readonly ILogger<ProductsController> _logger;
 
-    public ProductsController(ApplicationDbContext context, ILogger<ProductsController> logger)
+    public ProductsController(IMediator mediator, ILogger<ProductsController> logger)
     {
-        _context = context;
+        _mediator = mediator;
         _logger = logger;
     }
 
     // GET: api/Products
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
+    public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts()
     {
         _logger.LogInformation("Getting all products");
-        return await _context.Products.ToListAsync();
+        var query = new GetAllProductsQuery();
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 
     // GET: api/Products/5
     [HttpGet("{id}")]
-    public async Task<ActionResult<Product>> GetProduct(int id)
+    public async Task<ActionResult<ProductDto>> GetProduct(int id)
     {
         _logger.LogInformation("Getting product with ID: {Id}", id);
-        var product = await _context.Products.FindAsync(id);
+        var query = new GetProductByIdQuery(id);
+        var result = await _mediator.Send(query);
 
-        if (product == null)
+        if (result == null)
         {
             _logger.LogWarning("Product with ID: {Id} not found", id);
             return NotFound();
         }
 
-        return product;
+        return Ok(result);
     }
 
     // POST: api/Products
     [HttpPost]
-    public async Task<ActionResult<Product>> CreateProduct(Product product)
+    public async Task<ActionResult<ProductDto>> CreateProduct(CreateProductCommand command)
     {
-        // Set LastUpdated to current UTC time
-        product.LastUpdated = DateTime.UtcNow;
+        _logger.LogInformation("Creating a new product");
+        var result = await _mediator.Send(command);
         
-        _context.Products.Add(product);
-        await _context.SaveChangesAsync();
-
-        _logger.LogInformation("Created new product with ID: {Id}", product.Id);
-        return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, product);
+        _logger.LogInformation("Created new product with ID: {Id}", result.Id);
+        return CreatedAtAction(nameof(GetProduct), new { id = result.Id }, result);
     }
 
     // PUT: api/Products/5
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateProduct(int id, Product product)
+    public async Task<IActionResult> UpdateProduct(int id, UpdateProductCommand command)
     {
-        if (id != product.Id)
+        if (id != command.Id)
         {
-            return BadRequest();
+            return BadRequest("ID in URL does not match ID in request body");
         }
 
-        // Set LastUpdated to current UTC time
-        product.LastUpdated = DateTime.UtcNow;
+        _logger.LogInformation("Updating product with ID: {Id}", id);
         
-        _context.Entry(product).State = EntityState.Modified;
-
         try
         {
-            await _context.SaveChangesAsync();
+            await _mediator.Send(command);
             _logger.LogInformation("Updated product with ID: {Id}", id);
         }
-        catch (DbUpdateConcurrencyException)
+        catch (KeyNotFoundException)
         {
-            if (!await ProductExists(id))
-            {
-                _logger.LogWarning("Product with ID: {Id} not found during update", id);
-                return NotFound();
-            }
-            throw;
+            _logger.LogWarning("Product with ID: {Id} not found during update", id);
+            return NotFound();
         }
 
         return NoContent();
@@ -92,22 +86,19 @@ public class ProductsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteProduct(int id)
     {
-        var product = await _context.Products.FindAsync(id);
-        if (product == null)
+        _logger.LogInformation("Deleting product with ID: {Id}", id);
+        
+        try
+        {
+            await _mediator.Send(new DeleteProductCommand(id));
+            _logger.LogInformation("Deleted product with ID: {Id}", id);
+        }
+        catch (KeyNotFoundException)
         {
             _logger.LogWarning("Product with ID: {Id} not found during delete", id);
             return NotFound();
         }
 
-        _context.Products.Remove(product);
-        await _context.SaveChangesAsync();
-
-        _logger.LogInformation("Deleted product with ID: {Id}", id);
         return NoContent();
-    }
-
-    private async Task<bool> ProductExists(int id)
-    {
-        return await _context.Products.AnyAsync(e => e.Id == id);
     }
 }
