@@ -43,11 +43,11 @@ public class ProductTests
         // Arrange
         var name = "Test Product";
         var description = "Test Description";
-        Money price = null;
+        Money? price = null;
         var stock = 100;
 
         // Act & Assert
-        var act = () => Product.Create(name, description, price, stock);
+        var act = () => Product.Create(name, description, price!, stock);
         act.Should().Throw<ArgumentNullException>()
            .WithParameterName("price");
     }

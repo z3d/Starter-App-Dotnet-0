@@ -7,6 +7,7 @@ global using System.Collections.Generic;
 global using Xunit;
 global using Moq;
 global using FluentAssertions;
+global using MediatR;
 
 global using DockerLearningApi.Domain.Entities;
 global using DockerLearningApi.Domain.Interfaces;
@@ -14,3 +15,4 @@ global using DockerLearningApi.Domain.ValueObjects;
 global using DockerLearningApi.Application.Commands;
 global using DockerLearningApi.Application.Queries;
 global using DockerLearningApi.Application.DTOs;
+global using DockerLearningApi.Application.Interfaces;

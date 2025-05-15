@@ -56,8 +56,11 @@ public class GetAllProductsQueryHandlerTests
         var product = Product.Create(name, description, Money.Create(price), stock);
         
         // Set the ID using reflection since it has a private setter
-        typeof(Product).GetProperty("Id")
-            .SetValue(product, id, null);
+        var idProperty = typeof(Product).GetProperty("Id");
+        if (idProperty != null)
+        {
+            idProperty.SetValue(product, id, null);
+        }
             
         return product;
     }

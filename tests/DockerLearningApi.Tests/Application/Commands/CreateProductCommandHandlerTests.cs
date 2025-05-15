@@ -27,13 +27,18 @@ public class CreateProductCommandHandlerTests
         // Setup mock to return the product with an ID assigned
         _mockRepository.Setup(r => r.AddAsync(It.IsAny<Product>()))
             .ReturnsAsync((Product p) => {
-                typeof(Product).GetProperty("Id")
-                    .SetValue(p, 1, null);
+                var idProperty = typeof(Product).GetProperty("Id");
+                if (idProperty != null)
+                {
+                    idProperty.SetValue(p, 1, null);
+                }
                 return p;
             });
 
         // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
+        // Call the IRequestHandler<CreateProductCommand, ProductDto>.Handle method explicitly
+        var result = await ((IRequestHandler<CreateProductCommand, ProductDto>)_handler)
+            .Handle(command, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();

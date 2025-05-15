@@ -10,5 +10,5 @@ public class ApplicationDbContext : DbContext
     {
     }
 
-    public DbSet<Product> Products { get; set; } = null!;
+    public DbSet<Models.Product> Products { get; set; } = null!;
 }
