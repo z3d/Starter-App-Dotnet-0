@@ -5,7 +5,7 @@ using MediatR;
 
 namespace DockerLearningApi.Application.Commands;
 
-public class UpdateProductCommand : ICommand, IRequest
+public class UpdateProductCommand : ICommand, IRequest<Unit>
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
@@ -16,7 +16,7 @@ public class UpdateProductCommand : ICommand, IRequest
 }
 
 public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>, 
-                                          IRequestHandler<UpdateProductCommand>
+                                          IRequestHandler<UpdateProductCommand, Unit>
 {
     private readonly IProductRepository _productRepository;
 
@@ -46,9 +46,10 @@ public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>
         await _productRepository.UpdateAsync(product);
     }
 
-    async Task IRequestHandler<UpdateProductCommand>.Handle(
+    async Task<Unit> IRequestHandler<UpdateProductCommand, Unit>.Handle(
         UpdateProductCommand command, CancellationToken cancellationToken)
     {
         await Handle(command, cancellationToken);
+        return Unit.Value;
     }
 }

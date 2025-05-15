@@ -32,9 +32,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Add repositories
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
-// Add MediatR
-builder.Services.AddMediatR(cfg => 
-    cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+// Add MediatR - updated for MediatR 11.1.0
+builder.Services.AddMediatR(Assembly.GetExecutingAssembly());
 
 // Add controller support
 builder.Services.AddControllers();

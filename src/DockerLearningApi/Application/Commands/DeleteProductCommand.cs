@@ -4,7 +4,7 @@ using MediatR;
 
 namespace DockerLearningApi.Application.Commands;
 
-public class DeleteProductCommand : ICommand, IRequest
+public class DeleteProductCommand : ICommand, IRequest<Unit>
 {
     public int Id { get; set; }
 
@@ -15,7 +15,7 @@ public class DeleteProductCommand : ICommand, IRequest
 }
 
 public class DeleteProductCommandHandler : ICommandHandler<DeleteProductCommand>, 
-                                          IRequestHandler<DeleteProductCommand>
+                                          IRequestHandler<DeleteProductCommand, Unit>
 {
     private readonly IProductRepository _productRepository;
 
@@ -29,9 +29,10 @@ public class DeleteProductCommandHandler : ICommandHandler<DeleteProductCommand>
         await _productRepository.DeleteAsync(command.Id);
     }
 
-    async Task IRequestHandler<DeleteProductCommand>.Handle(
+    async Task<Unit> IRequestHandler<DeleteProductCommand, Unit>.Handle(
         DeleteProductCommand command, CancellationToken cancellationToken)
     {
         await Handle(command, cancellationToken);
+        return Unit.Value;
     }
 }
