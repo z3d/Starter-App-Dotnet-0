@@ -1,0 +1,130 @@
+# .NET Core
+*.swp
+*.user
+*.userosscache
+*.sln.docstates
+*.dll
+*.pdb
+*.cache
+*.suo
+*.log
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+msbuild.log
+msbuild.err
+msbuild.wrn
+
+# Visual Studio / VS Code
+.vs/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+*.rsuser
+*.user
+*.userosscache
+*.dbmdl
+*.jfm
+*.pfx
+*.publishsettings
+
+# IDE - Rider, etc
+.idea/
+*.sln.iml
+.cr/
+
+# Docker
+.env
+.docker/data/
+docker-compose.override.yml
+
+# User-specific files
+*.userprefs
+
+# .NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Entity Framework
+Migrations/
+
+# SQLite database files
+*.db
+*.sqlite3
+*.sqlite
+
+# SQL Server files
+*.mdf
+*.ldf
+*.ndf
+
+# Business Intelligence projects
+*.rdl.data
+*.bim.layout
+*.bim_*.settings
+*.rptproj.rsuser
+*- [Bb]ackup.rdl
+*- [Bb]ackup ([0-9]).rdl
+*- [Bb]ackup ([0-9][0-9]).rdl
+
+# Microsoft Azure
+csx/
+*.build.csdef
+ecf/
+rcf/
+AppPackages/
+BundleArtifacts/
+ServiceFabricBackup/
+*.rptproj.bak
+
+# Local development settings
+appsettings.Development.json
+appsettings.Local.json
+*.Development.json
+*.Local.json
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# SSL certificates
+*.pfx
+*.key
+*.crt
+*.cer
+
+# NuGet Packages
+*.nupkg
+# NuGet Symbol Packages
+*.snupkg
+# The packages folder can be ignored because of Package Restore
+**/[Pp]ackages/*
+# except build/, which is used as an MSBuild target.
+!**/[Pp]ackages/build/
+# Uncomment if necessary however generally it will be regenerated when needed
+#!**/[Pp]ackages/repositories.config
+# NuGet v3's project.json files produces more ignorable files
+*.nuget.props
+*.nuget.targets
