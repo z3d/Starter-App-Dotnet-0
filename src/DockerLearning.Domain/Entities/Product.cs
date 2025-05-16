@@ -1,6 +1,6 @@
-using DockerLearningApi.Domain.ValueObjects;
+using DockerLearning.Domain.ValueObjects;
 
-namespace DockerLearningApi.Domain.Entities;
+namespace DockerLearning.Domain.Entities;
 
 public class Product
 {

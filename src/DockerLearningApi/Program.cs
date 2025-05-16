@@ -1,5 +1,5 @@
 using DockerLearningApi.Data;
-using DockerLearningApi.Domain.Interfaces;
+using DockerLearning.Domain.Interfaces;
 using DockerLearningApi.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Serilog;

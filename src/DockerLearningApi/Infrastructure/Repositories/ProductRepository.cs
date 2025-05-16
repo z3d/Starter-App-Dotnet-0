@@ -1,7 +1,7 @@
+using DockerLearning.Domain.Entities;
+using DockerLearning.Domain.Interfaces;
+using DockerLearning.Domain.ValueObjects;
 using DockerLearningApi.Data;
-using DockerLearningApi.Domain.Entities;
-using DockerLearningApi.Domain.Interfaces;
-using DockerLearningApi.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 
 namespace DockerLearningApi.Infrastructure.Repositories;

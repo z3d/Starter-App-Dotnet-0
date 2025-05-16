@@ -1,6 +1,6 @@
-using DockerLearningApi.Domain.Entities;
+using DockerLearning.Domain.Entities;
 
-namespace DockerLearningApi.Domain.Interfaces;
+namespace DockerLearning.Domain.Interfaces;
 
 public interface IProductRepository
 {

@@ -1,3 +1,8 @@
+using DockerLearning.Domain.Entities;
+using DockerLearning.Domain.ValueObjects;
+using System;
+using Xunit;
+
 namespace DockerLearningApi.Tests.Domain;
 
 public class ProductTests

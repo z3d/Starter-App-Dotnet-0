@@ -1,4 +1,4 @@
-namespace DockerLearningApi.Domain.ValueObjects;
+namespace DockerLearning.Domain.ValueObjects;
 
 public class Money
 {

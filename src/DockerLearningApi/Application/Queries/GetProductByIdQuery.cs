@@ -1,6 +1,6 @@
 using DockerLearningApi.Application.DTOs;
 using DockerLearningApi.Application.Interfaces;
-using DockerLearningApi.Domain.Interfaces;
+using DockerLearning.Domain.Interfaces;
 using MediatR;
 
 namespace DockerLearningApi.Application.Queries;

@@ -9,9 +9,12 @@ global using Microsoft.Extensions.Logging;
 
 global using MediatR;
 
-global using DockerLearningApi.Domain.Entities;
-global using DockerLearningApi.Domain.ValueObjects;
-global using DockerLearningApi.Domain.Interfaces;
+// Domain references
+global using DockerLearning.Domain.Entities;
+global using DockerLearning.Domain.ValueObjects;
+global using DockerLearning.Domain.Interfaces;
+
+// Application references
 global using DockerLearningApi.Application.DTOs;
 global using DockerLearningApi.Application.Commands;
 global using DockerLearningApi.Application.Queries;

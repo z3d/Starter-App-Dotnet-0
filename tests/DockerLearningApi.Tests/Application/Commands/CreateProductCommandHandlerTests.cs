@@ -1,3 +1,13 @@
+using DockerLearning.Domain.Entities;
+using DockerLearning.Domain.Interfaces;
+using DockerLearningApi.Application.Commands;
+using DockerLearningApi.Application.DTOs;
+using MediatR;
+using Moq;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
+
 namespace DockerLearningApi.Tests.Application.Commands;
 
 public class CreateProductCommandHandlerTests

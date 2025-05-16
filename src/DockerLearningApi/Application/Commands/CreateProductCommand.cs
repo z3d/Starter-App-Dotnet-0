@@ -1,8 +1,8 @@
 using DockerLearningApi.Application.DTOs;
 using DockerLearningApi.Application.Interfaces;
-using DockerLearningApi.Domain.Entities;
-using DockerLearningApi.Domain.Interfaces;
-using DockerLearningApi.Domain.ValueObjects;
+using DockerLearning.Domain.Entities;
+using DockerLearning.Domain.Interfaces;
+using DockerLearning.Domain.ValueObjects;
 using MediatR;
 
 namespace DockerLearningApi.Application.Commands;
