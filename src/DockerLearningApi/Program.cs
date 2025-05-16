@@ -52,13 +52,20 @@ try
 
     // Use DbUp for database migrations
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-    if (!DatabaseMigrator.MigrateDatabase(connectionString))
+    if (connectionString != null)
     {
-        // If migrations fail, we might want to stop the application from fully starting
-        if (!app.Environment.IsDevelopment())
+        if (!DatabaseMigrator.MigrateDatabase(connectionString))
         {
-            return 1;
+            // If migrations fail, we might want to stop the application from fully starting
+            if (!app.Environment.IsDevelopment())
+            {
+                return 1;
+            }
         }
+    }
+    else
+    {
+        Log.Warning("Connection string 'DefaultConnection' is missing or null. Skipping database migration.");
     }
 
     app.UseHttpsRedirection();

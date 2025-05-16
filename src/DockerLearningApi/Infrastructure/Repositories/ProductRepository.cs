@@ -25,7 +25,7 @@ public class ProductRepository : IProductRepository
         var product = Product.Create(
             productModel.Name,
             productModel.Description,
-            Money.FromDecimal(productModel.Price),
+            Money.Create(productModel.Price.Amount, productModel.Price.Currency),
             productModel.Stock);
 
         // Use internal method to set the ID
@@ -44,7 +44,7 @@ public class ProductRepository : IProductRepository
             var product = Product.Create(
                 productModel.Name,
                 productModel.Description,
-                Money.FromDecimal(productModel.Price),
+                Money.Create(productModel.Price.Amount, productModel.Price.Currency),
                 productModel.Stock);
 
             // Use internal method to set the ID
@@ -58,15 +58,13 @@ public class ProductRepository : IProductRepository
 
     public async Task<Product> AddAsync(Product product)
     {
-        // Map from domain entity to data model
-        var productModel = new Models.Product
-        {
-            Name = product.Name,
-            Description = product.Description,
-            Price = product.Price.Amount,
-            Stock = product.Stock,
-            LastUpdated = DateTime.UtcNow
-        };
+        // Create a new domain entity using the factory method
+        var productModel = Product.Create(
+            product.Name,
+            product.Description,
+            Money.Create(product.Price.Amount, product.Price.Currency),
+            product.Stock
+        );
 
         _context.Products.Add(productModel);
         await _context.SaveChangesAsync();
@@ -83,12 +81,19 @@ public class ProductRepository : IProductRepository
         if (productModel == null)
             throw new KeyNotFoundException($"Product with ID {product.Id} not found");
 
-        // Update data model from domain entity
-        productModel.Name = product.Name;
-        productModel.Description = product.Description;
-        productModel.Price = product.Price.Amount;
-        productModel.Stock = product.Stock;
-        productModel.LastUpdated = DateTime.UtcNow;
+        // Update data model from domain entity using domain methods
+        productModel.UpdateDetails(
+            product.Name,
+            product.Description,
+            Money.Create(product.Price.Amount, product.Price.Currency)
+        );
+        
+        // Handle stock changes
+        if (productModel.Stock != product.Stock)
+        {
+            var stockDifference = product.Stock - productModel.Stock;
+            productModel.UpdateStock(stockDifference);
+        }
 
         _context.Products.Update(productModel);
         await _context.SaveChangesAsync();

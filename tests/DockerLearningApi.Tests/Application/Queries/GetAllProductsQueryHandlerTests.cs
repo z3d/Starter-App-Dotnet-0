@@ -31,22 +31,21 @@ public class GetAllProductsQueryHandlerTests
         var result = await _handler.Handle(query, CancellationToken.None);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Should().HaveCount(3);
-        
+        Assert.NotNull(result);
         var resultList = result.ToList();
+        Assert.Equal(3, resultList.Count);
         
-        resultList[0].Id.Should().Be(1);
-        resultList[0].Name.Should().Be("Product 1");
-        resultList[0].Price.Should().Be(10.99m);
+        Assert.Equal(1, resultList[0].Id);
+        Assert.Equal("Product 1", resultList[0].Name);
+        Assert.Equal(10.99m, resultList[0].Price);
         
-        resultList[1].Id.Should().Be(2);
-        resultList[1].Name.Should().Be("Product 2");
-        resultList[1].Price.Should().Be(20.99m);
+        Assert.Equal(2, resultList[1].Id);
+        Assert.Equal("Product 2", resultList[1].Name);
+        Assert.Equal(20.99m, resultList[1].Price);
         
-        resultList[2].Id.Should().Be(3);
-        resultList[2].Name.Should().Be("Product 3");
-        resultList[2].Price.Should().Be(30.99m);
+        Assert.Equal(3, resultList[2].Id);
+        Assert.Equal("Product 3", resultList[2].Name);
+        Assert.Equal(30.99m, resultList[2].Price);
         
         _mockRepository.Verify(r => r.GetAllAsync(), Times.Once);
     }

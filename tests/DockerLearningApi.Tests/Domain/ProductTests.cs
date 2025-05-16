@@ -15,11 +15,11 @@ public class ProductTests
         var product = Product.Create(name, description, price, stock);
 
         // Assert
-        product.Should().NotBeNull();
-        product.Name.Should().Be(name);
-        product.Description.Should().Be(description);
-        product.Price.Should().Be(price);
-        product.Stock.Should().Be(stock);
+        Assert.NotNull(product);
+        Assert.Equal(name, product.Name);
+        Assert.Equal(description, product.Description);
+        Assert.Equal(price, product.Price);
+        Assert.Equal(stock, product.Stock);
     }
 
     [Fact]
@@ -32,9 +32,9 @@ public class ProductTests
         var stock = 100;
 
         // Act & Assert
-        var act = () => Product.Create(name, description, price, stock);
-        act.Should().Throw<ArgumentException>()
-           .WithMessage("*Product name cannot be empty*");
+        var exception = Assert.Throws<ArgumentException>(() => 
+            Product.Create(name, description, price, stock));
+        Assert.Contains("Product name cannot be empty", exception.Message);
     }
 
     [Fact]
@@ -47,9 +47,9 @@ public class ProductTests
         var stock = 100;
 
         // Act & Assert
-        var act = () => Product.Create(name, description, price!, stock);
-        act.Should().Throw<ArgumentNullException>()
-           .WithParameterName("price");
+        var exception = Assert.Throws<ArgumentNullException>(() => 
+            Product.Create(name, description, price!, stock));
+        Assert.Equal("price", exception.ParamName);
     }
 
     [Fact]
@@ -62,9 +62,9 @@ public class ProductTests
         var stock = -1;
 
         // Act & Assert
-        var act = () => Product.Create(name, description, price, stock);
-        act.Should().Throw<ArgumentException>()
-           .WithMessage("*Stock cannot be negative*");
+        var exception = Assert.Throws<ArgumentException>(() => 
+            Product.Create(name, description, price, stock));
+        Assert.Contains("Stock cannot be negative", exception.Message);
     }
 
     [Fact]
@@ -80,9 +80,9 @@ public class ProductTests
         product.UpdateDetails(newName, newDescription, newPrice);
 
         // Assert
-        product.Name.Should().Be(newName);
-        product.Description.Should().Be(newDescription);
-        product.Price.Should().Be(newPrice);
+        Assert.Equal(newName, product.Name);
+        Assert.Equal(newDescription, product.Description);
+        Assert.Equal(newPrice, product.Price);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public class ProductTests
         product.UpdateStock(quantityToAdd);
 
         // Assert
-        product.Stock.Should().Be(expectedStock);
+        Assert.Equal(expectedStock, product.Stock);
     }
 
     [Fact]
@@ -108,8 +108,8 @@ public class ProductTests
         var quantityToRemove = -101;
 
         // Act & Assert
-        var act = () => product.UpdateStock(quantityToRemove);
-        act.Should().Throw<InvalidOperationException>()
-           .WithMessage("*Cannot reduce stock below zero*");
+        var exception = Assert.Throws<InvalidOperationException>(() => 
+            product.UpdateStock(quantityToRemove));
+        Assert.Contains("Cannot reduce stock below zero", exception.Message);
     }
 }

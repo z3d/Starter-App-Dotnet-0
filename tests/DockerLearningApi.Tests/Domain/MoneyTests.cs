@@ -13,9 +13,9 @@ public class MoneyTests
         var money = Money.Create(amount, currency);
 
         // Assert
-        money.Should().NotBeNull();
-        money.Amount.Should().Be(amount);
-        money.Currency.Should().Be(currency);
+        Assert.NotNull(money);
+        Assert.Equal(amount, money.Amount);
+        Assert.Equal(currency, money.Currency);
     }
 
     [Fact]
@@ -26,9 +26,9 @@ public class MoneyTests
         var currency = "USD";
 
         // Act & Assert
-        var act = () => Money.Create(amount, currency);
-        act.Should().Throw<ArgumentException>()
-           .WithMessage("*Amount cannot be negative*");
+        var exception = Assert.Throws<ArgumentException>(() => 
+            Money.Create(amount, currency));
+        Assert.Contains("Amount cannot be negative", exception.Message);
     }
 
     [Fact]
@@ -39,9 +39,9 @@ public class MoneyTests
         var currency = string.Empty;
 
         // Act & Assert
-        var act = () => Money.Create(amount, currency);
-        act.Should().Throw<ArgumentException>()
-           .WithMessage("*Currency cannot be empty*");
+        var exception = Assert.Throws<ArgumentException>(() => 
+            Money.Create(amount, currency));
+        Assert.Contains("Currency cannot be empty", exception.Message);
     }
 
     [Fact]
@@ -54,9 +54,9 @@ public class MoneyTests
         var money = Money.FromDecimal(amount);
 
         // Assert
-        money.Should().NotBeNull();
-        money.Amount.Should().Be(amount);
-        money.Currency.Should().Be("USD");
+        Assert.NotNull(money);
+        Assert.Equal(amount, money.Amount);
+        Assert.Equal("USD", money.Currency);
     }
 
     [Fact]
@@ -71,8 +71,8 @@ public class MoneyTests
         var result = money1.Add(money2);
 
         // Assert
-        result.Amount.Should().Be(expectedAmount);
-        result.Currency.Should().Be("USD");
+        Assert.Equal(expectedAmount, result.Amount);
+        Assert.Equal("USD", result.Currency);
     }
 
     [Fact]
@@ -83,9 +83,9 @@ public class MoneyTests
         var money2 = Money.Create(10.00m, "EUR");
 
         // Act & Assert
-        var act = () => money1.Add(money2);
-        act.Should().Throw<InvalidOperationException>()
-           .WithMessage("*Cannot add money with different currencies*");
+        var exception = Assert.Throws<InvalidOperationException>(() => 
+            money1.Add(money2));
+        Assert.Contains("Cannot add money with different currencies", exception.Message);
     }
 
     [Fact]
@@ -100,8 +100,8 @@ public class MoneyTests
         var result = money1.Subtract(money2);
 
         // Assert
-        result.Amount.Should().Be(expectedAmount);
-        result.Currency.Should().Be("USD");
+        Assert.Equal(expectedAmount, result.Amount);
+        Assert.Equal("USD", result.Currency);
     }
 
     [Fact]
@@ -112,8 +112,8 @@ public class MoneyTests
         var money2 = Money.Create(5.99m, "EUR");
 
         // Act & Assert
-        var act = () => money1.Subtract(money2);
-        act.Should().Throw<InvalidOperationException>()
-           .WithMessage("*Cannot subtract money with different currencies*");
+        var exception = Assert.Throws<InvalidOperationException>(() => 
+            money1.Subtract(money2));
+        Assert.Contains("Cannot subtract money with different currencies", exception.Message);
     }
 }

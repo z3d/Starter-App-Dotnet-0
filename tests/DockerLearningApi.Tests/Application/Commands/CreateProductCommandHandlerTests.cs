@@ -41,13 +41,13 @@ public class CreateProductCommandHandlerTests
             .Handle(command, CancellationToken.None);
 
         // Assert
-        result.Should().NotBeNull();
-        result.Id.Should().Be(1);
-        result.Name.Should().Be(command.Name);
-        result.Description.Should().Be(command.Description);
-        result.Price.Should().Be(command.Price);
-        result.Currency.Should().Be(command.Currency);
-        result.Stock.Should().Be(command.Stock);
+        Assert.NotNull(result);
+        Assert.Equal(1, result.Id);
+        Assert.Equal(command.Name, result.Name);
+        Assert.Equal(command.Description, result.Description);
+        Assert.Equal(command.Price, result.Price);
+        Assert.Equal(command.Currency, result.Currency);
+        Assert.Equal(command.Stock, result.Stock);
 
         _mockRepository.Verify(r => r.AddAsync(It.Is<Product>(p => 
             p.Name == command.Name && 

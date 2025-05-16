@@ -6,7 +6,6 @@ global using System.Collections.Generic;
 
 global using Xunit;
 global using Moq;
-global using FluentAssertions;
 global using MediatR;
 
 global using DockerLearningApi.Domain.Entities;

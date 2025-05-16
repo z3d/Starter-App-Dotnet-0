@@ -1,4 +1,4 @@
-using DockerLearningApi.Models;
+using DockerLearningApi.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace DockerLearningApi.Data;
@@ -10,5 +10,5 @@ public class ApplicationDbContext : DbContext
     {
     }
 
-    public DbSet<Models.Product> Products { get; set; } = null!;
+    public DbSet<Product> Products { get; set; } = null!;
 }
