@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using DockerLearningApi.Application.Commands;
 using DockerLearningApi.Application.DTOs;
+using Microsoft.Extensions.Logging;
+using Xunit.Abstractions;
 
 namespace DockerLearningApi.Tests.Integration;
 
@@ -9,10 +11,12 @@ namespace DockerLearningApi.Tests.Integration;
 public class ProductApiTests : IAsyncLifetime
 {
     private readonly ApiTestFixture _fixture;
+    private readonly ITestOutputHelper _output;
 
-    public ProductApiTests(ApiTestFixture fixture)
+    public ProductApiTests(ApiTestFixture fixture, ITestOutputHelper output)
     {
         _fixture = fixture;
+        _output = output;
     }
 
     public async Task InitializeAsync()
@@ -20,21 +24,31 @@ public class ProductApiTests : IAsyncLifetime
         // Reset database before each test
         try
         {
-            Console.WriteLine("Resetting database for test");
+            _output.WriteLine("Resetting database for test");
             await _fixture.ResetDatabaseAsync();
-            Console.WriteLine("Database reset complete");
+            _output.WriteLine("Database reset complete");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error during database reset: {ex.Message}");
-            throw;
+            _output.WriteLine($"Error during database reset: {ex.GetType().Name}");
+            // Don't log the full exception details to avoid leaking sensitive information
+            throw; // Re-throw to fail the test
         }
     }
 
     public async Task DisposeAsync()
     {
-        // No additional cleanup needed for each test
-        await Task.CompletedTask;
+        // Explicit cleanup to ensure resources are released
+        try
+        {
+            // No specific cleanup needed for each test, but good to have the structure
+            await Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            _output.WriteLine($"Warning: Cleanup error: {ex.Message}");
+            // Log but don't throw to allow test to complete
+        }
     }
 
     [Fact]

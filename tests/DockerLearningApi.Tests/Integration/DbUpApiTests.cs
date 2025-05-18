@@ -4,6 +4,7 @@ using DockerLearningApi.Application.DTOs;
 using System.Net.Http.Json;
 using DbUp;
 using DbUp.Engine;
+using Xunit.Abstractions;
 
 namespace DockerLearningApi.Tests.Integration;
 
@@ -11,10 +12,12 @@ namespace DockerLearningApi.Tests.Integration;
 public class DbUpApiTests : IAsyncLifetime
 {
     private readonly ApiTestFixture _fixture;
+    private readonly ITestOutputHelper _output;
 
-    public DbUpApiTests(ApiTestFixture fixture)
+    public DbUpApiTests(ApiTestFixture fixture, ITestOutputHelper output)
     {
         _fixture = fixture;
+        _output = output;
     }
 
     public async Task InitializeAsync()
@@ -22,13 +25,13 @@ public class DbUpApiTests : IAsyncLifetime
         // Reset database before each test
         try
         {
-            Console.WriteLine("Resetting database for DbUp test");
+            _output.WriteLine("Resetting database for DbUp test");
             await _fixture.ResetDatabaseAsync();
-            Console.WriteLine("Database reset complete for DbUp test");
+            _output.WriteLine("Database reset complete for DbUp test");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error during database reset for DbUp test: {ex.Message}");
+            _output.WriteLine($"Error during database reset for DbUp test: {ex.GetType().Name}");
             throw;
         }
     }
@@ -49,12 +52,12 @@ public class DbUpApiTests : IAsyncLifetime
         var price = 99.99m;
         var stock = 42;
 
-        // Use DbUp to directly insert data - setting IDENTITY_INSERT ON to allow explicit Id values
+        // Use DbUp to directly insert data - directly inserting values
         var insertScript = $@"
             SET IDENTITY_INSERT Products ON;
             
             INSERT INTO Products (Id, Name, Description, PriceAmount, PriceCurrency, Stock, LastUpdated)
-            VALUES ({productId}, '{productName}', '{productDescription}', {price}, 'USD', {stock}, GETUTCDATE());
+            VALUES ({productId}, '{productName.Replace("'", "''")}', '{productDescription.Replace("'", "''")}', {price.ToString().Replace(',', '.')}, 'USD', {stock}, GETUTCDATE());
             
             SET IDENTITY_INSERT Products OFF;
         ";
@@ -104,13 +107,18 @@ public class DbUpApiTests : IAsyncLifetime
         var createdProduct = await response.Content.ReadFromJsonAsync<ProductDto>();
         Assert.NotNull(createdProduct);
 
-        // Assert - Verify directly in database using SQL
+        // Assert - Verify directly in database using SQL with parameterized query
         using var connection = new SqlConnection(_fixture.ConnectionString);
         await connection.OpenAsync();
         
+        // Use parameterized query instead of string interpolation
         using var command = new SqlCommand(
-            $"SELECT COUNT(*) FROM Products WHERE Id = {createdProduct.Id} AND Name = '{newProduct.Name}'", 
+            "SELECT COUNT(*) FROM Products WHERE Id = @Id AND Name = @Name", 
             connection);
+        
+        command.Parameters.AddWithValue("@Id", createdProduct.Id);
+        command.Parameters.AddWithValue("@Name", newProduct.Name);
+        
         var result = await command.ExecuteScalarAsync();
         var count = result != null ? Convert.ToInt32(result) : 0;
         
@@ -147,7 +155,7 @@ public class DbUpApiTests : IAsyncLifetime
         var dbUpResult = upgradeEngine.PerformUpgrade();
         Assert.True(dbUpResult.Successful, $"DbUp script execution failed: {dbUpResult.Error}");
 
-        // Step 2: Verify table and data exists
+        // Step 2: Verify table and data exists using parameterized query
         using (var connection = new SqlConnection(_fixture.ConnectionString))
         {
             await connection.OpenAsync();
@@ -172,14 +180,17 @@ public class DbUpApiTests : IAsyncLifetime
         var cleanupResult = cleanupEngine.PerformUpgrade();
         Assert.True(cleanupResult.Successful, $"DbUp cleanup script execution failed: {cleanupResult.Error}");
 
-        // Step 4: Verify table was dropped
+        // Step 4: Verify table was dropped using parameterized query
         using (var connection = new SqlConnection(_fixture.ConnectionString))
         {
             await connection.OpenAsync();
             
             using var command = new SqlCommand(
-                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'TestTable'", 
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = @TableName", 
                 connection);
+            
+            command.Parameters.AddWithValue("@TableName", "TestTable");
+            
             var dropQueryResult = await command.ExecuteScalarAsync();
             var tableExists = dropQueryResult != null ? Convert.ToInt32(dropQueryResult) : 0;
             

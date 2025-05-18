@@ -18,6 +18,7 @@ using DotNet.Testcontainers.Builders;
 using System.Reflection;
 using DbUp;
 using DbUp.Engine;
+using DockerLearningApi.Infrastructure; // Added for IApiMarker access
 
 namespace DockerLearningApi.Tests.Integration;
 
@@ -256,9 +257,10 @@ public class TestDatabaseFixture : IAsyncLifetime
 }
 
 // Make ApiTestFixture have a parameterless constructor for xUnit and proper connection string sharing
-public class ApiTestFixture : WebApplicationFactory<Program>, IAsyncLifetime
+public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
 {
-    private TestDatabaseFixture _dbFixture;
+    private readonly TestDatabaseFixture _dbFixture;
+    private readonly ILogger<ApiTestFixture> _logger;
     public HttpClient Client { get; private set; } = null!;
     
     // Expose the connection string from the database fixture
@@ -267,6 +269,10 @@ public class ApiTestFixture : WebApplicationFactory<Program>, IAsyncLifetime
     // Parameterless constructor for xUnit collection fixture
     public ApiTestFixture()
     {
+        var loggerFactory = LoggerFactory.Create(builder => 
+            builder.AddConsole().SetMinimumLevel(LogLevel.Information));
+        _logger = loggerFactory.CreateLogger<ApiTestFixture>();
+        
         _dbFixture = new TestDatabaseFixture();
     }
     
@@ -297,26 +303,51 @@ public class ApiTestFixture : WebApplicationFactory<Program>, IAsyncLifetime
     
     public async Task InitializeAsync()
     {
-        // Initialize the database fixture first
-        await _dbFixture.InitializeAsync();
-        
-        // Then create the client with the configured web host
-        Client = CreateClient(new WebApplicationFactoryClientOptions
+        try
         {
-            AllowAutoRedirect = false
-        });
-        Console.WriteLine("Test API client created and ready");
+            // Initialize the database fixture first
+            _logger.LogInformation("Initializing database fixture");
+            await _dbFixture.InitializeAsync();
+            
+            // Then create the client with the configured web host
+            Client = CreateClient(new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = false
+            });
+            _logger.LogInformation("Test API client created and ready");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error initializing ApiTestFixture");
+            throw;
+        }
     }
     
     // Add 'new' keyword to hide the inherited member
     public new async Task DisposeAsync()
     {
-        await _dbFixture.DisposeAsync();
+        try 
+        {
+            await _dbFixture.DisposeAsync();
+            _logger.LogInformation("ApiTestFixture disposed");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error disposing ApiTestFixture");
+        }
     }
     
     public async Task ResetDatabaseAsync()
     {
-        await _dbFixture.ResetDatabaseAsync();
+        try
+        {
+            await _dbFixture.ResetDatabaseAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting database in ApiTestFixture");
+            throw;
+        }
     }
 }
 
