@@ -17,12 +17,12 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Configure Money value object as owned entity
+        // Configure Money value object to match the database columns in TestFixture
         modelBuilder.Entity<Product>()
             .OwnsOne(p => p.Price, priceBuilder =>
             {
-                priceBuilder.Property(m => m.Amount).HasColumnName("Price_Amount");
-                priceBuilder.Property(m => m.Currency).HasColumnName("Price_Currency").HasMaxLength(3);
+                priceBuilder.Property(m => m.Amount).HasColumnName("PriceAmount");
+                priceBuilder.Property(m => m.Currency).HasColumnName("PriceCurrency").HasMaxLength(3);
             });
     }
 }

@@ -67,8 +67,8 @@ public class Product
         LastUpdated = DateTime.UtcNow;
     }
 
-    // For EF Core
-    internal void SetId(int id)
+    // For EF Core and repositories - needs to be public for cross-assembly access
+    public void SetId(int id)
     {
         Id = id;
     }
