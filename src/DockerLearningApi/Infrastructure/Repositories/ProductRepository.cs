@@ -22,14 +22,14 @@ public class ProductRepository : IProductRepository
             return null;
 
         // Map from data model to domain entity
-        var product = Product.Create(
+        var product = new Product(
             productModel.Name,
             productModel.Description,
             Money.Create(productModel.Price.Amount, productModel.Price.Currency),
             productModel.Stock);
 
         // Use internal method to set the ID
-        ((dynamic)product).SetId(productModel.Id);
+        product.SetId(productModel.Id);
         
         return product;
     }
@@ -41,14 +41,14 @@ public class ProductRepository : IProductRepository
 
         foreach (var productModel in productModels)
         {
-            var product = Product.Create(
+            var product = new Product(
                 productModel.Name,
                 productModel.Description,
                 Money.Create(productModel.Price.Amount, productModel.Price.Currency),
                 productModel.Stock);
 
             // Use internal method to set the ID
-            ((dynamic)product).SetId(productModel.Id);
+            product.SetId(productModel.Id);
             
             products.Add(product);
         }
@@ -58,8 +58,8 @@ public class ProductRepository : IProductRepository
 
     public async Task<Product> AddAsync(Product product)
     {
-        // Create a new domain entity using the factory method
-        var productModel = Product.Create(
+        // Create a new domain entity using the constructor
+        var productModel = new Product(
             product.Name,
             product.Description,
             Money.Create(product.Price.Amount, product.Price.Currency),
@@ -70,7 +70,7 @@ public class ProductRepository : IProductRepository
         await _context.SaveChangesAsync();
 
         // Update domain entity with generated ID
-        ((dynamic)product).SetId(productModel.Id);
+        product.SetId(productModel.Id);
         
         return product;
     }

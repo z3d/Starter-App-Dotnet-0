@@ -12,8 +12,8 @@ public class Product
     public int Stock { get; private set; }
     public DateTime LastUpdated { get; private set; }
 
-    // Private constructor to enforce factory method pattern
-    private Product() 
+    // Protected constructor for EF Core
+    protected Product() 
     {
         // Initialize default values to satisfy non-nullable warnings
         Name = string.Empty;
@@ -21,8 +21,8 @@ public class Product
         LastUpdated = DateTime.UtcNow;
     }
 
-    // Factory method
-    public static Product Create(string name, string description, Money price, int stock)
+    // Public constructor (replacing the factory method)
+    public Product(string name, string description, Money price, int stock)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Product name cannot be empty", nameof(name));
@@ -33,14 +33,11 @@ public class Product
         if (stock < 0)
             throw new ArgumentException("Stock cannot be negative", nameof(stock));
 
-        return new Product
-        {
-            Name = name,
-            Description = description ?? string.Empty,
-            Price = price,
-            Stock = stock,
-            LastUpdated = DateTime.UtcNow
-        };
+        Name = name;
+        Description = description ?? string.Empty;
+        Price = price;
+        Stock = stock;
+        LastUpdated = DateTime.UtcNow;
     }
 
     // Domain methods

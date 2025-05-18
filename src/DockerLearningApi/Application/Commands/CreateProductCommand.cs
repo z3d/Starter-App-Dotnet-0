@@ -28,7 +28,7 @@ public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand>
 
     public async Task Handle(CreateProductCommand command, CancellationToken cancellationToken)
     {
-        var product = Product.Create(
+        var product = new Product(
             command.Name,
             command.Description,
             Money.Create(command.Price, command.Currency),
@@ -41,7 +41,7 @@ public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand>
     async Task<ProductDto> IRequestHandler<CreateProductCommand, ProductDto>.Handle(
         CreateProductCommand command, CancellationToken cancellationToken)
     {
-        var product = Product.Create(
+        var product = new Product(
             command.Name,
             command.Description,
             Money.Create(command.Price, command.Currency),

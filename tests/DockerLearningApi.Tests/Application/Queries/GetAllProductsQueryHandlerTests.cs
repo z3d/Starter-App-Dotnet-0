@@ -64,14 +64,10 @@ public class GetAllProductsQueryHandlerTests
 
     private static Product CreateTestProduct(int id, string name, string description, decimal price, int stock)
     {
-        var product = Product.Create(name, description, Money.Create(price), stock);
+        var product = new Product(name, description, Money.Create(price), stock);
         
-        // Set the ID using reflection since it has a private setter
-        var idProperty = typeof(Product).GetProperty("Id");
-        if (idProperty != null)
-        {
-            idProperty.SetValue(product, id, null);
-        }
+        // Use the public method to set the ID
+        product.SetId(id);
             
         return product;
     }
