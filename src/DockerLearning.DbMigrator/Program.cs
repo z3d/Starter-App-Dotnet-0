@@ -4,6 +4,41 @@ using Microsoft.Extensions.Configuration;
 
 namespace DockerLearning.DbMigrator;
 
+// Shared migration class that can be used by both the migrator and the API
+public static class DatabaseMigrationEngine
+{
+    public static bool MigrateDatabase(string connectionString, Assembly scriptsAssembly)
+    {
+        Console.WriteLine($"Starting database migration...");
+        
+        // Ensure database exists
+        EnsureDatabase.For.SqlDatabase(connectionString);
+        
+        // Configure DbUp to use standard journal (default "__SchemaVersions" table)
+        var upgrader = DeployChanges.To
+            .SqlDatabase(connectionString)
+            .WithScriptsEmbeddedInAssembly(scriptsAssembly)
+            .WithTransaction()
+            .LogToConsole()
+            .Build();
+
+        var result = upgrader.PerformUpgrade();
+
+        if (!result.Successful)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Database migration failed: {result.Error}");
+            Console.ResetColor();
+            return false;
+        }
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("Database migration completed successfully!");
+        Console.ResetColor();
+        return true;
+    }
+}
+
 class Program
 {
     static int Main(string[] args)
@@ -27,28 +62,11 @@ class Program
             return -1;
         }
 
-        Console.WriteLine($"Starting database migration...");
-        
-        var upgrader = DeployChanges.To
-            .SqlDatabase(connectionString)
-            .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
-            .WithTransaction()
-            .LogToConsole()
-            .Build();
+        // Use the shared migration engine
+        bool success = DatabaseMigrationEngine.MigrateDatabase(
+            connectionString, 
+            Assembly.GetExecutingAssembly());
 
-        var result = upgrader.PerformUpgrade();
-
-        if (!result.Successful)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Database migration failed: {result.Error}");
-            Console.ResetColor();
-            return -1;
-        }
-
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("Database migration completed successfully!");
-        Console.ResetColor();
-        return 0;
+        return success ? 0 : -1;
     }
 }

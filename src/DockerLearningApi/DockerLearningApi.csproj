@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DockerLearning.Domain\DockerLearning.Domain.csproj" />
+    <ProjectReference Include="..\DockerLearning.DbMigrator\DockerLearning.DbMigrator.csproj" />
   </ItemGroup>
 
 </Project>
