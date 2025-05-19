@@ -10,16 +10,11 @@ public static class DatabaseMigrator
     {
         EnsureDatabase.For.SqlDatabase(connectionString);
 
-        // Configure DbUp with our custom journal that handles existing PK constraints
-        var connectionManager = new DbUp.SqlServer.SqlConnectionManager(connectionString);
+        // Configure DbUp with standard journal
         var upgrader = DeployChanges.To
             .SqlDatabase(connectionString)
             .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
-            .JournalTo(new CustomSqlTableJournal(
-                () => connectionManager,
-                () => new DbUp.Engine.Output.ConsoleUpgradeLog(),
-                "dbo",
-                "SchemaVersions"))
+            .JournalToSqlTable("dbo", "SchemaVersions")
             .WithTransaction()
             .LogToConsole()
             .Build();
