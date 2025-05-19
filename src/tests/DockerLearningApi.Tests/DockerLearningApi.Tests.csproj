@@ -28,8 +28,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\DockerLearningApi\DockerLearningApi.csproj" />
-    <ProjectReference Include="..\..\src\DockerLearning.Domain\DockerLearning.Domain.csproj" />
+    <ProjectReference Include="..\..\DockerLearningApi\DockerLearningApi.csproj" />
+    <ProjectReference Include="..\..\DockerLearning.Domain\DockerLearning.Domain.csproj" />
   </ItemGroup>
 
 </Project>

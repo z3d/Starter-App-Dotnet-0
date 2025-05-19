@@ -21,8 +21,12 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Product>()
             .OwnsOne(p => p.Price, priceBuilder =>
             {
-                priceBuilder.Property(m => m.Amount).HasColumnName("PriceAmount");
-                priceBuilder.Property(m => m.Currency).HasColumnName("PriceCurrency").HasMaxLength(3);
+                priceBuilder.Property(m => m.Amount)
+                    .HasColumnName("PriceAmount")
+                    .HasPrecision(18, 2);  // Add precision and scale
+                priceBuilder.Property(m => m.Currency)
+                    .HasColumnName("PriceCurrency")
+                    .HasMaxLength(3);
             });
     }
 }
