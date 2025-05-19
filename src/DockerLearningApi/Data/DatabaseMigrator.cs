@@ -10,11 +10,10 @@ public static class DatabaseMigrator
     {
         EnsureDatabase.For.SqlDatabase(connectionString);
 
-        // Configure DbUp with standard journal
+        // Configure DbUp with standard journal (uses default "__SchemaVersions" table)
         var upgrader = DeployChanges.To
             .SqlDatabase(connectionString)
             .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
-            .JournalToSqlTable("dbo", "SchemaVersions")
             .WithTransaction()
             .LogToConsole()
             .Build();
