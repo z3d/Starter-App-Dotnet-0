@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="dbup-sqlserver" Version="6.0.0" />
+    <!-- Removed dbup-sqlserver as it's now provided by the DbMigrator project -->
     <PackageReference Include="MediatR" Version="11.1.0" />
     <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="11.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.3" />
@@ -17,10 +17,7 @@
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
   </ItemGroup>
 
-  <!-- Include SQL Scripts as Embedded Resources -->
-  <ItemGroup>
-    <EmbeddedResource Include="SqlScripts\*.sql" />
-  </ItemGroup>
+  <!-- No longer need SQL Scripts as embedded resources since they're in the DbMigrator project -->
 
   <ItemGroup>
     <ProjectReference Include="..\DockerLearning.Domain\DockerLearning.Domain.csproj" />
