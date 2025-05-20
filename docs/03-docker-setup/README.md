@@ -127,7 +127,7 @@ docker-compose up -d --build
 
 Once the containers are running, you can access:
 - The API at http://localhost:8080
-- Swagger UI at http://localhost:8080/swagger
+- API documentation at http://localhost:8080/openapi (only in Development environment)
 
 ### 7. Stopping the containers:
 

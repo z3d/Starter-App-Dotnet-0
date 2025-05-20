@@ -1,35 +1,52 @@
 # Use the .NET SDK image to build the application
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# Copy csproj and restore dependencies
-COPY ["DockerLearningApi.csproj", "./"]
-RUN dotnet restore
+# Copy csproj files first for better layer caching
+COPY ["DockerLearningApi/DockerLearningApi.csproj", "DockerLearningApi/"]
+COPY ["DockerLearning.Domain/DockerLearning.Domain.csproj", "DockerLearning.Domain/"]
+COPY ["DockerLearning.DbMigrator/DockerLearning.DbMigrator.csproj", "DockerLearning.DbMigrator/"]
 
-# Copy the rest of the code and build
+# Restore dependencies
+RUN dotnet restore "DockerLearningApi/DockerLearningApi.csproj"
+
+# Copy the rest of the code but exclude the DbMigrator's appsettings.json to avoid conflict
 COPY . .
-RUN dotnet publish -c Release -o /app/publish
+RUN rm -f /src/DockerLearning.DbMigrator/appsettings.json
+
+# Build the project
+WORKDIR "/src/DockerLearningApi"
+RUN dotnet build "DockerLearningApi.csproj" -c Release -o /app/build
+
+# Publish the application
+RUN dotnet publish "DockerLearningApi.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Build runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
-WORKDIR /app
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 
-# Copy EF Core tools to enable migrations
-COPY --from=build /root/.dotnet/tools /root/.dotnet/tools
-ENV PATH="/root/.dotnet/tools:${PATH}"
+# Install SQL Server tools and curl for healthcheck
+RUN apt-get update && apt-get install -y curl gnupg2 && \
+    curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
+    curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
+    apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 && \
+    echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> ~/.bashrc && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
 
 # Copy published app
 COPY --from=build /app/publish .
 
 # Make our migration script executable
-COPY ["Scripts/wait-for-db.sh", "./"]
+COPY ["DockerLearningApi/Scripts/wait-for-db.sh", "./"]
 RUN chmod +x ./wait-for-db.sh
 
 # Set environment variables
 ENV ASPNETCORE_ENVIRONMENT=Docker
 ENV ASPNETCORE_URLS=http://+:8080
+ENV PATH="$PATH:/opt/mssql-tools18/bin"
 
 EXPOSE 8080
 
-# Set the entry point
-ENTRYPOINT ["dotnet", "DockerLearningApi.dll"]
+# Set the entry point to use our wait-for-db script
+ENTRYPOINT ["./wait-for-db.sh", "dotnet", "DockerLearningApi.dll"]

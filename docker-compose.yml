@@ -3,8 +3,8 @@ version: '3.8'
 services:
   api:
     build:
-      context: ./src/DockerLearningApi
-      dockerfile: Dockerfile
+      context: ./src
+      dockerfile: DockerLearningApi/Dockerfile
     ports:
       - "8080:8080"
     environment:
@@ -17,8 +17,7 @@ services:
       retries: 3
       start_period: 10s
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     networks:
       - backend-network
     restart: unless-stopped
@@ -33,12 +32,6 @@ services:
       - "1433:1433"
     volumes:
       - sqldata:/var/opt/mssql
-    healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "YourStrong@Passw0rd" -Q "SELECT 1" || exit 1
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     networks:
       - backend-network
     restart: unless-stopped

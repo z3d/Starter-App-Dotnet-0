@@ -21,7 +21,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DockerLearning.Domain\DockerLearning.Domain.csproj" />
-    <ProjectReference Include="..\DockerLearning.DbMigrator\DockerLearning.DbMigrator.csproj" />
+    <ProjectReference Include="..\DockerLearning.DbMigrator\DockerLearning.DbMigrator.csproj">
+      <!-- Exclude conflicting appsettings.json from DbMigrator project -->
+      <ExcludeAssets>ContentFiles</ExcludeAssets>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>
