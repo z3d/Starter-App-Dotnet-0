@@ -1,8 +1,9 @@
 using DockerLearning.Domain.Entities;
-using DockerLearning.Domain.Interfaces;
+using DockerLearning.Domain.ValueObjects;
 using DockerLearningApi.Application.Commands;
 using DockerLearningApi.Application.DTOs;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Moq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,13 +13,15 @@ namespace DockerLearningApi.Tests.Application.Commands;
 
 public class CreateProductCommandHandlerTests
 {
-    private readonly Mock<IProductRepository> _mockRepository;
+    private readonly Mock<IProductCommandService> _mockCommandService;
+    private readonly Mock<ILogger<CreateProductCommandHandler>> _mockLogger;
     private readonly CreateProductCommandHandler _handler;
 
     public CreateProductCommandHandlerTests()
     {
-        _mockRepository = new Mock<IProductRepository>();
-        _handler = new CreateProductCommandHandler(_mockRepository.Object);
+        _mockCommandService = new Mock<IProductCommandService>();
+        _mockLogger = new Mock<ILogger<CreateProductCommandHandler>>();
+        _handler = new CreateProductCommandHandler(_mockCommandService.Object, _mockLogger.Object);
     }
 
     [Fact]
@@ -34,15 +37,16 @@ public class CreateProductCommandHandlerTests
             Stock = 100
         };
 
-        // Setup mock to return the product with an ID assigned
-        _mockRepository.Setup(r => r.AddAsync(It.IsAny<Product>()))
-            .ReturnsAsync((Product p) => {
-                var idProperty = typeof(Product).GetProperty("Id");
-                if (idProperty != null)
-                {
-                    idProperty.SetValue(p, 1, null);
-                }
-                return p;
+        // Setup mock to return a product with an ID assigned
+        _mockCommandService.Setup(s => s.CreateProductAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<Money>(),
+                It.IsAny<int>()))
+            .ReturnsAsync((string name, string description, Money price, int stock) => {
+                var product = new Product(name, description, price, stock);
+                product.SetId(1);
+                return product;
             });
 
         // Act
@@ -59,12 +63,11 @@ public class CreateProductCommandHandlerTests
         Assert.Equal(command.Currency, result.Currency);
         Assert.Equal(command.Stock, result.Stock);
 
-        _mockRepository.Verify(r => r.AddAsync(It.Is<Product>(p => 
-            p.Name == command.Name && 
-            p.Description == command.Description && 
-            p.Price.Amount == command.Price && 
-            p.Price.Currency == command.Currency && 
-            p.Stock == command.Stock)), 
+        _mockCommandService.Verify(s => s.CreateProductAsync(
+            command.Name,
+            command.Description,
+            It.Is<Money>(m => m.Amount == command.Price && m.Currency == command.Currency),
+            command.Stock), 
             Times.Once);
     }
 }

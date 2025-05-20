@@ -1,7 +1,8 @@
 using DockerLearningApi.Application.DTOs;
 using DockerLearningApi.Application.Interfaces;
-using DockerLearning.Domain.Interfaces;
+using DockerLearningApi.Application.ReadModels;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace DockerLearningApi.Application.Queries;
 
@@ -12,26 +13,37 @@ public class GetAllProductsQuery : IQuery<IEnumerable<ProductDto>>, IRequest<IEn
 public class GetAllProductsQueryHandler : IQueryHandler<GetAllProductsQuery, IEnumerable<ProductDto>>, 
                                          IRequestHandler<GetAllProductsQuery, IEnumerable<ProductDto>>
 {
-    private readonly IProductRepository _productRepository;
+    private readonly IProductQueryService _queryService;
+    private readonly ILogger<GetAllProductsQueryHandler> _logger;
 
-    public GetAllProductsQueryHandler(IProductRepository productRepository)
+    public GetAllProductsQueryHandler(
+        IProductQueryService queryService,
+        ILogger<GetAllProductsQueryHandler> logger)
     {
-        _productRepository = productRepository;
+        _queryService = queryService;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<ProductDto>> Handle(GetAllProductsQuery query, CancellationToken cancellationToken)
     {
-        var products = await _productRepository.GetAllAsync();
+        _logger.LogInformation("Handling GetAllProductsQuery");
         
-        return products.Select(p => new ProductDto
+        var products = await _queryService.GetAllProductsAsync();
+        
+        return products.Select(MapToDtoFromReadModel);
+    }
+
+    private static ProductDto MapToDtoFromReadModel(ProductReadModel readModel)
+    {
+        return new ProductDto
         {
-            Id = p.Id,
-            Name = p.Name,
-            Description = p.Description,
-            Price = p.Price.Amount,
-            Currency = p.Price.Currency,
-            Stock = p.Stock,
-            LastUpdated = p.LastUpdated
-        });
+            Id = readModel.Id,
+            Name = readModel.Name,
+            Description = readModel.Description,
+            Price = readModel.PriceAmount,
+            Currency = readModel.PriceCurrency,
+            Stock = readModel.Stock,
+            LastUpdated = readModel.LastUpdated
+        };
     }
 }

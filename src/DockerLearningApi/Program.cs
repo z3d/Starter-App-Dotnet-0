@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using Microsoft.OpenApi.Models;
+using DockerLearningApi.Application.Queries;
+using DockerLearningApi.Application.Commands;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,7 +47,13 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Add repositories
+// Register services for CQRS pattern
+// Register interfaces and implementations
+builder.Services.AddScoped<IProductCommandService, ProductCommandService>();
+builder.Services.AddScoped<IProductQueryService, ProductQueryService>();
+
+// Keeping repository for backward compatibility during transition
+// This can be removed once all code is migrated to the query/command services
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
 // Add MediatR - updated for MediatR 11.1.0

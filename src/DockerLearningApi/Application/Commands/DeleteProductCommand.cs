@@ -1,12 +1,12 @@
 using DockerLearningApi.Application.Interfaces;
-using DockerLearning.Domain.Interfaces;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace DockerLearningApi.Application.Commands;
 
-public class DeleteProductCommand : ICommand, IRequest<Unit>
+public class DeleteProductCommand : ICommand, IRequest<bool>
 {
-    public int Id { get; set; }
+    public int Id { get; }
 
     public DeleteProductCommand(int id)
     {
@@ -15,24 +15,34 @@ public class DeleteProductCommand : ICommand, IRequest<Unit>
 }
 
 public class DeleteProductCommandHandler : ICommandHandler<DeleteProductCommand>, 
-                                          IRequestHandler<DeleteProductCommand, Unit>
+                                         IRequestHandler<DeleteProductCommand, bool>
 {
-    private readonly IProductRepository _productRepository;
+    private readonly IProductCommandService _commandService;
+    private readonly ILogger<DeleteProductCommandHandler> _logger;
 
-    public DeleteProductCommandHandler(IProductRepository productRepository)
+    public DeleteProductCommandHandler(
+        IProductCommandService commandService,
+        ILogger<DeleteProductCommandHandler> logger)
     {
-        _productRepository = productRepository;
+        _commandService = commandService;
+        _logger = logger;
     }
 
     public async Task Handle(DeleteProductCommand command, CancellationToken cancellationToken)
     {
-        await _productRepository.DeleteAsync(command.Id);
+        _logger.LogInformation("Handling DeleteProductCommand for product {Id}", command.Id);
+        
+        var deleted = await _commandService.DeleteProductAsync(command.Id);
+        
+        if (!deleted)
+            throw new KeyNotFoundException($"Product with ID {command.Id} not found");
     }
 
-    async Task<Unit> IRequestHandler<DeleteProductCommand, Unit>.Handle(
+    async Task<bool> IRequestHandler<DeleteProductCommand, bool>.Handle(
         DeleteProductCommand command, CancellationToken cancellationToken)
     {
-        await Handle(command, cancellationToken);
-        return Unit.Value;
+        _logger.LogInformation("Handling DeleteProductCommand for product {Id}", command.Id);
+        
+        return await _commandService.DeleteProductAsync(command.Id);
     }
 }

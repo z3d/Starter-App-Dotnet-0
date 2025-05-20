@@ -1,11 +1,11 @@
+using DockerLearningApi.Application.DTOs;
 using DockerLearningApi.Application.Interfaces;
-using DockerLearning.Domain.Interfaces;
 using DockerLearning.Domain.ValueObjects;
 using MediatR;
 
 namespace DockerLearningApi.Application.Commands;
 
-public class UpdateProductCommand : ICommand, IRequest<Unit>
+public class UpdateProductCommand : ICommand, IRequest<ProductDto?>
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
@@ -16,40 +16,60 @@ public class UpdateProductCommand : ICommand, IRequest<Unit>
 }
 
 public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>, 
-                                          IRequestHandler<UpdateProductCommand, Unit>
+                                         IRequestHandler<UpdateProductCommand, ProductDto?>
 {
-    private readonly IProductRepository _productRepository;
+    private readonly IProductCommandService _commandService;
+    private readonly ILogger<UpdateProductCommandHandler> _logger;
 
-    public UpdateProductCommandHandler(IProductRepository productRepository)
+    public UpdateProductCommandHandler(
+        IProductCommandService commandService,
+        ILogger<UpdateProductCommandHandler> logger)
     {
-        _productRepository = productRepository;
+        _commandService = commandService;
+        _logger = logger;
     }
 
     public async Task Handle(UpdateProductCommand command, CancellationToken cancellationToken)
     {
-        var product = await _productRepository.GetByIdAsync(command.Id);
-        if (product == null)
-            throw new KeyNotFoundException($"Product with ID {command.Id} not found");
-
-        product.UpdateDetails(
+        _logger.LogInformation("Handling UpdateProductCommand for product {Id}", command.Id);
+        
+        var result = await _commandService.UpdateProductAsync(
+            command.Id,
             command.Name,
             command.Description,
-            Money.Create(command.Price, command.Currency)
+            Money.Create(command.Price, command.Currency),
+            command.Stock
         );
-
-        if (product.Stock != command.Stock)
-        {
-            var diff = command.Stock - product.Stock;
-            product.UpdateStock(diff);
-        }
-
-        await _productRepository.UpdateAsync(product);
+        
+        if (result == null)
+            throw new KeyNotFoundException($"Product with ID {command.Id} not found");
     }
 
-    async Task<Unit> IRequestHandler<UpdateProductCommand, Unit>.Handle(
+    async Task<ProductDto?> IRequestHandler<UpdateProductCommand, ProductDto?>.Handle(
         UpdateProductCommand command, CancellationToken cancellationToken)
     {
-        await Handle(command, cancellationToken);
-        return Unit.Value;
+        _logger.LogInformation("Handling UpdateProductCommand for product {Id}", command.Id);
+        
+        var updatedProduct = await _commandService.UpdateProductAsync(
+            command.Id,
+            command.Name,
+            command.Description,
+            Money.Create(command.Price, command.Currency),
+            command.Stock
+        );
+        
+        if (updatedProduct == null)
+            return null;
+
+        return new ProductDto
+        {
+            Id = updatedProduct.Id,
+            Name = updatedProduct.Name,
+            Description = updatedProduct.Description,
+            Price = updatedProduct.Price.Amount,
+            Currency = updatedProduct.Price.Currency,
+            Stock = updatedProduct.Stock,
+            LastUpdated = updatedProduct.LastUpdated
+        };
     }
 }

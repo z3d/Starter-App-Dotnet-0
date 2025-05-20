@@ -1,7 +1,5 @@
 using DockerLearningApi.Application.DTOs;
 using DockerLearningApi.Application.Interfaces;
-using DockerLearning.Domain.Entities;
-using DockerLearning.Domain.Interfaces;
 using DockerLearning.Domain.ValueObjects;
 using MediatR;
 
@@ -19,36 +17,40 @@ public class CreateProductCommand : ICommand, IRequest<ProductDto>
 public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand>, 
                                           IRequestHandler<CreateProductCommand, ProductDto>
 {
-    private readonly IProductRepository _productRepository;
+    private readonly IProductCommandService _commandService;
+    private readonly ILogger<CreateProductCommandHandler> _logger;
 
-    public CreateProductCommandHandler(IProductRepository productRepository)
+    public CreateProductCommandHandler(
+        IProductCommandService commandService,
+        ILogger<CreateProductCommandHandler> logger)
     {
-        _productRepository = productRepository;
+        _commandService = commandService;
+        _logger = logger;
     }
 
     public async Task Handle(CreateProductCommand command, CancellationToken cancellationToken)
     {
-        var product = new Product(
+        _logger.LogInformation("Handling CreateProductCommand");
+        
+        await _commandService.CreateProductAsync(
             command.Name,
             command.Description,
             Money.Create(command.Price, command.Currency),
             command.Stock
         );
-
-        await _productRepository.AddAsync(product);
     }
 
     async Task<ProductDto> IRequestHandler<CreateProductCommand, ProductDto>.Handle(
         CreateProductCommand command, CancellationToken cancellationToken)
     {
-        var product = new Product(
+        _logger.LogInformation("Handling CreateProductCommand to return ProductDto");
+        
+        var createdProduct = await _commandService.CreateProductAsync(
             command.Name,
             command.Description,
             Money.Create(command.Price, command.Currency),
             command.Stock
         );
-
-        var createdProduct = await _productRepository.AddAsync(product);
 
         return new ProductDto
         {
