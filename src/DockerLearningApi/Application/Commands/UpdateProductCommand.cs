@@ -2,6 +2,7 @@ using DockerLearningApi.Application.DTOs;
 using DockerLearningApi.Application.Interfaces;
 using DockerLearning.Domain.ValueObjects;
 using MediatR;
+using Serilog;
 
 namespace DockerLearningApi.Application.Commands;
 
@@ -19,19 +20,15 @@ public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>
                                          IRequestHandler<UpdateProductCommand, ProductDto?>
 {
     private readonly IProductCommandService _commandService;
-    private readonly ILogger<UpdateProductCommandHandler> _logger;
 
-    public UpdateProductCommandHandler(
-        IProductCommandService commandService,
-        ILogger<UpdateProductCommandHandler> logger)
+    public UpdateProductCommandHandler(IProductCommandService commandService)
     {
         _commandService = commandService;
-        _logger = logger;
     }
 
     public async Task Handle(UpdateProductCommand command, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Handling UpdateProductCommand for product {Id}", command.Id);
+        Log.Information("Handling UpdateProductCommand for product {Id}", command.Id);
         
         var result = await _commandService.UpdateProductAsync(
             command.Id,
@@ -48,7 +45,7 @@ public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>
     async Task<ProductDto?> IRequestHandler<UpdateProductCommand, ProductDto?>.Handle(
         UpdateProductCommand command, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Handling UpdateProductCommand for product {Id}", command.Id);
+        Log.Information("Handling UpdateProductCommand for product {Id}", command.Id);
         
         var updatedProduct = await _commandService.UpdateProductAsync(
             command.Id,

@@ -2,6 +2,7 @@ using DockerLearningApi.Application.DTOs;
 using DockerLearningApi.Application.Interfaces;
 using DockerLearning.Domain.ValueObjects;
 using MediatR;
+using Serilog;
 
 namespace DockerLearningApi.Application.Commands;
 
@@ -18,19 +19,15 @@ public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand>
                                           IRequestHandler<CreateProductCommand, ProductDto>
 {
     private readonly IProductCommandService _commandService;
-    private readonly ILogger<CreateProductCommandHandler> _logger;
 
-    public CreateProductCommandHandler(
-        IProductCommandService commandService,
-        ILogger<CreateProductCommandHandler> logger)
+    public CreateProductCommandHandler(IProductCommandService commandService)
     {
         _commandService = commandService;
-        _logger = logger;
     }
 
     public async Task Handle(CreateProductCommand command, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Handling CreateProductCommand");
+        Log.Information("Handling CreateProductCommand");
         
         await _commandService.CreateProductAsync(
             command.Name,
@@ -43,7 +40,7 @@ public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand>
     async Task<ProductDto> IRequestHandler<CreateProductCommand, ProductDto>.Handle(
         CreateProductCommand command, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Handling CreateProductCommand to return ProductDto");
+        Log.Information("Handling CreateProductCommand to return ProductDto");
         
         var createdProduct = await _commandService.CreateProductAsync(
             command.Name,

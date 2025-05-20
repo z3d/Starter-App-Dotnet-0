@@ -1,6 +1,7 @@
 using DockerLearning.Domain.Entities;
 using DockerLearning.Domain.ValueObjects;
 using DockerLearningApi.Data;
+using Serilog;
 
 namespace DockerLearningApi.Application.Commands;
 
@@ -10,17 +11,15 @@ namespace DockerLearningApi.Application.Commands;
 public class ProductCommandService : IProductCommandService
 {
     private readonly ApplicationDbContext _dbContext;
-    private readonly ILogger<ProductCommandService> _logger;
 
-    public ProductCommandService(ApplicationDbContext dbContext, ILogger<ProductCommandService> logger)
+    public ProductCommandService(ApplicationDbContext dbContext)
     {
         _dbContext = dbContext;
-        _logger = logger;
     }
 
     public async Task<Product> CreateProductAsync(string name, string description, Money price, int stock)
     {
-        _logger.LogInformation("Creating product {Name} with EF Core", name);
+        Log.Information("Creating product {Name} with EF Core", name);
         
         var product = new Product(name, description, price, stock);
         
@@ -32,12 +31,12 @@ public class ProductCommandService : IProductCommandService
 
     public async Task<Product?> UpdateProductAsync(int id, string name, string description, Money price, int stock)
     {
-        _logger.LogInformation("Updating product {Id} with EF Core", id);
+        Log.Information("Updating product {Id} with EF Core", id);
         
         var product = await _dbContext.Products.FindAsync(id);
         if (product == null)
         {
-            _logger.LogWarning("Product {Id} not found for update", id);
+            Log.Warning("Product {Id} not found for update", id);
             return null;
         }
 
@@ -56,12 +55,12 @@ public class ProductCommandService : IProductCommandService
 
     public async Task<bool> DeleteProductAsync(int id)
     {
-        _logger.LogInformation("Deleting product {Id} with EF Core", id);
+        Log.Information("Deleting product {Id} with EF Core", id);
         
         var product = await _dbContext.Products.FindAsync(id);
         if (product == null)
         {
-            _logger.LogWarning("Product {Id} not found for deletion", id);
+            Log.Warning("Product {Id} not found for deletion", id);
             return false;
         }
         

@@ -1,6 +1,7 @@
 using Dapper;
 using DockerLearningApi.Application.ReadModels;
 using Microsoft.Data.SqlClient;
+using Serilog;
 
 namespace DockerLearningApi.Application.Queries;
 
@@ -10,13 +11,11 @@ namespace DockerLearningApi.Application.Queries;
 public class ProductQueryService : IProductQueryService
 {
     private readonly string _connectionString;
-    private readonly ILogger<ProductQueryService> _logger;
 
-    public ProductQueryService(IConfiguration configuration, ILogger<ProductQueryService> logger)
+    public ProductQueryService(IConfiguration configuration)
     {
         _connectionString = configuration.GetConnectionString("DefaultConnection") ?? 
             throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-        _logger = logger;
     }
 
     public async Task<IEnumerable<ProductReadModel>> GetAllProductsAsync()
@@ -24,7 +23,7 @@ public class ProductQueryService : IProductQueryService
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync();
 
-        _logger.LogInformation("Retrieving all products using Dapper");
+        Log.Information("Retrieving all products using Dapper");
         
         var query = @"
             SELECT 
@@ -45,7 +44,7 @@ public class ProductQueryService : IProductQueryService
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync();
 
-        _logger.LogInformation("Retrieving product {Id} using Dapper", id);
+        Log.Information("Retrieving product {Id} using Dapper", id);
         
         var query = @"
             SELECT 

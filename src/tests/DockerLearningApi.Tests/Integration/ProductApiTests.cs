@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using DockerLearningApi.Application.Commands;
 using DockerLearningApi.Application.DTOs;
-using Microsoft.Extensions.Logging;
 using Xunit.Abstractions;
 
 namespace DockerLearningApi.Tests.Integration;

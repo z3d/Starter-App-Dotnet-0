@@ -1,7 +1,6 @@
 using DockerLearningApi.Application.DTOs;
 using DockerLearningApi.Application.Queries;
 using DockerLearningApi.Application.ReadModels;
-using Microsoft.Extensions.Logging;
 using Moq;
 using System;
 using System.Collections.Generic;
@@ -15,14 +14,12 @@ namespace DockerLearningApi.Tests.Application.Queries;
 public class GetAllProductsQueryHandlerTests
 {
     private readonly Mock<IProductQueryService> _mockQueryService;
-    private readonly Mock<ILogger<GetAllProductsQueryHandler>> _mockLogger;
     private readonly GetAllProductsQueryHandler _handler;
 
     public GetAllProductsQueryHandlerTests()
     {
         _mockQueryService = new Mock<IProductQueryService>();
-        _mockLogger = new Mock<ILogger<GetAllProductsQueryHandler>>();
-        _handler = new GetAllProductsQueryHandler(_mockQueryService.Object, _mockLogger.Object);
+        _handler = new GetAllProductsQueryHandler(_mockQueryService.Object);
     }
 
     [Fact]

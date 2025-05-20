@@ -9,6 +9,7 @@ using System.Threading.RateLimiting;
 using Microsoft.OpenApi.Models;
 using DockerLearningApi.Application.Queries;
 using DockerLearningApi.Application.Commands;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 

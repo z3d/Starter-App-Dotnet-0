@@ -2,7 +2,7 @@ using DockerLearningApi.Application.DTOs;
 using DockerLearningApi.Application.Interfaces;
 using DockerLearningApi.Application.ReadModels;
 using MediatR;
-using Microsoft.Extensions.Logging;
+using Serilog;
 
 namespace DockerLearningApi.Application.Queries;
 
@@ -14,19 +14,15 @@ public class GetAllProductsQueryHandler : IQueryHandler<GetAllProductsQuery, IEn
                                          IRequestHandler<GetAllProductsQuery, IEnumerable<ProductDto>>
 {
     private readonly IProductQueryService _queryService;
-    private readonly ILogger<GetAllProductsQueryHandler> _logger;
 
-    public GetAllProductsQueryHandler(
-        IProductQueryService queryService,
-        ILogger<GetAllProductsQueryHandler> logger)
+    public GetAllProductsQueryHandler(IProductQueryService queryService)
     {
         _queryService = queryService;
-        _logger = logger;
     }
 
     public async Task<IEnumerable<ProductDto>> Handle(GetAllProductsQuery query, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Handling GetAllProductsQuery");
+        Log.Information("Handling GetAllProductsQuery");
         
         var products = await _queryService.GetAllProductsAsync();
         

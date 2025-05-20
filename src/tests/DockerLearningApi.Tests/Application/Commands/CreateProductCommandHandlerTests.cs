@@ -3,7 +3,6 @@ using DockerLearning.Domain.ValueObjects;
 using DockerLearningApi.Application.Commands;
 using DockerLearningApi.Application.DTOs;
 using MediatR;
-using Microsoft.Extensions.Logging;
 using Moq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,14 +13,12 @@ namespace DockerLearningApi.Tests.Application.Commands;
 public class CreateProductCommandHandlerTests
 {
     private readonly Mock<IProductCommandService> _mockCommandService;
-    private readonly Mock<ILogger<CreateProductCommandHandler>> _mockLogger;
     private readonly CreateProductCommandHandler _handler;
 
     public CreateProductCommandHandlerTests()
     {
         _mockCommandService = new Mock<IProductCommandService>();
-        _mockLogger = new Mock<ILogger<CreateProductCommandHandler>>();
-        _handler = new CreateProductCommandHandler(_mockCommandService.Object, _mockLogger.Object);
+        _handler = new CreateProductCommandHandler(_mockCommandService.Object);
     }
 
     [Fact]

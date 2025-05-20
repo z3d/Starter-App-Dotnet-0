@@ -1,6 +1,6 @@
 using DockerLearningApi.Application.Interfaces;
 using MediatR;
-using Microsoft.Extensions.Logging;
+using Serilog;
 
 namespace DockerLearningApi.Application.Commands;
 
@@ -18,19 +18,15 @@ public class DeleteProductCommandHandler : ICommandHandler<DeleteProductCommand>
                                          IRequestHandler<DeleteProductCommand, bool>
 {
     private readonly IProductCommandService _commandService;
-    private readonly ILogger<DeleteProductCommandHandler> _logger;
 
-    public DeleteProductCommandHandler(
-        IProductCommandService commandService,
-        ILogger<DeleteProductCommandHandler> logger)
+    public DeleteProductCommandHandler(IProductCommandService commandService)
     {
         _commandService = commandService;
-        _logger = logger;
     }
 
     public async Task Handle(DeleteProductCommand command, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Handling DeleteProductCommand for product {Id}", command.Id);
+        Log.Information("Handling DeleteProductCommand for product {Id}", command.Id);
         
         var deleted = await _commandService.DeleteProductAsync(command.Id);
         
@@ -41,7 +37,7 @@ public class DeleteProductCommandHandler : ICommandHandler<DeleteProductCommand>
     async Task<bool> IRequestHandler<DeleteProductCommand, bool>.Handle(
         DeleteProductCommand command, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Handling DeleteProductCommand for product {Id}", command.Id);
+        Log.Information("Handling DeleteProductCommand for product {Id}", command.Id);
         
         return await _commandService.DeleteProductAsync(command.Id);
     }

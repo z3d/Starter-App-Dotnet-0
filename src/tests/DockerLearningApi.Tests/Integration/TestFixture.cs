@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Respawn;
@@ -13,12 +14,12 @@ using Respawn.Graph;
 using System.Data.SqlClient;
 using DotNet.Testcontainers.Configurations;
 using DotNet.Testcontainers.Containers;
-using Microsoft.Extensions.Logging;
 using DotNet.Testcontainers.Builders;
 using System.Reflection;
 using DbUp;
 using DbUp.Engine;
 using DockerLearningApi.Infrastructure; // Added for IApiMarker access
+using Serilog;
 
 namespace DockerLearningApi.Tests.Integration;
 
@@ -260,7 +261,7 @@ public class TestDatabaseFixture : IAsyncLifetime
 public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
 {
     private readonly TestDatabaseFixture _dbFixture;
-    private readonly ILogger<ApiTestFixture> _logger;
+    private readonly Serilog.ILogger _logger;
     public HttpClient Client { get; private set; } = null!;
     
     // Expose the connection string from the database fixture
@@ -269,9 +270,10 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
     // Parameterless constructor for xUnit collection fixture
     public ApiTestFixture()
     {
-        var loggerFactory = LoggerFactory.Create(builder => 
-            builder.AddConsole().SetMinimumLevel(LogLevel.Information));
-        _logger = loggerFactory.CreateLogger<ApiTestFixture>();
+        _logger = new LoggerConfiguration()
+            .MinimumLevel.Information()
+            .WriteTo.Console()
+            .CreateLogger();
         
         _dbFixture = new TestDatabaseFixture();
     }
@@ -289,10 +291,10 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
             }
         });
         
-        builder.ConfigureLogging(logging =>
+        builder.ConfigureLogging(logging => 
         {
             logging.ClearProviders();
-            logging.AddConsole();
+            logging.AddSerilog(_logger);
         });
         
         builder.ConfigureTestServices(services =>
@@ -306,7 +308,7 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
         try
         {
             // Initialize the database fixture first
-            _logger.LogInformation("Initializing database fixture");
+            Log.Information("Initializing database fixture");
             await _dbFixture.InitializeAsync();
             
             // Then create the client with the configured web host
@@ -314,11 +316,11 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
             {
                 AllowAutoRedirect = false
             });
-            _logger.LogInformation("Test API client created and ready");
+            Log.Information("Test API client created and ready");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error initializing ApiTestFixture");
+            Log.Error(ex, "Error initializing ApiTestFixture");
             throw;
         }
     }
@@ -329,11 +331,11 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
         try 
         {
             await _dbFixture.DisposeAsync();
-            _logger.LogInformation("ApiTestFixture disposed");
+            Log.Information("ApiTestFixture disposed");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error disposing ApiTestFixture");
+            Log.Error(ex, "Error disposing ApiTestFixture");
         }
     }
     
@@ -345,7 +347,7 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error resetting database in ApiTestFixture");
+            Log.Error(ex, "Error resetting database in ApiTestFixture");
             throw;
         }
     }

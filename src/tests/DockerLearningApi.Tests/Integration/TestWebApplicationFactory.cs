@@ -12,7 +12,8 @@ using Testcontainers.MsSql;
 using DbUp;
 using DockerLearningApi.Data;
 using DockerLearningApi.Infrastructure;
-using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Events;
 
 namespace DockerLearningApi.Tests.Integration;
 
@@ -22,16 +23,16 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
     private readonly MsSqlContainer _sqlContainer;
     private DbConnection _dbConnection = null!;
     private Respawner _respawner = null!;
-    private readonly ILogger<TestWebApplicationFactory> _logger;
     
     public string ConnectionString { get; private set; } = null!;
 
     public TestWebApplicationFactory()
     {
-        // Create a logger factory and logger for cleaner test output
-        var loggerFactory = LoggerFactory.Create(builder => 
-            builder.AddConsole().SetMinimumLevel(LogLevel.Information));
-        _logger = loggerFactory.CreateLogger<TestWebApplicationFactory>();
+        // Configure Serilog for tests
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Information()
+            .WriteTo.Console()
+            .CreateLogger();
         
         // Use a secure password with config (this could be fetched from user secrets in a real app)
         var containerPassword = "TestContainer!Password123";
@@ -82,11 +83,11 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
     {
         try
         {
-            _logger.LogInformation("Starting SQL Server container for tests");
+            Log.Information("Starting SQL Server container for tests");
             await _sqlContainer.StartAsync();
             
             ConnectionString = _sqlContainer.GetConnectionString();
-            _logger.LogInformation("SQL Server container started");
+            Log.Information("SQL Server container started");
             
             // Apply migrations using DbUp
             var upgrader = DeployChanges.To
@@ -100,7 +101,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
             
             if (!result.Successful)
             {
-                _logger.LogError("Database migration failed: {Error}", result.Error);
+                Log.Error("Database migration failed: {Error}", result.Error);
                 throw new Exception($"Database migration failed: {result.Error}");
             }
 
@@ -116,11 +117,11 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
                 TablesToIgnore = new Table[] { new Table("__SchemaVersions") } // Ignore DbUp's version table
             });
             
-            _logger.LogInformation("Test database initialized successfully");
+            Log.Information("Test database initialized successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error initializing test database");
+            Log.Error(ex, "Error initializing test database");
             // Clean up container if initialization fails
             await _sqlContainer.DisposeAsync();
             throw;
@@ -135,7 +136,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error resetting database");
+            Log.Error(ex, "Error resetting database");
             throw;
         }
     }
@@ -153,12 +154,12 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
             if (_sqlContainer != null)
             {
                 await _sqlContainer.DisposeAsync();
-                _logger.LogInformation("Test container resources cleaned up");
+                Log.Information("Test container resources cleaned up");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during test cleanup");
+            Log.Error(ex, "Error during test cleanup");
         }
     }
 }

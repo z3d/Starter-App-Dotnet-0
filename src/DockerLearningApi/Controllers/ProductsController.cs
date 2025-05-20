@@ -1,3 +1,10 @@
+using DockerLearningApi.Application.Commands;
+using DockerLearningApi.Application.DTOs;
+using DockerLearningApi.Application.Queries;
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using Serilog;
+
 namespace DockerLearningApi.Controllers;
 
 [ApiController]
@@ -5,19 +12,17 @@ namespace DockerLearningApi.Controllers;
 public class ProductsController : ControllerBase
 {
     private readonly IMediator _mediator;
-    private readonly ILogger<ProductsController> _logger;
 
-    public ProductsController(IMediator mediator, ILogger<ProductsController> logger)
+    public ProductsController(IMediator mediator)
     {
         _mediator = mediator;
-        _logger = logger;
     }
 
     // GET: api/Products
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts()
     {
-        _logger.LogInformation("Getting all products");
+        Log.Information("Getting all products");
         var query = new GetAllProductsQuery();
         var result = await _mediator.Send(query);
         return Ok(result);
@@ -27,13 +32,13 @@ public class ProductsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<ProductDto>> GetProduct(int id)
     {
-        _logger.LogInformation("Getting product with ID: {Id}", id);
+        Log.Information("Getting product with ID: {Id}", id);
         var query = new GetProductByIdQuery(id);
         var result = await _mediator.Send(query);
 
         if (result == null)
         {
-            _logger.LogWarning("Product with ID: {Id} not found", id);
+            Log.Warning("Product with ID: {Id} not found", id);
             return NotFound();
         }
 
@@ -44,10 +49,10 @@ public class ProductsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ProductDto>> CreateProduct(CreateProductCommand command)
     {
-        _logger.LogInformation("Creating a new product");
+        Log.Information("Creating a new product");
         var result = await _mediator.Send(command);
         
-        _logger.LogInformation("Created new product with ID: {Id}", result.Id);
+        Log.Information("Created new product with ID: {Id}", result.Id);
         return CreatedAtAction(nameof(GetProduct), new { id = result.Id }, result);
     }
 
@@ -60,16 +65,16 @@ public class ProductsController : ControllerBase
             return BadRequest("ID in URL does not match ID in request body");
         }
 
-        _logger.LogInformation("Updating product with ID: {Id}", id);
+        Log.Information("Updating product with ID: {Id}", id);
         
         try
         {
             await _mediator.Send(command);
-            _logger.LogInformation("Updated product with ID: {Id}", id);
+            Log.Information("Updated product with ID: {Id}", id);
         }
         catch (KeyNotFoundException)
         {
-            _logger.LogWarning("Product with ID: {Id} not found during update", id);
+            Log.Warning("Product with ID: {Id} not found during update", id);
             return NotFound();
         }
 
@@ -80,16 +85,16 @@ public class ProductsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteProduct(int id)
     {
-        _logger.LogInformation("Deleting product with ID: {Id}", id);
+        Log.Information("Deleting product with ID: {Id}", id);
         
         try
         {
             await _mediator.Send(new DeleteProductCommand(id));
-            _logger.LogInformation("Deleted product with ID: {Id}", id);
+            Log.Information("Deleted product with ID: {Id}", id);
         }
         catch (KeyNotFoundException)
         {
-            _logger.LogWarning("Product with ID: {Id} not found during delete", id);
+            Log.Warning("Product with ID: {Id} not found during delete", id);
             return NotFound();
         }
 

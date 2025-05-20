@@ -2,6 +2,7 @@ using DockerLearningApi.Application.DTOs;
 using DockerLearningApi.Application.Interfaces;
 using DockerLearningApi.Application.ReadModels;
 using MediatR;
+using Serilog;
 
 namespace DockerLearningApi.Application.Queries;
 
@@ -19,25 +20,21 @@ public class GetProductByIdQueryHandler : IQueryHandler<GetProductByIdQuery, Pro
                                          IRequestHandler<GetProductByIdQuery, ProductDto?>
 {
     private readonly IProductQueryService _queryService;
-    private readonly ILogger<GetProductByIdQueryHandler> _logger;
 
-    public GetProductByIdQueryHandler(
-        IProductQueryService queryService,
-        ILogger<GetProductByIdQueryHandler> logger)
+    public GetProductByIdQueryHandler(IProductQueryService queryService)
     {
         _queryService = queryService;
-        _logger = logger;
     }
 
     public async Task<ProductDto?> Handle(GetProductByIdQuery query, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Handling GetProductByIdQuery for product {Id}", query.Id);
+        Log.Information("Handling GetProductByIdQuery for product {Id}", query.Id);
         
         var product = await _queryService.GetProductByIdAsync(query.Id);
         
         if (product == null)
         {
-            _logger.LogWarning("Product with ID {Id} not found", query.Id);
+            Log.Warning("Product with ID {Id} not found", query.Id);
             return null;
         }
             
