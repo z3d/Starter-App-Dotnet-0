@@ -7,6 +7,9 @@ global using System.Collections.Generic;
 global using Xunit;
 global using Moq;
 global using MediatR;
+global using Serilog;
+global using Serilog.Events;
+global using Xunit.Abstractions;
 
 global using DockerLearning.Domain.Entities;
 global using DockerLearning.Domain.Interfaces;
