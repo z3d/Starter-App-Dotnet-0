@@ -1,8 +1,4 @@
 using DockerLearningApi.Data;
-using DockerLearning.Domain.Interfaces;
-using DockerLearningApi.Infrastructure.Repositories;
-using Microsoft.EntityFrameworkCore;
-using Serilog;
 using System.Reflection;
 using Microsoft.AspNetCore.Diagnostics;
 using System.Net;

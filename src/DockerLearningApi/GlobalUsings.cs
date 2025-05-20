@@ -1,19 +1,19 @@
+// Essential .NET namespaces
 global using System.Text.Json;
 global using System.Text.Json.Serialization;
 global using System.ComponentModel.DataAnnotations;
 global using System.ComponentModel.DataAnnotations.Schema;
 
+// Microsoft namespaces
 global using Microsoft.AspNetCore.Mvc;
 global using Microsoft.EntityFrameworkCore;
-global using Microsoft.Extensions.Logging;
 
+// Third-party libraries
 global using MediatR;
 
+// Logging with Serilog
 global using Serilog;
 global using Serilog.Events;
-global using Serilog.Context;
-global using Serilog.Core;
-global using Serilog.Configuration;
 
 // Domain references
 global using DockerLearning.Domain.Entities;

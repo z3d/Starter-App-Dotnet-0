@@ -1,9 +1,3 @@
-using DockerLearningApi.Application.Commands;
-using DockerLearningApi.Application.DTOs;
-using DockerLearningApi.Application.Queries;
-using MediatR;
-using Microsoft.AspNetCore.Mvc;
-
 namespace DockerLearningApi.Controllers;
 
 [ApiController]

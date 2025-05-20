@@ -1,7 +1,3 @@
-using DockerLearning.Domain.Entities;
-using DockerLearning.Domain.ValueObjects;
-using Microsoft.EntityFrameworkCore;
-
 namespace DockerLearningApi.Data;
 
 public class ApplicationDbContext : DbContext
