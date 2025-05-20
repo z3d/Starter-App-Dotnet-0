@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,7 +26,20 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 );
 
 // Add services to the container.
-builder.Services.AddOpenApi();
+// Replace AddOpenApi with proper Swagger configuration
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { 
+        Title = "Docker Learning API", 
+        Version = "v1",
+        Description = "A sample API for Docker learning",
+        Contact = new OpenApiContact
+        {
+            Name = "Docker Learning Team"
+        }
+    });
+});
 
 // Add Database context
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -85,9 +99,14 @@ try
     Log.Information("Starting up application");
 
     // Configure the HTTP request pipeline.
-    if (app.Environment.IsDevelopment())
+    if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docker")
     {
-        app.MapOpenApi();
+        // Enable Swagger in both Development and Docker environments
+        app.UseSwagger();
+        app.UseSwaggerUI(c => {
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "Docker Learning API v1");
+            c.RoutePrefix = "swagger";
+        });
     }
     else
     {
