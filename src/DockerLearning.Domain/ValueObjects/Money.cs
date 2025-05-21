@@ -2,6 +2,8 @@ namespace DockerLearning.Domain.ValueObjects;
 
 public class Money
 {
+    public const int MaxCurrencyLength = 3;
+
     public decimal Amount { get; }
     public string Currency { get; }
 
@@ -18,6 +20,9 @@ public class Money
 
         if (string.IsNullOrWhiteSpace(currency))
             throw new ArgumentException("Currency cannot be empty", nameof(currency));
+            
+        if (currency.Length > MaxCurrencyLength)
+            throw new ArgumentException($"Currency code cannot exceed {MaxCurrencyLength} characters", nameof(currency));
 
         return new Money(amount, currency);
     }

@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-
-namespace DockerLearning.DbMigrator;
+﻿namespace DockerLearning.DbMigrator;
 
 class Program
 {

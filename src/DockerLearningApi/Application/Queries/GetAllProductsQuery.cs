@@ -1,8 +1,5 @@
-using DockerLearningApi.Application.DTOs;
-using DockerLearningApi.Application.Interfaces;
 using DockerLearningApi.Application.ReadModels;
-using MediatR;
-using Serilog;
+using DockerLearningApi.Application.Interfaces;
 
 namespace DockerLearningApi.Application.Queries;
 

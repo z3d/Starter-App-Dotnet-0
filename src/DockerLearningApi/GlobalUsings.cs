@@ -24,4 +24,6 @@ global using DockerLearning.Domain.Interfaces;
 global using DockerLearningApi.Application.DTOs;
 global using DockerLearningApi.Application.Commands;
 global using DockerLearningApi.Application.Queries;
+global using DockerLearningApi.Application.ReadModels;
+global using DockerLearningApi.Application.Interfaces;
 global using DockerLearningApi.Infrastructure.Repositories;
