@@ -37,8 +37,49 @@ WORKDIR /app
 # Copy published app
 COPY --from=build /app/publish .
 
+# Create the wait-for-db.sh script directly in the container
+RUN echo '#!/bin/bash\n\
+\n\
+set -e\n\
+\n\
+echo "Waiting for SQL Server to start..."\n\
+\n\
+# Set connection timeout variables\n\
+MAX_RETRIES=60\n\
+RETRY_INTERVAL=5\n\
+RETRY_COUNT=0\n\
+\n\
+# Extract host and port from connection string if needed\n\
+DB_HOST="db"\n\
+DB_PORT="1433"\n\
+\n\
+# Wait for database to be ready\n\
+until /opt/mssql-tools18/bin/sqlcmd -S ${DB_HOST},${DB_PORT} -U sa -P "YourStrong@Passw0rd" -Q "SELECT 1" &> /dev/null || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do\n\
+    echo "SQL Server is starting up. Attempt ${RETRY_COUNT}/${MAX_RETRIES}..."\n\
+    RETRY_COUNT=$((RETRY_COUNT+1))\n\
+    sleep $RETRY_INTERVAL\n\
+done\n\
+\n\
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then\n\
+    echo "Timed out waiting for SQL Server to start. The application will continue, but may fail if database is not available."\n\
+else\n\
+    echo "SQL Server is now accepting connections!"\n\
+    \n\
+    # Wait a bit more to ensure SQL Server is fully initialized\n\
+    echo "Giving SQL Server a moment to fully initialize..."\n\
+    sleep 5\n\
+    \n\
+    # Create the database if it does not exist\n\
+    echo "Ensuring ProductsDb database exists..."\n\
+    /opt/mssql-tools18/bin/sqlcmd -S ${DB_HOST},${DB_PORT} -U sa -P "YourStrong@Passw0rd" -Q "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '"'"'ProductsDb'"'"') CREATE DATABASE ProductsDb"\n\
+fi\n\
+\n\
+echo "Database migrations will be applied automatically on application startup via DbUp."\n\
+echo "Starting application..."\n\
+\n\
+exec "$@"' > wait-for-db.sh
+
 # Make our migration script executable
-COPY ["DockerLearningApi/Scripts/wait-for-db.sh", "./"]
 RUN chmod +x ./wait-for-db.sh
 
 # Set environment variables
