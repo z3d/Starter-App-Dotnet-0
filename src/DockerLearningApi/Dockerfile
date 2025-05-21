@@ -48,23 +48,30 @@ echo "Waiting for SQL Server to start..."\n\
 MAX_RETRIES=60\n\
 RETRY_INTERVAL=5\n\
 RETRY_COUNT=0\n\
+DB_READY=false\n\
 \n\
 # Extract host and port from connection string if needed\n\
 DB_HOST="db"\n\
 DB_PORT="1433"\n\
 \n\
 # Wait for database to be ready\n\
-until /opt/mssql-tools18/bin/sqlcmd -S ${DB_HOST},${DB_PORT} -U sa -P "YourStrong@Passw0rd" -Q "SELECT 1" &> /dev/null || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do\n\
-    echo "SQL Server is starting up. Attempt ${RETRY_COUNT}/${MAX_RETRIES}..."\n\
-    RETRY_COUNT=$((RETRY_COUNT+1))\n\
-    sleep $RETRY_INTERVAL\n\
+while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$DB_READY" = "false" ]; do\n\
+    echo "SQL Server connection attempt ${RETRY_COUNT}/${MAX_RETRIES}..."\n\
+    \n\
+    if /opt/mssql-tools18/bin/sqlcmd -S ${DB_HOST},${DB_PORT} -U sa -P "YourStrong@Passw0rd" -Q "SELECT 1" &> /dev/null; then\n\
+        echo "SQL Server is now accepting connections!"\n\
+        DB_READY=true\n\
+    else\n\
+        echo "SQL Server not ready yet..."\n\
+        RETRY_COUNT=$((RETRY_COUNT+1))\n\
+        sleep $RETRY_INTERVAL\n\
+    fi\n\
 done\n\
 \n\
-if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then\n\
-    echo "Timed out waiting for SQL Server to start. The application will continue, but may fail if database is not available."\n\
+if [ "$DB_READY" = "false" ]; then\n\
+    echo "ERROR: Timed out waiting for SQL Server to start after ${MAX_RETRIES} attempts."\n\
+    echo "The application will continue, but may fail if database is not available."\n\
 else\n\
-    echo "SQL Server is now accepting connections!"\n\
-    \n\
     # Wait a bit more to ensure SQL Server is fully initialized\n\
     echo "Giving SQL Server a moment to fully initialize..."\n\
     sleep 5\n\
