@@ -1,11 +1,3 @@
-using System.Data.SqlClient;
-using DockerLearningApi.Application.Commands;
-using DockerLearningApi.Application.DTOs;
-using System.Net.Http.Json;
-using DbUp;
-using DbUp.Engine;
-using Xunit.Abstractions;
-
 namespace DockerLearningApi.Tests.Integration;
 
 [Collection("Integration Tests")]

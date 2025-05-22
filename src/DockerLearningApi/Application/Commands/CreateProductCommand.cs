@@ -1,9 +1,3 @@
-using DockerLearningApi.Application.DTOs;
-using DockerLearningApi.Application.Interfaces;
-using DockerLearning.Domain.ValueObjects;
-using MediatR;
-using Serilog;
-
 namespace DockerLearningApi.Application.Commands;
 
 public class CreateProductCommand : ICommand, IRequest<ProductDto>

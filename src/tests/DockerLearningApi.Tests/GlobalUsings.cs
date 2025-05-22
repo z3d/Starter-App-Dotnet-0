@@ -8,6 +8,7 @@ global using System.ComponentModel.DataAnnotations;
 global using System.Net;
 global using System.Net.Http;
 global using System.Net.Http.Json;
+global using System.Data.SqlClient;
 
 // Testing frameworks
 global using Xunit;
@@ -16,6 +17,8 @@ global using Moq;
 
 // Application libraries
 global using MediatR;
+global using DbUp;
+global using DbUp.Engine;
 
 // Logging with Serilog
 global using Serilog;

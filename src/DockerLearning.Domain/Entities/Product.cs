@@ -1,5 +1,3 @@
-using DockerLearning.Domain.ValueObjects;
-
 namespace DockerLearning.Domain.Entities;
 
 public class Product
