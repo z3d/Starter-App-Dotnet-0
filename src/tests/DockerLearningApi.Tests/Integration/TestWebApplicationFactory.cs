@@ -106,7 +106,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
             }
 
             // Set up connection for Respawn
-            _dbConnection = new SqlConnection(ConnectionString);
+            _dbConnection = new Microsoft.Data.SqlClient.SqlConnection(ConnectionString);
             await _dbConnection.OpenAsync();
             
             // Initialize Respawn for database cleanup
