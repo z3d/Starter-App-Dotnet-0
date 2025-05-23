@@ -1,7 +1,4 @@
-using DockerLearning.Domain.Entities;
-using DockerLearning.Domain.ValueObjects;
 using DockerLearningApi.Data;
-using Serilog;
 
 namespace DockerLearningApi.Application.Commands;
 

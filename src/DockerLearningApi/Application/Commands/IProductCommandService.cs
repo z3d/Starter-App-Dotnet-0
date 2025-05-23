@@ -1,6 +1,3 @@
-using DockerLearning.Domain.Entities;
-using DockerLearning.Domain.ValueObjects;
-
 namespace DockerLearningApi.Application.Commands;
 
 /// <summary>
