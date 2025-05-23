@@ -2,27 +2,22 @@ using DockerLearningApi.Data;
 using System.Reflection;
 using Microsoft.AspNetCore.Diagnostics;
 using System.Net;
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Cors.Infrastructure;
+using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
-using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Docker environment settings if needed
 if (builder.Environment.EnvironmentName == "Docker")
-{
     builder.Configuration.AddJsonFile("appsettings.Docker.json", optional: false);
-}
 
 // Configure Serilog using settings from appsettings.json
 builder.Host.UseSerilog((context, services, configuration) => configuration
-    .ReadFrom.Configuration(context.Configuration) // Read from appsettings.json
+    .ReadFrom.Configuration(context.Configuration)
     .ReadFrom.Services(services)
     .Enrich.FromLogContext()
-    .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
 );
 
 // Add services to the container.
@@ -66,18 +61,11 @@ builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
     {
         if (builder.Environment.IsDevelopment())
-        {
-            policy.AllowAnyOrigin()
-                  .AllowAnyMethod()
-                  .AllowAnyHeader();
-        }
+            policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
         else
-        {
-            // In production, lock down CORS to specific origins
             policy.WithOrigins(builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
                   .WithMethods("GET", "POST", "PUT", "DELETE")
                   .WithHeaders("Authorization", "Content-Type");
-        }
     });
 });
 
@@ -132,28 +120,15 @@ try
             var exception = exceptionHandlerPathFeature?.Error;
 
             if (exception != null)
-            {
                 // Log the full exception details for debugging
                 Log.Error(exception, "Unhandled exception: {ExMessage}", exception.Message);
-            }
 
             // In development, provide more details about the error
             if (app.Environment.IsDevelopment())
-            {
-                await context.Response.WriteAsJsonAsync(new
-                {
-                    error = exception?.Message ?? "An unexpected error occurred",
-                    stackTrace = exception?.StackTrace
-                });
-            }
+                await context.Response.WriteAsJsonAsync(new { error = exception?.Message ?? "An unexpected error occurred", stackTrace = exception?.StackTrace });
             else
-            {
                 // In production, provide a generic message
-                await context.Response.WriteAsJsonAsync(new
-                {
-                    error = "An unexpected error occurred. Please try again later."
-                });
-            }
+                await context.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred. Please try again later." });
         });
     });
 
@@ -168,11 +143,8 @@ try
 
         // Add CSP in non-development environments
         if (!app.Environment.IsDevelopment())
-        {
-            context.Response.Headers.Append(
-                "Content-Security-Policy",
+            context.Response.Headers.Append("Content-Security-Policy", 
                 "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'");
-        }
 
         await next();
     });
@@ -181,14 +153,8 @@ try
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     if (connectionString != null)
     {
-        if (!DatabaseMigrator.MigrateDatabase(connectionString))
-        {
-            // If migrations fail, we might want to stop the application from fully starting
-            if (!app.Environment.IsDevelopment())
-            {
-                return 1;
-            }
-        }
+        if (!DatabaseMigrator.MigrateDatabase(connectionString) && !app.Environment.IsDevelopment())
+            Environment.Exit(1);
     }
     else
     {
@@ -200,23 +166,15 @@ try
     app.UseCors();
     app.UseRateLimiter();
     app.UseRouting();
-
-    // Add authorization if needed
-    // app.UseAuthentication();
-    // app.UseAuthorization();
-
     app.MapControllers();
-
-    // Health check endpoint
     app.MapHealthChecks("/health");
 
     app.Run();
-    return 0;
 }
 catch (Exception ex)
 {
     Log.Fatal(ex, "Application start-up failed: {ExMessage}", ex.Message);
-    return 1;
+    Environment.Exit(1);
 }
 finally
 {
