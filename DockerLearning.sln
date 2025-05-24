@@ -6,7 +6,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearningApi", "src\DockerLearningApi\DockerLearningApi.csproj", "{A48D5960-2FA6-4B1B-BFC5-79095FF0593C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearningApi.Tests", "src\tests\DockerLearningApi.Tests\DockerLearningApi.Tests.csproj", "{882FC41F-A382-44BB-91A0-2F079638F8EA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearningApi.Tests", "src\DockerLearningApi.Tests\DockerLearningApi.Tests.csproj", "{882FC41F-A382-44BB-91A0-2F079638F8EA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearning.Domain", "src\DockerLearning.Domain\DockerLearning.Domain.csproj", "{85C1472B-E310-49BD-8D51-73E55444F296}"
 EndProject
