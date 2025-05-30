@@ -110,9 +110,9 @@ public class TestDatabaseFixture : IAsyncLifetime
             ConnectionString = masterConnectionString.Replace("Database=master", $"Database={DbName}");
             Console.WriteLine($"Using connection string: {ConnectionString}");
             
-            // Run custom DbUp migrations on the test database instead of using DatabaseMigrator
-            Console.WriteLine("Applying database migrations...");
-            if (!RunTestMigrations(ConnectionString))
+            // Run DbUp migrations on the test database
+            Console.WriteLine("Applying database migrations using DbUp...");
+            if (!RunDbUpMigrations(ConnectionString))
             {
                 throw new Exception("Failed to apply database migrations");
             }
@@ -129,52 +129,26 @@ public class TestDatabaseFixture : IAsyncLifetime
         }
     }
     
-    private bool RunTestMigrations(string connectionString)
+    private bool RunDbUpMigrations(string connectionString)
     {
         try
         {
-            // Get reference to the API assembly where SQL scripts are embedded
-            var apiAssembly = typeof(DockerLearningApi.Data.DatabaseMigrator).Assembly;
+            // Use DbUp to run migrations from the DbMigrator project
+            var migratorAssembly = Assembly.Load("DockerLearning.DbMigrator");
             
-            // First, create the products table with a custom script
-            string createTableScript = @"
-                -- Create the Products table with LastUpdated column included from the start
-                CREATE TABLE Products (
-                    Id INT PRIMARY KEY IDENTITY(1,1),
-                    Name NVARCHAR(100) NOT NULL,
-                    Description NVARCHAR(500) NULL,
-                    PriceAmount DECIMAL(18, 2) NOT NULL,
-                    PriceCurrency NVARCHAR(3) NOT NULL DEFAULT 'USD',
-                    Stock INT NOT NULL DEFAULT 0,
-                    LastUpdated DATETIME2 NOT NULL DEFAULT GETUTCDATE()
-                );
-                
-                -- Create SchemaVersions table to track migrations
-                IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '__SchemaVersions')
-                BEGIN
-                    CREATE TABLE [dbo].[__SchemaVersions](
-                        [Id] [int] IDENTITY(1,1) NOT NULL,
-                        [ScriptName] [nvarchar](255) NOT NULL,
-                        [Applied] [datetime] NOT NULL,
-                        CONSTRAINT [PK_SchemaVersions_Id] PRIMARY KEY CLUSTERED ([Id] ASC)
-                    )
-                END
-                
-                -- Insert record to indicate the migrations have been applied
-                INSERT INTO [__SchemaVersions] (ScriptName, Applied)
-                VALUES 
-                    ('DockerLearningApi.SqlScripts.0001_CreateProductsTable.sql', GETUTCDATE()),
-                    ('DockerLearningApi.SqlScripts.0002_AddLastUpdatedColumn.sql', GETUTCDATE());
-            ";
+            var upgrader = DeployChanges.To
+                .SqlDatabase(connectionString)
+                .WithScriptsEmbeddedInAssembly(migratorAssembly) // Use embedded scripts from the DbMigrator assembly
+                .LogToConsole()
+                .WithTransaction()
+                .Build();
+
+            var result = upgrader.PerformUpgrade();
             
-            using (var connection = new SqlConnection(connectionString))
+            if (!result.Successful)
             {
-                connection.Open();
-                using (var command = new SqlCommand(createTableScript, connection))
-                {
-                    command.ExecuteNonQuery();
-                    Console.WriteLine("Created products table with all required columns");
-                }
+                Console.WriteLine($"Database migration failed: {result.Error}");
+                return false;
             }
             
             return true;
@@ -209,7 +183,7 @@ public class TestDatabaseFixture : IAsyncLifetime
             {
                 DbAdapter = DbAdapter.SqlServer,
                 SchemasToInclude = new[] { "dbo" },
-                TablesToIgnore = new Table[] { new Table("__SchemaVersions") } // DbUp's version tracking table
+                TablesToIgnore = new Table[] { new Table("SchemaVersions") } // DbUp's version tracking table
             });
         }
         catch (Exception ex)
@@ -227,24 +201,8 @@ public class TestDatabaseFixture : IAsyncLifetime
             using var connection = new SqlConnection(ConnectionString);
             await connection.OpenAsync();
             
-            // More thorough approach: first truncate the SchemaVersions table instead of dropping it
-            // This preserves the table structure but removes all rows
-            using (var command = new SqlCommand(@"
-                IF OBJECT_ID('dbo.__SchemaVersions', 'U') IS NOT NULL 
-                BEGIN
-                    TRUNCATE TABLE [dbo].[__SchemaVersions]
-                    
-                    -- Re-insert baseline migration records to keep DbUp happy
-                    INSERT INTO [__SchemaVersions] (ScriptName, Applied)
-                    VALUES 
-                        ('DockerLearningApi.SqlScripts.0001_CreateProductsTable.sql', GETUTCDATE()),
-                        ('DockerLearningApi.SqlScripts.0002_AddLastUpdatedColumn.sql', GETUTCDATE())
-                END", connection))
-            {
-                await command.ExecuteNonQueryAsync();
-            }
-            
-            // Then reset other tables
+            // We don't need to manually handle SchemaVersions now
+            // DbUp manages it, and we configured Respawner to ignore it
             await _respawner.ResetAsync(connection);
             
             Console.WriteLine("Database reset complete");
