@@ -10,7 +10,9 @@ var configuration = new ConfigurationBuilder()
     .Build();
 
 // Get connection string from configuration
-var connectionString = configuration.GetConnectionString("DefaultConnection");
+// Try Aspire-provided connection string first, then fall back to DefaultConnection
+var connectionString = configuration.GetConnectionString("DockerLearning") 
+                       ?? configuration.GetConnectionString("DefaultConnection");
 
 if (string.IsNullOrEmpty(connectionString))
 {

@@ -7,6 +7,9 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add Aspire service defaults
+builder.AddServiceDefaults();
+
 // Configure Docker environment settings if needed
 if (builder.Environment.EnvironmentName == "Docker")
     builder.Configuration.AddJsonFile("appsettings.Docker.json", optional: false);
@@ -36,8 +39,29 @@ builder.Services.AddOpenApi(options => {
 });
 
 // Add Database context
+// Try Aspire-provided connection string first, then fall back to DefaultConnection
+var dockerLearningConnection = builder.Configuration.GetConnectionString("DockerLearning");
+var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Try other common Aspire connection string names
+var sqlserverConnection = builder.Configuration.GetConnectionString("sqlserver");
+var databaseConnection = builder.Configuration.GetConnectionString("database");
+
+// Fix the port mismatch issue - use the correct container port
+var connectionString = dockerLearningConnection ?? sqlserverConnection ?? databaseConnection ?? defaultConnection;
+if (!string.IsNullOrEmpty(connectionString) && connectionString.Contains("61430"))
+{
+    connectionString = connectionString.Replace("61430", "61433");
+    Log.Information("Fixed port mismatch: Changed 61430 to 61433 in connection string");
+}
+
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException("No connection string found. Please check your configuration.");
+}
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(connectionString));
 
 // Register services for CQRS pattern
 builder.Services.AddScoped<IProductCommandService, ProductCommandService>();
@@ -76,6 +100,34 @@ var app = builder.Build();
 try
 {
     Log.Information("Starting up application");
+
+    // Debug logging to see what connection strings are available
+    Log.Information("=== CONNECTION STRING DEBUG ===");
+    Log.Information("DockerLearning connection: {DockerLearningConnection}", dockerLearningConnection);
+    Log.Information("DefaultConnection: {DefaultConnection}", defaultConnection);
+    Log.Information("sqlserver connection: {SqlServerConnection}", sqlserverConnection);
+    Log.Information("database connection: {DatabaseConnection}", databaseConnection);
+
+    // Check all connection strings
+    var allConnectionStrings = builder.Configuration.GetSection("ConnectionStrings").GetChildren();
+    Log.Information("All available connection strings:");
+    foreach (var conn in allConnectionStrings)
+    {
+        Log.Information("  {Key}: {Value}", conn.Key, conn.Value);
+    }
+
+    // Also check environment variables
+    Log.Information("Relevant environment variables:");
+    foreach (var envVar in Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>()
+        .Where(e => e.Key?.ToString()?.Contains("Connection", StringComparison.OrdinalIgnoreCase) == true || 
+                    e.Key?.ToString()?.Contains("DockerLearning", StringComparison.OrdinalIgnoreCase) == true ||
+                    e.Key?.ToString()?.Contains("SQL", StringComparison.OrdinalIgnoreCase) == true))
+    {
+        Log.Information("  {Key}: {Value}", envVar.Key, envVar.Value);
+    }
+
+    Log.Information("Using connection string: {ConnectionString}", connectionString);
+    Log.Information("=== END CONNECTION STRING DEBUG ===");
 
     // Configure the HTTP request pipeline
     if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docker")
@@ -124,11 +176,9 @@ try
             context.Response.Headers.Append("Content-Security-Policy", 
                 "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'");
 
-        await next();
-    });
+        await next();    });
 
     // Use DbUp for database migrations
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     if (connectionString != null)
     {
         if (!DatabaseMigrator.MigrateDatabase(connectionString) && !app.Environment.IsDevelopment())
@@ -136,7 +186,7 @@ try
     }
     else
     {
-        Log.Warning("Connection string 'DefaultConnection' is missing or null. Skipping database migration.");
+        Log.Warning("Connection string 'DockerLearning' or 'DefaultConnection' is missing or null. Skipping database migration.");
     }
 
     // Enable middlewares
@@ -146,6 +196,9 @@ try
     app.UseRouting();
     app.MapControllers();
     app.MapHealthChecks("/health");
+
+    // Map Aspire service defaults endpoints
+    app.MapDefaultEndpoints();
 
     app.Run();
 }

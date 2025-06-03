@@ -27,6 +27,7 @@
       <!-- Exclude conflicting appsettings.json from DbMigrator project -->
       <ExcludeAssets>ContentFiles</ExcludeAssets>
     </ProjectReference>
+    <ProjectReference Include="..\DockerLearning.ServiceDefaults\DockerLearning.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>

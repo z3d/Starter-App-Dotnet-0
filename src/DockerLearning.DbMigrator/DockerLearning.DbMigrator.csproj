@@ -30,4 +30,8 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DockerLearning.ServiceDefaults\DockerLearning.ServiceDefaults.csproj" />
+  </ItemGroup>
+
 </Project>

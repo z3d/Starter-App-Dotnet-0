@@ -1,4 +1,5 @@
-﻿Microsoft Visual Studio Solution File, Format Version 12.00
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -11,6 +12,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearning.Domain", "src\DockerLearning.Domain\DockerLearning.Domain.csproj", "{85C1472B-E310-49BD-8D51-73E55444F296}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearning.DbMigrator", "src\DockerLearning.DbMigrator\DockerLearning.DbMigrator.csproj", "{BB761925-4B53-4C25-A61A-D407CB731129}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearning.AppHost", "src\DockerLearning.AppHost\DockerLearning.AppHost.csproj", "{BC3E6680-77A8-43E8-9A61-4B4369681DBD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearning.ServiceDefaults", "src\DockerLearning.ServiceDefaults\DockerLearning.ServiceDefaults.csproj", "{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -70,6 +75,30 @@ Global
 		{BB761925-4B53-4C25-A61A-D407CB731129}.Release|x64.Build.0 = Release|Any CPU
 		{BB761925-4B53-4C25-A61A-D407CB731129}.Release|x86.ActiveCfg = Release|Any CPU
 		{BB761925-4B53-4C25-A61A-D407CB731129}.Release|x86.Build.0 = Release|Any CPU
+		{BC3E6680-77A8-43E8-9A61-4B4369681DBD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BC3E6680-77A8-43E8-9A61-4B4369681DBD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BC3E6680-77A8-43E8-9A61-4B4369681DBD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BC3E6680-77A8-43E8-9A61-4B4369681DBD}.Debug|x64.Build.0 = Debug|Any CPU
+		{BC3E6680-77A8-43E8-9A61-4B4369681DBD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BC3E6680-77A8-43E8-9A61-4B4369681DBD}.Debug|x86.Build.0 = Debug|Any CPU
+		{BC3E6680-77A8-43E8-9A61-4B4369681DBD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BC3E6680-77A8-43E8-9A61-4B4369681DBD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BC3E6680-77A8-43E8-9A61-4B4369681DBD}.Release|x64.ActiveCfg = Release|Any CPU
+		{BC3E6680-77A8-43E8-9A61-4B4369681DBD}.Release|x64.Build.0 = Release|Any CPU
+		{BC3E6680-77A8-43E8-9A61-4B4369681DBD}.Release|x86.ActiveCfg = Release|Any CPU
+		{BC3E6680-77A8-43E8-9A61-4B4369681DBD}.Release|x86.Build.0 = Release|Any CPU
+		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}.Debug|x64.Build.0 = Debug|Any CPU
+		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}.Debug|x86.Build.0 = Debug|Any CPU
+		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}.Release|x64.ActiveCfg = Release|Any CPU
+		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}.Release|x64.Build.0 = Release|Any CPU
+		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}.Release|x86.ActiveCfg = Release|Any CPU
+		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -79,5 +108,7 @@ Global
 		{882FC41F-A382-44BB-91A0-2F079638F8EA} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{85C1472B-E310-49BD-8D51-73E55444F296} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{BB761925-4B53-4C25-A61A-D407CB731129} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{BC3E6680-77A8-43E8-9A61-4B4369681DBD} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal
