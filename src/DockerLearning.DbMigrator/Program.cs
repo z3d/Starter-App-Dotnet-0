@@ -10,9 +10,13 @@ var configuration = new ConfigurationBuilder()
     .Build();
 
 // Get connection string from configuration
-// Try Aspire-provided connection string first, then fall back to DefaultConnection
-var connectionString = configuration.GetConnectionString("DockerLearning") 
-                       ?? configuration.GetConnectionString("DefaultConnection");
+// Use the same connection string priority logic as the API
+var databaseConnection = configuration.GetConnectionString("database");
+var dockerLearningConnection = configuration.GetConnectionString("DockerLearning");
+var sqlserverConnection = configuration.GetConnectionString("sqlserver");
+var defaultConnection = configuration.GetConnectionString("DefaultConnection");
+
+var connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection;
 
 if (string.IsNullOrEmpty(connectionString))
 {

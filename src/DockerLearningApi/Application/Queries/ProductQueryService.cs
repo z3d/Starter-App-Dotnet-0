@@ -14,8 +14,14 @@ public class ProductQueryService : IProductQueryService
 
     public ProductQueryService(IConfiguration configuration)
     {
-        _connectionString = configuration.GetConnectionString("DefaultConnection") ?? 
-            throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+        // Use the same connection string priority logic as Program.cs
+        var databaseConnection = configuration.GetConnectionString("database");
+        var dockerLearningConnection = configuration.GetConnectionString("DockerLearning");
+        var sqlserverConnection = configuration.GetConnectionString("sqlserver");
+        var defaultConnection = configuration.GetConnectionString("DefaultConnection");
+
+        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ?? 
+            throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
     }
 
     public async Task<IEnumerable<ProductReadModel>> GetAllProductsAsync()

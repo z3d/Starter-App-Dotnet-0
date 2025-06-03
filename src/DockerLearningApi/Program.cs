@@ -39,21 +39,14 @@ builder.Services.AddOpenApi(options => {
 });
 
 // Add Database context
-// Try Aspire-provided connection string first, then fall back to DefaultConnection
+// Try Aspire-provided connection string first (new simplified name), then fall back to others
+var databaseConnection = builder.Configuration.GetConnectionString("database");
 var dockerLearningConnection = builder.Configuration.GetConnectionString("DockerLearning");
+var sqlserverConnection = builder.Configuration.GetConnectionString("sqlserver");
 var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// Try other common Aspire connection string names
-var sqlserverConnection = builder.Configuration.GetConnectionString("sqlserver");
-var databaseConnection = builder.Configuration.GetConnectionString("database");
-
-// Fix the port mismatch issue - use the correct container port
-var connectionString = dockerLearningConnection ?? sqlserverConnection ?? databaseConnection ?? defaultConnection;
-if (!string.IsNullOrEmpty(connectionString) && connectionString.Contains("61430"))
-{
-    connectionString = connectionString.Replace("61430", "61433");
-    Log.Information("Fixed port mismatch: Changed 61430 to 61433 in connection string");
-}
+// Prioritize the new simplified "database" connection string from Aspire
+var connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection;
 
 if (string.IsNullOrEmpty(connectionString))
 {
@@ -99,14 +92,12 @@ var app = builder.Build();
 
 try
 {
-    Log.Information("Starting up application");
-
-    // Debug logging to see what connection strings are available
+    Log.Information("Starting up application");    // Debug logging to see what connection strings are available
     Log.Information("=== CONNECTION STRING DEBUG ===");
+    Log.Information("database connection (primary): {DatabaseConnection}", databaseConnection);
     Log.Information("DockerLearning connection: {DockerLearningConnection}", dockerLearningConnection);
-    Log.Information("DefaultConnection: {DefaultConnection}", defaultConnection);
     Log.Information("sqlserver connection: {SqlServerConnection}", sqlserverConnection);
-    Log.Information("database connection: {DatabaseConnection}", databaseConnection);
+    Log.Information("DefaultConnection: {DefaultConnection}", defaultConnection);
 
     // Check all connection strings
     var allConnectionStrings = builder.Configuration.GetSection("ConnectionStrings").GetChildren();

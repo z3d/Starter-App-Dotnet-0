@@ -1,21 +1,20 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Add SQL Server with specific password and persistent lifetime for better reliability
-var password = builder.AddParameter("sql-password", value: "Your_password123", secret: true);
-var sqlServer = builder.AddSqlServer("sqlserver", password)
-    .WithDataVolume()
-    .WithLifetime(ContainerLifetime.Persistent); // SQL Server is slow to start, use persistent
+// Add SQL Server with persistent lifetime for better reliability
+var sql = builder.AddSqlServer("sql")
+                 .WithLifetime(ContainerLifetime.Persistent);
 
-var database = sqlServer.AddDatabase("DockerLearning");
+var db = sql.AddDatabase("database");
 
 // Add the API project with reference to the database
-var api = builder.AddProject<Projects.DockerLearningApi>("api")
-    .WithReference(database)
-    .WaitFor(database);
+builder.AddProject<Projects.DockerLearningApi>("api")
+       .WithReference(db)
+       .WaitFor(db);
 
 // Add the database migrator as a separate service
-var migrator = builder.AddProject<Projects.DockerLearning_DbMigrator>("migrator")
-    .WithReference(database)
-    .WaitFor(database);
+builder.AddProject<Projects.DockerLearning_DbMigrator>("migrator")
+       .WithReference(db)
+       .WaitFor(db);
 
+// After adding all resources, run the app...
 builder.Build().Run();
