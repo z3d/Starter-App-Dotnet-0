@@ -14,7 +14,7 @@ DB_HOST="db"
 DB_PORT="1433"
 
 # Wait for database to be ready
-until /opt/mssql-tools/bin/sqlcmd -S ${DB_HOST},${DB_PORT} -U sa -P "YourStrong@Passw0rd" -Q "SELECT 1" &> /dev/null || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
+until /opt/mssql-tools/bin/sqlcmd -S ${DB_HOST},${DB_PORT} -U sa -P "Your_password123" -Q "SELECT 1" &> /dev/null || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
     echo "SQL Server is starting up. Attempt ${RETRY_COUNT}/${MAX_RETRIES}..."
     RETRY_COUNT=$((RETRY_COUNT+1))
     sleep $RETRY_INTERVAL
@@ -31,7 +31,7 @@ else
     
     # Create the database if it doesn't exist
     echo "Ensuring ProductsDb database exists..."
-    /opt/mssql-tools/bin/sqlcmd -S ${DB_HOST},${DB_PORT} -U sa -P "YourStrong@Passw0rd" -Q "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'ProductsDb') CREATE DATABASE ProductsDb"
+    /opt/mssql-tools/bin/sqlcmd -S ${DB_HOST},${DB_PORT} -U sa -P "Your_password123" -Q "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'ProductsDb') CREATE DATABASE ProductsDb"
 fi
 
 echo "Database migrations will be applied automatically on application startup via DbUp."
