@@ -1,154 +1,344 @@
-# Step 3: Docker Setup
+# Step 3: Docker Setup and Containerization
 
 ## Overview
-In this step, we'll containerize both our .NET Web API and SQL Server using Docker, making our application portable and easier to deploy.
 
-## Instructions
+This step covers containerizing the .NET Web API and SQL Server using Docker. The setup provides a production-like environment that can be easily deployed and shared across teams.
 
-### 1. Create a Dockerfile for our .NET Web API:
+## Current Status
 
-Create a file named `Dockerfile` in the API project directory:
+✅ **Already Configured!** - Docker setup is complete with:
 
-```dockerfile
-# Use the .NET SDK image to build the application
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-WORKDIR /src
+- **Multi-stage Dockerfile** for the .NET API
+- **Docker Compose** orchestration for API + SQL Server
+- **Health checks** for service monitoring
+- **Volume persistence** for database data
+- **Environment-specific configuration**
 
-# Copy csproj files first for better layer caching
-COPY ["DockerLearningApi/DockerLearningApi.csproj", "DockerLearningApi/"]
-COPY ["DockerLearning.Domain/DockerLearning.Domain.csproj", "DockerLearning.Domain/"]
-COPY ["DockerLearning.DbMigrator/DockerLearning.DbMigrator.csproj", "DockerLearning.DbMigrator/"]
+## Docker Architecture
 
-# Restore dependencies
-RUN dotnet restore "DockerLearningApi/DockerLearningApi.csproj"
-
-# Copy the rest of the code and build
-COPY . .
-RUN dotnet build "DockerLearningApi/DockerLearningApi.csproj" -c Release -o /app/build
-
-# Publish the application
-RUN dotnet publish "DockerLearningApi/DockerLearningApi.csproj" -c Release -o /app/publish /p:UseAppHost=false
-
-# Build runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
-WORKDIR /app
-COPY --from=build /app/publish .
-
-# Install SQL Server tools for database connection check
-RUN apt-get update && apt-get install -y curl gnupg2 && \
-    curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
-    curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
-    apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Set the entry point
-ENTRYPOINT ["dotnet", "DockerLearningApi.dll"]
+```
+Docker Environment
+├── api container (DockerLearningApi)
+│   ├── .NET 8 Runtime
+│   ├── Published application
+│   └── Health check endpoint
+├── db container (SQL Server 2022)
+│   ├── SQL Server Database Engine
+│   ├── Persistent data volume
+│   └── Database initialization
+└── backend-network (bridge network)
 ```
 
-### 2. Create a docker-compose.yml file for the entire solution:
+## Files Overview
 
-Create a file named `docker-compose.yml` in the root directory:
+### 1. Dockerfile (`src/DockerLearningApi/Dockerfile`)
 
+**Multi-stage build process:**
+```dockerfile
+# Build stage - uses SDK image
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+
+# Runtime stage - uses optimized runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+```
+
+**Key features:**
+- ✅ Multi-stage build for smaller final image
+- ✅ Layer caching optimization
+- ✅ Security best practices
+- ✅ Health monitoring tools
+
+### 2. Docker Compose (`docker-compose.yml`)
+
+**Services:**
+- **api**: .NET Web API container
+- **db**: SQL Server 2022 container
+
+**Features:**
+- ✅ Service dependency management
+- ✅ Health checks for both services
+- ✅ Persistent volume for database
+- ✅ Custom network isolation
+- ✅ Environment variable configuration
+
+## Running with Docker
+
+### Quick Start
+```powershell
+# From the solution root directory
+cd c:\dev\scratchpad\dockerlearning
+
+# Build and start all services
+docker-compose up --build
+```
+
+### Step-by-Step Process
+
+1. **Build the images:**
+   ```powershell
+   docker-compose build
+   ```
+
+2. **Start the services:**
+   ```powershell
+   docker-compose up -d
+   ```
+
+3. **View logs:**
+   ```powershell
+   # All services
+   docker-compose logs -f
+   
+   # Specific service
+   docker-compose logs -f api
+   docker-compose logs -f db
+   ```
+
+4. **Check service health:**
+   ```powershell
+   docker-compose ps
+   ```
+
+## Service Endpoints
+
+Once running, access the services at:
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **API** | http://localhost:8080 | Main API endpoint |
+| **Swagger** | http://localhost:8080/swagger | API documentation |
+| **Health Check** | http://localhost:8080/health | Service health status |
+| **SQL Server** | localhost:1433 | Database connection |
+
+## Configuration Details
+
+### Environment Variables
+
+**API Container:**
 ```yaml
-version: '3.8'
+environment:
+  - ASPNETCORE_ENVIRONMENT=Docker
+  - ConnectionStrings__DefaultConnection=Server=db;Database=ProductsDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
+  - ASPNETCORE_HTTP_PORTS=8080
+```
 
-services:
-  api:
-    build:
-      context: ./src
-      dockerfile: DockerLearningApi/Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Docker
-      - ConnectionStrings__DefaultConnection=Server=db;Database=ProductsDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    depends_on:
-      - db
-    networks:
-      - backend-network
-    restart: unless-stopped
+**Database Container:**
+```yaml
+environment:
+  - ACCEPT_EULA=Y
+  - SA_PASSWORD=YourStrong@Passw0rd
+  - MSSQL_PID=Developer
+```
 
-  db:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=YourStrong@Passw0rd
-      - MSSQL_PID=Developer
-    ports:
-      - "1433:1433"
-    volumes:
-      - sqldata:/var/opt/mssql
-    networks:
-      - backend-network
-    restart: unless-stopped
+### Health Checks
 
-networks:
-  backend-network:
-    driver: bridge
+**API Health Check:**
+```yaml
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 10s
+```
 
+**SQL Server Health Check:**
+```yaml
+healthcheck:
+  test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q 'SELECT 1'"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 30s
+```
+
+## Data Persistence
+
+### Volume Configuration
+```yaml
 volumes:
   sqldata:
     driver: local
 ```
 
-### 3. Update the `appsettings.json` for Docker:
+**Benefits:**
+- ✅ Database data survives container restarts
+- ✅ Data persists across Docker Compose down/up cycles
+- ✅ Can be backed up independently
 
-Create a new configuration file named `appsettings.Docker.json` in your API project:
+### Volume Management
+```powershell
+# List volumes
+docker volume ls
 
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=db;Database=ProductsDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
-  },
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  }
-}
+# Inspect volume
+docker volume inspect dockerlearning_sqldata
+
+# Backup volume (example)
+docker run --rm -v dockerlearning_sqldata:/data -v ${PWD}:/backup ubuntu tar czf /backup/sqldata-backup.tar.gz -C /data .
 ```
 
-### 4. Create a robust script for database initialization in Docker environment:
+## Networking
 
-Create a folder in your API project named `Scripts` and add a file named `wait-for-db.sh`:
+### Custom Network
+```yaml
+networks:
+  backend-network:
+    driver: bridge
+```
 
-```bash
-#!/bin/bash
+**Features:**
+- ✅ Service discovery by name (api can reach db by hostname)
+- ✅ Network isolation from other Docker projects
+- ✅ Custom DNS resolution within the network
 
-set -e
+## Database Initialization
 
-echo "Waiting for SQL Server to start..."
+### Automatic Schema Creation
 
-# Set connection timeout variables
-MAX_RETRIES=60
-RETRY_INTERVAL=5
-RETRY_COUNT=0
-DB_READY=false
+The API automatically runs database migrations on startup through the configured startup process. This ensures:
 
-# Extract host and port from connection string if needed
-DB_HOST="db"
-DB_PORT="1433"
+- ✅ Database is created if it doesn't exist
+- ✅ Schema is up-to-date with latest migrations
+- ✅ Sample data is seeded for testing
 
-# Wait for database to be ready
-while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$DB_READY" = "false" ]; do
-    echo "SQL Server connection attempt ${RETRY_COUNT}/${MAX_RETRIES}..."
-    
-    if /opt/mssql-tools18/bin/sqlcmd -S ${DB_HOST},${DB_PORT} -U sa -P "YourStrong@Passw0rd" -Q "SELECT 1" &> /dev/null; then
-        echo "SQL Server is now accepting connections!"
-        DB_READY=true
-    else
-        echo "SQL Server not ready yet..."
-        RETRY_COUNT=$((RETRY_COUNT+1))
-        sleep $RETRY_INTERVAL
-    fi
-done
+### Manual Database Operations
+
+```powershell
+# Connect to SQL Server container
+docker exec -it dockerlearning-db-1 /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd
+
+# Run migrations manually
+docker-compose exec api dotnet DockerLearning.DbMigrator.dll
+```
+
+## Docker Commands Reference
+
+### Basic Operations
+```powershell
+# Build and start
+docker-compose up --build
+
+# Start detached
+docker-compose up -d
+
+# Stop services
+docker-compose down
+
+# Stop and remove volumes
+docker-compose down -v
+
+# View logs
+docker-compose logs -f
+
+# Scale services (if needed)
+docker-compose up --scale api=2
+```
+
+### Development Commands
+```powershell
+# Rebuild specific service
+docker-compose build api
+
+# Restart specific service
+docker-compose restart api
+
+# Execute command in running container
+docker-compose exec api bash
+
+# View container processes
+docker-compose top
+```
+
+### Cleanup Commands
+```powershell
+# Remove all containers and networks
+docker-compose down
+
+# Remove including volumes (⚠️ loses data)
+docker-compose down -v
+
+# Remove unused Docker resources
+docker system prune
+
+# Remove all stopped containers
+docker container prune
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Port Already in Use**
+```powershell
+# Check what's using the port
+netstat -ano | findstr :8080
+netstat -ano | findstr :1433
+
+# Stop process or change ports in docker-compose.yml
+```
+
+**Container Won't Start**
+```powershell
+# Check logs for errors
+docker-compose logs api
+docker-compose logs db
+
+# Check container status
+docker-compose ps
+```
+
+**Database Connection Issues**
+```powershell
+# Verify SQL Server is ready
+docker-compose exec db /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q "SELECT @@VERSION"
+
+# Check network connectivity
+docker-compose exec api ping db
+```
+
+**Build Failures**
+```powershell
+# Clean and rebuild
+docker-compose down
+docker-compose build --no-cache
+docker-compose up
+```
+
+### Health Check Monitoring
+
+```powershell
+# Check health status
+docker-compose ps
+
+# View health check logs
+docker inspect dockerlearning-api-1 | grep -A 10 Health
+docker inspect dockerlearning-db-1 | grep -A 10 Health
+```
+
+## Production Considerations
+
+### Security
+- ✅ Use secrets management for passwords
+- ✅ Run containers as non-root users
+- ✅ Scan images for vulnerabilities
+- ✅ Use specific image tags, not 'latest'
+
+### Performance
+- ✅ Configure appropriate resource limits
+- ✅ Use multi-stage builds to minimize image size
+- ✅ Optimize layer caching
+- ✅ Consider using Alpine-based images for smaller size
+
+### Monitoring
+- ✅ Health checks are configured
+- ✅ Consider adding application metrics
+- ✅ Set up log aggregation
+- ✅ Monitor resource usage
+
+## Next Step
+
+Continue to **[Step 4: Azure Deployment](../04-azure-deployment/README.md)** to deploy the containerized application to Azure Container Apps.
 
 if [ "$DB_READY" = "false" ]; then
     echo "ERROR: Timed out waiting for SQL Server to start after ${MAX_RETRIES} attempts."
