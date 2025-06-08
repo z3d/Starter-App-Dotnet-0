@@ -234,20 +234,12 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
             .CreateLogger();
         
         _dbFixture = new TestDatabaseFixture();
-    }
-    
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    }    protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.ConfigureAppConfiguration(config =>
-        {
-            if (_dbFixture?.ConnectionString != null)
-            {
-                config.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["ConnectionStrings:DefaultConnection"] = _dbFixture.ConnectionString
-                });
-            }
-        });
+        // The connection string is set as an environment variable in InitializeAsync
+        // before this method is called, so Program.cs should find it successfully
+        
+        builder.UseEnvironment("Testing");
         
         builder.ConfigureLogging(logging => 
         {
@@ -260,14 +252,18 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
             // Any test-specific service overrides can go here
         });
     }
-    
-    public async Task InitializeAsync()
+      public async Task InitializeAsync()
     {
         try
         {
-            // Initialize the database fixture first
+            // Initialize the database fixture first to get the connection string
             Log.Information("Initializing database fixture");
             await _dbFixture.InitializeAsync();
+            
+            // Set the connection string as environment variable before creating the client
+            // This ensures Program.cs can find it during WebApplicationFactory host creation
+            Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", _dbFixture.ConnectionString);
+            Log.Information($"Set connection string environment variable: {_dbFixture.ConnectionString}");
             
             // Then create the client with the configured web host
             Client = CreateClient(new WebApplicationFactoryClientOptions
@@ -282,12 +278,14 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
             throw;
         }
     }
-    
-    // Add 'new' keyword to hide the inherited member
+      // Add 'new' keyword to hide the inherited member
     public new async Task DisposeAsync()
     {
         try 
         {
+            // Clean up environment variable
+            Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", null);
+            
             await _dbFixture.DisposeAsync();
             Log.Information("ApiTestFixture disposed");
         }
