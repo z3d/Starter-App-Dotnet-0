@@ -58,7 +58,7 @@ DB_PORT="1433"\n\
 while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$DB_READY" = "false" ]; do\n\
     echo "SQL Server connection attempt ${RETRY_COUNT}/${MAX_RETRIES}..."\n\
     \n\
-    if /opt/mssql-tools18/bin/sqlcmd -S ${DB_HOST},${DB_PORT} -U sa -P "YourStrong@Passw0rd" -Q "SELECT 1" &> /dev/null; then\n\
+    if /opt/mssql-tools18/bin/sqlcmd -S ${DB_HOST},${DB_PORT} -U sa -P "YourStrong@Passw0rd" -C -Q "SELECT 1" &> /dev/null; then\n\
         echo "SQL Server is now accepting connections!"\n\
         DB_READY=true\n\
     else\n\
@@ -78,7 +78,7 @@ else\n\
     \n\
     # Create the database if it does not exist\n\
     echo "Ensuring ProductsDb database exists..."\n\
-    /opt/mssql-tools18/bin/sqlcmd -S ${DB_HOST},${DB_PORT} -U sa -P "YourStrong@Passw0rd" -Q "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '"'"'ProductsDb'"'"') CREATE DATABASE ProductsDb"\n\
+    /opt/mssql-tools18/bin/sqlcmd -S ${DB_HOST},${DB_PORT} -U sa -P "YourStrong@Passw0rd" -C -Q "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '"'"'ProductsDb'"'"') CREATE DATABASE ProductsDb"\n\
 fi\n\
 \n\
 echo "Database migrations will be applied automatically on application startup via DbUp."\n\
