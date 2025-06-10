@@ -6,10 +6,16 @@ var sql = builder.AddSqlServer("sql")
 
 var db = sql.AddDatabase("database");
 
-// Add the API project with reference to the database
+// Add Azure Service Bus emulator
+var serviceBus = builder.AddAzureServiceBus("servicebus")
+                       .RunAsEmulator();
+
+// Add the API project with reference to the database and service bus
 builder.AddProject<Projects.DockerLearningApi>("api")
        .WithReference(db)
-       .WaitFor(db);
+       .WithReference(serviceBus)
+       .WaitFor(db)
+       .WaitFor(serviceBus);
 
 // Add the database migrator as a separate service
 builder.AddProject<Projects.DockerLearning_DbMigrator>("migrator")

@@ -8,10 +8,12 @@ namespace DockerLearningApi.Application.Commands;
 public class ProductCommandService : IProductCommandService
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly IServiceBusService _serviceBusService;
 
-    public ProductCommandService(ApplicationDbContext dbContext)
+    public ProductCommandService(ApplicationDbContext dbContext, IServiceBusService serviceBusService)
     {
         _dbContext = dbContext;
+        _serviceBusService = serviceBusService;
     }
 
     public async Task<Product> CreateProductAsync(string name, string description, Money price, int stock)
@@ -22,6 +24,18 @@ public class ProductCommandService : IProductCommandService
         
         _dbContext.Products.Add(product);
         await _dbContext.SaveChangesAsync();
+        
+        // Publish event to ServiceBus
+        var productMessage = new ProductMessage
+        {
+            ProductId = product.Id,
+            Name = product.Name,
+            Price = product.Price.Amount,
+            Action = "Created"
+        };
+        
+        await _serviceBusService.SendMessageAsync(productMessage);
+        Log.Information("Published ProductCreated event for product {ProductId}", product.Id);
         
         return product;
     }
@@ -47,6 +61,19 @@ public class ProductCommandService : IProductCommandService
         }
         
         await _dbContext.SaveChangesAsync();
+        
+        // Publish event to ServiceBus
+        var productMessage = new ProductMessage
+        {
+            ProductId = product.Id,
+            Name = product.Name,
+            Price = product.Price.Amount,
+            Action = "Updated"
+        };
+        
+        await _serviceBusService.SendMessageAsync(productMessage);
+        Log.Information("Published ProductUpdated event for product {ProductId}", product.Id);
+        
         return product;
     }
 
@@ -61,8 +88,22 @@ public class ProductCommandService : IProductCommandService
             return false;
         }
         
+        // Capture product details before deletion
+        var productMessage = new ProductMessage
+        {
+            ProductId = product.Id,
+            Name = product.Name,
+            Price = product.Price.Amount,
+            Action = "Deleted"
+        };
+        
         _dbContext.Products.Remove(product);
         await _dbContext.SaveChangesAsync();
+        
+        // Publish event to ServiceBus after successful deletion
+        await _serviceBusService.SendMessageAsync(productMessage);
+        Log.Information("Published ProductDeleted event for product {ProductId}", product.Id);
+        
         return true;
     }
 }

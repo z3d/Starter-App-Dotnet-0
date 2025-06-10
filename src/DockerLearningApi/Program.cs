@@ -63,6 +63,10 @@ builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddMediatR(Assembly.GetExecutingAssembly());
 builder.Services.AddControllers();
 
+// Add ServiceBus services
+builder.Services.AddServiceBus(builder.Configuration);
+builder.Services.AddHostedService<ProductMessageHandler>();
+
 // Add CORS (restrict in production)
 builder.Services.AddCors(options => {
     options.AddDefaultPolicy(policy => {
