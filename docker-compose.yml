@@ -4,12 +4,12 @@ services:
   api:
     build:
       context: ./src
-      dockerfile: DockerLearningApi/Dockerfile
+      dockerfile: StarterApp.Api/Dockerfile
     ports:
       - "8080:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Docker
-      - ConnectionStrings__DefaultConnection=Server=db;Database=DockerLearning;User Id=sa;Password=Your_password123;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=db;Database=StarterApp;User Id=sa;Password=Your_password123;TrustServerCertificate=True;
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s

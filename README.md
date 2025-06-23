@@ -1,4 +1,4 @@
-# Docker Learning Project with .NET Aspire
+# Starter App Project with .NET Aspire
 
 A comprehensive tutorial project demonstrating modern .NET development with Docker, SQL Server, and .NET Aspire orchestration.
 
@@ -12,7 +12,7 @@ A comprehensive tutorial project demonstrating modern .NET development with Dock
 ### Running with .NET Aspire (Recommended for Development)
 ```powershell
 # Navigate to the AppHost project
-cd src\DockerLearning.AppHost
+cd src\StarterApp.AppHost
 
 # Run the Aspire orchestration
 dotnet run
@@ -58,17 +58,17 @@ docker-compose up --build
 ## 📁 Project Structure
 
 ```
-dockerlearning/
+starterapp/
 ├── src/
-│   ├── DockerLearning.AppHost/          # .NET Aspire orchestration
-│   ├── DockerLearningApi/               # Main Web API
-│   ├── DockerLearning.Domain/           # Domain models and interfaces
-│   ├── DockerLearning.DbMigrator/       # Database migration console app
-│   └── DockerLearning.ServiceDefaults/  # Shared Aspire configuration
-├── docs/                               # Step-by-step tutorials
-├── scripts/                           # Automation scripts
-├── docker-compose.yml                 # Docker orchestration
-└── test-connection.ps1               # Database connection tester
+│   ├── StarterApp.AppHost/          # .NET Aspire orchestration
+│   ├── StarterApp.Api/              # Main Web API
+│   ├── StarterApp.Domain/           # Domain models and interfaces
+│   ├── StarterApp.DbMigrator/       # Database migration console app
+│   └── StarterApp.ServiceDefaults/  # Shared Aspire configuration
+├── docs/                           # Step-by-step tutorials
+├── scripts/                       # Automation scripts
+├── docker-compose.yml             # Docker orchestration
+└── test-connection.ps1           # Database connection tester
 ```
 
 ## 📚 Step-by-Step Guide
@@ -88,11 +88,11 @@ Follow the numbered directories in the `docs/` folder:
 .\test-connection.ps1
 
 # Run database migrations
-cd src\DockerLearning.DbMigrator
+cd src\StarterApp.DbMigrator
 dotnet run
 
 # Run API directly
-cd src\DockerLearningApi
+cd src\StarterApp.Api
 dotnet run
 
 # Run tests

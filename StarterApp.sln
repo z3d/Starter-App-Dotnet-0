@@ -5,17 +5,17 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearningApi", "src\DockerLearningApi\DockerLearningApi.csproj", "{A48D5960-2FA6-4B1B-BFC5-79095FF0593C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarterApp.Api", "src\StarterApp.Api\StarterApp.Api.csproj", "{A48D5960-2FA6-4B1B-BFC5-79095FF0593C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearning.Tests", "src\DockerLearning.Tests\DockerLearning.Tests.csproj", "{882FC41F-A382-44BB-91A0-2F079638F8EA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarterApp.Tests", "src\StarterApp.Tests\StarterApp.Tests.csproj", "{882FC41F-A382-44BB-91A0-2F079638F8EA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearning.Domain", "src\DockerLearning.Domain\DockerLearning.Domain.csproj", "{85C1472B-E310-49BD-8D51-73E55444F296}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarterApp.Domain", "src\StarterApp.Domain\StarterApp.Domain.csproj", "{85C1472B-E310-49BD-8D51-73E55444F296}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearning.DbMigrator", "src\DockerLearning.DbMigrator\DockerLearning.DbMigrator.csproj", "{BB761925-4B53-4C25-A61A-D407CB731129}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarterApp.DbMigrator", "src\StarterApp.DbMigrator\StarterApp.DbMigrator.csproj", "{BB761925-4B53-4C25-A61A-D407CB731129}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearning.AppHost", "src\DockerLearning.AppHost\DockerLearning.AppHost.csproj", "{BC3E6680-77A8-43E8-9A61-4B4369681DBD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarterApp.AppHost", "src\StarterApp.AppHost\StarterApp.AppHost.csproj", "{BC3E6680-77A8-43E8-9A61-4B4369681DBD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerLearning.ServiceDefaults", "src\DockerLearning.ServiceDefaults\DockerLearning.ServiceDefaults.csproj", "{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarterApp.ServiceDefaults", "src\StarterApp.ServiceDefaults\StarterApp.ServiceDefaults.csproj", "{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

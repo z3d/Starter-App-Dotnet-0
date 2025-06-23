@@ -8,16 +8,16 @@
 ## Project Overview
 
 This project uses a clean architecture approach with the following structure:
-- **DockerLearningApi** - Web API presentation layer
-- **DockerLearning.Domain** - Core business logic and entities
-- **DockerLearning.DbMigrator** - Database migration console application
-- **DockerLearning.AppHost** - .NET Aspire orchestration (added in Step 5)
+- **StarterApp.Api** - Web API presentation layer
+- **StarterApp.Domain** - Core business logic and entities
+- **StarterApp.DbMigrator** - Database migration console application
+- **StarterApp.AppHost** - .NET Aspire orchestration (added in Step 5)
 
 ## Current Project Status
 
 ✅ **Already Created!** - The .NET projects have been set up with:
 
-### 1. Domain Layer (`DockerLearning.Domain`)
+### 1. Domain Layer (`StarterApp.Domain`)
 Contains core business entities and interfaces:
 
 ```csharp
@@ -36,7 +36,7 @@ public class Product
 public record Money(decimal Amount, string Currency = "USD");
 ```
 
-### 2. Web API (`DockerLearningApi`)
+### 2. Web API (`StarterApp.Api`)
 Features implemented:
 - RESTful API with full CRUD operations
 - Entity Framework Core with SQL Server
@@ -46,7 +46,7 @@ Features implemented:
 - Structured logging with Serilog
 - Environment-specific configuration
 
-### 3. Database Migrations (`DockerLearning.DbMigrator`)
+### 3. Database Migrations (`StarterApp.DbMigrator`)
 - Console application for running database migrations
 - DbUp library for version-controlled schema changes
 - Embedded SQL script resources
@@ -57,7 +57,7 @@ Features implemented:
 ### Option 1: Run API Directly
 ```powershell
 # Navigate to the API project
-cd c:\dev\scratchpad\dockerlearning\src\DockerLearningApi
+cd c:\dev\scratchpad\dockerlearning\src\StarterApp.Api
 
 # Run the project
 dotnet run
@@ -71,7 +71,7 @@ dotnet run
 ### Option 2: Run with .NET Aspire (Recommended)
 ```powershell
 # Navigate to the AppHost project
-cd c:\dev\scratchpad\dockerlearning\src\DockerLearning.AppHost
+cd c:\dev\scratchpad\dockerlearning\src\StarterApp.AppHost
 
 # Run with Aspire orchestration
 dotnet run
