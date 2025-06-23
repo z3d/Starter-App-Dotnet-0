@@ -3,9 +3,9 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copy csproj files first for better layer caching
-COPY ["src/StarterApp.Api/StarterApp.Api.csproj", "StarterApp.Api/"]
-COPY ["src/StarterApp.Domain/StarterApp.Domain.csproj", "StarterApp.Domain/"]
-COPY ["src/StarterApp.DbMigrator/StarterApp.DbMigrator.csproj", "StarterApp.DbMigrator/"]
+COPY ["StarterApp.Api/StarterApp.Api.csproj", "StarterApp.Api/"]
+COPY ["StarterApp.Domain/StarterApp.Domain.csproj", "StarterApp.Domain/"]
+COPY ["StarterApp.DbMigrator/StarterApp.DbMigrator.csproj", "StarterApp.DbMigrator/"]
 
 # Restore dependencies
 RUN dotnet restore "StarterApp.Api/StarterApp.Api.csproj"
