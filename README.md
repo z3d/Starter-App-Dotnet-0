@@ -5,7 +5,7 @@ A comprehensive tutorial project demonstrating modern .NET development with Dock
 ## 🚀 Quick Start
 
 ### Prerequisites
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
+- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
 - [Docker Desktop](https://www.docker.com/products/docker-desktop)
 - Visual Studio Code or Visual Studio 2022
 
@@ -31,7 +31,7 @@ docker-compose up --build
 ## 🎯 What This Project Demonstrates
 
 1. **Modern .NET Development**
-   - .NET 8 Web API with clean architecture
+   - .NET 9 Web API with clean architecture
    - Domain-driven design with value objects
    - Repository pattern with Entity Framework Core
 
@@ -67,8 +67,7 @@ starterapp/
 │   └── StarterApp.ServiceDefaults/  # Shared Aspire configuration
 ├── docs/                           # Step-by-step tutorials
 ├── scripts/                       # Automation scripts
-├── docker-compose.yml             # Docker orchestration
-└── test-connection.ps1           # Database connection tester
+└── docker-compose.yml             # Docker orchestration
 ```
 
 ## 📚 Step-by-Step Guide
@@ -84,9 +83,6 @@ Follow the numbered directories in the `docs/` folder:
 ## 🛠️ Development Commands
 
 ```powershell
-# Test database connection
-.\test-connection.ps1
-
 # Run database migrations
 cd src\StarterApp.DbMigrator
 dotnet run
