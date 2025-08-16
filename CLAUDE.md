@@ -293,3 +293,66 @@ This template ensures consistency, maintainability, and scalability while follow
 - Use ArgumentNullException.ThrowIfNull in domain entities
 - GitHub Actions CI pipeline required
 - Configure Serilog with OpenTelemetry sink for Aspire structured logs
+
+## Example Prompts for Development
+
+Use these prompts with Claude Code to create new features following the architecture guidelines:
+
+### Creating a New Domain Entity
+
+```
+Create a new Customer domain entity with the following properties:
+- Id (int)
+- Name (string)
+- Email (Email value object)
+- DateCreated (DateTime)
+- IsActive (bool)
+
+Follow the DDD patterns in this codebase with private setters, proper validation, and domain methods for state changes.
+```
+
+### Adding CRUD Operations
+
+```
+Add complete CRUD operations for the Customer entity following the CQRS pattern:
+- CreateCustomerCommand with handler
+- UpdateCustomerCommand with handler
+- DeleteCustomerCommand with handler
+- GetCustomerQuery with handler
+- GetCustomersQuery with handler
+- API endpoints in CustomersController
+- Include proper validation, error handling, and tests
+```
+
+### Creating a New Feature
+
+```
+Implement a customer order management feature with:
+- Order domain entity with OrderItem value objects
+- Commands: CreateOrder, UpdateOrderStatus, CancelOrder
+- Queries: GetOrder, GetCustomerOrders, GetOrdersByStatus
+- API endpoints with proper validation
+- Integration tests covering all scenarios
+- Follow the existing patterns for repository, services, and database migrations
+```
+
+### Adding Value Objects
+
+```
+Create an Address value object with:
+- Street, City, State, PostalCode, Country properties
+- Validation for required fields and postal code format
+- Proper equality implementation
+- Static factory method for creation
+- Use it in the Customer entity
+```
+
+### Database Migrations
+
+```
+Create database migrations for the new Customer and Order entities:
+- Add embedded SQL scripts in the DbMigrator project
+- Follow the naming convention: 0003_CreateCustomers.sql, 0004_CreateOrders.sql
+- Include proper indexes and foreign key relationships
+- Update the connection string resolution if needed
+```
