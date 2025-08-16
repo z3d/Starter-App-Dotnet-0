@@ -16,7 +16,7 @@ public class ProductDtoTests
         };
         
         var validationContext = new ValidationContext(productDto);
-        var validationResults = new List<ValidationResult>();
+        List<ValidationResult> validationResults = [];
         
         // Act
         var isValid = Validator.TryValidateObject(productDto, validationContext, validationResults, true);
@@ -41,7 +41,7 @@ public class ProductDtoTests
         };
         
         var validationContext = new ValidationContext(productDto);
-        var validationResults = new List<ValidationResult>();
+        List<ValidationResult> validationResults = [];
         
         // Act
         Log.Information("Validating ProductDto with name that exceeds max length");
@@ -69,7 +69,7 @@ public class ProductDtoTests
         };
         
         var validationContext = new ValidationContext(productDto);
-        var validationResults = new List<ValidationResult>();
+        List<ValidationResult> validationResults = [];
         
         // Act
         Log.Information("Validating ProductDto with description that exceeds max length");
@@ -97,7 +97,7 @@ public class ProductDtoTests
         };
         
         var validationContext = new ValidationContext(productDto);
-        var validationResults = new List<ValidationResult>();
+        List<ValidationResult> validationResults = [];
         
         // Act
         Log.Information("Validating ProductDto with negative price");
@@ -125,7 +125,7 @@ public class ProductDtoTests
         };
         
         var validationContext = new ValidationContext(productDto);
-        var validationResults = new List<ValidationResult>();
+        List<ValidationResult> validationResults = [];
         
         // Act
         Log.Information("Validating ProductDto with currency that exceeds max length");
@@ -153,7 +153,7 @@ public class ProductDtoTests
         };
         
         var validationContext = new ValidationContext(productDto);
-        var validationResults = new List<ValidationResult>();
+        List<ValidationResult> validationResults = [];
         
         // Act
         Log.Information("Validating ProductDto with negative stock");

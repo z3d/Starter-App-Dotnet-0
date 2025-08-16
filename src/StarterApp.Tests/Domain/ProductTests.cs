@@ -42,7 +42,7 @@ public class ProductTests
                 .WithName(string.Empty)
                 .Build());
                 
-        Assert.Contains("Product name cannot be empty", exception.Message);
+        Assert.Contains("cannot be an empty string", exception.Message);
     }
 
     [Fact]
@@ -65,12 +65,12 @@ public class ProductTests
     public void Create_WithNegativeStock_ShouldThrowArgumentException()
     {
         // Arrange & Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => 
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => 
             ProductBuilder.AValidProduct()
                 .WithStock(-1)
                 .Build());
                 
-        Assert.Contains("Stock cannot be negative", exception.Message);
+        Assert.Contains("must be a non-negative value", exception.Message);
     }
 
     [Fact]

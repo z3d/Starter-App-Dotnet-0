@@ -98,13 +98,11 @@ public class TestDatabaseFixture : IAsyncLifetime
             Console.WriteLine($"Master connection string: {masterConnectionString}");
             
             // Create a test database
-            using (var connection = new SqlConnection(masterConnectionString))
-            {
-                await connection.OpenAsync();
-                var createDbCommand = new SqlCommand($"IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '{DbName}') CREATE DATABASE {DbName}", connection);
-                await createDbCommand.ExecuteNonQueryAsync();
-                Console.WriteLine($"Created test database '{DbName}'");
-            }
+            using var connection = new SqlConnection(masterConnectionString);
+            await connection.OpenAsync();
+            var createDbCommand = new SqlCommand($"IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '{DbName}') CREATE DATABASE {DbName}", connection);
+            await createDbCommand.ExecuteNonQueryAsync();
+            Console.WriteLine($"Created test database '{DbName}'");
             
             // Build connection string to the test database
             ConnectionString = masterConnectionString.Replace("Database=master", $"Database={DbName}");

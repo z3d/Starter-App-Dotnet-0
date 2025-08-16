@@ -148,16 +148,14 @@ public class DbUpApiTests : IAsyncLifetime
         Assert.True(dbUpResult.Successful, $"DbUp script execution failed: {dbUpResult.Error}");
 
         // Step 2: Verify table and data exists using parameterized query
-        using (var connection = new SqlConnection(_fixture.ConnectionString))
-        {
-            await connection.OpenAsync();
-            
-            using var command = new SqlCommand("SELECT COUNT(*) FROM TestTable", connection);
-            var queryResult = await command.ExecuteScalarAsync();
-            var count = queryResult != null ? Convert.ToInt32(queryResult) : 0;
-            
-            Assert.Equal(3, count);
-        }
+        using var connection = new SqlConnection(_fixture.ConnectionString);
+        await connection.OpenAsync();
+        
+        using var command = new SqlCommand("SELECT COUNT(*) FROM TestTable", connection);
+        var queryResult = await command.ExecuteScalarAsync();
+        var count = queryResult != null ? Convert.ToInt32(queryResult) : 0;
+        
+        Assert.Equal(3, count);
 
         // Step 3: Clean up (drop the test table)
         var dropTableScript = "DROP TABLE TestTable";
@@ -173,20 +171,18 @@ public class DbUpApiTests : IAsyncLifetime
         Assert.True(cleanupResult.Successful, $"DbUp cleanup script execution failed: {cleanupResult.Error}");
 
         // Step 4: Verify table was dropped using parameterized query
-        using (var connection = new SqlConnection(_fixture.ConnectionString))
-        {
-            await connection.OpenAsync();
-            
-            using var command = new SqlCommand(
-                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = @TableName", 
-                connection);
-            
-            command.Parameters.AddWithValue("@TableName", "TestTable");
-            
-            var dropQueryResult = await command.ExecuteScalarAsync();
-            var tableExists = dropQueryResult != null ? Convert.ToInt32(dropQueryResult) : 0;
-            
-            Assert.Equal(0, tableExists);
-        }
+        using var connection2 = new SqlConnection(_fixture.ConnectionString);
+        await connection2.OpenAsync();
+        
+        using var command2 = new SqlCommand(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = @TableName", 
+            connection2);
+        
+        command2.Parameters.AddWithValue("@TableName", "TestTable");
+        
+        var dropQueryResult = await command2.ExecuteScalarAsync();
+        var tableExists = dropQueryResult != null ? Convert.ToInt32(dropQueryResult) : 0;
+        
+        Assert.Equal(0, tableExists);
     }
 }

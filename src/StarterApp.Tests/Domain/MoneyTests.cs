@@ -94,9 +94,9 @@ public class MoneyTests
 
         // Act & Assert
         Log.Debug("Attempting to create money with negative amount {Amount}", amount);
-        var exception = Assert.Throws<ArgumentException>(() => 
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => 
             Money.Create(amount, currency));
-        Assert.Contains("Amount cannot be negative", exception.Message);
+        Assert.Contains("must be a non-negative value", exception.Message);
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);
     }
 
@@ -112,7 +112,7 @@ public class MoneyTests
         Log.Debug("Attempting to create money with empty currency");
         var exception = Assert.Throws<ArgumentException>(() => 
             Money.Create(amount, currency));
-        Assert.Contains("Currency cannot be empty", exception.Message);
+        Assert.Contains("cannot be an empty string", exception.Message);
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);
     }
 
