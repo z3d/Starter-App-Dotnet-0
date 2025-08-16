@@ -25,8 +25,7 @@ public class Product
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Product name cannot be empty", nameof(name));
 
-        if (price == null)
-            throw new ArgumentNullException(nameof(price));
+        ArgumentNullException.ThrowIfNull(price);
 
         if (stock < 0)
             throw new ArgumentException("Stock cannot be negative", nameof(stock));
