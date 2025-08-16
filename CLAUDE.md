@@ -289,11 +289,7 @@ This template ensures consistency, maintainability, and scalability while follow
 
 ## Recent Enhancements
 
-### Latest Commits
-- **Apply modern .NET patterns and fix corresponding tests** - Updated the codebase to use contemporary .NET patterns and ensured all tests pass with the changes
-- **Modernize argument validation with .NET guard clauses** - Replaced manual argument validation with modern .NET guard clause patterns for cleaner, more maintainable code
-- **Use ArgumentNullException.ThrowIfNull in Product entity** - Applied modern null-checking patterns in the Product domain entity
-- **Simplify CI pipeline - remove SQL Server dependency** - Streamlined the continuous integration pipeline by removing unnecessary SQL Server dependencies
-- **Fix SQL Server container configuration in CI** - Resolved configuration issues with SQL Server containerization in the CI environment
-- **Add GitHub Actions CI pipeline** - Implemented automated build and test pipeline using GitHub Actions
-- **Configure Serilog with OpenTelemetry sink for Aspire structured logs** - Enhanced logging capabilities with proper OpenTelemetry integration for observability
+- Use .NET guard clauses for argument validation  
+- Use ArgumentNullException.ThrowIfNull in domain entities
+- GitHub Actions CI pipeline required
+- Configure Serilog with OpenTelemetry sink for Aspire structured logs
