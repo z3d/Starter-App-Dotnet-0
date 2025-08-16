@@ -2,6 +2,7 @@ using StarterApp.Api.Data;
 using StarterApp.Api.Application.Commands;
 using StarterApp.Api.Application.Queries;
 using StarterApp.Api.Infrastructure.Repositories;
+using StarterApp.Api.Infrastructure.Middleware;
 using StarterApp.Domain.Interfaces;
 using System.Reflection;
 using Microsoft.AspNetCore.Diagnostics;
@@ -146,7 +147,10 @@ try
         app.UseHsts();
     }
 
-    // Global exception handler
+    // Validation exception middleware (handles 400 errors)
+    app.UseMiddleware<ValidationExceptionMiddleware>();
+
+    // Global exception handler (handles 500 errors)
     app.UseExceptionHandler(errorApp => {
         errorApp.Run(async context => {
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
