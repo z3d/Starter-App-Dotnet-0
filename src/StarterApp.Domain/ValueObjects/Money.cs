@@ -15,11 +15,9 @@ public class Money
 
     public static Money Create(decimal amount, string currency = "USD")
     {
-        if (amount < 0)
-            throw new ArgumentException("Amount cannot be negative", nameof(amount));
+        ArgumentOutOfRangeException.ThrowIfNegative(amount);
 
-        if (string.IsNullOrWhiteSpace(currency))
-            throw new ArgumentException("Currency cannot be empty", nameof(currency));
+        ArgumentException.ThrowIfNullOrWhiteSpace(currency);
             
         if (currency.Length > MaxCurrencyLength)
             throw new ArgumentException($"Currency code cannot exceed {MaxCurrencyLength} characters", nameof(currency));

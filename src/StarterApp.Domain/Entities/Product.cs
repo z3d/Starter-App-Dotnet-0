@@ -22,13 +22,11 @@ public class Product
     // Public constructor (replacing the factory method)
     public Product(string name, string description, Money price, int stock)
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Product name cannot be empty", nameof(name));
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         ArgumentNullException.ThrowIfNull(price);
 
-        if (stock < 0)
-            throw new ArgumentException("Stock cannot be negative", nameof(stock));
+        ArgumentOutOfRangeException.ThrowIfNegative(stock);
 
         Name = name;
         Description = description ?? string.Empty;
