@@ -2,7 +2,6 @@ using StarterApp.Api.Data;
 using StarterApp.Api.Application.Commands;
 using StarterApp.Api.Application.Queries;
 using StarterApp.Api.Infrastructure.Repositories;
-using StarterApp.Api.Infrastructure.Middleware;
 using StarterApp.Domain.Interfaces;
 using System.Reflection;
 using Microsoft.AspNetCore.Diagnostics;
@@ -31,6 +30,7 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 );
 
 // Add services to the container
+builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 
 // Add native OpenAPI support with .NET 9
@@ -147,27 +147,20 @@ try
         app.UseHsts();
     }
 
-    // Validation exception middleware (handles 400 errors)
-    app.UseMiddleware<ValidationExceptionMiddleware>();
-
-    // Global exception handler (handles 500 errors)
-    app.UseExceptionHandler(errorApp => {
-        errorApp.Run(async context => {
-            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-            context.Response.ContentType = "application/json";
-
-            var exceptionHandlerPathFeature = context.Features.Get<IExceptionHandlerPathFeature>();
-            var exception = exceptionHandlerPathFeature?.Error;
-
-            if (exception != null)
-                Log.Error(exception, "Unhandled exception: {ExMessage}", exception.Message);
-
-            if (app.Environment.IsDevelopment())
-                await context.Response.WriteAsJsonAsync(new { error = exception?.Message ?? "An unexpected error occurred", stackTrace = exception?.StackTrace });
-            else
-                await context.Response.WriteAsJsonAsync(new { error = "An unexpected error occurred. Please try again later." });
-        });
+    // Use .NET 9 Problem Details with StatusCodeSelector for centralized exception handling
+    app.UseExceptionHandler(new ExceptionHandlerOptions
+    {
+        StatusCodeSelector = ex => ex switch
+        {
+            ArgumentNullException => StatusCodes.Status400BadRequest,
+            ArgumentOutOfRangeException => StatusCodes.Status400BadRequest,
+            ArgumentException => StatusCodes.Status400BadRequest,
+            KeyNotFoundException => StatusCodes.Status404NotFound,
+            _ => StatusCodes.Status500InternalServerError
+        }
     });
+    
+    app.UseStatusCodePages();
 
     // Security headers middleware
     app.Use(async (context, next) => {
