@@ -8,6 +8,7 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<Product> Products { get; set; } = null!;
+    public DbSet<Customer> Customers { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -23,6 +24,15 @@ public class ApplicationDbContext : DbContext
                 priceBuilder.Property(m => m.Currency)
                     .HasColumnName("PriceCurrency")
                     .HasMaxLength(3);
+            });
+
+        // Configure Email value object for Customer
+        modelBuilder.Entity<Customer>()
+            .OwnsOne(c => c.Email, emailBuilder =>
+            {
+                emailBuilder.Property(e => e.Value)
+                    .HasColumnName("Email")
+                    .HasMaxLength(320);
             });
     }
 }

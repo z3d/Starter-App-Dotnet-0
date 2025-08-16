@@ -6,8 +6,10 @@ A comprehensive tutorial project demonstrating modern .NET development with Dock
 
 ### Prerequisites
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
-- [Docker Desktop](https://www.docker.com/products/docker-desktop)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) (**Required** - must be running for integration tests)
 - Visual Studio Code or Visual Studio 2022
+
+> **⚠️ Important**: Docker Desktop must be installed and running before executing integration tests or using Docker Compose. The integration tests use Testcontainers to spin up SQL Server instances.
 
 ### Running with .NET Aspire (Recommended for Development)
 ```powershell
@@ -91,18 +93,23 @@ dotnet run
 cd src\StarterApp.Api
 dotnet run
 
-# Run tests
+# Run tests (requires Docker Desktop to be running)
 dotnet test
+
+# Run only unit tests (no Docker required)
+dotnet test --filter "FullyQualifiedName!~Integration"
 ```
 
 ## 🔍 Key Features
 
 - **Clean Architecture**: Separation of concerns with Domain, Application, and Infrastructure layers
+- **Modern .NET Patterns**: Uses C# 12/.NET 9 features like collection expressions, guard clauses, and using declarations
 - **Health Checks**: Built-in health monitoring for all services
 - **Observability**: Distributed tracing, metrics, and structured logging
 - **Configuration Management**: Environment-specific settings with .NET configuration
 - **Database Migrations**: Automated schema updates with DbUp
 - **Container Orchestration**: Both Docker Compose and .NET Aspire support
+- **Comprehensive Testing**: Unit tests and integration tests with Testcontainers
 
 ## 📖 Learning Resources
 
