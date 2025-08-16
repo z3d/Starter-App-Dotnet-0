@@ -296,13 +296,12 @@ Tests/
 
 This template ensures consistency, maintainability, and scalability while following .NET community best practices and modern architectural patterns.
 
-## Recent Enhancements
+## Required Implementation Standards
 
-- Use .NET guard clauses for argument validation  
-- Use ArgumentNullException.ThrowIfNull in domain entities
-- GitHub Actions CI pipeline required
-- Configure Serilog with OpenTelemetry sink for Aspire structured logs
-- RFC 7807 Problem Details for standardized API error responses
+- **MUST** use .NET guard clauses for argument validation (ArgumentException.ThrowIfNullOrWhiteSpace, ArgumentNullException.ThrowIfNull)
+- **MUST** implement GitHub Actions CI pipeline for automated build and test
+- **MUST** configure Serilog with OpenTelemetry sink for Aspire structured logging
+- **MUST** implement RFC 7807 Problem Details for standardized API error responses using .NET 9 StatusCodeSelector
 
 ## Example Prompts for Development
 
