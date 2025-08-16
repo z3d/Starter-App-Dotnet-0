@@ -214,6 +214,7 @@ Tests/
 - **Security headers** middleware
 - **Rate limiting** with fixed window strategy
 - **CORS** with environment-specific policies
+- **RFC 7807 Problem Details** for standardized error responses
 - **Global exception handling** with structured logging
 
 ### Logging and Observability
@@ -242,6 +243,14 @@ Tests/
 - **Service Dependencies**: Proper wait conditions with `WaitFor()`
 - **Connection String Management**: Hierarchical resolution strategy
 - **Database Migrations**: Automated on startup with proper error handling
+
+#### Error Handling
+- **RFC 7807 Problem Details**: Standardized API error responses
+- **StatusCodeSelector**: .NET 9 feature for mapping exceptions to HTTP status codes
+- **ArgumentException**: Maps to 400 Bad Request
+- **KeyNotFoundException**: Maps to 404 Not Found
+- **Other exceptions**: Default to 500 Internal Server Error
+- **AddProblemDetails()**: Service registration for Problem Details support
 
 ### Environment Configuration
 
@@ -293,6 +302,7 @@ This template ensures consistency, maintainability, and scalability while follow
 - Use ArgumentNullException.ThrowIfNull in domain entities
 - GitHub Actions CI pipeline required
 - Configure Serilog with OpenTelemetry sink for Aspire structured logs
+- RFC 7807 Problem Details for standardized API error responses
 
 ## Example Prompts for Development
 
