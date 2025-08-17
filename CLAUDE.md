@@ -302,6 +302,8 @@ This template ensures consistency, maintainability, and scalability while follow
 - **MUST** implement GitHub Actions CI pipeline for automated build and test
 - **MUST** configure Serilog with OpenTelemetry sink for Aspire structured logging
 - **MUST** implement RFC 7807 Problem Details for standardized API error responses using .NET 9 StatusCodeSelector
+- **MUST** write comprehensive integration tests for all new domain objects following existing patterns
+- **MUST** examine and follow existing test patterns when creating new tests (check Domain/, Integration/, and TestBuilders/ folders)
 
 ## Example Prompts for Development
 
@@ -317,7 +319,7 @@ Create a new Customer domain entity with the following properties:
 - DateCreated (DateTime)
 - IsActive (bool)
 
-Follow the DDD patterns in this codebase with private setters, proper validation, and domain methods for state changes.
+Follow the DDD patterns in this codebase with private setters, proper validation, and domain methods for state changes. Include comprehensive unit tests following the existing patterns in the Domain/ test folder.
 ```
 
 ### Adding CRUD Operations
@@ -330,7 +332,8 @@ Add complete CRUD operations for the Customer entity following the CQRS pattern:
 - GetCustomerQuery with handler
 - GetCustomersQuery with handler
 - API endpoints in CustomersController
-- Include proper validation, error handling, and tests
+- Include proper validation, error handling, and comprehensive tests following existing patterns
+- Write integration tests examining existing Integration/ test folder patterns
 ```
 
 ### Creating a New Feature
@@ -341,8 +344,9 @@ Implement a customer order management feature with:
 - Commands: CreateOrder, UpdateOrderStatus, CancelOrder
 - Queries: GetOrder, GetCustomerOrders, GetOrdersByStatus
 - API endpoints with proper validation
-- Integration tests covering all scenarios
-- Follow the existing patterns for repository, services, and database migrations
+- Comprehensive unit and integration tests covering all scenarios
+- Follow the existing patterns for repository, services, database migrations, and test organization
+- Examine existing test builders and patterns before implementing new tests
 ```
 
 ### Adding Value Objects
@@ -354,6 +358,7 @@ Create an Address value object with:
 - Proper equality implementation
 - Static factory method for creation
 - Use it in the Customer entity
+- Write comprehensive unit tests following existing value object test patterns
 ```
 
 ### Database Migrations
