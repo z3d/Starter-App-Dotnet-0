@@ -25,6 +25,7 @@ Solution Root/
 ### Language Features & Conventions
 
 #### Use Global Usings
+
 - **MUST** implement global usings in `GlobalUsings.cs` for each project
 - Domain layer example:
   ```csharp
@@ -39,6 +40,7 @@ Solution Root/
   ```
 
 #### Project Configuration Standards
+
 - **Target Framework**: `net9.0`
 - **Nullable Reference Types**: `<Nullable>enable</Nullable>`
 - **Implicit Usings**: `<ImplicitUsings>enable</ImplicitUsings>`
@@ -47,6 +49,7 @@ Solution Root/
 ### Domain-Driven Design Implementation
 
 #### Domain Entities
+
 - **Private setters** for all properties to enforce encapsulation
 - Public constructor for valid object creation
 - Protected parameterless constructor for EF Core
@@ -58,14 +61,14 @@ Solution Root/
       public int Id { get; private set; }
       public string Name { get; private set; } = string.Empty;
       public Money Price { get; private set; } = null!;
-      
+
       protected Product() { } // EF Core
-      
+
       public Product(string name, Money price) // Domain creation
       {
           // Validation and assignment
       }
-      
+
       public void UpdateDetails(string name, Money price) // Domain behavior
       {
           // Business logic and validation
@@ -74,6 +77,7 @@ Solution Root/
   ```
 
 #### Value Objects
+
 - **Immutable** with private setters
 - Static factory methods for creation
 - Proper equality implementation
@@ -82,18 +86,21 @@ Solution Root/
 ### CQRS Implementation
 
 #### Command Side (Write Operations)
+
 - **Commands**: Simple DTOs implementing `ICommand` and `IRequest<T>`
 - **Command Handlers**: Implement both `ICommandHandler<T>` and `IRequestHandler<T, TResult>`
 - **Command Services**: Use EF Core directly for write operations
 - **MediatR**: For command/query dispatching
 
 #### Query Side (Read Operations)
+
 - **Queries**: Simple DTOs implementing `IQuery<T>` and `IRequest<T>`
 - **Query Handlers**: Implement both `IQueryHandler<T, TResult>` and `IRequestHandler<T, TResult>`
 - **Query Services**: Use Dapper for optimized read operations
 - **Read Models**: Optimized for data retrieval
 
 #### CQRS Interface Definitions
+
 ```csharp
 public interface ICommand { }
 public interface IQuery<TResult> { }
@@ -110,6 +117,7 @@ public interface IQueryHandler<TQuery, TResult> where TQuery : IQuery<TResult>
 ### Libraries and Dependencies
 
 #### Core Libraries
+
 - **Aspire.Hosting.AppHost** (9.3.0+) - Orchestration
 - **Aspire.Hosting.SqlServer** (9.3.0+) - Database hosting
 - **MediatR** (11.1.0+) - CQRS mediator pattern
@@ -119,6 +127,7 @@ public interface IQueryHandler<TQuery, TResult> where TQuery : IQuery<TResult>
 - **dbup-sqlserver** (6.0.0+) - Database migrations
 
 #### API-Specific
+
 - **Microsoft.AspNetCore.OpenApi** (9.0.5+) - Native .NET 9 OpenAPI
 - **Swashbuckle.AspNetCore** (6.5.0+) - Swagger UI
 - Rate limiting, CORS, health checks (built-in .NET 9)
@@ -126,11 +135,13 @@ public interface IQueryHandler<TQuery, TResult> where TQuery : IQuery<TResult>
 ### Aspire Configuration
 
 #### AppHost Project Structure
+
 - **SDK**: `Microsoft.NET.Sdk` with `Aspire.AppHost.Sdk`
 - **IsAspireHost**: `true`
 - **UserSecretsId**: Generate unique GUID
 
 #### Orchestration Pattern
+
 ```csharp
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -150,6 +161,7 @@ builder.Build().Run();
 ```
 
 #### ServiceDefaults Project
+
 - Shared configuration for OpenTelemetry, health checks, service discovery
 - Resilience patterns with `AddStandardResilienceHandler()`
 - Common middleware and cross-cutting concerns
@@ -157,12 +169,14 @@ builder.Build().Run();
 ### Database Management
 
 #### Migration Strategy
+
 - **DbUp** for schema migrations
 - Embedded SQL scripts in `DbMigrator` project
 - Separate migration service for clean separation
 - Migration files named: `0001_CreateTable.sql`, `0002_AddColumn.sql`
 
 #### Data Access Patterns
+
 - **EF Core** for command operations (writes)
 - **Dapper** for query operations (reads)
 - **Repository Pattern** for domain abstraction
@@ -171,6 +185,7 @@ builder.Build().Run();
 ### Testing Strategy
 
 #### Test Types and Frameworks
+
 - **xUnit** as primary testing framework
 - **Moq** for mocking dependencies
 - **Best.Conventional** for architectural testing
@@ -179,6 +194,7 @@ builder.Build().Run();
 - **Respawn** for database cleanup between tests
 
 #### Test Organization
+
 ```
 Tests/
 ├── Unit/
@@ -191,6 +207,7 @@ Tests/
 ```
 
 #### Convention Testing (Critical)
+
 - **Controllers**: Must end with "Controller"
 - **DTOs**: Must end with "Dto" or "ReadModel"
 - **Commands**: Must end with "Command"
@@ -204,12 +221,14 @@ Tests/
 ### API Design Principles
 
 #### Controller Structure
+
 - **Minimal APIs** or traditional controllers
 - **ActionResult<T>** return types
 - **Model validation** with data annotations
 - **OpenAPI** documentation with .NET 9 native support
 
 #### Security and Cross-Cutting Concerns
+
 - **HTTPS redirection** mandatory
 - **Security headers** middleware
 - **Rate limiting** with fixed window strategy
@@ -220,12 +239,14 @@ Tests/
 ### Logging and Observability
 
 #### Serilog Configuration
+
 - **Console** and **File** sinks for development
 - **OpenTelemetry** integration through Aspire
 - **Structured logging** with contextual information
 - **Log levels**: Information for business operations, Error for exceptions
 
 #### OpenTelemetry Integration
+
 - **Metrics**: ASP.NET Core, HTTP Client, Runtime instrumentation
 - **Tracing**: HTTP requests and responses
 - **OTLP Exporter**: Configurable via environment variables
@@ -233,18 +254,21 @@ Tests/
 ### Development Workflow
 
 #### Code Quality Gates
+
 - **TreatWarningsAsErrors**: Enforced across all projects
 - **Convention Tests**: Automated architectural rule validation
 - **Nullable Reference Types**: Enabled with proper null handling
 - **Global Usings**: Consistent across solution
 
 #### Build and Deployment
+
 - **Aspire Dashboard**: For local development observability
 - **Service Dependencies**: Proper wait conditions with `WaitFor()`
 - **Connection String Management**: Hierarchical resolution strategy
 - **Database Migrations**: Automated on startup with proper error handling
 
 #### Error Handling
+
 - **RFC 7807 Problem Details**: Standardized API error responses
 - **StatusCodeSelector**: .NET 9 feature for mapping exceptions to HTTP status codes
 - **ArgumentException**: Maps to 400 Bad Request
@@ -255,12 +279,14 @@ Tests/
 ### Environment Configuration
 
 #### Application Settings Pattern
+
 - `appsettings.json` (base configuration)
 - `appsettings.Docker.json` (container-specific overrides)
 - Environment variable support for sensitive data
 - User secrets for development
 
 #### Aspire Service Discovery
+
 - Automatic service registration and discovery
 - HTTP client configuration with resilience
 - Load balancing and health checking
@@ -268,6 +294,7 @@ Tests/
 ## Implementation Guidelines for LLMs
 
 ### Project Creation Sequence
+
 1. Create solution with proper folder structure
 2. Set up Domain layer with entities and value objects
 3. Implement API layer with CQRS pattern
@@ -278,6 +305,7 @@ Tests/
 8. Set up convention testing with Best.Conventional
 
 ### Key Anti-Patterns to Avoid
+
 - **Anemic Domain Models**: Domain objects should have behavior, not just properties
 - **Mixed Concerns**: Keep command and query responsibilities separate
 - **Tight Coupling**: Use interfaces and dependency injection consistently
@@ -285,6 +313,7 @@ Tests/
 - **Inconsistent Naming**: Follow the established conventions strictly
 
 ### Required Files Checklist
+
 - [ ] GlobalUsings.cs in each project
 - [ ] Convention tests with Best.Conventional
 - [ ] Embedded SQL migration scripts
@@ -304,6 +333,9 @@ This template ensures consistency, maintainability, and scalability while follow
 - **MUST** implement RFC 7807 Problem Details for standardized API error responses using .NET 9 StatusCodeSelector
 - **MUST** write comprehensive integration tests for all new domain objects following existing patterns
 - **MUST** examine and follow existing test patterns when creating new tests (check Domain/, Integration/, and TestBuilders/ folders)
+- **MUST** always run tests after complex changes such as adding new domain objects to the API
+- **MUST** persist when tests fail - fix issues rather than commenting out code or taking shortcuts
+- **MUST** ensure all tests pass before considering a task complete
 
 ## Example Prompts for Development
 
