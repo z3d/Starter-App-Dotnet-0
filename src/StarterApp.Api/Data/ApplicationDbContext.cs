@@ -46,11 +46,17 @@ public class ApplicationDbContext : DbContext
             orderBuilder.Property(o => o.Status)
                 .HasConversion<string>();
 
-            // Configure the Items as ignored since we'll handle the data differently
+            // Configure the Items collection relationship
+            orderBuilder.HasMany<OrderItem>()
+                .WithOne()
+                .HasForeignKey(oi => oi.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure the Items as ignored since EF will load via relationship
             orderBuilder.Ignore(o => o.Items);
         });
 
-        // Configure OrderItem
+        // Configure OrderItem entity
         modelBuilder.Entity<OrderItem>(itemBuilder =>
         {
             itemBuilder.ToTable("OrderItems");
@@ -60,22 +66,21 @@ public class ApplicationDbContext : DbContext
                 .HasMaxLength(100)
                 .IsRequired();
 
-            itemBuilder.Property(oi => oi.UnitPriceExcludingGst)
-                .HasPrecision(18, 2);
-
-            itemBuilder.Property(oi => oi.Currency)
-                .HasMaxLength(3)
-                .IsRequired();
-
             itemBuilder.Property(oi => oi.GstRate)
                 .HasPrecision(5, 4);
 
-            // Configure relationships
-            itemBuilder.HasOne<Order>()
-                .WithMany()
-                .HasForeignKey(oi => oi.OrderId)
-                .OnDelete(DeleteBehavior.Cascade);
+            // Configure Money value object for UnitPriceExcludingGst (like Product.Price)
+            itemBuilder.OwnsOne(oi => oi.UnitPriceExcludingGst, priceBuilder =>
+            {
+                priceBuilder.Property(m => m.Amount)
+                    .HasColumnName("UnitPriceExcludingGst")
+                    .HasPrecision(18, 2);
+                priceBuilder.Property(m => m.Currency)
+                    .HasColumnName("Currency")
+                    .HasMaxLength(3);
+            });
 
+            // Configure relationship to Product
             itemBuilder.HasOne<Product>()
                 .WithMany()
                 .HasForeignKey(oi => oi.ProductId);

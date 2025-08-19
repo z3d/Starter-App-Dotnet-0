@@ -2,13 +2,13 @@ namespace StarterApp.Domain.Entities;
 
 public class Order
 {
-    private readonly List<OrderItemValue> _items = [];
+    private readonly List<OrderItem> _items = [];
 
     public int Id { get; private set; }
     public int CustomerId { get; private set; }
     public DateTime OrderDate { get; private set; }
     public OrderStatus Status { get; private set; }
-    public IReadOnlyList<OrderItemValue> Items { get; private set; } = [];
+    public IReadOnlyList<OrderItem> Items { get; private set; } = [];
     public DateTime LastUpdated { get; private set; }
 
     protected Order()
@@ -30,7 +30,7 @@ public class Order
         Items = _items.AsReadOnly();
     }
 
-    public void AddItem(OrderItemValue item)
+    public void AddItem(OrderItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
 
@@ -140,7 +140,7 @@ public class Order
         Id = id;
     }
 
-    public void LoadFromDatabase(DateTime orderDate, OrderStatus status, DateTime lastUpdated, List<OrderItemValue> items)
+    public void LoadFromDatabase(DateTime orderDate, OrderStatus status, DateTime lastUpdated, List<OrderItem> items)
     {
         OrderDate = orderDate;
         Status = status;

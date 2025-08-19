@@ -12,7 +12,7 @@ public class CreateOrderItemCommand
     public int Quantity { get; set; }
     public decimal UnitPriceExcludingGst { get; set; }
     public string Currency { get; set; } = "USD";
-    public decimal GstRate { get; set; } = OrderItemValue.DefaultGstRate;
+    public decimal GstRate { get; set; } = OrderItem.DefaultGstRate;
 }
 
 public class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand>, 

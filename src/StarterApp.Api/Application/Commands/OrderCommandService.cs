@@ -33,7 +33,8 @@ public class OrderCommandService : IOrderCommandService
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {itemCommand.ProductId} was not found");
 
-            var orderItem = OrderItemValue.Create(
+            var orderItem = new OrderItem(
+                order.Id,
                 itemCommand.ProductId,
                 product.Name,
                 itemCommand.Quantity,
@@ -41,8 +42,7 @@ public class OrderCommandService : IOrderCommandService
                 itemCommand.GstRate
             );
 
-            var orderItemEntity = new OrderItem(order.Id, orderItem);
-            _dbContext.OrderItems.Add(orderItemEntity);
+            _dbContext.OrderItems.Add(orderItem);
         }
         
         await _dbContext.SaveChangesAsync();
@@ -93,12 +93,9 @@ public class OrderCommandService : IOrderCommandService
         if (order == null)
             return null;
 
-        var orderItemEntities = await _dbContext.OrderItems
+        var orderItems = await _dbContext.OrderItems
             .Where(oi => oi.OrderId == orderId)
             .ToListAsync();
-
-        // Convert entities to value objects
-        var orderItems = orderItemEntities.Select(e => e.ToValueObject()).ToList();
 
         // Reconstruct the order with items
         var orderWithItems = new Order(order.CustomerId);
