@@ -311,6 +311,7 @@ Tests/
 - **Tight Coupling**: Use interfaces and dependency injection consistently
 - **Missing Validation**: Both at domain and API boundaries
 - **Inconsistent Naming**: Follow the established conventions strictly
+- **Dual Representation Overengineering**: Avoid creating separate entity/value object pairs when a single entity with embedded value objects suffices (see Architecture Consistency section below)
 
 ### Required Files Checklist
 
@@ -324,6 +325,97 @@ Tests/
 - [ ] Structured logging configuration
 
 This template ensures consistency, maintainability, and scalability while following .NET community best practices and modern architectural patterns.
+
+## Architecture Consistency Guidelines
+
+### Entity-Value Object Pattern
+
+**CRITICAL**: Maintain consistent patterns across all domain entities. Follow the established approach used by Customer and Product entities:
+
+#### ✅ Correct Pattern (Single Entity + Embedded Value Objects)
+```csharp
+public class Product  // Entity with identity
+{
+    public int Id { get; private set; }
+    public Money Price { get; private set; }  // Embedded value object
+    
+    public void UpdatePrice(Money newPrice) { /* domain logic */ }
+}
+
+public class Customer  // Entity with identity  
+{
+    public int Id { get; private set; }
+    public Email Email { get; private set; }  // Embedded value object
+    
+    public void UpdateEmail(Email newEmail) { /* domain logic */ }
+}
+
+public class OrderItem  // Entity with identity
+{
+    public int Id { get; private set; }
+    public Money UnitPrice { get; private set; }  // Embedded value object
+    
+    public Money GetTotalPrice() { /* domain logic */ }
+}
+```
+
+#### ❌ Overengineered Anti-Pattern (Dual Representation)
+```csharp
+// DON'T DO THIS - Creates unnecessary complexity
+public class OrderItemValue { /* value object */ }
+public class OrderItemEntity { /* separate entity */ }
+// + Complex conversion logic between the two
+```
+
+### EF Core Configuration Consistency
+
+Use `OwnsOne` for embedded value objects consistently:
+
+```csharp
+// Product configuration
+modelBuilder.Entity<Product>()
+    .OwnsOne(p => p.Price, priceBuilder => {
+        priceBuilder.Property(m => m.Amount).HasColumnName("PriceAmount");
+        priceBuilder.Property(m => m.Currency).HasColumnName("PriceCurrency");
+    });
+
+// Customer configuration  
+modelBuilder.Entity<Customer>()
+    .OwnsOne(c => c.Email, emailBuilder => {
+        emailBuilder.Property(e => e.Value).HasColumnName("Email");
+    });
+
+// OrderItem configuration (follows same pattern)
+modelBuilder.Entity<OrderItem>()
+    .OwnsOne(oi => oi.UnitPrice, priceBuilder => {
+        priceBuilder.Property(m => m.Amount).HasColumnName("UnitPrice");
+        priceBuilder.Property(m => m.Currency).HasColumnName("Currency");
+    });
+```
+
+### When to Use Each Approach
+
+**Use Single Entity (Recommended):**
+- Entity has clear identity (ID, lifecycle)
+- Business logic belongs to the entity
+- Embedded value objects provide structure
+- Database table represents the entity
+
+**Avoid Dual Representation Unless:**
+- Extremely complex domain requirements
+- Clear separation needed between persistence/domain models
+- Team has deep DDD expertise
+- Benefits outweigh complexity costs
+
+### Architecture Verification Checklist
+
+When adding new domain concepts, verify consistency:
+
+- [ ] Does it follow Customer/Product/OrderItem pattern?
+- [ ] Are value objects embedded, not separate entities?
+- [ ] Is EF Core configuration consistent with existing entities?
+- [ ] Are business methods on the entity, not external services?
+- [ ] Can developers easily understand the relationship to existing code?
 
 ## Required Implementation Standards
 
@@ -402,3 +494,13 @@ Create database migrations for the new Customer and Order entities:
 - Include proper indexes and foreign key relationships
 - Update the connection string resolution if needed
 ```
+
+### Architecture Pattern Reference
+
+**Order Management Implementation**: Use the Order/OrderItem entities as reference for proper DDD implementation:
+- Order entity manages OrderItem collection with business rules
+- OrderItem entity has embedded Money value object for pricing
+- EF Core uses OwnsOne for value objects, HasMany/WithOne for entity relationships
+- Single entities with embedded value objects (no dual representation)
+- Business logic methods directly on entities (GetTotalPrice, AddItem, etc.)
+- Proper encapsulation with private setters and domain validation
