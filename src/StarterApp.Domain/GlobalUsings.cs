@@ -11,4 +11,5 @@ global using Serilog.Events;
 
 // Domain-wide global usings
 global using StarterApp.Domain.Entities;
+global using StarterApp.Domain.Enums;
 global using StarterApp.Domain.ValueObjects;

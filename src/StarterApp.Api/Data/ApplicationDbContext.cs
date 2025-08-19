@@ -9,6 +9,8 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Product> Products { get; set; } = null!;
     public DbSet<Customer> Customers { get; set; } = null!;
+    public DbSet<Order> Orders { get; set; } = null!;
+    public DbSet<OrderItem> OrderItems { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -34,5 +36,49 @@ public class ApplicationDbContext : DbContext
                     .HasColumnName("Email")
                     .HasMaxLength(320);
             });
+
+        // Configure Order entity
+        modelBuilder.Entity<Order>(orderBuilder =>
+        {
+            orderBuilder.HasKey(o => o.Id);
+            
+            // Configure OrderStatus enum as string
+            orderBuilder.Property(o => o.Status)
+                .HasConversion<string>();
+
+            // Configure the Items as ignored since we'll handle the data differently
+            orderBuilder.Ignore(o => o.Items);
+        });
+
+        // Configure OrderItem
+        modelBuilder.Entity<OrderItem>(itemBuilder =>
+        {
+            itemBuilder.ToTable("OrderItems");
+            itemBuilder.HasKey(oi => oi.Id);
+
+            itemBuilder.Property(oi => oi.ProductName)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            itemBuilder.Property(oi => oi.UnitPriceExcludingGst)
+                .HasPrecision(18, 2);
+
+            itemBuilder.Property(oi => oi.Currency)
+                .HasMaxLength(3)
+                .IsRequired();
+
+            itemBuilder.Property(oi => oi.GstRate)
+                .HasPrecision(5, 4);
+
+            // Configure relationships
+            itemBuilder.HasOne<Order>()
+                .WithMany()
+                .HasForeignKey(oi => oi.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            itemBuilder.HasOne<Product>()
+                .WithMany()
+                .HasForeignKey(oi => oi.ProductId);
+        });
     }
 }

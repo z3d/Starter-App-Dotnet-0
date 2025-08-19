@@ -68,6 +68,15 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
                 services.Remove(descriptor);
             }
 
+            // Remove the app's IDbConnection registration
+            var dbConnectionDescriptor = services.SingleOrDefault(d => 
+                d.ServiceType == typeof(System.Data.IDbConnection));
+
+            if (dbConnectionDescriptor != null)
+            {
+                services.Remove(dbConnectionDescriptor);
+            }
+
             // Add ApplicationDbContext using the test container
             services.AddDbContext<ApplicationDbContext>(options =>
             {
@@ -76,6 +85,10 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
                     options.UseSqlServer(ConnectionString);
                 }
             });
+
+            // Add IDbConnection for Dapper using the test container
+            services.AddScoped<System.Data.IDbConnection>(provider =>
+                new Microsoft.Data.SqlClient.SqlConnection(ConnectionString ?? throw new InvalidOperationException("Connection string not set")));
         });
     }
 
