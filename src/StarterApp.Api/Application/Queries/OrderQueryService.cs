@@ -28,7 +28,9 @@ public class OrderQueryService : IOrderQueryService
 
         const string itemsSql = @"
             SELECT OrderId, ProductId, ProductName, Quantity, UnitPriceExcludingGst, 
-                   UnitPriceIncludingGst, TotalPriceExcludingGst, TotalPriceIncludingGst, 
+                   UnitPriceExcludingGst * (1 + GstRate) AS UnitPriceIncludingGst,
+                   UnitPriceExcludingGst * Quantity AS TotalPriceExcludingGst,
+                   UnitPriceExcludingGst * Quantity * (1 + GstRate) AS TotalPriceIncludingGst,
                    GstRate, Currency
             FROM OrderItems 
             WHERE OrderId = @Id";

@@ -61,17 +61,9 @@ public class OrdersController : ControllerBase
     {
         Log.Information("Creating a new order for customer: {CustomerId}", command.CustomerId);
         
-        try
-        {
-            var result = await _mediator.Send(command);
-            Log.Information("Created new order with ID: {Id}", result.Id);
-            return CreatedAtAction(nameof(GetOrder), new { id = result.Id }, result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            Log.Warning("Failed to create order: {Message}", ex.Message);
-            return BadRequest(ex.Message);
-        }
+        var result = await _mediator.Send(command);
+        Log.Information("Created new order with ID: {Id}", result.Id);
+        return CreatedAtAction(nameof(GetOrder), new { id = result.Id }, result);
     }
 
     // PUT: api/Orders/5/status

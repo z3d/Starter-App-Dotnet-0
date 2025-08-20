@@ -19,6 +19,11 @@ public class OrderCommandService : IOrderCommandService
     {
         Log.Information("Creating order for customer {CustomerId} with EF Core", customerId);
         
+        // Validate that customer exists
+        var customerExists = await _dbContext.Customers.AnyAsync(c => c.Id == customerId);
+        if (!customerExists)
+            throw new KeyNotFoundException($"Customer with ID {customerId} was not found");
+        
         var order = new Order(customerId);
 
         // Create order header first
@@ -89,11 +94,12 @@ public class OrderCommandService : IOrderCommandService
 
     private async Task<Order?> LoadOrderWithItems(int orderId)
     {
-        var order = await _dbContext.Orders.FindAsync(orderId);
+        var order = await _dbContext.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orderId);
         if (order == null)
             return null;
 
         var orderItems = await _dbContext.OrderItems
+            .AsNoTracking()
             .Where(oi => oi.OrderId == orderId)
             .ToListAsync();
 
