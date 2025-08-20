@@ -1,4 +1,5 @@
 using StarterApp.DbMigrator;
+using System.Reflection;
 
 namespace StarterApp.Api.Data;
 
@@ -15,7 +16,10 @@ public static class DatabaseMigrator
     /// <returns>True if migration was successful, false otherwise</returns>
     public static bool MigrateDatabase(string connectionString)
     {
-        // Use the shared DatabaseMigrationEngine from the DbMigrator project
-        return DatabaseMigrationEngine.Migrate(connectionString);
+        // Get the DbMigrator assembly that contains the embedded SQL scripts
+        var dbMigratorAssembly = typeof(DatabaseMigrationEngine).Assembly;
+        
+        // Use the shared DatabaseMigrationEngine with the correct assembly
+        return DatabaseMigrationEngine.MigrateDatabase(connectionString, dbMigratorAssembly);
     }
 }
