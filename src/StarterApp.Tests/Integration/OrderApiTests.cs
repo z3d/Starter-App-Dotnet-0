@@ -73,8 +73,6 @@ public class OrderApiTests : IAsyncLifetime
         return (customer, product);
     }
 
-    #region GET /api/orders/{id} Tests
-
     [Fact]
     public async Task GetOrder_WithNonExistentId_ShouldReturnNotFound()
     {
@@ -138,10 +136,6 @@ public class OrderApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    #endregion
-
-    #region GET /api/orders/customer/{customerId} Tests
-
     [Fact]
     public async Task GetOrdersByCustomer_WithNonExistentCustomer_ShouldReturnEmptyList()
     {
@@ -182,10 +176,6 @@ public class OrderApiTests : IAsyncLifetime
         Assert.All(orders, order => Assert.Equal(customer.Id, order.CustomerId));
     }
 
-    #endregion
-
-    #region GET /api/orders/status/{status} Tests
-
     [Fact]
     public async Task GetOrdersByStatus_WithValidStatus_ShouldReturnMatchingOrders()
     {
@@ -219,10 +209,6 @@ public class OrderApiTests : IAsyncLifetime
         Assert.NotNull(orders);
         Assert.Empty(orders);
     }
-
-    #endregion
-
-    #region POST /api/orders Tests
 
     [Fact]
     public async Task CreateOrder_WithValidData_ShouldCreateOrder()
@@ -328,10 +314,6 @@ public class OrderApiTests : IAsyncLifetime
         Assert.Equal(25.00m, item2.UnitPriceExcludingGst);
     }
 
-    #endregion
-
-    #region PUT /api/orders/{id}/status Tests
-
     [Fact]
     public async Task UpdateOrderStatus_WithValidData_ShouldUpdateStatus()
     {
@@ -405,10 +387,6 @@ public class OrderApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    #endregion
-
-    #region POST /api/orders/{id}/cancel Tests
-
     [Fact]
     public async Task CancelOrder_WithValidOrder_ShouldCancelOrder()
     {
@@ -452,6 +430,4 @@ public class OrderApiTests : IAsyncLifetime
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
-
-    #endregion
 }

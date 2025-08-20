@@ -2,8 +2,15 @@
 
 This document outlines the architectural patterns, conventions, and technical approach for creating a .NET 9 project template using **Aspire** (not Docker) orchestration. This serves as comprehensive instructions for LLMs creating similar projects.
 
-## Project Overview
+## Project Ove### Key Anti-Patterns to Avoid
 
+- **Anemic Domain Models**: Domain objects should have behavior, not just properties
+- **Mixed Concerns**: Keep command and query responsibilities separate
+- **Tight Coupling**: Use interfaces and dependency injection consistently
+- **Missing Validation**: Both at domain and API boundaries
+- **Inconsistent Naming**: Follow the established conventions strictly
+- **Dual Representation Overengineering**: Avoid creating separate entity/value object pairs when a single entity with embedded value objects suffices (see Architecture Consistency section below)
+- **Code Regions**: Never use #region/#endregion directives - organize code through proper class structure, methods, and logical separation instead
 This is a **Clean Architecture** .NET 9 solution implementing **CQRS** with **Domain-Driven Design** principles, using **Aspire** for orchestration and observability.
 
 ### Solution Structure
