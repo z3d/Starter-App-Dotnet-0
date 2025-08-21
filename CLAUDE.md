@@ -714,5 +714,25 @@ When refactoring architecture:
 - [ ] Update CLAUDE.md examples to show new approach
 - [ ] Add reasoning for why the change was made
 - [ ] Remove obsolete guidance from documentation
-- [ ] Verify all tests still pass
+- [ ] **Run all tests before pushing changes** - ensure no functionality is broken
 - [ ] Update any affected documentation sections
+
+## Development Guidelines
+
+### Testing Philosophy
+**Always run tests before pushing changes** - This is non-negotiable for LLM development workflows. Every code change should be validated through the test suite before being pushed or committed to source control. Tests are your safety net and documentation of expected behavior.
+
+### Code Duplication vs DRY Principle
+**Duplication of code is OK sometimes** - Don't re-use solely for the sake of DRY (Don't Repeat Yourself). Use engineering judgment to decide when duplication is appropriate:
+
+- **Prefer duplication over wrong abstraction** - A bad abstraction is harder to fix than duplicated code
+- **Consider domain boundaries** - Code that looks similar but serves different business contexts should often remain separate
+- **Evaluate coupling cost** - Sometimes the coupling introduced by sharing code is more expensive than maintaining duplicate code
+- **Think about change patterns** - If two pieces of code change for different reasons, they should probably stay separate
+- **Optimize for readability** - Sometimes duplicated code is clearer than a complex shared abstraction
+
+**When to extract commonality**:
+- Clear, stable abstraction emerges naturally
+- Multiple pieces of code change together consistently  
+- The abstraction has a clear single responsibility
+- The benefits outweigh the coupling costs
