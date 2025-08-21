@@ -1,7 +1,5 @@
 using StarterApp.Api.Application.ReadModels;
 using StarterApp.Api.Application.Interfaces;
-using Dapper;
-using Microsoft.Data.SqlClient;
 
 namespace StarterApp.Api.Application.Queries;
 
