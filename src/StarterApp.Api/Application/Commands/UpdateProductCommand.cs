@@ -15,8 +15,7 @@ public class UpdateProductCommand : ICommand, IRequest<ProductDto?>
     public int Stock { get; set; }
 }
 
-public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>,
-                                         IRequestHandler<UpdateProductCommand, ProductDto?>
+public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand, ProductDto?>
 {
     private readonly IProductCommandService _commandService;
 

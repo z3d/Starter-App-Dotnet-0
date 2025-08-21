@@ -14,8 +14,7 @@ public class GetCustomerQuery : IQuery<CustomerReadModel?>, IRequest<CustomerRea
     }
 }
 
-public class GetCustomerQueryHandler : IQueryHandler<GetCustomerQuery, CustomerReadModel?>,
-    IRequestHandler<GetCustomerQuery, CustomerReadModel?>
+public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, CustomerReadModel?>
 {
     private readonly string _connectionString;
 

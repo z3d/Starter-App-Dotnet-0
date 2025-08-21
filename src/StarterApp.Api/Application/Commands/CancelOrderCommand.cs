@@ -5,8 +5,7 @@ public class CancelOrderCommand : ICommand, IRequest<OrderDto>
     public int OrderId { get; set; }
 }
 
-public class CancelOrderCommandHandler : ICommandHandler<CancelOrderCommand>,
-                                       IRequestHandler<CancelOrderCommand, OrderDto>
+public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, OrderDto>
 {
     private readonly IOrderCommandService _commandService;
 

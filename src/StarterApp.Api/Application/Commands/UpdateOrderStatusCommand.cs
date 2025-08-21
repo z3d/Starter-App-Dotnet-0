@@ -6,8 +6,7 @@ public class UpdateOrderStatusCommand : ICommand, IRequest<OrderDto>
     public string Status { get; set; } = string.Empty;
 }
 
-public class UpdateOrderStatusCommandHandler : ICommandHandler<UpdateOrderStatusCommand>,
-                                             IRequestHandler<UpdateOrderStatusCommand, OrderDto>
+public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatusCommand, OrderDto>
 {
     private readonly IOrderCommandService _commandService;
 

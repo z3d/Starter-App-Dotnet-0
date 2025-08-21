@@ -1,18 +1,9 @@
 namespace StarterApp.Api.Application.Interfaces;
 
+// Marker interfaces for CQRS pattern - used for type safety and categorization
 public interface ICommand { }
 
 public interface IQuery<TResult> { }
-
-public interface ICommandHandler<TCommand> where TCommand : ICommand
-{
-    Task Handle(TCommand command, CancellationToken cancellationToken = default);
-}
-
-public interface IQueryHandler<TQuery, TResult> where TQuery : IQuery<TResult>
-{
-    Task<TResult> Handle(TQuery query, CancellationToken cancellationToken = default);
-}
 
 
 

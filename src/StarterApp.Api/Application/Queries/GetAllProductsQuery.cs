@@ -7,8 +7,7 @@ public class GetAllProductsQuery : IQuery<IEnumerable<ProductReadModel>>, IReque
 {
 }
 
-public class GetAllProductsQueryHandler : IQueryHandler<GetAllProductsQuery, IEnumerable<ProductReadModel>>,
-                                         IRequestHandler<GetAllProductsQuery, IEnumerable<ProductReadModel>>
+public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, IEnumerable<ProductReadModel>>
 {
     private readonly string _connectionString;
 

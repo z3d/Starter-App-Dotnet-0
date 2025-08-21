@@ -15,8 +15,7 @@ public class CreateOrderItemCommand
     public decimal GstRate { get; set; } = OrderItem.DefaultGstRate;
 }
 
-public class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand>,
-                                       IRequestHandler<CreateOrderCommand, OrderDto>
+public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, OrderDto>
 {
     private readonly IOrderCommandService _commandService;
 

@@ -8,8 +8,7 @@ public class GetOrdersByStatusQuery : IQuery<IEnumerable<OrderReadModel>>, IRequ
     public string Status { get; set; } = string.Empty;
 }
 
-public class GetOrdersByStatusQueryHandler : IQueryHandler<GetOrdersByStatusQuery, IEnumerable<OrderReadModel>>,
-                                           IRequestHandler<GetOrdersByStatusQuery, IEnumerable<OrderReadModel>>
+public class GetOrdersByStatusQueryHandler : IRequestHandler<GetOrdersByStatusQuery, IEnumerable<OrderReadModel>>
 {
     private readonly string _connectionString;
 

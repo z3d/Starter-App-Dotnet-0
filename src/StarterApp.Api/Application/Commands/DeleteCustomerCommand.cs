@@ -5,8 +5,7 @@ public class DeleteCustomerCommand : ICommand, IRequest
     public int Id { get; set; }
 }
 
-public class DeleteCustomerCommandHandler : ICommandHandler<DeleteCustomerCommand>,
-                                          IRequestHandler<DeleteCustomerCommand>
+public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerCommand>
 {
     private readonly ICustomerCommandService _commandService;
 

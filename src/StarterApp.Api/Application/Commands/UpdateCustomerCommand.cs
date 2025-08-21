@@ -7,8 +7,7 @@ public class UpdateCustomerCommand : ICommand, IRequest<CustomerDto>
     public string Email { get; set; } = string.Empty;
 }
 
-public class UpdateCustomerCommandHandler : ICommandHandler<UpdateCustomerCommand>,
-                                          IRequestHandler<UpdateCustomerCommand, CustomerDto>
+public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerCommand, CustomerDto>
 {
     private readonly ICustomerCommandService _commandService;
 

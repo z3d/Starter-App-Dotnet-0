@@ -8,8 +8,7 @@ public class GetCustomersQuery : IQuery<IEnumerable<CustomerReadModel>>, IReques
 {
 }
 
-public class GetCustomersQueryHandler : IQueryHandler<GetCustomersQuery, IEnumerable<CustomerReadModel>>,
-                                      IRequestHandler<GetCustomersQuery, IEnumerable<CustomerReadModel>>
+public class GetCustomersQueryHandler : IRequestHandler<GetCustomersQuery, IEnumerable<CustomerReadModel>>
 {
     private readonly string _connectionString;
 

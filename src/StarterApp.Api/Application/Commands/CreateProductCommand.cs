@@ -9,8 +9,7 @@ public class CreateProductCommand : ICommand, IRequest<ProductDto>
     public int Stock { get; set; }
 }
 
-public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand>,
-                                          IRequestHandler<CreateProductCommand, ProductDto>
+public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand, ProductDto>
 {
     private readonly IProductCommandService _commandService;
 

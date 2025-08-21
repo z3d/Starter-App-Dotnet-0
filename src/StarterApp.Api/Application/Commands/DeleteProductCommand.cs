@@ -13,8 +13,7 @@ public class DeleteProductCommand : ICommand, IRequest<bool>
     }
 }
 
-public class DeleteProductCommandHandler : ICommandHandler<DeleteProductCommand>,
-                                         IRequestHandler<DeleteProductCommand, bool>
+public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand, bool>
 {
     private readonly IProductCommandService _commandService;
 

@@ -8,8 +8,7 @@ public class GetOrderByIdQuery : IQuery<OrderWithItemsReadModel?>, IRequest<Orde
     public int Id { get; set; }
 }
 
-public class GetOrderByIdQueryHandler : IQueryHandler<GetOrderByIdQuery, OrderWithItemsReadModel?>,
-                                       IRequestHandler<GetOrderByIdQuery, OrderWithItemsReadModel?>
+public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, OrderWithItemsReadModel?>
 {
     private readonly string _connectionString;
 

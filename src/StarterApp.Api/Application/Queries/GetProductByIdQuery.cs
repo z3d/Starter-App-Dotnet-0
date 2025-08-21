@@ -14,8 +14,7 @@ public class GetProductByIdQuery : IQuery<ProductReadModel?>, IRequest<ProductRe
     }
 }
 
-public class GetProductByIdQueryHandler : IQueryHandler<GetProductByIdQuery, ProductReadModel?>,
-                                         IRequestHandler<GetProductByIdQuery, ProductReadModel?>
+public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, ProductReadModel?>
 {
     private readonly string _connectionString;
 

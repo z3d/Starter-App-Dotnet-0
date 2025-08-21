@@ -8,8 +8,7 @@ public class GetOrdersByCustomerQuery : IQuery<IEnumerable<OrderReadModel>>, IRe
     public int CustomerId { get; set; }
 }
 
-public class GetOrdersByCustomerQueryHandler : IQueryHandler<GetOrdersByCustomerQuery, IEnumerable<OrderReadModel>>,
-                                             IRequestHandler<GetOrdersByCustomerQuery, IEnumerable<OrderReadModel>>
+public class GetOrdersByCustomerQueryHandler : IRequestHandler<GetOrdersByCustomerQuery, IEnumerable<OrderReadModel>>
 {
     private readonly string _connectionString;
 
