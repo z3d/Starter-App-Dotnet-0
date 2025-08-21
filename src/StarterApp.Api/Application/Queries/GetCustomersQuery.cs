@@ -1,8 +1,8 @@
 using StarterApp.Api.Application.DTOs;
 using StarterApp.Api.Application.Interfaces;
 using StarterApp.Api.Application.ReadModels;
-using MediatR;
-using Serilog;
+using Dapper;
+using Microsoft.Data.SqlClient;
 
 namespace StarterApp.Api.Application.Queries;
 
@@ -13,18 +13,38 @@ public class GetCustomersQuery : IQuery<IEnumerable<CustomerDto>>, IRequest<IEnu
 public class GetCustomersQueryHandler : IQueryHandler<GetCustomersQuery, IEnumerable<CustomerDto>>,
                                       IRequestHandler<GetCustomersQuery, IEnumerable<CustomerDto>>
 {
-    private readonly ICustomerQueryService _queryService;
+    private readonly string _connectionString;
 
-    public GetCustomersQueryHandler(ICustomerQueryService queryService)
+    public GetCustomersQueryHandler(IConfiguration configuration)
     {
-        _queryService = queryService;
+        var databaseConnection = configuration.GetConnectionString("database");
+        var dockerLearningConnection = configuration.GetConnectionString("DockerLearning");
+        var sqlserverConnection = configuration.GetConnectionString("sqlserver");
+        var defaultConnection = configuration.GetConnectionString("DefaultConnection");
+
+        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ?? 
+            throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
     }
 
     public async Task<IEnumerable<CustomerDto>> Handle(GetCustomersQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetCustomersQuery");
         
-        var customers = await _queryService.GetAllCustomersAsync();
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        Log.Information("Retrieving all customers using Dapper");
+        
+        var sqlQuery = @"
+            SELECT 
+                Id, 
+                Name, 
+                Email, 
+                DateCreated, 
+                IsActive
+            FROM Customers";
+
+        var customers = await connection.QueryAsync<CustomerReadModel>(sqlQuery);
         
         return customers.Select(MapToDtoFromReadModel);
     }
