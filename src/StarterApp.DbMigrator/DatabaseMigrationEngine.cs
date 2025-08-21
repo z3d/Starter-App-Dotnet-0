@@ -1,6 +1,3 @@
-using System.Reflection;
-using DbUp;
-
 namespace StarterApp.DbMigrator;
 
 /// <summary>

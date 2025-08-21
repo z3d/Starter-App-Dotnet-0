@@ -1,14 +1,3 @@
-using StarterApp.Api.Application.DTOs;
-using StarterApp.Api.Application.Queries;
-using StarterApp.Api.Application.ReadModels;
-using Moq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-
 namespace StarterApp.Tests.Application.Queries;
 
 public class GetAllProductsQueryHandlerTests

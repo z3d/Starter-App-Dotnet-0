@@ -1,7 +1,3 @@
-using Serilog;
-using Serilog.Events;
-using Xunit.Abstractions;
-
 namespace StarterApp.Tests;
 
 public static class TestLoggerConfiguration

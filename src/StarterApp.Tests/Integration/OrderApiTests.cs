@@ -1,10 +1,4 @@
-using System.Net;
-using System.Net.Http.Json;
-using StarterApp.Api.Application.Commands;
-using StarterApp.Api.Application.DTOs;
 using StarterApp.Tests.TestBuilders;
-using StarterApp.Domain.Enums;
-using Xunit.Abstractions;
 
 namespace StarterApp.Tests.Integration;
 

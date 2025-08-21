@@ -1,9 +1,6 @@
-using System.Reflection;
 using Conventional;
 using Conventional.Conventions;
-using StarterApp.Domain.Entities;
 using StarterApp.Api.Infrastructure;
-using Microsoft.AspNetCore.Mvc;
 
 namespace StarterApp.Tests.Conventions;
 

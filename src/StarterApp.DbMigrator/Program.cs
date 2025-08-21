@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-using StarterApp.DbMigrator;
+﻿using StarterApp.DbMigrator;
 
 // Create configuration from appsettings.json
 var configuration = new ConfigurationBuilder()

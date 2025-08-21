@@ -1,5 +1,3 @@
-using StarterApp.Api.Application.Commands;
-
 namespace StarterApp.Tests.TestBuilders;
 
 public class CustomerBuilder

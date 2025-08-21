@@ -1,8 +1,3 @@
-using StarterApp.Domain.Entities;
-using StarterApp.Domain.ValueObjects;
-using System;
-using Xunit;
-
 namespace StarterApp.Tests.Domain;
 
 public class CustomerTests

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using System.Net.Http.Json;
 
 namespace StarterApp.Tests.Integration;
 

@@ -3,14 +3,6 @@ using StarterApp.Api.Application.Commands;
 using StarterApp.Api.Application.Queries;
 using StarterApp.Api.Infrastructure.Repositories;
 using StarterApp.Domain.Interfaces;
-using System.Reflection;
-using Microsoft.AspNetCore.Diagnostics;
-using System.Net;
-using Microsoft.AspNetCore.RateLimiting;
-using System.Threading.RateLimiting;
-using Microsoft.EntityFrameworkCore;
-using MediatR;
-using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -1,11 +1,16 @@
 // Essential .NET namespaces
+global using System.Reflection;
+global using System.Net;
 global using System.Text.Json;
 global using System.Text.Json.Serialization;
 global using System.ComponentModel.DataAnnotations;
 global using System.ComponentModel.DataAnnotations.Schema;
+global using System.Threading.RateLimiting;
 
 // Microsoft namespaces
 global using Microsoft.AspNetCore.Mvc;
+global using Microsoft.AspNetCore.Diagnostics;
+global using Microsoft.AspNetCore.RateLimiting;
 global using Microsoft.EntityFrameworkCore;
 
 // Third-party libraries

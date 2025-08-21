@@ -1,7 +1,3 @@
-using StarterApp.Domain.Entities;
-using StarterApp.Domain.Enums;
-using StarterApp.Domain.ValueObjects;
-
 namespace StarterApp.Tests.Domain;
 
 public class OrderTests
