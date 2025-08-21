@@ -1,3 +1,5 @@
+using StarterApp.Api.Data;
+
 namespace StarterApp.Api.Application.Commands;
 
 public class CreateCustomerCommand : ICommand, IRequest<CustomerDto>
@@ -8,29 +10,35 @@ public class CreateCustomerCommand : ICommand, IRequest<CustomerDto>
 
 public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerCommand, CustomerDto>
 {
-    private readonly ICustomerCommandService _commandService;
+    private readonly ApplicationDbContext _dbContext;
 
-    public CreateCustomerCommandHandler(ICustomerCommandService commandService)
+    public CreateCustomerCommandHandler(ApplicationDbContext dbContext)
     {
-        _commandService = commandService;
+        _dbContext = dbContext;
     }
 
     public async Task<CustomerDto> HandleAsync(CreateCustomerCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling CreateCustomerCommand to return CustomerDto");
 
-        var createdCustomer = await _commandService.CreateCustomerAsync(
-            command.Name,
-            Email.Create(command.Email)
-        );
+        Log.Information("Creating customer {Name} with EF Core", command.Name);
+        
+        var email = Email.Create(command.Email);
+        var customer = new Customer(command.Name, email);
 
+        _dbContext.Customers.Add(customer);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        Log.Information("Created new customer with ID: {CustomerId}", customer.Id);
+
+        // Map to DTO and return
         return new CustomerDto
         {
-            Id = createdCustomer.Id,
-            Name = createdCustomer.Name,
-            Email = createdCustomer.Email.Value,
-            DateCreated = createdCustomer.DateCreated,
-            IsActive = createdCustomer.IsActive
+            Id = customer.Id,
+            Name = customer.Name,
+            Email = customer.Email.Value,
+            DateCreated = customer.DateCreated,
+            IsActive = customer.IsActive
         };
     }
 }

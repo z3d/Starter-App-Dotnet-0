@@ -1,4 +1,4 @@
-using StarterApp.Api.Application.Interfaces;
+using StarterApp.Api.Data;
 using Serilog;
 
 namespace StarterApp.Api.Application.Commands;
@@ -15,28 +15,31 @@ public class DeleteProductCommand : ICommand, IRequest<bool>
 
 public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand, bool>
 {
-    private readonly IProductCommandService _commandService;
+    private readonly ApplicationDbContext _dbContext;
 
-    public DeleteProductCommandHandler(IProductCommandService commandService)
+    public DeleteProductCommandHandler(ApplicationDbContext dbContext)
     {
-        _commandService = commandService;
-    }
-
-    public async Task Handle(DeleteProductCommand command, CancellationToken cancellationToken)
-    {
-        Log.Information("Handling DeleteProductCommand for product {Id}", command.Id);
-
-        var deleted = await _commandService.DeleteProductAsync(command.Id);
-
-        if (!deleted)
-            throw new KeyNotFoundException($"Product with ID {command.Id} not found");
+        _dbContext = dbContext;
     }
 
     public async Task<bool> HandleAsync(DeleteProductCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling DeleteProductCommand for product {Id}", command.Id);
 
-        return await _commandService.DeleteProductAsync(command.Id);
+        Log.Information("Deleting product {Id} with EF Core", command.Id);
+
+        var product = await _dbContext.Products.FindAsync([command.Id], cancellationToken);
+        if (product == null)
+        {
+            Log.Warning("Product {Id} not found for deletion", command.Id);
+            return false;
+        }
+
+        _dbContext.Products.Remove(product);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        Log.Information("Deleted product with ID: {ProductId}", command.Id);
+        return true;
     }
 }
 

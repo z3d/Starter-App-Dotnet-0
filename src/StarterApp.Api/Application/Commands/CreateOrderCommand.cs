@@ -1,3 +1,6 @@
+using StarterApp.Api.Data;
+using Serilog;
+
 namespace StarterApp.Api.Application.Commands;
 
 public class CreateOrderCommand : ICommand, IRequest<OrderDto>
@@ -17,27 +20,87 @@ public class CreateOrderItemCommand
 
 public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, OrderDto>
 {
-    private readonly IOrderCommandService _commandService;
+    private readonly ApplicationDbContext _dbContext;
 
-    public CreateOrderCommandHandler(IOrderCommandService commandService)
+    public CreateOrderCommandHandler(ApplicationDbContext dbContext)
     {
-        _commandService = commandService;
+        _dbContext = dbContext;
     }
 
     public async Task Handle(CreateOrderCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling CreateOrderCommand for customer {CustomerId}", command.CustomerId);
 
-        await _commandService.CreateOrderAsync(command.CustomerId, command.Items);
+        await CreateOrderAsync(command.CustomerId, command.Items);
     }
 
     public async Task<OrderDto> HandleAsync(CreateOrderCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling CreateOrderCommand to return OrderDto for customer {CustomerId}", command.CustomerId);
 
-        var createdOrder = await _commandService.CreateOrderAsync(command.CustomerId, command.Items);
+        var createdOrder = await CreateOrderAsync(command.CustomerId, command.Items);
 
         return MapToOrderDto(createdOrder);
+    }
+
+    private async Task<Order> CreateOrderAsync(int customerId, List<CreateOrderItemCommand> items)
+    {
+        Log.Information("Creating order for customer {CustomerId} with EF Core", customerId);
+
+        // Validate that customer exists
+        var customerExists = await _dbContext.Customers.AnyAsync(c => c.Id == customerId);
+        if (!customerExists)
+            throw new KeyNotFoundException($"Customer with ID {customerId} was not found");
+
+        var order = new Order(customerId);
+
+        // Create order header first
+        _dbContext.Orders.Add(order);
+        await _dbContext.SaveChangesAsync();
+
+        // Create order items as separate entities
+        foreach (var itemCommand in items)
+        {
+            // Validate that product exists
+            var product = await _dbContext.Products.FindAsync(itemCommand.ProductId);
+            if (product == null)
+                throw new KeyNotFoundException($"Product with ID {itemCommand.ProductId} was not found");
+
+            var orderItem = new OrderItem(
+                order.Id,
+                itemCommand.ProductId,
+                product.Name,
+                itemCommand.Quantity,
+                Money.Create(itemCommand.UnitPriceExcludingGst, itemCommand.Currency),
+                itemCommand.GstRate
+            );
+
+            _dbContext.OrderItems.Add(orderItem);
+        }
+
+        await _dbContext.SaveChangesAsync();
+
+        // Load the order with items for return
+        return await LoadOrderWithItems(order.Id) ?? order;
+    }
+
+    private async Task<Order?> LoadOrderWithItems(int orderId)
+    {
+        var order = await _dbContext.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orderId);
+        if (order == null)
+            return null;
+
+        var orderItems = await _dbContext.OrderItems
+            .AsNoTracking()
+            .Where(oi => oi.OrderId == orderId)
+            .ToListAsync();
+
+        // Reconstruct the order with items
+        var orderWithItems = new Order(order.CustomerId);
+        orderWithItems.SetId(order.Id);
+        orderWithItems.LoadFromDatabase(order.OrderDate, order.Status, order.LastUpdated, orderItems);
+
+        return orderWithItems;
     }
 
     private static OrderDto MapToOrderDto(Order order)

@@ -61,10 +61,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<System.Data.IDbConnection>(provider =>
     new Microsoft.Data.SqlClient.SqlConnection(connectionString));
 
-// Register services for CQRS pattern
-builder.Services.AddScoped<IProductCommandService, ProductCommandService>();
-builder.Services.AddScoped<ICustomerCommandService, CustomerCommandService>();
-builder.Services.AddScoped<IOrderCommandService, OrderCommandService>();
+// Register mediator for CQRS pattern - handlers are auto-registered via reflection
 builder.Services.AddMediator(Assembly.GetExecutingAssembly());
 builder.Services.AddControllers();
 

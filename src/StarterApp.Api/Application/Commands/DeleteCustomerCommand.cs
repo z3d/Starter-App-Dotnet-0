@@ -1,3 +1,5 @@
+using StarterApp.Api.Data;
+
 namespace StarterApp.Api.Application.Commands;
 
 public class DeleteCustomerCommand : ICommand, IRequest
@@ -7,23 +9,30 @@ public class DeleteCustomerCommand : ICommand, IRequest
 
 public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerCommand>
 {
-    private readonly ICustomerCommandService _commandService;
+    private readonly ApplicationDbContext _dbContext;
 
-    public DeleteCustomerCommandHandler(ICustomerCommandService commandService)
+    public DeleteCustomerCommandHandler(ApplicationDbContext dbContext)
     {
-        _commandService = commandService;
-    }
-
-    public async Task Handle(DeleteCustomerCommand command, CancellationToken cancellationToken)
-    {
-        Log.Information("Handling DeleteCustomerCommand for Customer {CustomerId}", command.Id);
-
-        await _commandService.DeleteCustomerAsync(command.Id);
+        _dbContext = dbContext;
     }
 
     public async Task HandleAsync(DeleteCustomerCommand command, CancellationToken cancellationToken)
     {
-        await Handle(command, cancellationToken);
+        Log.Information("Handling DeleteCustomerCommand for Customer {CustomerId}", command.Id);
+
+        Log.Information("Deleting customer {Id} with EF Core", command.Id);
+
+        var customer = await _dbContext.Customers.FindAsync([command.Id], cancellationToken);
+        if (customer == null)
+        {
+            Log.Warning("Customer {Id} not found for deletion", command.Id);
+            throw new KeyNotFoundException($"Customer with ID {command.Id} not found");
+        }
+
+        _dbContext.Customers.Remove(customer);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        Log.Information("Deleted customer with ID: {CustomerId}", command.Id);
     }
 }
 

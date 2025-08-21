@@ -18,6 +18,26 @@ This is a **Clean Architecture** .NET 9 solution implementing **CQRS** with **Do
 - **AutoMapper**: NEVER use AutoMapper or any automatic object mapping libraries - use explicit mapping code instead
 - **XML Documentation Comments**: Never use XML documentation comments (/// <summary>, /// <param>, etc.) - they are verbose, inconsistent when used partially, and interfere with code readability. Let good naming and clean code structure be self-documenting instead
 - **MediatR**: NEVER use MediatR - the author made it commercial, eliminating the free open source benefits. Additionally, it adds unnecessary complexity, reflection overhead, and indirection. Use a simple custom mediator pattern instead. Our custom implementation provides the same benefits (decoupling, testability) without the commercial dependency and bloat
+- **Historical Comments**: NEVER add comments like "// Create entity directly (previously in command service)" - source control already tracks these changes and such comments become noise over time
+
+### Code Documentation Philosophy
+
+#### Source Control Is History
+- **Git tracks changes** - no need for "previously was X" comments
+- **Commit messages provide context** - use meaningful commit messages instead of inline history
+- **Code should be self-documenting** - focus on clear naming and structure
+
+#### When Refactoring - Document Preferences Automatically
+- **Update CLAUDE.md immediately** when architectural decisions change
+- **Document WHY not WHAT** - explain reasoning behind architectural choices
+- **Add to anti-patterns section** if avoiding something specific
+- **Update examples** to reflect current approach
+
+#### Comment Guidelines
+- **Business Logic Only**: Comments should explain complex business rules or domain constraints
+- **Public API Boundaries**: Brief descriptions for controllers and major service interfaces
+- **No Implementation History**: Remove comments about previous implementations
+- **Temporary TODOs**: Use TODO comments sparingly and remove them quickly
 
 ### Solution Structure
 
@@ -164,57 +184,111 @@ public async Task<ActionResult<CustomerReadModel>> CreateCustomer()   // Should 
 - Violates explicit architecture principles
 - **USE EXPLICIT MAPPING**: Write clear, explicit mapping code instead
 
-### Service Layer Pattern
+### Service Registration Pattern
 
-#### Command Services Architecture
+#### Auto-Registration via Reflection
 
-**CRITICAL: Use direct Entity Framework approach for command services:**
+**ARCHITECTURE ACHIEVEMENT**: Complete handler auto-registration eliminates manual service registration:
 
-- **Consistent Pattern**: All command services (`IProductCommandService`, `ICustomerCommandService`, `IOrderCommandService`) use `ApplicationDbContext` directly
-- **NO REPOSITORY LAYER**: Do NOT create repository abstractions over Entity Framework - it's unnecessary indirection
-- **Entity Framework IS the Repository**: EF Core already provides the Repository and Unit of Work patterns
-- **Simplicity Over Abstraction**: Direct EF usage is simpler, more maintainable, and eliminates unnecessary complexity
+- **Automatic Discovery**: All handlers implementing `IRequestHandler<,>` are automatically registered via reflection
+- **NO MANUAL REGISTRATION**: Command/Query handlers require zero explicit service registration
+- **Symmetric Pattern**: Both commands and queries auto-register consistently
+- **Zero Maintenance**: New handlers are automatically discoverable without code changes
 
-##### ✅ CORRECT - Direct EF Usage
+##### ✅ COMPLETE AUTO-REGISTRATION
 ```csharp
-public class CustomerCommandService : ICustomerCommandService
+// In Program.cs - ONLY line needed for ALL handlers
+builder.Services.AddMediator(Assembly.GetExecutingAssembly());
+
+// NO manual registrations needed - ALL handlers auto-discovered:
+// ✅ CreateCustomerCommandHandler -> auto-registered
+// ✅ UpdateCustomerCommandHandler -> auto-registered  
+// ✅ DeleteCustomerCommandHandler -> auto-registered
+// ✅ GetCustomerQuery -> auto-registered
+// ✅ All other handlers -> auto-registered
+```
+
+##### Command Handler Architecture
+
+**CRITICAL: Use direct Entity Framework approach in command handlers:**
+
+- **Direct EF Usage**: All command handlers use `ApplicationDbContext` directly
+- **NO INTERMEDIATE SERVICES**: Command service layer was eliminated for simplicity
+- **Entity Framework IS the Repository**: EF Core already provides Repository/Unit of Work patterns
+- **Consistent Dependencies**: All handlers only depend on `ApplicationDbContext`
+
+##### ✅ CURRENT ARCHITECTURE - Direct EF in Handlers
+```csharp
+public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerCommand, CustomerDto>
 {
     private readonly ApplicationDbContext _dbContext;
 
-    public CustomerCommandService(ApplicationDbContext dbContext)
+    public CreateCustomerCommandHandler(ApplicationDbContext dbContext)
     {
         _dbContext = dbContext;
     }
 
-    public async Task<Customer> CreateCustomerAsync(string name, Email email)
+    public async Task<CustomerDto> HandleAsync(CreateCustomerCommand command, CancellationToken cancellationToken)
     {
-        var customer = new Customer(name, email);
+        var email = Email.Create(command.Email);
+        var customer = new Customer(command.Name, email);
+        
         _dbContext.Customers.Add(customer);
-        await _dbContext.SaveChangesAsync();
-        return customer;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        
+        return MapToDto(customer);
     }
 }
 ```
 
-##### ❌ WRONG - Unnecessary Repository Layer
+##### ❌ ELIMINATED - Unnecessary Command Service Layer
 ```csharp
-// DON'T DO THIS - adds unnecessary complexity
-public class CustomerCommandService
+// REMOVED: Command services were eliminated as unnecessary abstraction
+public class CustomerCommandService : ICustomerCommandService // ❌ DELETED
 {
-    private readonly ICustomerRepository _repository;  // ❌ Unnecessary abstraction
+    private readonly ApplicationDbContext _dbContext;
+    // This was unnecessary thin wrapper over EF Core
 }
 ```
 
-##### Service Registration
-```csharp
-// ✅ CORRECT - Only register command services
-builder.Services.AddScoped<IProductCommandService, ProductCommandService>();
-builder.Services.AddScoped<ICustomerCommandService, CustomerCommandService>();
-builder.Services.AddScoped<IOrderCommandService, OrderCommandService>();
+#### Architecture Evolution Summary
 
-// ❌ WRONG - Don't register unused repositories
-// builder.Services.AddScoped<IProductRepository, ProductRepository>(); // Dead code
-```
+**REFACTORING COMPLETED**: Command service layer elimination achieved full architectural consistency:
+
+1. **Before**: Asymmetric registration pattern
+   - ❌ Queries auto-registered via reflection
+   - ❌ Commands required manual service registration
+   - ❌ Command handlers used command services as thin wrappers
+
+2. **After**: Symmetric auto-registration pattern
+   - ✅ **ALL handlers auto-register** via reflection 
+   - ✅ **Zero manual registrations** needed
+   - ✅ **Direct EF Core usage** in all handlers
+   - ✅ **Consistent architecture** across all operations
+   - ✅ **All 158 tests passing** - no functionality lost
+
+3. **Benefits Achieved**:
+   - **Simplified Architecture**: Eliminated unnecessary abstraction layer
+   - **Reduced Complexity**: Fewer files, fewer dependencies, clearer code paths
+   - **Consistent Patterns**: Same approach for all CQRS operations
+   - **Better Testability**: Direct EF usage easier to test with in-memory databases
+   - **Zero Maintenance Registration**: New handlers automatically discovered
+
+### Data Access Pattern
+
+#### Entity Framework Direct Usage
+
+**CRITICAL ARCHITECTURAL PRINCIPLE**: Use Entity Framework Core directly without additional repository abstractions:
+
+- **EF Core IS the Repository**: Entity Framework already implements Repository and Unit of Work patterns
+- **NO EXTRA REPOSITORIES**: Don't wrap EF DbContext in custom repository interfaces
+- **Direct Context Usage**: Inject `ApplicationDbContext` directly into handlers
+- **Simplicity Over Abstraction**: Fewer layers = less complexity and better performance
+
+**Service Registration Strategy:**
+- **Small Scale (<10 services)**: Use explicit manual registration for clarity and control
+- **Large Scale (10+ services)**: Consider convention-based registrar pattern to reduce boilerplate
+- **Always**: Prefer explicitness over "magic" - if you can't easily see what's registered, it's too complex
 
 #### Query Side
 
@@ -612,3 +686,33 @@ Create database migrations for the new Customer and Order entities:
 - Single entities with embedded value objects (no dual representation)
 - Business logic methods directly on entities (GetTotalPrice, AddItem, etc.)
 - Proper encapsulation with private setters and domain validation
+
+## Documentation Maintenance
+
+### Auto-Documentation During Refactoring
+
+**CRITICAL**: When making architectural changes, immediately update this document:
+
+1. **Add Anti-Patterns**: If avoiding something, add to "Key Anti-Patterns to Avoid" section
+2. **Update Examples**: Replace old patterns with new preferred approaches  
+3. **Document Reasoning**: Explain WHY the change improves the architecture
+4. **Remove Obsolete Guidance**: Delete sections that no longer apply
+
+### Documentation Philosophy
+
+- **Live Document**: This file should evolve with every major architectural decision
+- **Source of Truth**: CLAUDE.md is the authoritative architectural guide
+- **No Historical Comments in Code**: Use git history and commit messages instead
+- **Immediate Updates**: Update documentation as part of the same commit that makes architectural changes
+- **Example-Driven**: Always provide concrete code examples of preferred patterns
+
+### Refactoring Checklist
+
+When refactoring architecture:
+- [ ] Remove historical comments from code (git tracks changes)
+- [ ] Update CLAUDE.md anti-patterns section  
+- [ ] Update CLAUDE.md examples to show new approach
+- [ ] Add reasoning for why the change was made
+- [ ] Remove obsolete guidance from documentation
+- [ ] Verify all tests still pass
+- [ ] Update any affected documentation sections

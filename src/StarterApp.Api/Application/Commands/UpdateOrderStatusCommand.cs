@@ -1,3 +1,6 @@
+using StarterApp.Api.Data;
+using Serilog;
+
 namespace StarterApp.Api.Application.Commands;
 
 public class UpdateOrderStatusCommand : ICommand, IRequest<OrderDto>
@@ -8,11 +11,11 @@ public class UpdateOrderStatusCommand : ICommand, IRequest<OrderDto>
 
 public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatusCommand, OrderDto>
 {
-    private readonly IOrderCommandService _commandService;
+    private readonly ApplicationDbContext _dbContext;
 
-    public UpdateOrderStatusCommandHandler(IOrderCommandService commandService)
+    public UpdateOrderStatusCommandHandler(ApplicationDbContext dbContext)
     {
-        _commandService = commandService;
+        _dbContext = dbContext;
     }
 
     public async Task Handle(UpdateOrderStatusCommand command, CancellationToken cancellationToken)
@@ -21,7 +24,7 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
             command.OrderId, command.Status);
 
         var status = Enum.Parse<OrderStatus>(command.Status);
-        await _commandService.UpdateOrderStatusAsync(command.OrderId, status);
+        await UpdateOrderStatusAsync(command.OrderId, status);
     }
 
     public async Task<OrderDto> HandleAsync(UpdateOrderStatusCommand command, CancellationToken cancellationToken)
@@ -29,12 +32,49 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
         Log.Information("Handling UpdateOrderStatusCommand to return OrderDto for order {OrderId}", command.OrderId);
 
         var status = Enum.Parse<OrderStatus>(command.Status);
-        var updatedOrder = await _commandService.UpdateOrderStatusAsync(command.OrderId, status);
+        var updatedOrder = await UpdateOrderStatusAsync(command.OrderId, status);
 
         if (updatedOrder == null)
             throw new KeyNotFoundException($"Order with ID {command.OrderId} was not found");
 
         return MapToOrderDto(updatedOrder);
+    }
+
+    private async Task<Order?> UpdateOrderStatusAsync(int orderId, OrderStatus status)
+    {
+        Log.Information("Updating order {OrderId} status to {Status} with EF Core", orderId, status);
+
+        var order = await LoadOrderWithItems(orderId);
+        if (order == null)
+        {
+            Log.Warning("Order {OrderId} not found for status update", orderId);
+            return null;
+        }
+
+        order.UpdateStatus(status);
+        _dbContext.Orders.Update(order);
+
+        await _dbContext.SaveChangesAsync();
+        return order;
+    }
+
+    private async Task<Order?> LoadOrderWithItems(int orderId)
+    {
+        var order = await _dbContext.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orderId);
+        if (order == null)
+            return null;
+
+        var orderItems = await _dbContext.OrderItems
+            .AsNoTracking()
+            .Where(oi => oi.OrderId == orderId)
+            .ToListAsync();
+
+        // Reconstruct the order with items
+        var orderWithItems = new Order(order.CustomerId);
+        orderWithItems.SetId(order.Id);
+        orderWithItems.LoadFromDatabase(order.OrderDate, order.Status, order.LastUpdated, orderItems);
+
+        return orderWithItems;
     }
 
     private static OrderDto MapToOrderDto(Order order)

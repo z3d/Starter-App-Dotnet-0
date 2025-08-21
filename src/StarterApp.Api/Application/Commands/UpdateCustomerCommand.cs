@@ -1,3 +1,5 @@
+using StarterApp.Api.Data;
+
 namespace StarterApp.Api.Application.Commands;
 
 public class UpdateCustomerCommand : ICommand, IRequest<CustomerDto>
@@ -9,44 +11,41 @@ public class UpdateCustomerCommand : ICommand, IRequest<CustomerDto>
 
 public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerCommand, CustomerDto>
 {
-    private readonly ICustomerCommandService _commandService;
+    private readonly ApplicationDbContext _dbContext;
 
-    public UpdateCustomerCommandHandler(ICustomerCommandService commandService)
+    public UpdateCustomerCommandHandler(ApplicationDbContext dbContext)
     {
-        _commandService = commandService;
-    }
-
-    public async Task Handle(UpdateCustomerCommand command, CancellationToken cancellationToken)
-    {
-        Log.Information("Handling UpdateCustomerCommand for Customer {CustomerId}", command.Id);
-
-        await _commandService.UpdateCustomerAsync(
-            command.Id,
-            command.Name,
-            Email.Create(command.Email)
-        );
+        _dbContext = dbContext;
     }
 
     public async Task<CustomerDto> HandleAsync(UpdateCustomerCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling UpdateCustomerCommand to return CustomerDto for Customer {CustomerId}", command.Id);
 
-        var updatedCustomer = await _commandService.UpdateCustomerAsync(
-            command.Id,
-            command.Name,
-            Email.Create(command.Email)
-        );
+        Log.Information("Updating customer {Id} with EF Core", command.Id);
 
-        if (updatedCustomer == null)
+        var customer = await _dbContext.Customers.FindAsync([command.Id], cancellationToken);
+        if (customer == null)
+        {
+            Log.Warning("Customer {Id} not found for update", command.Id);
             throw new KeyNotFoundException($"Customer with ID {command.Id} not found");
+        }
 
+        var email = Email.Create(command.Email);
+        customer.UpdateDetails(command.Name, email);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        Log.Information("Updated customer with ID: {CustomerId}", customer.Id);
+
+        // Map to DTO and return
         return new CustomerDto
         {
-            Id = updatedCustomer.Id,
-            Name = updatedCustomer.Name,
-            Email = updatedCustomer.Email.Value,
-            DateCreated = updatedCustomer.DateCreated,
-            IsActive = updatedCustomer.IsActive
+            Id = customer.Id,
+            Name = customer.Name,
+            Email = customer.Email.Value,
+            DateCreated = customer.DateCreated,
+            IsActive = customer.IsActive
         };
     }
 }

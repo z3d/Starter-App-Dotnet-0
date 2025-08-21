@@ -1,3 +1,5 @@
+using StarterApp.Api.Data;
+
 namespace StarterApp.Api.Application.Commands;
 
 public class CreateProductCommand : ICommand, IRequest<ProductDto>
@@ -11,23 +13,11 @@ public class CreateProductCommand : ICommand, IRequest<ProductDto>
 
 public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand, ProductDto>
 {
-    private readonly IProductCommandService _commandService;
+    private readonly ApplicationDbContext _dbContext;
 
-    public CreateProductCommandHandler(IProductCommandService commandService)
+    public CreateProductCommandHandler(ApplicationDbContext dbContext)
     {
-        _commandService = commandService;
-    }
-
-    public async Task Handle(CreateProductCommand command, CancellationToken cancellationToken)
-    {
-        Log.Information("Handling CreateProductCommand");
-
-        await _commandService.CreateProductAsync(
-            command.Name,
-            command.Description,
-            Money.Create(command.Price, command.Currency),
-            command.Stock
-        );
+        _dbContext = dbContext;
     }
 
     public async Task<ProductDto> HandleAsync(
@@ -35,22 +25,26 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
     {
         Log.Information("Handling CreateProductCommand to return ProductDto");
 
-        var createdProduct = await _commandService.CreateProductAsync(
-            command.Name,
-            command.Description,
-            Money.Create(command.Price, command.Currency),
-            command.Stock
-        );
+        Log.Information("Creating product {Name} with EF Core", command.Name);
 
+        var price = Money.Create(command.Price, command.Currency);
+        var product = new Product(command.Name, command.Description, price, command.Stock);
+
+        _dbContext.Products.Add(product);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        Log.Information("Created new product with ID: {ProductId}", product.Id);
+
+        // Map to DTO and return
         return new ProductDto
         {
-            Id = createdProduct.Id,
-            Name = createdProduct.Name,
-            Description = createdProduct.Description,
-            Price = createdProduct.Price.Amount,
-            Currency = createdProduct.Price.Currency,
-            Stock = createdProduct.Stock,
-            LastUpdated = createdProduct.LastUpdated
+            Id = product.Id,
+            Name = product.Name,
+            Description = product.Description,
+            Price = product.Price.Amount,
+            Currency = product.Price.Currency,
+            Stock = product.Stock,
+            LastUpdated = product.LastUpdated
         };
     }
 }

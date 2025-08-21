@@ -1,7 +1,4 @@
-using StarterApp.Api.Application.DTOs;
-using StarterApp.Api.Application.Interfaces;
-using StarterApp.Domain.ValueObjects;
-using Serilog;
+using StarterApp.Api.Data;
 
 namespace StarterApp.Api.Application.Commands;
 
@@ -17,53 +14,50 @@ public class UpdateProductCommand : ICommand, IRequest<ProductDto?>
 
 public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand, ProductDto?>
 {
-    private readonly IProductCommandService _commandService;
+    private readonly ApplicationDbContext _dbContext;
 
-    public UpdateProductCommandHandler(IProductCommandService commandService)
+    public UpdateProductCommandHandler(ApplicationDbContext dbContext)
     {
-        _commandService = commandService;
-    }
-
-    public async Task Handle(UpdateProductCommand command, CancellationToken cancellationToken)
-    {
-        Log.Information("Handling UpdateProductCommand for product {Id}", command.Id);
-
-        var result = await _commandService.UpdateProductAsync(
-            command.Id,
-            command.Name,
-            command.Description,
-            Money.Create(command.Price, command.Currency),
-            command.Stock
-        );
-
-        if (result == null)
-            throw new KeyNotFoundException($"Product with ID {command.Id} not found");
+        _dbContext = dbContext;
     }
 
     public async Task<ProductDto?> HandleAsync(UpdateProductCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling UpdateProductCommand for product {Id}", command.Id);
 
-        var updatedProduct = await _commandService.UpdateProductAsync(
-            command.Id,
-            command.Name,
-            command.Description,
-            Money.Create(command.Price, command.Currency),
-            command.Stock
-        );
+        Log.Information("Updating product {Id} with EF Core", command.Id);
 
-        if (updatedProduct == null)
+        var product = await _dbContext.Products.FindAsync([command.Id], cancellationToken);
+        if (product == null)
+        {
+            Log.Warning("Product {Id} not found for update", command.Id);
             return null;
+        }
 
+        var price = Money.Create(command.Price, command.Currency);
+        product.UpdateDetails(command.Name, command.Description, price);
+        
+        // Update stock separately
+        var stockDifference = command.Stock - product.Stock;
+        if (stockDifference != 0)
+        {
+            product.UpdateStock(stockDifference);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        Log.Information("Updated product with ID: {ProductId}", product.Id);
+
+        // Map to DTO and return
         return new ProductDto
         {
-            Id = updatedProduct.Id,
-            Name = updatedProduct.Name,
-            Description = updatedProduct.Description,
-            Price = updatedProduct.Price.Amount,
-            Currency = updatedProduct.Price.Currency,
-            Stock = updatedProduct.Stock,
-            LastUpdated = updatedProduct.LastUpdated
+            Id = product.Id,
+            Name = product.Name,
+            Description = product.Description,
+            Price = product.Price.Amount,
+            Currency = product.Price.Currency,
+            Stock = product.Stock,
+            LastUpdated = product.LastUpdated
         };
     }
 }
