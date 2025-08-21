@@ -18,6 +18,7 @@ global using Moq;
 
 // Microsoft ASP.NET Core
 global using Microsoft.AspNetCore.Mvc;
+global using Microsoft.Extensions.Configuration;
 
 // Application libraries
 global using MediatR;

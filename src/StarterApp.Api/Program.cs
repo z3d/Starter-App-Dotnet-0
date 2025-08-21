@@ -62,11 +62,9 @@ builder.Services.AddScoped<System.Data.IDbConnection>(provider =>
 
 // Register services for CQRS pattern
 builder.Services.AddScoped<IProductCommandService, ProductCommandService>();
-builder.Services.AddScoped<IProductQueryService, ProductQueryService>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICustomerCommandService, CustomerCommandService>();
 builder.Services.AddScoped<IOrderCommandService, OrderCommandService>();
-builder.Services.AddScoped<IOrderQueryService, OrderQueryService>();
 builder.Services.AddMediatR(Assembly.GetExecutingAssembly());
 builder.Services.AddControllers();
 

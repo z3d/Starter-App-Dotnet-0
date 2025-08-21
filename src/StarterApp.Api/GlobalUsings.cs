@@ -15,6 +15,8 @@ global using Microsoft.EntityFrameworkCore;
 
 // Third-party libraries
 global using MediatR;
+global using Dapper;
+global using Microsoft.Data.SqlClient;
 
 // Logging with Serilog
 global using Serilog;
