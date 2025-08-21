@@ -164,13 +164,71 @@ public async Task<ActionResult<CustomerReadModel>> CreateCustomer()   // Should 
 - Violates explicit architecture principles
 - **USE EXPLICIT MAPPING**: Write clear, explicit mapping code instead
 
+### Service Layer Pattern
+
+#### Command Services Architecture
+
+**CRITICAL: Use direct Entity Framework approach for command services:**
+
+- **Consistent Pattern**: All command services (`IProductCommandService`, `ICustomerCommandService`, `IOrderCommandService`) use `ApplicationDbContext` directly
+- **NO REPOSITORY LAYER**: Do NOT create repository abstractions over Entity Framework - it's unnecessary indirection
+- **Entity Framework IS the Repository**: EF Core already provides the Repository and Unit of Work patterns
+- **Simplicity Over Abstraction**: Direct EF usage is simpler, more maintainable, and eliminates unnecessary complexity
+
+##### ✅ CORRECT - Direct EF Usage
+```csharp
+public class CustomerCommandService : ICustomerCommandService
+{
+    private readonly ApplicationDbContext _dbContext;
+
+    public CustomerCommandService(ApplicationDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+
+    public async Task<Customer> CreateCustomerAsync(string name, Email email)
+    {
+        var customer = new Customer(name, email);
+        _dbContext.Customers.Add(customer);
+        await _dbContext.SaveChangesAsync();
+        return customer;
+    }
+}
+```
+
+##### ❌ WRONG - Unnecessary Repository Layer
+```csharp
+// DON'T DO THIS - adds unnecessary complexity
+public class CustomerCommandService
+{
+    private readonly ICustomerRepository _repository;  // ❌ Unnecessary abstraction
+}
+```
+
+##### Service Registration
+```csharp
+// ✅ CORRECT - Only register command services
+builder.Services.AddScoped<IProductCommandService, ProductCommandService>();
+builder.Services.AddScoped<ICustomerCommandService, CustomerCommandService>();
+builder.Services.AddScoped<IOrderCommandService, OrderCommandService>();
+
+// ❌ WRONG - Don't register unused repositories
+// builder.Services.AddScoped<IProductRepository, ProductRepository>(); // Dead code
+```
+
+#### Query Side
+
+- **Query Handlers**: Individual handlers for each query using Dapper for optimized reads
+- **Auto-Registration**: Query handlers are automatically registered via `AddMediator()`
+- **No Service Layer**: Queries go directly to handlers, not through service classes
+
 ### Libraries and Dependencies
 
 #### Core Libraries
 
 - **Aspire.Hosting.AppHost** (9.3.0+) - Orchestration
 - **Aspire.Hosting.SqlServer** (9.3.0+) - Database hosting
-- **MediatR** (11.1.0+) - CQRS mediator pattern
+- **Custom Mediator** - Simple CQRS mediator pattern (replaces commercial MediatR)
 - **Serilog.AspNetCore** (9.0.0+) - Structured logging
 - **Microsoft.EntityFrameworkCore.SqlServer** (9.0.5+) - ORM for writes
 - **Dapper** (2.1.35+) - Micro-ORM for reads

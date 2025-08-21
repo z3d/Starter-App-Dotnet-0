@@ -25,7 +25,6 @@ global using Serilog.Events;
 global using StarterApp.Domain.Entities;
 global using StarterApp.Domain.Enums;
 global using StarterApp.Domain.ValueObjects;
-global using StarterApp.Domain.Interfaces;
 
 // Application references
 global using StarterApp.Api.Application.DTOs;
@@ -33,7 +32,6 @@ global using StarterApp.Api.Application.Commands;
 global using StarterApp.Api.Application.Queries;
 global using StarterApp.Api.Application.ReadModels;
 global using StarterApp.Api.Application.Interfaces;
-global using StarterApp.Api.Infrastructure.Repositories;
 global using StarterApp.Api.Infrastructure.Mediator;
 
 

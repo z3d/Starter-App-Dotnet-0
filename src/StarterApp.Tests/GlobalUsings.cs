@@ -31,7 +31,6 @@ global using Serilog.Events;
 // Domain references
 global using StarterApp.Domain.Entities;
 global using StarterApp.Domain.Enums;
-global using StarterApp.Domain.Interfaces;
 global using StarterApp.Domain.ValueObjects;
 
 // Application references

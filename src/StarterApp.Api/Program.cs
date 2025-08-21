@@ -1,8 +1,6 @@
 using StarterApp.Api.Data;
 using StarterApp.Api.Application.Commands;
 using StarterApp.Api.Application.Queries;
-using StarterApp.Api.Infrastructure.Repositories;
-using StarterApp.Domain.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,7 +63,6 @@ builder.Services.AddScoped<System.Data.IDbConnection>(provider =>
 
 // Register services for CQRS pattern
 builder.Services.AddScoped<IProductCommandService, ProductCommandService>();
-builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICustomerCommandService, CustomerCommandService>();
 builder.Services.AddScoped<IOrderCommandService, OrderCommandService>();
 builder.Services.AddMediator(Assembly.GetExecutingAssembly());
