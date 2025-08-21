@@ -108,33 +108,43 @@ var app = builder.Build();
 
 try
 {
-    Log.Information("Starting up application");    // Debug logging to see what connection strings are available
-    Log.Information("=== CONNECTION STRING DEBUG ===");
-    Log.Information("database connection (primary): {DatabaseConnection}", databaseConnection);
-    Log.Information("DockerLearning connection: {DockerLearningConnection}", dockerLearningConnection);
-    Log.Information("sqlserver connection: {SqlServerConnection}", sqlserverConnection);
-    Log.Information("DefaultConnection: {DefaultConnection}", defaultConnection);
-
-    // Check all connection strings
-    var allConnectionStrings = builder.Configuration.GetSection("ConnectionStrings").GetChildren();
-    Log.Information("All available connection strings:");
-    foreach (var conn in allConnectionStrings)
+    Log.Information("Starting up application");
+    
+    // Debug logging - only in development environment for security
+    if (app.Environment.IsDevelopment())
     {
-        Log.Information("  {Key}: {Value}", conn.Key, conn.Value);
-    }
+        Log.Information("=== CONNECTION STRING DEBUG ===");
+        Log.Information("database connection (primary): {DatabaseConnection}", databaseConnection);
+        Log.Information("DockerLearning connection: {DockerLearningConnection}", dockerLearningConnection);
+        Log.Information("sqlserver connection: {SqlServerConnection}", sqlserverConnection);
+        Log.Information("DefaultConnection: {DefaultConnection}", defaultConnection);
 
-    // Also check environment variables
-    Log.Information("Relevant environment variables:");
-    foreach (var envVar in Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>()
-        .Where(e => e.Key?.ToString()?.Contains("Connection", StringComparison.OrdinalIgnoreCase) == true || 
-                    e.Key?.ToString()?.Contains("DockerLearning", StringComparison.OrdinalIgnoreCase) == true ||
-                    e.Key?.ToString()?.Contains("SQL", StringComparison.OrdinalIgnoreCase) == true))
+        // Check all connection strings
+        var allConnectionStrings = builder.Configuration.GetSection("ConnectionStrings").GetChildren();
+        Log.Information("All available connection strings:");
+        foreach (var conn in allConnectionStrings)
+        {
+            Log.Information("  {Key}: {Value}", conn.Key, conn.Value);
+        }
+
+        // Also check environment variables
+        Log.Information("Relevant environment variables:");
+        foreach (var envVar in Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>()
+            .Where(e => e.Key?.ToString()?.Contains("Connection", StringComparison.OrdinalIgnoreCase) == true || 
+                        e.Key?.ToString()?.Contains("DockerLearning", StringComparison.OrdinalIgnoreCase) == true ||
+                        e.Key?.ToString()?.Contains("SQL", StringComparison.OrdinalIgnoreCase) == true))
+        {
+            Log.Information("  {Key}: {Value}", envVar.Key, envVar.Value);
+        }
+
+        Log.Information("Using connection string: {ConnectionString}", connectionString);
+        Log.Information("=== END CONNECTION STRING DEBUG ===");
+    }
+    else
     {
-        Log.Information("  {Key}: {Value}", envVar.Key, envVar.Value);
+        // Production - only log that connection was found (no sensitive details)
+        Log.Information("Database connection configured: {HasConnection}", !string.IsNullOrEmpty(connectionString));
     }
-
-    Log.Information("Using connection string: {ConnectionString}", connectionString);
-    Log.Information("=== END CONNECTION STRING DEBUG ===");
 
     // Configure the HTTP request pipeline
     if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docker")
