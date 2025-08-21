@@ -1,11 +1,14 @@
 using Conventional;
 using Conventional.Conventions;
 using StarterApp.Api.Infrastructure;
+
 namespace StarterApp.Tests.Conventions;
+
 public class ConventionTests
 {
     private static readonly Assembly DomainAssembly = typeof(Product).Assembly;
     private static readonly Assembly ApiAssembly = typeof(IApiMarker).Assembly;
+
     private static bool IsCompilerGenerated(Type type)
     {
         return type.GetCustomAttributes(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false).Any() ||
@@ -17,12 +20,14 @@ public class ConventionTests
                type.Name.Contains("__StaticArrayInitTypeSize") ||
                type.IsNested; // Often compiler-generated types are nested
     }
+
     [Fact]
     public void ControllersShouldFollowNamingConvention()
     {
         var controllerTypes = ApiAssembly.GetTypes().Where(t => t.Name.EndsWith("Controller"));
         controllerTypes.MustConformTo(Convention.NameMustEndWith("Controller"));
     }
+
     [Fact]
     public void DTOs_ShouldFollowNamingConventions()
     {
@@ -34,6 +39,7 @@ public class ConventionTests
             .MustConformTo(Convention.NameMustEndWith("Dto").Or(Convention.NameMustEndWith("ReadModel")))
             .WithFailureAssertion(Assert.Fail);
     }
+
     [Fact]
     public void Commands_ShouldFollowNamingConventions()
     {
@@ -46,6 +52,7 @@ public class ConventionTests
             .MustConformTo(Convention.NameMustEndWith("Command"))
             .WithFailureAssertion(Assert.Fail);
     }
+
     [Fact]
     public void Queries_ShouldFollowNamingConventions()
     {
@@ -69,6 +76,7 @@ public class ConventionTests
             .MustConformTo(Convention.PropertiesMustHavePrivateSetters)
             .WithFailureAssertion(Assert.Fail);
     }
+
     [Fact]
     public void ValueObjects_ShouldBeImmutable()
     {
@@ -79,6 +87,7 @@ public class ConventionTests
             .MustConformTo(Convention.PropertiesMustHavePrivateSetters)
             .WithFailureAssertion(Assert.Fail);
     }
+
     [Fact]
     public void DTOs_ShouldHavePublicGetters()
     {
@@ -88,6 +97,7 @@ public class ConventionTests
             .MustConformTo(Convention.PropertiesMustHavePublicGetters)
             .WithFailureAssertion(Assert.Fail);
     }
+
     [Fact]
     public void AsyncMethods_ShouldHaveAsyncSuffix()
     {
@@ -99,31 +109,37 @@ public class ConventionTests
                 .Where(t => t.IsClass && !t.IsAbstract &&
                        !typeof(ControllerBase).IsAssignableFrom(t) && // Exclude controllers
                        !t.Name.EndsWith("Handler") && // Exclude command/query handlers
-                       !IsCompilerGenerated(t)); types
+                       !IsCompilerGenerated(t));
+            types
                 .MustConformTo(Convention.AsyncMethodsMustHaveAsyncSuffix)
                 .WithFailureAssertion(Assert.Fail);
         }
     }
+
     [Fact]
     public void Services_ShouldFollowNamingConventions()
     {
         var serviceTypes = ApiAssembly.GetTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("Services") &&
                    t.IsClass && !t.IsAbstract &&
-                   !IsCompilerGenerated(t)); serviceTypes
+                   !IsCompilerGenerated(t));
+        serviceTypes
             .MustConformTo(Convention.NameMustEndWith("Service"))
             .WithFailureAssertion(Assert.Fail);
     }
+
     [Fact]
     public void Repositories_ShouldFollowNamingConventions()
     {
         var repositoryTypes = ApiAssembly.GetTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("Repositories") &&
                    t.IsClass && !t.IsAbstract &&
-                   !IsCompilerGenerated(t)); repositoryTypes
+                   !IsCompilerGenerated(t));
+        repositoryTypes
             .MustConformTo(Convention.NameMustEndWith("Repository"))
             .WithFailureAssertion(Assert.Fail);
     }
+
     [Fact]
     public void TestClasses_ShouldFollowNamingConventions()
     {
