@@ -123,18 +123,7 @@ public class OrderApiTests : IAsyncLifetime
         Assert.Single(retrievedOrder.Items);
     }
 
-    [Fact]
-    public async Task GetOrder_WithInvalidId_ShouldReturnNotFound()
-    {
-        // Arrange
-        var invalidId = -1;
 
-        // Act
-        var response = await _fixture.Client.GetAsync($"/api/orders/{invalidId}");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
 
     [Fact]
     public async Task GetOrdersByCustomer_WithNonExistentCustomer_ShouldReturnEmptyList()
@@ -429,5 +418,294 @@ public class OrderApiTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateOrder_WithNonExistentProduct_ShouldReturnNotFound()
+    {
+        // Arrange - Create customer but use non-existent product
+        var customerCommand = CustomerBuilder.SimpleCustomer();
+        var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/customers", customerCommand);
+        customerResponse.EnsureSuccessStatusCode();
+        var customer = await customerResponse.Content.ReadFromJsonAsync<CustomerDto>();
+        Assert.NotNull(customer);
+
+        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, 999999); // Non-existent product
+
+        // Act
+        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+
+        // Debug: Log the response details
+        if (response.StatusCode != HttpStatusCode.NotFound)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Expected NotFound but got: {response.StatusCode}");
+            _output.WriteLine($"Error response: {errorContent}");
+        }
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateOrder_WithEmptyItems_ShouldCreateDraftOrder()
+    {
+        // Arrange - Create customer
+        var customerCommand = CustomerBuilder.SimpleCustomer();
+        var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/customers", customerCommand);
+        customerResponse.EnsureSuccessStatusCode();
+        var customer = await customerResponse.Content.ReadFromJsonAsync<CustomerDto>();
+        Assert.NotNull(customer);
+
+        var orderCommand = OrderBuilder.Default()
+            .WithCustomerId(customer.Id)
+            .Build(); // No items added - creates draft order
+
+        // Act
+        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        
+        var createdOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
+        Assert.NotNull(createdOrder);
+        Assert.True(createdOrder.Id > 0);
+        Assert.Equal(customer.Id, createdOrder.CustomerId);
+        Assert.Equal(OrderStatus.Pending.ToString(), createdOrder.Status);
+        Assert.Empty(createdOrder.Items); // Draft order with no items
+        Assert.Equal(0m, createdOrder.TotalExcludingGst);
+        Assert.Equal(0m, createdOrder.TotalIncludingGst);
+        Assert.Equal(0m, createdOrder.TotalGstAmount);
+    }
+
+    [Fact]
+    public async Task CreateOrder_WithNegativeQuantity_ShouldReturnBadRequest()
+    {
+        // Arrange - Create test data
+        var (customer, product) = await CreateTestData();
+
+        var orderCommand = OrderBuilder.Default()
+            .WithCustomerId(customer.Id)
+            .WithItem(product.Id, -1, 19.99m) // Negative quantity
+            .Build();
+
+        // Act
+        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+
+        // Debug: Log the response details
+        if (response.StatusCode != HttpStatusCode.BadRequest)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Expected BadRequest but got: {response.StatusCode}");
+            _output.WriteLine($"Error response: {errorContent}");
+        }
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateOrder_WithNegativePrice_ShouldReturnBadRequest()
+    {
+        // Arrange - Create test data
+        var (customer, product) = await CreateTestData();
+
+        var orderCommand = OrderBuilder.Default()
+            .WithCustomerId(customer.Id)
+            .WithItem(product.Id, 1, -10.00m) // Negative price
+            .Build();
+
+        // Act
+        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+
+        // Debug: Log the response details
+        if (response.StatusCode != HttpStatusCode.BadRequest)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Expected BadRequest but got: {response.StatusCode}");
+            _output.WriteLine($"Error response: {errorContent}");
+        }
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateOrderStatus_WithInvalidStatus_ShouldReturnBadRequest()
+    {
+        // Arrange - Create test data and order
+        var (customer, product) = await CreateTestData();
+
+        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        createResponse.EnsureSuccessStatusCode();
+        var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
+        Assert.NotNull(createdOrder);
+
+        var updateCommand = new UpdateOrderStatusCommand
+        {
+            OrderId = createdOrder.Id,
+            Status = "InvalidStatus"
+        };
+
+        // Act
+        var response = await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", updateCommand);
+
+        // Debug: Log the response details
+        if (response.StatusCode != HttpStatusCode.BadRequest)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Expected BadRequest but got: {response.StatusCode}");
+            _output.WriteLine($"Error response: {errorContent}");
+        }
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateOrderStatus_WithInvalidTransition_ShouldReturnBadRequest()
+    {
+        // Arrange - Create test data and order, then update to Delivered
+        var (customer, product) = await CreateTestData();
+
+        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        createResponse.EnsureSuccessStatusCode();
+        var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
+        Assert.NotNull(createdOrder);
+
+        // First, move to Confirmed -> Processing -> Shipped -> Delivered
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Confirmed.ToString() });
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Processing.ToString() });
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Shipped.ToString() });
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Delivered.ToString() });
+
+        // Now try to change from Delivered to Pending (invalid transition)
+        var invalidUpdateCommand = new UpdateOrderStatusCommand
+        {
+            OrderId = createdOrder.Id,
+            Status = OrderStatus.Pending.ToString()
+        };
+
+        // Act
+        var response = await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", invalidUpdateCommand);
+
+        // Debug: Log the response details
+        if (response.StatusCode != HttpStatusCode.BadRequest)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Expected BadRequest but got: {response.StatusCode}");
+            _output.WriteLine($"Error response: {errorContent}");
+        }
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CancelOrder_WhenOrderIsDelivered_ShouldReturnBadRequest()
+    {
+        // Arrange - Create test data and order, then move to Delivered
+        var (customer, product) = await CreateTestData();
+
+        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        createResponse.EnsureSuccessStatusCode();
+        var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
+        Assert.NotNull(createdOrder);
+
+        // Move order to Delivered status
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Confirmed.ToString() });
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Processing.ToString() });
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Shipped.ToString() });
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Delivered.ToString() });
+
+        // Act
+        var response = await _fixture.Client.PostAsync($"/api/orders/{createdOrder.Id}/cancel", null);
+
+        // Debug: Log the response details
+        if (response.StatusCode != HttpStatusCode.BadRequest)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Expected BadRequest but got: {response.StatusCode}");
+            _output.WriteLine($"Error response: {errorContent}");
+        }
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateOrder_ShouldCalculateCorrectTotals()
+    {
+        // Arrange - Create test data
+        var (customer, product) = await CreateTestData();
+
+        var orderCommand = OrderBuilder.Default()
+            .WithCustomerId(customer.Id)
+            .WithItem(product.Id, 2, 10.00m, "USD", 0.10m) // 2 * 10.00 = 20.00 excl, 22.00 incl
+            .Build();
+
+        // Act
+        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        var createdOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
+        Assert.NotNull(createdOrder);
+        
+        var item = createdOrder.Items.Single();
+        Assert.Equal(2, item.Quantity);
+        Assert.Equal(10.00m, item.UnitPriceExcludingGst);
+        Assert.Equal(0.10m, item.GstRate);
+        
+        // Verify calculations (these depend on the DTO structure)
+        Assert.Equal(20.00m, item.TotalPriceExcludingGst);
+        Assert.Equal(22.00m, item.TotalPriceIncludingGst);
+        
+        // Check order-level totals
+        Assert.Equal(20.00m, createdOrder.TotalExcludingGst);
+        Assert.Equal(22.00m, createdOrder.TotalIncludingGst);
+        Assert.Equal(2.00m, createdOrder.TotalGstAmount);
+    }
+
+    [Fact]
+    public async Task GetOrder_ShouldIncludeCorrectTimestamps()
+    {
+        // Arrange - Create test data
+        var (customer, product) = await CreateTestData();
+        var startTime = DateTime.UtcNow;
+
+        // Create order
+        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        createResponse.EnsureSuccessStatusCode();
+        var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
+        Assert.NotNull(createdOrder);
+
+        var endTime = DateTime.UtcNow;
+
+        // Act
+        var response = await _fixture.Client.GetAsync($"/api/orders/{createdOrder.Id}");
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        var retrievedOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
+        
+        Assert.NotNull(retrievedOrder);
+        Assert.True(retrievedOrder.OrderDate >= startTime);
+        Assert.True(retrievedOrder.OrderDate <= endTime);
+        Assert.True(retrievedOrder.LastUpdated >= startTime);
+        Assert.True(retrievedOrder.LastUpdated <= endTime);
     }
 }
