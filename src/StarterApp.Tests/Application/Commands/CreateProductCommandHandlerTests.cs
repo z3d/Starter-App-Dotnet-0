@@ -38,9 +38,9 @@ public class CreateProductCommandHandlerTests
             });
 
         // Act
-        // Call the IRequestHandler<CreateProductCommand, ProductDto>.Handle method explicitly
+        // Call the IRequestHandler<CreateProductCommand, ProductDto>.HandleAsync method explicitly
         var result = await ((IRequestHandler<CreateProductCommand, ProductDto>)_handler)
-            .Handle(command, CancellationToken.None);
+            .HandleAsync(command, CancellationToken.None);
 
         // Assert
         Assert.NotNull(result);
@@ -59,3 +59,6 @@ public class CreateProductCommandHandlerTests
             Times.Once);
     }
 }
+
+
+

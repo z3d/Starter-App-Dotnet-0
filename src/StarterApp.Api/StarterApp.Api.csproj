@@ -9,8 +9,6 @@
   <ItemGroup>
     <!-- Removed dbup-sqlserver as it's now provided by the DbMigrator project -->
     <PackageReference Include="Dapper" Version="2.1.35" />
-    <PackageReference Include="MediatR" Version="11.1.0" />
-    <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="11.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.5" />

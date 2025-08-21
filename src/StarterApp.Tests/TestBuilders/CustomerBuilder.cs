@@ -30,3 +30,6 @@ public class CustomerBuilder
 
     public static CreateCustomerCommand SimpleCustomer() => Default().Build();
 }
+
+
+

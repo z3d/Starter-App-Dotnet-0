@@ -42,4 +42,12 @@ public class GetOrdersByCustomerQueryHandler : IQueryHandler<GetOrdersByCustomer
 
         return orders;
     }
+
+    public async Task<IEnumerable<OrderReadModel>> HandleAsync(GetOrdersByCustomerQuery query, CancellationToken cancellationToken)
+    {
+        return await Handle(query, cancellationToken);
+    }
 }
+
+
+

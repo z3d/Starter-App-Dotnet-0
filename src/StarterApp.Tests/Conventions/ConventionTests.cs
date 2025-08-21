@@ -98,7 +98,7 @@ public class ConventionTests
             var types = assembly.GetTypes()
                 .Where(t => t.IsClass && !t.IsAbstract &&
                        !typeof(ControllerBase).IsAssignableFrom(t) && // Exclude controllers
-                       !t.Name.EndsWith("Handler") && // Exclude MediatR handlers
+                       !t.Name.EndsWith("Handler") && // Exclude command/query handlers
                        !IsCompilerGenerated(t)); types
                 .MustConformTo(Convention.AsyncMethodsMustHaveAsyncSuffix)
                 .WithFailureAssertion(Assert.Fail);
@@ -136,4 +136,7 @@ public class ConventionTests
             .WithFailureAssertion(Assert.Fail);
     }
 }
+
+
+
 

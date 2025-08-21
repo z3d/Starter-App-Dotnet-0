@@ -22,8 +22,7 @@ public class CancelOrderCommandHandler : ICommandHandler<CancelOrderCommand>,
         await _commandService.CancelOrderAsync(command.OrderId);
     }
 
-    async Task<OrderDto> IRequestHandler<CancelOrderCommand, OrderDto>.Handle(
-        CancelOrderCommand command, CancellationToken cancellationToken)
+    public async Task<OrderDto> HandleAsync(CancelOrderCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling CancelOrderCommand to return OrderDto for order {OrderId}", command.OrderId);
 
@@ -63,3 +62,6 @@ public class CancelOrderCommandHandler : ICommandHandler<CancelOrderCommand>,
         };
     }
 }
+
+
+

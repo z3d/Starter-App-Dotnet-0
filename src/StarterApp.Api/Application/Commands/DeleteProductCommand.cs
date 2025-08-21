@@ -1,5 +1,4 @@
 using StarterApp.Api.Application.Interfaces;
-using MediatR;
 using Serilog;
 
 namespace StarterApp.Api.Application.Commands;
@@ -34,11 +33,13 @@ public class DeleteProductCommandHandler : ICommandHandler<DeleteProductCommand>
             throw new KeyNotFoundException($"Product with ID {command.Id} not found");
     }
 
-    async Task<bool> IRequestHandler<DeleteProductCommand, bool>.Handle(
-        DeleteProductCommand command, CancellationToken cancellationToken)
+    public async Task<bool> HandleAsync(DeleteProductCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling DeleteProductCommand for product {Id}", command.Id);
 
         return await _commandService.DeleteProductAsync(command.Id);
     }
 }
+
+
+

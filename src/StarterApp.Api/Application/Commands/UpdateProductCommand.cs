@@ -1,7 +1,6 @@
 using StarterApp.Api.Application.DTOs;
 using StarterApp.Api.Application.Interfaces;
 using StarterApp.Domain.ValueObjects;
-using MediatR;
 using Serilog;
 
 namespace StarterApp.Api.Application.Commands;
@@ -42,8 +41,7 @@ public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>
             throw new KeyNotFoundException($"Product with ID {command.Id} not found");
     }
 
-    async Task<ProductDto?> IRequestHandler<UpdateProductCommand, ProductDto?>.Handle(
-        UpdateProductCommand command, CancellationToken cancellationToken)
+    public async Task<ProductDto?> HandleAsync(UpdateProductCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling UpdateProductCommand for product {Id}", command.Id);
 
@@ -70,3 +68,6 @@ public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>
         };
     }
 }
+
+
+

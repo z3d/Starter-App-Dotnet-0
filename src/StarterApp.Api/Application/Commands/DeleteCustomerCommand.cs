@@ -6,7 +6,7 @@ public class DeleteCustomerCommand : ICommand, IRequest
 }
 
 public class DeleteCustomerCommandHandler : ICommandHandler<DeleteCustomerCommand>,
-                                          IRequestHandler<DeleteCustomerCommand, Unit>
+                                          IRequestHandler<DeleteCustomerCommand>
 {
     private readonly ICustomerCommandService _commandService;
 
@@ -22,9 +22,11 @@ public class DeleteCustomerCommandHandler : ICommandHandler<DeleteCustomerComman
         await _commandService.DeleteCustomerAsync(command.Id);
     }
 
-    async Task<Unit> IRequestHandler<DeleteCustomerCommand, Unit>.Handle(DeleteCustomerCommand command, CancellationToken cancellationToken)
+    public async Task HandleAsync(DeleteCustomerCommand command, CancellationToken cancellationToken)
     {
         await Handle(command, cancellationToken);
-        return Unit.Value;
     }
 }
+
+
+

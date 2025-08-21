@@ -21,7 +21,6 @@ global using Microsoft.AspNetCore.Mvc;
 global using Microsoft.Extensions.Configuration;
 
 // Application libraries
-global using MediatR;
 global using DbUp;
 global using DbUp.Engine;
 
@@ -41,3 +40,7 @@ global using StarterApp.Api.Application.Queries;
 global using StarterApp.Api.Application.DTOs;
 global using StarterApp.Api.Application.Interfaces;
 global using StarterApp.Api.Application.ReadModels;
+global using StarterApp.Api.Infrastructure.Mediator;
+
+
+

@@ -46,4 +46,12 @@ public class GetCustomersQueryHandler : IQueryHandler<GetCustomersQuery, IEnumer
 
         return customers;
     }
+
+    public async Task<IEnumerable<CustomerReadModel>> HandleAsync(GetCustomersQuery query, CancellationToken cancellationToken)
+    {
+        return await Handle(query, cancellationToken);
+    }
 }
+
+
+

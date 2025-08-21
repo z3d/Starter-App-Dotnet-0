@@ -2,7 +2,6 @@ using StarterApp.Api.Application.Commands;
 using StarterApp.Api.Application.DTOs;
 using StarterApp.Api.Application.Queries;
 using StarterApp.Api.Application.ReadModels;
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 
@@ -25,7 +24,7 @@ public class OrdersController : ControllerBase
     {
         Log.Information("Getting order with ID: {Id}", id);
         var query = new GetOrderByIdQuery { Id = id };
-        var result = await _mediator.Send(query);
+        var result = await _mediator.SendAsync(query);
 
         if (result == null)
         {
@@ -42,7 +41,7 @@ public class OrdersController : ControllerBase
     {
         Log.Information("Getting orders for customer: {CustomerId}", customerId);
         var query = new GetOrdersByCustomerQuery { CustomerId = customerId };
-        var result = await _mediator.Send(query);
+        var result = await _mediator.SendAsync(query);
         return Ok(result);
     }
 
@@ -52,7 +51,7 @@ public class OrdersController : ControllerBase
     {
         Log.Information("Getting orders with status: {Status}", status);
         var query = new GetOrdersByStatusQuery { Status = status };
-        var result = await _mediator.Send(query);
+        var result = await _mediator.SendAsync(query);
         return Ok(result);
     }
 
@@ -62,7 +61,7 @@ public class OrdersController : ControllerBase
     {
         Log.Information("Creating a new order for customer: {CustomerId}", command.CustomerId);
 
-        var result = await _mediator.Send(command);
+        var result = await _mediator.SendAsync(command);
         Log.Information("Created new order with ID: {Id}", result.Id);
         return CreatedAtAction(nameof(GetOrder), new { id = result.Id }, result);
     }
@@ -80,7 +79,7 @@ public class OrdersController : ControllerBase
 
         try
         {
-            var result = await _mediator.Send(command);
+            var result = await _mediator.SendAsync(command);
             Log.Information("Updated order {Id} status to: {Status}", id, command.Status);
             return Ok(result);
         }
@@ -110,7 +109,7 @@ public class OrdersController : ControllerBase
         try
         {
             var command = new CancelOrderCommand { OrderId = id };
-            var result = await _mediator.Send(command);
+            var result = await _mediator.SendAsync(command);
             Log.Information("Cancelled order with ID: {Id}", id);
             return Ok(result);
         }
@@ -126,3 +125,6 @@ public class OrdersController : ControllerBase
         }
     }
 }
+
+
+

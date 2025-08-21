@@ -47,4 +47,12 @@ public class GetAllProductsQueryHandler : IQueryHandler<GetAllProductsQuery, IEn
 
         return products;
     }
+
+    public async Task<IEnumerable<ProductReadModel>> HandleAsync(GetAllProductsQuery query, CancellationToken cancellationToken)
+    {
+        return await Handle(query, cancellationToken);
+    }
 }
+
+
+

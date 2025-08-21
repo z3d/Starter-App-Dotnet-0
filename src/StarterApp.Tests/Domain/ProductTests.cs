@@ -133,3 +133,6 @@ public class ProductTests
         Assert.Contains("Cannot reduce stock below zero", exception.Message);
     }
 }
+
+
+

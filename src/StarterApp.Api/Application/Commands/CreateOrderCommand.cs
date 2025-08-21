@@ -32,8 +32,7 @@ public class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand>,
         await _commandService.CreateOrderAsync(command.CustomerId, command.Items);
     }
 
-    async Task<OrderDto> IRequestHandler<CreateOrderCommand, OrderDto>.Handle(
-        CreateOrderCommand command, CancellationToken cancellationToken)
+    public async Task<OrderDto> HandleAsync(CreateOrderCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling CreateOrderCommand to return OrderDto for customer {CustomerId}", command.CustomerId);
 
@@ -70,3 +69,6 @@ public class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand>,
         };
     }
 }
+
+
+

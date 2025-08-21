@@ -63,3 +63,6 @@ public class ProductQueryService : IProductQueryService
         return await connection.QueryFirstOrDefaultAsync<ProductReadModel>(query, new { Id = id });
     }
 }
+
+
+

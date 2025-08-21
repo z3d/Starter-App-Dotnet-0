@@ -6,3 +6,6 @@ public interface IProductQueryService
     Task<IEnumerable<ProductReadModel>> GetAllProductsAsync();
     Task<ProductReadModel?> GetProductByIdAsync(int id);
 }
+
+
+

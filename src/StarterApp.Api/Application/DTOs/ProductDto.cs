@@ -24,3 +24,6 @@ public class ProductDto
 
     public DateTime LastUpdated { get; set; }
 }
+
+
+

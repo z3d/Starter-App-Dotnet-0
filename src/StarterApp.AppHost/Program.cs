@@ -19,3 +19,6 @@ builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
 // After adding all resources, run the app...
 builder.Build().Run();
 
+
+
+

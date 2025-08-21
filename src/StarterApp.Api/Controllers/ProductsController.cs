@@ -2,7 +2,6 @@ using StarterApp.Api.Application.Commands;
 using StarterApp.Api.Application.DTOs;
 using StarterApp.Api.Application.Queries;
 using StarterApp.Api.Application.ReadModels;
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 
@@ -25,7 +24,7 @@ public class ProductsController : ControllerBase
     {
         Log.Information("Getting all products");
         var query = new GetAllProductsQuery();
-        var result = await _mediator.Send(query);
+        var result = await _mediator.SendAsync(query);
         return Ok(result);
     }
 
@@ -35,7 +34,7 @@ public class ProductsController : ControllerBase
     {
         Log.Information("Getting product with ID: {Id}", id);
         var query = new GetProductByIdQuery(id);
-        var result = await _mediator.Send(query);
+        var result = await _mediator.SendAsync(query);
 
         if (result == null)
         {
@@ -51,7 +50,7 @@ public class ProductsController : ControllerBase
     public async Task<ActionResult<ProductDto>> CreateProduct(CreateProductCommand command)
     {
         Log.Information("Creating a new product");
-        var result = await _mediator.Send(command);
+        var result = await _mediator.SendAsync(command);
 
         Log.Information("Created new product with ID: {Id}", result.Id);
         return CreatedAtAction(nameof(GetProduct), new { id = result.Id }, result);
@@ -70,7 +69,7 @@ public class ProductsController : ControllerBase
 
         try
         {
-            await _mediator.Send(command);
+            await _mediator.SendAsync(command);
             Log.Information("Updated product with ID: {Id}", id);
         }
         catch (KeyNotFoundException)
@@ -90,7 +89,7 @@ public class ProductsController : ControllerBase
 
         try
         {
-            await _mediator.Send(new DeleteProductCommand(id));
+            await _mediator.SendAsync(new DeleteProductCommand(id));
             Log.Information("Deleted product with ID: {Id}", id);
         }
         catch (KeyNotFoundException)
@@ -102,3 +101,6 @@ public class ProductsController : ControllerBase
         return NoContent();
     }
 }
+
+
+

@@ -2,7 +2,6 @@ using StarterApp.Api.Application.Commands;
 using StarterApp.Api.Application.DTOs;
 using StarterApp.Api.Application.Queries;
 using StarterApp.Api.Application.ReadModels;
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 
@@ -24,7 +23,7 @@ public class CustomersController : ControllerBase
     {
         Log.Information("Getting all customers");
         var query = new GetCustomersQuery();
-        var result = await _mediator.Send(query);
+        var result = await _mediator.SendAsync(query);
         return Ok(result);
     }
 
@@ -33,7 +32,7 @@ public class CustomersController : ControllerBase
     {
         Log.Information("Getting customer with ID: {Id}", id);
         var query = new GetCustomerQuery(id);
-        var result = await _mediator.Send(query);
+        var result = await _mediator.SendAsync(query);
 
         if (result == null)
         {
@@ -48,7 +47,7 @@ public class CustomersController : ControllerBase
     public async Task<ActionResult<CustomerDto>> CreateCustomer(CreateCustomerCommand command)
     {
         Log.Information("Creating a new customer");
-        var result = await _mediator.Send(command);
+        var result = await _mediator.SendAsync(command);
 
         Log.Information("Created new customer with ID: {Id}", result.Id);
         return CreatedAtAction(nameof(GetCustomer), new { id = result.Id }, result);
@@ -66,7 +65,7 @@ public class CustomersController : ControllerBase
 
         try
         {
-            await _mediator.Send(command);
+            await _mediator.SendAsync(command);
             Log.Information("Updated customer with ID: {Id}", id);
         }
         catch (KeyNotFoundException)
@@ -85,7 +84,7 @@ public class CustomersController : ControllerBase
 
         try
         {
-            await _mediator.Send(new DeleteCustomerCommand { Id = id });
+            await _mediator.SendAsync(new DeleteCustomerCommand { Id = id });
             Log.Information("Deleted customer with ID: {Id}", id);
         }
         catch (KeyNotFoundException)
@@ -97,3 +96,6 @@ public class CustomersController : ControllerBase
         return NoContent();
     }
 }
+
+
+

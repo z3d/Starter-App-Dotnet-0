@@ -58,4 +58,12 @@ public class GetOrderByIdQueryHandler : IQueryHandler<GetOrderByIdQuery, OrderWi
 
         return order;
     }
+
+    public async Task<OrderWithItemsReadModel?> HandleAsync(GetOrderByIdQuery query, CancellationToken cancellationToken)
+    {
+        return await Handle(query, cancellationToken);
+    }
 }
+
+
+

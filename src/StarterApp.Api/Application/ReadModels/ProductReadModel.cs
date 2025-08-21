@@ -9,3 +9,6 @@ public class ProductReadModel
     public int Stock { get; set; }
     public DateTime LastUpdated { get; set; }
 }
+
+
+

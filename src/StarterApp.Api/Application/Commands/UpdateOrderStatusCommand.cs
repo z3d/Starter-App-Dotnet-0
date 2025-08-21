@@ -25,8 +25,7 @@ public class UpdateOrderStatusCommandHandler : ICommandHandler<UpdateOrderStatus
         await _commandService.UpdateOrderStatusAsync(command.OrderId, status);
     }
 
-    async Task<OrderDto> IRequestHandler<UpdateOrderStatusCommand, OrderDto>.Handle(
-        UpdateOrderStatusCommand command, CancellationToken cancellationToken)
+    public async Task<OrderDto> HandleAsync(UpdateOrderStatusCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling UpdateOrderStatusCommand to return OrderDto for order {OrderId}", command.OrderId);
 
@@ -67,3 +66,6 @@ public class UpdateOrderStatusCommandHandler : ICommandHandler<UpdateOrderStatus
         };
     }
 }
+
+
+

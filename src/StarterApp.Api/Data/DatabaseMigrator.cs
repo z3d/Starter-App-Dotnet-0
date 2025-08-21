@@ -13,3 +13,6 @@ public static class DatabaseMigrator
         return DatabaseMigrationEngine.MigrateDatabase(connectionString, dbMigratorAssembly);
     }
 }
+
+
+

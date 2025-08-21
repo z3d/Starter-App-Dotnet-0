@@ -17,6 +17,7 @@ This is a **Clean Architecture** .NET 9 solution implementing **CQRS** with **Do
 - **Code Regions**: Never use #region/#endregion directives - organize code through proper class structure, methods, and logical separation instead
 - **AutoMapper**: NEVER use AutoMapper or any automatic object mapping libraries - use explicit mapping code instead
 - **XML Documentation Comments**: Never use XML documentation comments (/// <summary>, /// <param>, etc.) - they are verbose, inconsistent when used partially, and interfere with code readability. Let good naming and clean code structure be self-documenting instead
+- **MediatR**: NEVER use MediatR (Bogard's library) - it adds unnecessary complexity, reflection overhead, and indirection. Use a simple custom mediator pattern instead. Our custom implementation provides the same benefits (decoupling, testability) without the bloat
 
 ### Solution Structure
 

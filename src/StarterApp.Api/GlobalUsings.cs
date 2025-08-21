@@ -14,7 +14,6 @@ global using Microsoft.AspNetCore.RateLimiting;
 global using Microsoft.EntityFrameworkCore;
 
 // Third-party libraries
-global using MediatR;
 global using Dapper;
 global using Microsoft.Data.SqlClient;
 
@@ -35,3 +34,7 @@ global using StarterApp.Api.Application.Queries;
 global using StarterApp.Api.Application.ReadModels;
 global using StarterApp.Api.Application.Interfaces;
 global using StarterApp.Api.Infrastructure.Repositories;
+global using StarterApp.Api.Infrastructure.Mediator;
+
+
+

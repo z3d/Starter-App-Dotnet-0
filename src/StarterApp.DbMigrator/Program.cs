@@ -30,3 +30,6 @@ bool success = DatabaseMigrationEngine.Migrate(connectionString);
 
 Environment.Exit(success ? 0 : -1);
 
+
+
+

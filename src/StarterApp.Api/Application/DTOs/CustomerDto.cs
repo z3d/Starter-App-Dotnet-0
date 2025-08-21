@@ -20,3 +20,6 @@ public class CustomerDto
 
     public bool IsActive { get; set; }
 }
+
+
+

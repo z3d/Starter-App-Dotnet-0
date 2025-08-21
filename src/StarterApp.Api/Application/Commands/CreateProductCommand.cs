@@ -31,7 +31,7 @@ public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand>
         );
     }
 
-    async Task<ProductDto> IRequestHandler<CreateProductCommand, ProductDto>.Handle(
+    public async Task<ProductDto> HandleAsync(
         CreateProductCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling CreateProductCommand to return ProductDto");
@@ -55,3 +55,6 @@ public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand>
         };
     }
 }
+
+
+

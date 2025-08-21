@@ -38,3 +38,6 @@ public static class DatabaseMigrationEngine
         return MigrateDatabase(connectionString, Assembly.GetExecutingAssembly());
     }
 }
+
+
+

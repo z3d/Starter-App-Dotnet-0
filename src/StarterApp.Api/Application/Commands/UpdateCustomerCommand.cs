@@ -28,8 +28,7 @@ public class UpdateCustomerCommandHandler : ICommandHandler<UpdateCustomerComman
         );
     }
 
-    async Task<CustomerDto> IRequestHandler<UpdateCustomerCommand, CustomerDto>.Handle(
-        UpdateCustomerCommand command, CancellationToken cancellationToken)
+    public async Task<CustomerDto> HandleAsync(UpdateCustomerCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling UpdateCustomerCommand to return CustomerDto for Customer {CustomerId}", command.Id);
 
@@ -52,3 +51,6 @@ public class UpdateCustomerCommandHandler : ICommandHandler<UpdateCustomerComman
         };
     }
 }
+
+
+

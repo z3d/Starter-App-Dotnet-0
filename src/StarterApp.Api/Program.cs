@@ -68,7 +68,7 @@ builder.Services.AddScoped<IProductCommandService, ProductCommandService>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICustomerCommandService, CustomerCommandService>();
 builder.Services.AddScoped<IOrderCommandService, OrderCommandService>();
-builder.Services.AddMediatR(Assembly.GetExecutingAssembly());
+builder.Services.AddMediator(Assembly.GetExecutingAssembly());
 builder.Services.AddControllers();
 
 // Add CORS (restrict in production)
@@ -233,4 +233,7 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+
+
 

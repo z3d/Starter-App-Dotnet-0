@@ -167,3 +167,6 @@ public class ProductDtoTests
         Log.Information("Validation correctly failed with message: {Message}", validationResults[0].ErrorMessage);
     }
 }
+
+
+

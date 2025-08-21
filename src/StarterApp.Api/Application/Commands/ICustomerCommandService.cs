@@ -6,3 +6,6 @@ public interface ICustomerCommandService
     Task<Customer?> UpdateCustomerAsync(int id, string name, Email email);
     Task<bool> DeleteCustomerAsync(int id);
 }
+
+
+
