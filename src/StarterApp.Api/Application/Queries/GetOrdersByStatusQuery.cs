@@ -3,13 +3,13 @@ using StarterApp.Api.Application.Interfaces;
 
 namespace StarterApp.Api.Application.Queries;
 
-public class GetOrdersByStatusQuery : IQuery<IEnumerable<OrderDto>>, IRequest<IEnumerable<OrderDto>>
+public class GetOrdersByStatusQuery : IQuery<IEnumerable<OrderReadModel>>, IRequest<IEnumerable<OrderReadModel>>
 {
     public string Status { get; set; } = string.Empty;
 }
 
-public class GetOrdersByStatusQueryHandler : IQueryHandler<GetOrdersByStatusQuery, IEnumerable<OrderDto>>, 
-                                           IRequestHandler<GetOrdersByStatusQuery, IEnumerable<OrderDto>>
+public class GetOrdersByStatusQueryHandler : IQueryHandler<GetOrdersByStatusQuery, IEnumerable<OrderReadModel>>,
+                                           IRequestHandler<GetOrdersByStatusQuery, IEnumerable<OrderReadModel>>
 {
     private readonly string _connectionString;
 
@@ -24,7 +24,7 @@ public class GetOrdersByStatusQueryHandler : IQueryHandler<GetOrdersByStatusQuer
             throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
     }
 
-    public async Task<IEnumerable<OrderDto>> Handle(GetOrdersByStatusQuery query, CancellationToken cancellationToken)
+    public async Task<IEnumerable<OrderReadModel>> Handle(GetOrdersByStatusQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetOrdersByStatusQuery for status {Status}", query.Status);
         
@@ -40,23 +40,6 @@ public class GetOrdersByStatusQueryHandler : IQueryHandler<GetOrdersByStatusQuer
 
         var orders = await connection.QueryAsync<OrderReadModel>(sql, new { Status = query.Status });
         
-        return orders.Select(MapToDto);
-    }
-
-    private static OrderDto MapToDto(OrderReadModel readModel)
-    {
-        return new OrderDto
-        {
-            Id = readModel.Id,
-            CustomerId = readModel.CustomerId,
-            OrderDate = readModel.OrderDate,
-            Status = readModel.Status,
-            Items = [], // Items not loaded for this query for performance
-            TotalExcludingGst = readModel.TotalExcludingGst,
-            TotalIncludingGst = readModel.TotalIncludingGst,
-            TotalGstAmount = readModel.TotalGstAmount,
-            Currency = readModel.Currency,
-            LastUpdated = readModel.LastUpdated
-        };
+        return orders;
     }
 }

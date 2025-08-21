@@ -3,12 +3,12 @@ using StarterApp.Api.Application.Interfaces;
 
 namespace StarterApp.Api.Application.Queries;
 
-public class GetAllProductsQuery : IQuery<IEnumerable<ProductDto>>, IRequest<IEnumerable<ProductDto>>
+public class GetAllProductsQuery : IQuery<IEnumerable<ProductReadModel>>, IRequest<IEnumerable<ProductReadModel>>
 {
 }
 
-public class GetAllProductsQueryHandler : IQueryHandler<GetAllProductsQuery, IEnumerable<ProductDto>>, 
-                                         IRequestHandler<GetAllProductsQuery, IEnumerable<ProductDto>>
+public class GetAllProductsQueryHandler : IQueryHandler<GetAllProductsQuery, IEnumerable<ProductReadModel>>, 
+                                         IRequestHandler<GetAllProductsQuery, IEnumerable<ProductReadModel>>
 {
     private readonly string _connectionString;
 
@@ -23,7 +23,7 @@ public class GetAllProductsQueryHandler : IQueryHandler<GetAllProductsQuery, IEn
             throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
     }
 
-    public async Task<IEnumerable<ProductDto>> Handle(GetAllProductsQuery query, CancellationToken cancellationToken)
+    public async Task<IEnumerable<ProductReadModel>> Handle(GetAllProductsQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetAllProductsQuery");
         
@@ -45,20 +45,6 @@ public class GetAllProductsQueryHandler : IQueryHandler<GetAllProductsQuery, IEn
 
         var products = await connection.QueryAsync<ProductReadModel>(sqlQuery);
         
-        return products.Select(MapToDtoFromReadModel);
-    }
-
-    private static ProductDto MapToDtoFromReadModel(ProductReadModel readModel)
-    {
-        return new ProductDto
-        {
-            Id = readModel.Id,
-            Name = readModel.Name,
-            Description = readModel.Description,
-            Price = readModel.PriceAmount,
-            Currency = readModel.PriceCurrency,
-            Stock = readModel.Stock,
-            LastUpdated = readModel.LastUpdated
-        };
+        return products;
     }
 }

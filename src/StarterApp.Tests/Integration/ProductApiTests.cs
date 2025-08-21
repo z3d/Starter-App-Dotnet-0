@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using StarterApp.Api.Application.Commands;
 using StarterApp.Api.Application.DTOs;
+using StarterApp.Api.Application.ReadModels;
 using Xunit.Abstractions;
 
 namespace StarterApp.Tests.Integration;
@@ -186,12 +187,12 @@ public class ProductApiTests : IAsyncLifetime
         // Verify update with GET
         var getResponse = await _fixture.Client.GetAsync($"/api/products/{createdProduct.Id}");
         getResponse.EnsureSuccessStatusCode();
-        var updatedProduct = await getResponse.Content.ReadFromJsonAsync<ProductDto>();
+        var updatedProduct = await getResponse.Content.ReadFromJsonAsync<ProductReadModel>();
         
         Assert.NotNull(updatedProduct);
         Assert.Equal(updateCommand.Name, updatedProduct.Name);
         Assert.Equal(updateCommand.Description, updatedProduct.Description);
-        Assert.Equal(updateCommand.Price, updatedProduct.Price);
+        Assert.Equal(updateCommand.Price, updatedProduct.PriceAmount);
     }
 
     [Fact]

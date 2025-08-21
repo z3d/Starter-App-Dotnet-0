@@ -1,6 +1,7 @@
 using StarterApp.Api.Application.Commands;
 using StarterApp.Api.Application.DTOs;
 using StarterApp.Api.Application.Queries;
+using StarterApp.Api.Application.ReadModels;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
@@ -20,7 +21,7 @@ public class OrdersController : ControllerBase
 
     // GET: api/Orders/5
     [HttpGet("{id}")]
-    public async Task<ActionResult<OrderDto>> GetOrder(int id)
+    public async Task<ActionResult<OrderWithItemsReadModel>> GetOrder(int id)
     {
         Log.Information("Getting order with ID: {Id}", id);
         var query = new GetOrderByIdQuery { Id = id };
@@ -37,7 +38,7 @@ public class OrdersController : ControllerBase
 
     // GET: api/Orders/customer/5
     [HttpGet("customer/{customerId}")]
-    public async Task<ActionResult<IEnumerable<OrderDto>>> GetOrdersByCustomer(int customerId)
+    public async Task<ActionResult<IEnumerable<OrderReadModel>>> GetOrdersByCustomer(int customerId)
     {
         Log.Information("Getting orders for customer: {CustomerId}", customerId);
         var query = new GetOrdersByCustomerQuery { CustomerId = customerId };
@@ -47,7 +48,7 @@ public class OrdersController : ControllerBase
 
     // GET: api/Orders/status/Pending
     [HttpGet("status/{status}")]
-    public async Task<ActionResult<IEnumerable<OrderDto>>> GetOrdersByStatus(string status)
+    public async Task<ActionResult<IEnumerable<OrderReadModel>>> GetOrdersByStatus(string status)
     {
         Log.Information("Getting orders with status: {Status}", status);
         var query = new GetOrdersByStatusQuery { Status = status };

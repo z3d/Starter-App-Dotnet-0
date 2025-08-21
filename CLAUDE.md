@@ -2,16 +2,20 @@
 
 This document outlines the architectural patterns, conventions, and technical approach for creating a .NET 9 project template using **Aspire** (not Docker) orchestration. This serves as comprehensive instructions for LLMs creating similar projects.
 
-## Project Ove### Key Anti-Patterns to Avoid
+## Project Overview
+
+This is a **Clean Architecture** .NET 9 solution implementing **CQRS** with **Domain-Driven Design** principles, using **Aspire** for orchestration and observability.
+
+### Key Anti-Patterns to Avoid
 
 - **Anemic Domain Models**: Domain objects should have behavior, not just properties
-- **Mixed Concerns**: Keep command and query responsibilities separate
+- **Mixed Concerns**: Keep command and query responsibilities separate - Commands→DTOs, Queries→ReadModels
 - **Tight Coupling**: Use interfaces and dependency injection consistently
 - **Missing Validation**: Both at domain and API boundaries
 - **Inconsistent Naming**: Follow the established conventions strictly
 - **Dual Representation Overengineering**: Avoid creating separate entity/value object pairs when a single entity with embedded value objects suffices (see Architecture Consistency section below)
 - **Code Regions**: Never use #region/#endregion directives - organize code through proper class structure, methods, and logical separation instead
-This is a **Clean Architecture** .NET 9 solution implementing **CQRS** with **Domain-Driven Design** principles, using **Aspire** for orchestration and observability.
+- **AutoMapper**: NEVER use AutoMapper or any automatic object mapping libraries - use explicit mapping code instead
 
 ### Solution Structure
 
@@ -120,6 +124,43 @@ public interface IQueryHandler<TQuery, TResult> where TQuery : IQuery<TResult>
     Task<TResult> Handle(TQuery query, CancellationToken cancellationToken = default);
 }
 ```
+
+#### ✅ Pure CQRS Pattern Implementation
+
+**CRITICAL: This project implements PURE CQRS with strict separation:**
+
+- **Commands → DTOs**: All write operations (POST, PUT, DELETE) return DTOs for client communication
+- **Queries → ReadModels**: All read operations (GET) return ReadModels optimized for display
+- **NO MIXING**: Never return DTOs from queries or ReadModels from commands
+
+##### Return Type Rules
+```csharp
+// ✅ CORRECT - Commands return DTOs
+public async Task<ActionResult<CustomerDto>> CreateCustomer(CreateCustomerCommand command)
+public async Task<ActionResult<ProductDto>> UpdateProduct(int id, UpdateProductCommand command)
+
+// ✅ CORRECT - Queries return ReadModels  
+public async Task<ActionResult<CustomerReadModel>> GetCustomer(int id)
+public async Task<ActionResult<IEnumerable<ProductReadModel>>> GetAllProducts()
+
+// ❌ WRONG - Mixed concerns
+public async Task<ActionResult<CustomerDto>> GetCustomer(int id)      // Should be ReadModel
+public async Task<ActionResult<CustomerReadModel>> CreateCustomer()   // Should be DTO
+```
+
+##### Benefits Achieved
+- **Performance**: Direct database-to-ReadModel mapping eliminates conversion overhead
+- **Clarity**: Clear architectural boundaries between read and write operations
+- **Maintainability**: Separate optimization strategies for commands vs queries
+- **API Design**: Read endpoints optimized for client consumption
+
+##### ⚠️ NEVER USE AUTOMAPPER
+**PROHIBITED**: AutoMapper or any automatic object mapping libraries are **STRICTLY FORBIDDEN**:
+- Creates hidden complexity and runtime failures
+- Obscures data transformation logic  
+- Makes debugging difficult
+- Violates explicit architecture principles
+- **USE EXPLICIT MAPPING**: Write clear, explicit mapping code instead
 
 ### Libraries and Dependencies
 

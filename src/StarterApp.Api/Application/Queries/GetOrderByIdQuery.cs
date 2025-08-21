@@ -3,13 +3,13 @@ using StarterApp.Api.Application.Interfaces;
 
 namespace StarterApp.Api.Application.Queries;
 
-public class GetOrderByIdQuery : IQuery<OrderDto?>, IRequest<OrderDto?>
+public class GetOrderByIdQuery : IQuery<OrderWithItemsReadModel?>, IRequest<OrderWithItemsReadModel?>
 {
     public int Id { get; set; }
 }
 
-public class GetOrderByIdQueryHandler : IQueryHandler<GetOrderByIdQuery, OrderDto?>, 
-                                       IRequestHandler<GetOrderByIdQuery, OrderDto?>
+public class GetOrderByIdQueryHandler : IQueryHandler<GetOrderByIdQuery, OrderWithItemsReadModel?>, 
+                                       IRequestHandler<GetOrderByIdQuery, OrderWithItemsReadModel?>
 {
     private readonly string _connectionString;
 
@@ -24,7 +24,7 @@ public class GetOrderByIdQueryHandler : IQueryHandler<GetOrderByIdQuery, OrderDt
             throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
     }
 
-    public async Task<OrderDto?> Handle(GetOrderByIdQuery query, CancellationToken cancellationToken)
+    public async Task<OrderWithItemsReadModel?> Handle(GetOrderByIdQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetOrderByIdQuery for order {Id}", query.Id);
         
@@ -56,34 +56,6 @@ public class GetOrderByIdQueryHandler : IQueryHandler<GetOrderByIdQuery, OrderDt
         var items = await connection.QueryAsync<OrderItemReadModel>(itemsSql, new { Id = query.Id });
         order.Items = items.ToList();
         
-        return MapToDto(order);
-    }
-
-    private static OrderDto MapToDto(OrderWithItemsReadModel readModel)
-    {
-        return new OrderDto
-        {
-            Id = readModel.Id,
-            CustomerId = readModel.CustomerId,
-            OrderDate = readModel.OrderDate,
-            Status = readModel.Status,
-            Items = readModel.Items.Select(item => new OrderItemDto
-            {
-                ProductId = item.ProductId,
-                ProductName = item.ProductName,
-                Quantity = item.Quantity,
-                UnitPriceExcludingGst = item.UnitPriceExcludingGst,
-                UnitPriceIncludingGst = item.UnitPriceIncludingGst,
-                TotalPriceExcludingGst = item.TotalPriceExcludingGst,
-                TotalPriceIncludingGst = item.TotalPriceIncludingGst,
-                GstRate = item.GstRate,
-                Currency = item.Currency
-            }).ToList(),
-            TotalExcludingGst = readModel.TotalExcludingGst,
-            TotalIncludingGst = readModel.TotalIncludingGst,
-            TotalGstAmount = readModel.TotalGstAmount,
-            Currency = readModel.Currency,
-            LastUpdated = readModel.LastUpdated
-        };
+        return order;
     }
 }

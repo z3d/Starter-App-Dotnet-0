@@ -4,7 +4,7 @@ using StarterApp.Api.Application.ReadModels;
 
 namespace StarterApp.Api.Application.Queries;
 
-public class GetCustomerQuery : IQuery<CustomerDto?>, IRequest<CustomerDto?>
+public class GetCustomerQuery : IQuery<CustomerReadModel?>, IRequest<CustomerReadModel?>
 {
     public int Id { get; }
 
@@ -14,8 +14,8 @@ public class GetCustomerQuery : IQuery<CustomerDto?>, IRequest<CustomerDto?>
     }
 }
 
-public class GetCustomerQueryHandler : IQueryHandler<GetCustomerQuery, CustomerDto?>,
-                                     IRequestHandler<GetCustomerQuery, CustomerDto?>
+public class GetCustomerQueryHandler : IQueryHandler<GetCustomerQuery, CustomerReadModel?>,
+    IRequestHandler<GetCustomerQuery, CustomerReadModel?>
 {
     private readonly string _connectionString;
 
@@ -30,7 +30,7 @@ public class GetCustomerQueryHandler : IQueryHandler<GetCustomerQuery, CustomerD
             throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
     }
 
-    public async Task<CustomerDto?> Handle(GetCustomerQuery query, CancellationToken cancellationToken)
+    public async Task<CustomerReadModel?> Handle(GetCustomerQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetCustomerQuery for customer {Id}", query.Id);
         
@@ -57,18 +57,6 @@ public class GetCustomerQueryHandler : IQueryHandler<GetCustomerQuery, CustomerD
             return null;
         }
             
-        return MapToDtoFromReadModel(customer);
-    }
-
-    private static CustomerDto MapToDtoFromReadModel(CustomerReadModel readModel)
-    {
-        return new CustomerDto
-        {
-            Id = readModel.Id,
-            Name = readModel.Name,
-            Email = readModel.Email,
-            DateCreated = readModel.DateCreated,
-            IsActive = readModel.IsActive
-        };
+        return customer;
     }
 }

@@ -4,7 +4,7 @@ using StarterApp.Api.Application.ReadModels;
 
 namespace StarterApp.Api.Application.Queries;
 
-public class GetProductByIdQuery : IQuery<ProductDto?>, IRequest<ProductDto?>
+public class GetProductByIdQuery : IQuery<ProductReadModel?>, IRequest<ProductReadModel?>
 {
     public int Id { get; }
 
@@ -14,8 +14,8 @@ public class GetProductByIdQuery : IQuery<ProductDto?>, IRequest<ProductDto?>
     }
 }
 
-public class GetProductByIdQueryHandler : IQueryHandler<GetProductByIdQuery, ProductDto?>,
-                                         IRequestHandler<GetProductByIdQuery, ProductDto?>
+public class GetProductByIdQueryHandler : IQueryHandler<GetProductByIdQuery, ProductReadModel?>,
+                                         IRequestHandler<GetProductByIdQuery, ProductReadModel?>
 {
     private readonly string _connectionString;
 
@@ -30,7 +30,7 @@ public class GetProductByIdQueryHandler : IQueryHandler<GetProductByIdQuery, Pro
             throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
     }
 
-    public async Task<ProductDto?> Handle(GetProductByIdQuery query, CancellationToken cancellationToken)
+    public async Task<ProductReadModel?> Handle(GetProductByIdQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetProductByIdQuery for product {Id}", query.Id);
         
@@ -59,20 +59,6 @@ public class GetProductByIdQueryHandler : IQueryHandler<GetProductByIdQuery, Pro
             return null;
         }
             
-        return MapToDtoFromReadModel(product);
-    }
-
-    private static ProductDto MapToDtoFromReadModel(ProductReadModel readModel)
-    {
-        return new ProductDto
-        {
-            Id = readModel.Id,
-            Name = readModel.Name,
-            Description = readModel.Description,
-            Price = readModel.PriceAmount,
-            Currency = readModel.PriceCurrency,
-            Stock = readModel.Stock,
-            LastUpdated = readModel.LastUpdated
-        };
+        return product;
     }
 }

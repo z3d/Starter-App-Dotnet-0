@@ -1,6 +1,7 @@
 using StarterApp.Api.Application.Commands;
 using StarterApp.Api.Application.DTOs;
 using StarterApp.Api.Application.Queries;
+using StarterApp.Api.Application.ReadModels;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
@@ -20,7 +21,7 @@ public class ProductsController : ControllerBase
 
     // GET: api/Products
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts()
+    public async Task<ActionResult<IEnumerable<ProductReadModel>>> GetProducts()
     {
         Log.Information("Getting all products");
         var query = new GetAllProductsQuery();
@@ -30,7 +31,7 @@ public class ProductsController : ControllerBase
 
     // GET: api/Products/5
     [HttpGet("{id}")]
-    public async Task<ActionResult<ProductDto>> GetProduct(int id)
+    public async Task<ActionResult<ProductReadModel>> GetProduct(int id)
     {
         Log.Information("Getting product with ID: {Id}", id);
         var query = new GetProductByIdQuery(id);

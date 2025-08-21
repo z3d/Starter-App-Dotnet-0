@@ -1,6 +1,7 @@
 using StarterApp.Api.Application.Commands;
 using StarterApp.Api.Application.DTOs;
 using StarterApp.Api.Application.Queries;
+using StarterApp.Api.Application.ReadModels;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
@@ -19,7 +20,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<CustomerDto>>> GetCustomers()
+    public async Task<ActionResult<IEnumerable<CustomerReadModel>>> GetCustomers()
     {
         Log.Information("Getting all customers");
         var query = new GetCustomersQuery();
@@ -28,7 +29,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<CustomerDto>> GetCustomer(int id)
+    public async Task<ActionResult<CustomerReadModel>> GetCustomer(int id)
     {
         Log.Information("Getting customer with ID: {Id}", id);
         var query = new GetCustomerQuery(id);

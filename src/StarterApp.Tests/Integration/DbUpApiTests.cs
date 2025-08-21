@@ -1,3 +1,7 @@
+using StarterApp.Api.Application.Commands;
+using StarterApp.Api.Application.DTOs;
+using StarterApp.Api.Application.ReadModels;
+
 namespace StarterApp.Tests.Integration;
 
 [Collection("Integration Tests")]
@@ -70,13 +74,13 @@ public class DbUpApiTests : IAsyncLifetime
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var retrievedProduct = await response.Content.ReadFromJsonAsync<ProductDto>();
+        var retrievedProduct = await response.Content.ReadFromJsonAsync<ProductReadModel>();
         
         Assert.NotNull(retrievedProduct);
         Assert.Equal(productId, retrievedProduct.Id);
         Assert.Equal(productName, retrievedProduct.Name);
         Assert.Equal(productDescription, retrievedProduct.Description);
-        Assert.Equal(price, retrievedProduct.Price);
+        Assert.Equal(price, retrievedProduct.PriceAmount);
         Assert.Equal(stock, retrievedProduct.Stock);
     }
 
