@@ -16,7 +16,7 @@ public class UpdateProductCommand : ICommand, IRequest<ProductDto?>
     public int Stock { get; set; }
 }
 
-public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>, 
+public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>,
                                          IRequestHandler<UpdateProductCommand, ProductDto?>
 {
     private readonly IProductCommandService _commandService;
@@ -29,7 +29,7 @@ public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>
     public async Task Handle(UpdateProductCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling UpdateProductCommand for product {Id}", command.Id);
-        
+
         var result = await _commandService.UpdateProductAsync(
             command.Id,
             command.Name,
@@ -37,7 +37,7 @@ public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>
             Money.Create(command.Price, command.Currency),
             command.Stock
         );
-        
+
         if (result == null)
             throw new KeyNotFoundException($"Product with ID {command.Id} not found");
     }
@@ -46,7 +46,7 @@ public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>
         UpdateProductCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling UpdateProductCommand for product {Id}", command.Id);
-        
+
         var updatedProduct = await _commandService.UpdateProductAsync(
             command.Id,
             command.Name,
@@ -54,7 +54,7 @@ public class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand>
             Money.Create(command.Price, command.Currency),
             command.Stock
         );
-        
+
         if (updatedProduct == null)
             return null;
 

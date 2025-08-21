@@ -13,19 +13,19 @@ public class CustomerDtoTests
             DateCreated = DateTime.UtcNow,
             IsActive = true
         };
-        
+
         var validationContext = new ValidationContext(customerDto);
         List<ValidationResult> validationResults = [];
-        
+
         // Act
         var isValid = Validator.TryValidateObject(customerDto, validationContext, validationResults, true);
-        
+
         // Assert
         Log.Information("Validating CustomerDto with valid data");
         Assert.True(isValid);
         Assert.Empty(validationResults);
     }
-    
+
     [Fact]
     public void CustomerDto_WithLongName_ShouldFailValidation()
     {
@@ -37,14 +37,14 @@ public class CustomerDtoTests
             DateCreated = DateTime.UtcNow,
             IsActive = true
         };
-        
+
         var validationContext = new ValidationContext(customerDto);
         List<ValidationResult> validationResults = [];
-        
+
         // Act
         Log.Information("Validating CustomerDto with name that exceeds max length");
         var isValid = Validator.TryValidateObject(customerDto, validationContext, validationResults, true);
-        
+
         // Assert
         Assert.False(isValid);
         Assert.Single(validationResults);
@@ -52,7 +52,7 @@ public class CustomerDtoTests
         Assert.Contains("cannot exceed 100 characters", validationResults[0].ErrorMessage);
         Log.Information("Validation correctly failed with message: {Message}", validationResults[0].ErrorMessage);
     }
-    
+
     [Fact]
     public void CustomerDto_WithInvalidEmail_ShouldFailValidation()
     {
@@ -64,14 +64,14 @@ public class CustomerDtoTests
             DateCreated = DateTime.UtcNow,
             IsActive = true
         };
-        
+
         var validationContext = new ValidationContext(customerDto);
         List<ValidationResult> validationResults = [];
-        
+
         // Act
         Log.Information("Validating CustomerDto with invalid email format");
         var isValid = Validator.TryValidateObject(customerDto, validationContext, validationResults, true);
-        
+
         // Assert
         Assert.False(isValid);
         Assert.Single(validationResults);
@@ -79,7 +79,7 @@ public class CustomerDtoTests
         Assert.Contains("Invalid email format", validationResults[0].ErrorMessage);
         Log.Information("Validation correctly failed with message: {Message}", validationResults[0].ErrorMessage);
     }
-    
+
     [Fact]
     public void CustomerDto_WithLongEmail_ShouldFailValidation()
     {
@@ -92,14 +92,14 @@ public class CustomerDtoTests
             DateCreated = DateTime.UtcNow,
             IsActive = true
         };
-        
+
         var validationContext = new ValidationContext(customerDto);
         List<ValidationResult> validationResults = [];
-        
+
         // Act
         Log.Information("Validating CustomerDto with email that exceeds max length");
         var isValid = Validator.TryValidateObject(customerDto, validationContext, validationResults, true);
-        
+
         // Assert
         Assert.False(isValid);
         Assert.Single(validationResults);
@@ -107,7 +107,7 @@ public class CustomerDtoTests
         Assert.Contains("cannot exceed 320 characters", validationResults[0].ErrorMessage);
         Log.Information("Validation correctly failed with message: {Message}", validationResults[0].ErrorMessage);
     }
-    
+
     [Fact]
     public void CustomerDto_WithEmptyName_ShouldFailValidation()
     {
@@ -119,21 +119,21 @@ public class CustomerDtoTests
             DateCreated = DateTime.UtcNow,
             IsActive = true
         };
-        
+
         var validationContext = new ValidationContext(customerDto);
         List<ValidationResult> validationResults = [];
-        
+
         // Act
         Log.Information("Validating CustomerDto with empty name");
         var isValid = Validator.TryValidateObject(customerDto, validationContext, validationResults, true);
-        
+
         // Assert
         Assert.False(isValid);
         Assert.Single(validationResults);
         Assert.Contains("Name", validationResults[0].MemberNames);
         Log.Information("Validation correctly failed with message: {Message}", validationResults[0].ErrorMessage);
     }
-    
+
     [Fact]
     public void CustomerDto_WithEmptyEmail_ShouldFailValidation()
     {
@@ -145,14 +145,14 @@ public class CustomerDtoTests
             DateCreated = DateTime.UtcNow,
             IsActive = true
         };
-        
+
         var validationContext = new ValidationContext(customerDto);
         List<ValidationResult> validationResults = [];
-        
+
         // Act
         Log.Information("Validating CustomerDto with empty email");
         var isValid = Validator.TryValidateObject(customerDto, validationContext, validationResults, true);
-        
+
         // Assert
         Assert.False(isValid);
         Assert.Single(validationResults);

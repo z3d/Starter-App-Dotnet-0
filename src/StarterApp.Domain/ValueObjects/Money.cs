@@ -18,7 +18,7 @@ public class Money
         ArgumentOutOfRangeException.ThrowIfNegative(amount);
 
         ArgumentException.ThrowIfNullOrWhiteSpace(currency);
-            
+
         if (currency.Length > MaxCurrencyLength)
             throw new ArgumentException($"Currency code cannot exceed {MaxCurrencyLength} characters", nameof(currency));
 

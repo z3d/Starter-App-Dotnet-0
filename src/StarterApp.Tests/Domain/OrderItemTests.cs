@@ -52,7 +52,7 @@ public class OrderItemTests
         var unitPrice = Money.Create(10.50m, "USD");
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => 
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
             new OrderItem(orderId, 1, "Test Product", 1, unitPrice));
     }
 
@@ -65,7 +65,7 @@ public class OrderItemTests
         var unitPrice = Money.Create(10.50m, "USD");
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => 
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
             new OrderItem(1, productId, "Test Product", 1, unitPrice));
     }
 
@@ -78,7 +78,7 @@ public class OrderItemTests
         var unitPrice = Money.Create(10.50m, "USD");
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => 
+        Assert.Throws<ArgumentException>(() =>
             new OrderItem(1, 1, productName!, 1, unitPrice));
     }
 
@@ -89,7 +89,7 @@ public class OrderItemTests
         var unitPrice = Money.Create(10.50m, "USD");
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new OrderItem(1, 1, null!, 1, unitPrice));
     }
 
@@ -102,7 +102,7 @@ public class OrderItemTests
         var unitPrice = Money.Create(10.50m, "USD");
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => 
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
             new OrderItem(1, 1, "Test Product", quantity, unitPrice));
     }
 
@@ -110,7 +110,7 @@ public class OrderItemTests
     public void Constructor_WithNullUnitPrice_ShouldThrowArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => 
+        Assert.Throws<ArgumentNullException>(() =>
             new OrderItem(1, 1, "Test Product", 1, null!));
     }
 
@@ -121,7 +121,7 @@ public class OrderItemTests
         var unitPrice = Money.Create(10.50m, "USD");
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => 
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
             new OrderItem(1, 1, "Test Product", 1, unitPrice, -0.1m));
     }
 
@@ -212,3 +212,4 @@ public class OrderItemTests
         Assert.Equal(0.10m, OrderItem.DefaultGstRate);
     }
 }
+

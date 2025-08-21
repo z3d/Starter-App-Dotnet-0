@@ -37,11 +37,11 @@ public class ProductTests
     public void Create_WithEmptyName_ShouldThrowArgumentException()
     {
         // Arrange & Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => 
+        var exception = Assert.Throws<ArgumentException>(() =>
             ProductBuilder.AValidProduct()
                 .WithName(string.Empty)
                 .Build());
-                
+
         Assert.Contains("cannot be an empty string", exception.Message);
     }
 
@@ -55,9 +55,9 @@ public class ProductTests
         var stock = 10;
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentNullException>(() => 
+        var exception = Assert.Throws<ArgumentNullException>(() =>
             new Product(name, description, price!, stock));
-            
+
         Assert.Equal("price", exception.ParamName);
     }
 
@@ -65,11 +65,11 @@ public class ProductTests
     public void Create_WithNegativeStock_ShouldThrowArgumentException()
     {
         // Arrange & Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => 
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
             ProductBuilder.AValidProduct()
                 .WithStock(-1)
                 .Build());
-                
+
         Assert.Contains("must be a non-negative value", exception.Message);
     }
 
@@ -82,7 +82,7 @@ public class ProductTests
             .WithDescription("Original Description")
             .WithPrice(10.99m)
             .Build();
-            
+
         var newName = "Updated Name";
         var newDescription = "Updated Description";
         var newPrice = Money.Create(19.99m);
@@ -104,7 +104,7 @@ public class ProductTests
         var product = ProductBuilder.AValidProduct()
             .WithStock(initialStock)
             .Build();
-            
+
         var quantityToAdd = 50;
         var expectedStock = initialStock + quantityToAdd;
 
@@ -123,13 +123,13 @@ public class ProductTests
         var product = ProductBuilder.AValidProduct()
             .WithStock(initialStock)
             .Build();
-            
+
         var quantityToRemove = -101;
 
         // Act & Assert
-        var exception = Assert.Throws<InvalidOperationException>(() => 
+        var exception = Assert.Throws<InvalidOperationException>(() =>
             product.UpdateStock(quantityToRemove));
-            
+
         Assert.Contains("Cannot reduce stock below zero", exception.Message);
     }
 }

@@ -54,17 +54,17 @@ public class ProblemDetailsTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        
+
         var responseContent = await response.Content.ReadAsStringAsync();
         _output.WriteLine($"Raw response content: {responseContent}");
-        
+
         var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problemDetails);
         Assert.Equal(400, problemDetails.Status);
         Assert.Equal("Bad Request", problemDetails.Title);
         Assert.NotNull(problemDetails.Type);
         // Note: Detail may be null for security reasons in the default implementation
-        
+
         _output.WriteLine($"Problem Details response: {JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { WriteIndented = true })}");
     }
 
@@ -83,13 +83,13 @@ public class ProblemDetailsTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        
+
         var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problemDetails);
         Assert.Equal(400, problemDetails.Status);
         Assert.Equal("Bad Request", problemDetails.Title);
         Assert.NotNull(problemDetails.Type);
-        
+
         _output.WriteLine($"Problem Details response: {JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { WriteIndented = true })}");
     }
 
@@ -111,13 +111,13 @@ public class ProblemDetailsTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        
+
         var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problemDetails);
         Assert.Equal(400, problemDetails.Status);
         Assert.Equal("Bad Request", problemDetails.Title);
         Assert.NotNull(problemDetails.Type);
-        
+
         _output.WriteLine($"Problem Details response: {JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { WriteIndented = true })}");
     }
 
@@ -139,13 +139,13 @@ public class ProblemDetailsTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        
+
         var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problemDetails);
         Assert.Equal(400, problemDetails.Status);
         Assert.Equal("Bad Request", problemDetails.Title);
         Assert.NotNull(problemDetails.Type);
-        
+
         _output.WriteLine($"Problem Details response: {JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { WriteIndented = true })}");
     }
 
@@ -160,13 +160,13 @@ public class ProblemDetailsTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        
+
         var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problemDetails);
         Assert.Equal(404, problemDetails.Status);
         Assert.Equal("Not Found", problemDetails.Title);
         Assert.NotNull(problemDetails.Type);
-        
+
         _output.WriteLine($"Problem Details response: {JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { WriteIndented = true })}");
     }
 
@@ -181,13 +181,13 @@ public class ProblemDetailsTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        
+
         var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problemDetails);
         Assert.Equal(404, problemDetails.Status);
         Assert.Equal("Not Found", problemDetails.Title);
         Assert.NotNull(problemDetails.Type);
-        
+
         _output.WriteLine($"Problem Details response: {JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { WriteIndented = true })}");
     }
 
@@ -208,13 +208,13 @@ public class ProblemDetailsTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        
+
         var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problemDetails);
         Assert.Equal(404, problemDetails.Status);
         Assert.Equal("Not Found", problemDetails.Title);
         Assert.NotNull(problemDetails.Type);
-        
+
         _output.WriteLine($"Problem Details response: {JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { WriteIndented = true })}");
     }
 
@@ -236,13 +236,13 @@ public class ProblemDetailsTests : IAsyncLifetime
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        
+
         var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problemDetails);
         Assert.Equal(400, problemDetails.Status);
         Assert.Equal("Bad Request", problemDetails.Title);
         Assert.NotNull(problemDetails.Type);
-        
+
         _output.WriteLine($"Problem Details response: {JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { WriteIndented = true })}");
     }
 }

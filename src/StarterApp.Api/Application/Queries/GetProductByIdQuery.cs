@@ -26,19 +26,19 @@ public class GetProductByIdQueryHandler : IQueryHandler<GetProductByIdQuery, Pro
         var sqlserverConnection = configuration.GetConnectionString("sqlserver");
         var defaultConnection = configuration.GetConnectionString("DefaultConnection");
 
-        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ?? 
+        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ??
             throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
     }
 
     public async Task<ProductReadModel?> Handle(GetProductByIdQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetProductByIdQuery for product {Id}", query.Id);
-        
+
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
         Log.Information("Retrieving product {Id} using Dapper", query.Id);
-        
+
         var sqlQuery = @"
             SELECT 
                 Id, 
@@ -52,13 +52,13 @@ public class GetProductByIdQueryHandler : IQueryHandler<GetProductByIdQuery, Pro
             WHERE Id = @Id";
 
         var product = await connection.QueryFirstOrDefaultAsync<ProductReadModel>(sqlQuery, new { Id = query.Id });
-        
+
         if (product == null)
         {
             Log.Warning("Product with ID {Id} not found", query.Id);
             return null;
         }
-            
+
         return product;
     }
 }

@@ -20,14 +20,14 @@ public class GetOrdersByStatusQueryHandler : IQueryHandler<GetOrdersByStatusQuer
         var sqlserverConnection = configuration.GetConnectionString("sqlserver");
         var defaultConnection = configuration.GetConnectionString("DefaultConnection");
 
-        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ?? 
+        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ??
             throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
     }
 
     public async Task<IEnumerable<OrderReadModel>> Handle(GetOrdersByStatusQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetOrdersByStatusQuery for status {Status}", query.Status);
-        
+
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -39,7 +39,7 @@ public class GetOrdersByStatusQueryHandler : IQueryHandler<GetOrdersByStatusQuer
             ORDER BY OrderDate DESC";
 
         var orders = await connection.QueryAsync<OrderReadModel>(sql, new { Status = query.Status });
-        
+
         return orders;
     }
 }

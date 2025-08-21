@@ -9,7 +9,7 @@ public class CreateProductCommand : ICommand, IRequest<ProductDto>
     public int Stock { get; set; }
 }
 
-public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand>, 
+public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand>,
                                           IRequestHandler<CreateProductCommand, ProductDto>
 {
     private readonly IProductCommandService _commandService;
@@ -22,7 +22,7 @@ public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand>
     public async Task Handle(CreateProductCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling CreateProductCommand");
-        
+
         await _commandService.CreateProductAsync(
             command.Name,
             command.Description,
@@ -35,7 +35,7 @@ public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand>
         CreateProductCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling CreateProductCommand to return ProductDto");
-        
+
         var createdProduct = await _commandService.CreateProductAsync(
             command.Name,
             command.Description,

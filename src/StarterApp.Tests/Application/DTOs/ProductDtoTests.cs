@@ -14,19 +14,19 @@ public class ProductDtoTests
             Currency = "USD",
             Stock = 100
         };
-        
+
         var validationContext = new ValidationContext(productDto);
         List<ValidationResult> validationResults = [];
-        
+
         // Act
         var isValid = Validator.TryValidateObject(productDto, validationContext, validationResults, true);
-        
+
         // Assert
         Log.Information("Validating ProductDto with valid data");
         Assert.True(isValid);
         Assert.Empty(validationResults);
     }
-    
+
     [Fact]
     public void ProductDto_WithLongName_ShouldFailValidation()
     {
@@ -39,14 +39,14 @@ public class ProductDtoTests
             Currency = "USD",
             Stock = 100
         };
-        
+
         var validationContext = new ValidationContext(productDto);
         List<ValidationResult> validationResults = [];
-        
+
         // Act
         Log.Information("Validating ProductDto with name that exceeds max length");
         var isValid = Validator.TryValidateObject(productDto, validationContext, validationResults, true);
-        
+
         // Assert
         Assert.False(isValid);
         Assert.Single(validationResults);
@@ -54,7 +54,7 @@ public class ProductDtoTests
         Assert.Contains("cannot exceed 100 characters", validationResults[0].ErrorMessage);
         Log.Information("Validation correctly failed with message: {Message}", validationResults[0].ErrorMessage);
     }
-    
+
     [Fact]
     public void ProductDto_WithLongDescription_ShouldFailValidation()
     {
@@ -67,14 +67,14 @@ public class ProductDtoTests
             Currency = "USD",
             Stock = 100
         };
-        
+
         var validationContext = new ValidationContext(productDto);
         List<ValidationResult> validationResults = [];
-        
+
         // Act
         Log.Information("Validating ProductDto with description that exceeds max length");
         var isValid = Validator.TryValidateObject(productDto, validationContext, validationResults, true);
-        
+
         // Assert
         Assert.False(isValid);
         Assert.Single(validationResults);
@@ -82,7 +82,7 @@ public class ProductDtoTests
         Assert.Contains("cannot exceed 500 characters", validationResults[0].ErrorMessage);
         Log.Information("Validation correctly failed with message: {Message}", validationResults[0].ErrorMessage);
     }
-    
+
     [Fact]
     public void ProductDto_WithNegativePrice_ShouldFailValidation()
     {
@@ -95,14 +95,14 @@ public class ProductDtoTests
             Currency = "USD",
             Stock = 100
         };
-        
+
         var validationContext = new ValidationContext(productDto);
         List<ValidationResult> validationResults = [];
-        
+
         // Act
         Log.Information("Validating ProductDto with negative price");
         var isValid = Validator.TryValidateObject(productDto, validationContext, validationResults, true);
-        
+
         // Assert
         Assert.False(isValid);
         Assert.Single(validationResults);
@@ -110,7 +110,7 @@ public class ProductDtoTests
         Assert.Contains("Price must be greater than 0", validationResults[0].ErrorMessage);
         Log.Information("Validation correctly failed with message: {Message}", validationResults[0].ErrorMessage);
     }
-    
+
     [Fact]
     public void ProductDto_WithLongCurrency_ShouldFailValidation()
     {
@@ -123,14 +123,14 @@ public class ProductDtoTests
             Currency = "USDT", // 4 characters, exceeding the 3 character limit
             Stock = 100
         };
-        
+
         var validationContext = new ValidationContext(productDto);
         List<ValidationResult> validationResults = [];
-        
+
         // Act
         Log.Information("Validating ProductDto with currency that exceeds max length");
         var isValid = Validator.TryValidateObject(productDto, validationContext, validationResults, true);
-        
+
         // Assert
         Assert.False(isValid);
         Assert.Single(validationResults);
@@ -138,7 +138,7 @@ public class ProductDtoTests
         Assert.Contains("Currency code cannot exceed 3 characters", validationResults[0].ErrorMessage);
         Log.Information("Validation correctly failed with message: {Message}", validationResults[0].ErrorMessage);
     }
-    
+
     [Fact]
     public void ProductDto_WithNegativeStock_ShouldFailValidation()
     {
@@ -151,14 +151,14 @@ public class ProductDtoTests
             Currency = "USD",
             Stock = -10
         };
-        
+
         var validationContext = new ValidationContext(productDto);
         List<ValidationResult> validationResults = [];
-        
+
         // Act
         Log.Information("Validating ProductDto with negative stock");
         var isValid = Validator.TryValidateObject(productDto, validationContext, validationResults, true);
-        
+
         // Assert
         Assert.False(isValid);
         Assert.Single(validationResults);

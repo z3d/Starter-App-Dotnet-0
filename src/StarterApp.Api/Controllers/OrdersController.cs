@@ -61,7 +61,7 @@ public class OrdersController : ControllerBase
     public async Task<ActionResult<OrderDto>> CreateOrder(CreateOrderCommand command)
     {
         Log.Information("Creating a new order for customer: {CustomerId}", command.CustomerId);
-        
+
         var result = await _mediator.Send(command);
         Log.Information("Created new order with ID: {Id}", result.Id);
         return CreatedAtAction(nameof(GetOrder), new { id = result.Id }, result);
@@ -77,7 +77,7 @@ public class OrdersController : ControllerBase
         }
 
         Log.Information("Updating order {Id} status to: {Status}", id, command.Status);
-        
+
         try
         {
             var result = await _mediator.Send(command);
@@ -106,7 +106,7 @@ public class OrdersController : ControllerBase
     public async Task<ActionResult<OrderDto>> CancelOrder(int id)
     {
         Log.Information("Cancelling order with ID: {Id}", id);
-        
+
         try
         {
             var command = new CancelOrderCommand { OrderId = id };

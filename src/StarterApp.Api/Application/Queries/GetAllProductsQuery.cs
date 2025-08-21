@@ -7,7 +7,7 @@ public class GetAllProductsQuery : IQuery<IEnumerable<ProductReadModel>>, IReque
 {
 }
 
-public class GetAllProductsQueryHandler : IQueryHandler<GetAllProductsQuery, IEnumerable<ProductReadModel>>, 
+public class GetAllProductsQueryHandler : IQueryHandler<GetAllProductsQuery, IEnumerable<ProductReadModel>>,
                                          IRequestHandler<GetAllProductsQuery, IEnumerable<ProductReadModel>>
 {
     private readonly string _connectionString;
@@ -19,19 +19,19 @@ public class GetAllProductsQueryHandler : IQueryHandler<GetAllProductsQuery, IEn
         var sqlserverConnection = configuration.GetConnectionString("sqlserver");
         var defaultConnection = configuration.GetConnectionString("DefaultConnection");
 
-        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ?? 
+        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ??
             throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
     }
 
     public async Task<IEnumerable<ProductReadModel>> Handle(GetAllProductsQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetAllProductsQuery");
-        
+
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
         Log.Information("Retrieving all products using Dapper");
-        
+
         var sqlQuery = @"
             SELECT 
                 Id, 
@@ -44,7 +44,7 @@ public class GetAllProductsQueryHandler : IQueryHandler<GetAllProductsQuery, IEn
             FROM Products";
 
         var products = await connection.QueryAsync<ProductReadModel>(sqlQuery);
-        
+
         return products;
     }
 }

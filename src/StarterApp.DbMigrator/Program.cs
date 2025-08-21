@@ -1,4 +1,4 @@
-﻿using StarterApp.DbMigrator;
+using StarterApp.DbMigrator;
 
 // Create configuration from appsettings.json
 var configuration = new ConfigurationBuilder()
@@ -29,3 +29,4 @@ if (string.IsNullOrEmpty(connectionString))
 bool success = DatabaseMigrationEngine.Migrate(connectionString);
 
 Environment.Exit(success ? 0 : -1);
+

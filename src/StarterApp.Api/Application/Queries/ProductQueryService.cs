@@ -4,10 +4,6 @@ using Microsoft.Data.SqlClient;
 using Serilog;
 
 namespace StarterApp.Api.Application.Queries;
-
-/// <summary>
-/// Service for product read operations using Dapper
-/// </summary>
 public class ProductQueryService : IProductQueryService
 {
     private readonly string _connectionString;
@@ -20,7 +16,7 @@ public class ProductQueryService : IProductQueryService
         var sqlserverConnection = configuration.GetConnectionString("sqlserver");
         var defaultConnection = configuration.GetConnectionString("DefaultConnection");
 
-        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ?? 
+        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ??
             throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
     }
 
@@ -30,7 +26,7 @@ public class ProductQueryService : IProductQueryService
         await connection.OpenAsync();
 
         Log.Information("Retrieving all products using Dapper");
-        
+
         var query = @"
             SELECT 
                 Id, 
@@ -51,7 +47,7 @@ public class ProductQueryService : IProductQueryService
         await connection.OpenAsync();
 
         Log.Information("Retrieving product {Id} using Dapper", id);
-        
+
         var query = @"
             SELECT 
                 Id, 

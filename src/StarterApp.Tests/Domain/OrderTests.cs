@@ -249,7 +249,7 @@ public class OrderTests
         var money2 = Money.Create(20.00m, "USD");
         var item1 = new OrderItem(1, 1, "Product 1", 2, money1); // 2 * 10.00 = 20.00
         var item2 = new OrderItem(1, 2, "Product 2", 1, money2); // 1 * 20.00 = 20.00
-        
+
         order.AddItem(item1);
         order.AddItem(item2);
 
@@ -267,7 +267,7 @@ public class OrderTests
         var order = new Order(1);
         var money = Money.Create(10.00m, "USD");
         var item = new OrderItem(1, 1, "Product 1", 2, money, 0.10m); // 2 * 10.00 * 1.10 = 22.00
-        
+
         order.AddItem(item);
 
         // Act
@@ -284,7 +284,7 @@ public class OrderTests
         var order = new Order(1);
         var money = Money.Create(10.00m, "USD");
         var item = new OrderItem(1, 1, "Product 1", 2, money, 0.10m); // 2 * 10.00 * 0.10 = 2.00
-        
+
         order.AddItem(item);
 
         // Act
@@ -331,3 +331,4 @@ public class OrderTests
         Assert.Equal("Product 1", order.Items.First().ProductName);
     }
 }
+

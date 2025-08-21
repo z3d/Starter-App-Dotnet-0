@@ -8,7 +8,7 @@ public class GetOrdersByCustomerQuery : IQuery<IEnumerable<OrderReadModel>>, IRe
     public int CustomerId { get; set; }
 }
 
-public class GetOrdersByCustomerQueryHandler : IQueryHandler<GetOrdersByCustomerQuery, IEnumerable<OrderReadModel>>, 
+public class GetOrdersByCustomerQueryHandler : IQueryHandler<GetOrdersByCustomerQuery, IEnumerable<OrderReadModel>>,
                                              IRequestHandler<GetOrdersByCustomerQuery, IEnumerable<OrderReadModel>>
 {
     private readonly string _connectionString;
@@ -20,14 +20,14 @@ public class GetOrdersByCustomerQueryHandler : IQueryHandler<GetOrdersByCustomer
         var sqlserverConnection = configuration.GetConnectionString("sqlserver");
         var defaultConnection = configuration.GetConnectionString("DefaultConnection");
 
-        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ?? 
+        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ??
             throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
     }
 
     public async Task<IEnumerable<OrderReadModel>> Handle(GetOrdersByCustomerQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetOrdersByCustomerQuery for customer {CustomerId}", query.CustomerId);
-        
+
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -39,7 +39,7 @@ public class GetOrdersByCustomerQueryHandler : IQueryHandler<GetOrdersByCustomer
             ORDER BY OrderDate DESC";
 
         var orders = await connection.QueryAsync<OrderReadModel>(sql, new { CustomerId = query.CustomerId });
-        
+
         return orders;
     }
 }

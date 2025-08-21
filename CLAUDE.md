@@ -16,6 +16,7 @@ This is a **Clean Architecture** .NET 9 solution implementing **CQRS** with **Do
 - **Dual Representation Overengineering**: Avoid creating separate entity/value object pairs when a single entity with embedded value objects suffices (see Architecture Consistency section below)
 - **Code Regions**: Never use #region/#endregion directives - organize code through proper class structure, methods, and logical separation instead
 - **AutoMapper**: NEVER use AutoMapper or any automatic object mapping libraries - use explicit mapping code instead
+- **XML Documentation Comments**: Never use XML documentation comments (/// <summary>, /// <param>, etc.) - they are verbose, inconsistent when used partially, and interfere with code readability. Let good naming and clean code structure be self-documenting instead
 
 ### Solution Structure
 

@@ -6,7 +6,7 @@ public class UpdateOrderStatusCommand : ICommand, IRequest<OrderDto>
     public string Status { get; set; } = string.Empty;
 }
 
-public class UpdateOrderStatusCommandHandler : ICommandHandler<UpdateOrderStatusCommand>, 
+public class UpdateOrderStatusCommandHandler : ICommandHandler<UpdateOrderStatusCommand>,
                                              IRequestHandler<UpdateOrderStatusCommand, OrderDto>
 {
     private readonly IOrderCommandService _commandService;
@@ -18,9 +18,9 @@ public class UpdateOrderStatusCommandHandler : ICommandHandler<UpdateOrderStatus
 
     public async Task Handle(UpdateOrderStatusCommand command, CancellationToken cancellationToken)
     {
-        Log.Information("Handling UpdateOrderStatusCommand for order {OrderId} to status {Status}", 
+        Log.Information("Handling UpdateOrderStatusCommand for order {OrderId} to status {Status}",
             command.OrderId, command.Status);
-        
+
         var status = Enum.Parse<OrderStatus>(command.Status);
         await _commandService.UpdateOrderStatusAsync(command.OrderId, status);
     }
@@ -29,7 +29,7 @@ public class UpdateOrderStatusCommandHandler : ICommandHandler<UpdateOrderStatus
         UpdateOrderStatusCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling UpdateOrderStatusCommand to return OrderDto for order {OrderId}", command.OrderId);
-        
+
         var status = Enum.Parse<OrderStatus>(command.Status);
         var updatedOrder = await _commandService.UpdateOrderStatusAsync(command.OrderId, status);
 

@@ -70,7 +70,7 @@ public class ProductApiTests : IAsyncLifetime
         // Assert
         response.EnsureSuccessStatusCode();
         var createdProduct = await response.Content.ReadFromJsonAsync<ProductDto>();
-        
+
         Assert.NotNull(createdProduct);
         Assert.Equal(newProduct.Name, createdProduct.Name);
         Assert.Equal(newProduct.Description, createdProduct.Description);
@@ -104,7 +104,7 @@ public class ProductApiTests : IAsyncLifetime
         // Assert
         response.EnsureSuccessStatusCode();
         var retrievedProduct = await response.Content.ReadFromJsonAsync<ProductDto>();
-        
+
         Assert.NotNull(retrievedProduct);
         Assert.Equal(createdProduct.Id, retrievedProduct.Id);
         Assert.Equal(newProduct.Name, retrievedProduct.Name);
@@ -146,7 +146,7 @@ public class ProductApiTests : IAsyncLifetime
         // Assert
         getResponse.EnsureSuccessStatusCode();
         var retrievedProducts = await getResponse.Content.ReadFromJsonAsync<IEnumerable<ProductDto>>();
-        
+
         Assert.NotNull(retrievedProducts);
         Assert.Equal(products.Length, retrievedProducts.Count());
     }
@@ -183,12 +183,12 @@ public class ProductApiTests : IAsyncLifetime
 
         // Assert
         updateResponse.EnsureSuccessStatusCode();
-        
+
         // Verify update with GET
         var getResponse = await _fixture.Client.GetAsync($"/api/products/{createdProduct.Id}");
         getResponse.EnsureSuccessStatusCode();
         var updatedProduct = await getResponse.Content.ReadFromJsonAsync<ProductReadModel>();
-        
+
         Assert.NotNull(updatedProduct);
         Assert.Equal(updateCommand.Name, updatedProduct.Name);
         Assert.Equal(updateCommand.Description, updatedProduct.Description);
@@ -218,7 +218,7 @@ public class ProductApiTests : IAsyncLifetime
 
         // Assert
         deleteResponse.EnsureSuccessStatusCode();
-        
+
         // Verify deletion
         var getResponse = await _fixture.Client.GetAsync($"/api/products/{createdProduct.Id}");
         Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);

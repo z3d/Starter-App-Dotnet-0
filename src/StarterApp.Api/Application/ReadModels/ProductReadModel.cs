@@ -1,8 +1,4 @@
 namespace StarterApp.Api.Application.ReadModels;
-
-/// <summary>
-/// Represents a product for read operations using Dapper
-/// </summary>
 public class ProductReadModel
 {
     public int Id { get; set; }

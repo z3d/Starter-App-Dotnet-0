@@ -14,7 +14,7 @@ public class DeleteProductCommand : ICommand, IRequest<bool>
     }
 }
 
-public class DeleteProductCommandHandler : ICommandHandler<DeleteProductCommand>, 
+public class DeleteProductCommandHandler : ICommandHandler<DeleteProductCommand>,
                                          IRequestHandler<DeleteProductCommand, bool>
 {
     private readonly IProductCommandService _commandService;
@@ -27,9 +27,9 @@ public class DeleteProductCommandHandler : ICommandHandler<DeleteProductCommand>
     public async Task Handle(DeleteProductCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling DeleteProductCommand for product {Id}", command.Id);
-        
+
         var deleted = await _commandService.DeleteProductAsync(command.Id);
-        
+
         if (!deleted)
             throw new KeyNotFoundException($"Product with ID {command.Id} not found");
     }
@@ -38,7 +38,7 @@ public class DeleteProductCommandHandler : ICommandHandler<DeleteProductCommand>
         DeleteProductCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling DeleteProductCommand for product {Id}", command.Id);
-        
+
         return await _commandService.DeleteProductAsync(command.Id);
     }
 }

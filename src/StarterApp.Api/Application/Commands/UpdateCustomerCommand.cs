@@ -7,7 +7,7 @@ public class UpdateCustomerCommand : ICommand, IRequest<CustomerDto>
     public string Email { get; set; } = string.Empty;
 }
 
-public class UpdateCustomerCommandHandler : ICommandHandler<UpdateCustomerCommand>, 
+public class UpdateCustomerCommandHandler : ICommandHandler<UpdateCustomerCommand>,
                                           IRequestHandler<UpdateCustomerCommand, CustomerDto>
 {
     private readonly ICustomerCommandService _commandService;
@@ -20,7 +20,7 @@ public class UpdateCustomerCommandHandler : ICommandHandler<UpdateCustomerComman
     public async Task Handle(UpdateCustomerCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling UpdateCustomerCommand for Customer {CustomerId}", command.Id);
-        
+
         await _commandService.UpdateCustomerAsync(
             command.Id,
             command.Name,
@@ -32,7 +32,7 @@ public class UpdateCustomerCommandHandler : ICommandHandler<UpdateCustomerComman
         UpdateCustomerCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling UpdateCustomerCommand to return CustomerDto for Customer {CustomerId}", command.Id);
-        
+
         var updatedCustomer = await _commandService.UpdateCustomerAsync(
             command.Id,
             command.Name,

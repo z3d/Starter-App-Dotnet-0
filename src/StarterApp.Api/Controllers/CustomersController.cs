@@ -49,7 +49,7 @@ public class CustomersController : ControllerBase
     {
         Log.Information("Creating a new customer");
         var result = await _mediator.Send(command);
-        
+
         Log.Information("Created new customer with ID: {Id}", result.Id);
         return CreatedAtAction(nameof(GetCustomer), new { id = result.Id }, result);
     }
@@ -63,7 +63,7 @@ public class CustomersController : ControllerBase
         }
 
         Log.Information("Updating customer with ID: {Id}", id);
-        
+
         try
         {
             await _mediator.Send(command);
@@ -82,7 +82,7 @@ public class CustomersController : ControllerBase
     public async Task<IActionResult> DeleteCustomer(int id)
     {
         Log.Information("Deleting customer with ID: {Id}", id);
-        
+
         try
         {
             await _mediator.Send(new DeleteCustomerCommand { Id = id });

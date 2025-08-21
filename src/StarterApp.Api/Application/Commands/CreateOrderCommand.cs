@@ -15,7 +15,7 @@ public class CreateOrderItemCommand
     public decimal GstRate { get; set; } = OrderItem.DefaultGstRate;
 }
 
-public class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand>, 
+public class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand>,
                                        IRequestHandler<CreateOrderCommand, OrderDto>
 {
     private readonly IOrderCommandService _commandService;
@@ -28,7 +28,7 @@ public class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand>,
     public async Task Handle(CreateOrderCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling CreateOrderCommand for customer {CustomerId}", command.CustomerId);
-        
+
         await _commandService.CreateOrderAsync(command.CustomerId, command.Items);
     }
 
@@ -36,7 +36,7 @@ public class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand>,
         CreateOrderCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling CreateOrderCommand to return OrderDto for customer {CustomerId}", command.CustomerId);
-        
+
         var createdOrder = await _commandService.CreateOrderAsync(command.CustomerId, command.Items);
 
         return MapToOrderDto(createdOrder);

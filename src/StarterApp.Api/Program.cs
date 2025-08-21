@@ -26,12 +26,15 @@ builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 
 // Add native OpenAPI support with .NET 9
-builder.Services.AddOpenApi(options => {
-    options.AddDocumentTransformer((document, context, cancellationToken) => {
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
         document.Info.Title = "Starter App API";
         document.Info.Version = "v1";
         document.Info.Description = "A sample API for the Starter App";
-        document.Info.Contact = new() {
+        document.Info.Contact = new()
+        {
             Name = "Starter App Team"
         };
         return Task.CompletedTask;
@@ -69,8 +72,10 @@ builder.Services.AddMediatR(Assembly.GetExecutingAssembly());
 builder.Services.AddControllers();
 
 // Add CORS (restrict in production)
-builder.Services.AddCors(options => {
-    options.AddDefaultPolicy(policy => {
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
         if (builder.Environment.IsDevelopment())
             policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
         else
@@ -82,14 +87,16 @@ builder.Services.AddCors(options => {
 
 // Add Health checks and rate limiting
 builder.Services.AddHealthChecks();
-builder.Services.AddRateLimiter(options => {
-    options.AddFixedWindowLimiter("fixed", options => {
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("fixed", options =>
+    {
         options.PermitLimit = 100;
         options.Window = TimeSpan.FromMinutes(1);
         options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
         options.QueueLimit = 5;
     });
-    
+
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
@@ -98,7 +105,7 @@ var app = builder.Build();
 try
 {
     Log.Information("Starting up application");
-    
+
     // Debug logging - only in development environment for security
     if (app.Environment.IsDevelopment())
     {
@@ -119,7 +126,7 @@ try
         // Also check environment variables
         Log.Information("Relevant environment variables:");
         foreach (var envVar in Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>()
-            .Where(e => e.Key?.ToString()?.Contains("Connection", StringComparison.OrdinalIgnoreCase) == true || 
+            .Where(e => e.Key?.ToString()?.Contains("Connection", StringComparison.OrdinalIgnoreCase) == true ||
                         e.Key?.ToString()?.Contains("DockerLearning", StringComparison.OrdinalIgnoreCase) == true ||
                         e.Key?.ToString()?.Contains("SQL", StringComparison.OrdinalIgnoreCase) == true))
         {
@@ -140,9 +147,10 @@ try
     {
         // Use the new native .NET 9 OpenAPI endpoints
         app.MapOpenApi(); // Serves the OpenAPI document at /openapi/v1.json
-        
+
         // Configure SwaggerUI to use the new OpenAPI endpoint
-        app.UseSwaggerUI(options => {
+        app.UseSwaggerUI(options =>
+        {
             options.SwaggerEndpoint("/openapi/v1.json", "Docker Learning API v1");
             options.RoutePrefix = "swagger";
         });
@@ -164,21 +172,23 @@ try
             _ => StatusCodes.Status500InternalServerError
         }
     });
-    
+
     app.UseStatusCodePages();
 
     // Security headers middleware
-    app.Use(async (context, next) => {
+    app.Use(async (context, next) =>
+    {
         context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
         context.Response.Headers.Append("X-Frame-Options", "DENY");
         context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
         context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
 
         if (!app.Environment.IsDevelopment())
-            context.Response.Headers.Append("Content-Security-Policy", 
+            context.Response.Headers.Append("Content-Security-Policy",
                 "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'");
 
-        await next();    });
+        await next();
+    });
 
     // Use DbUp for database migrations
     if (connectionString != null)
@@ -223,3 +233,4 @@ finally
 {
     Log.CloseAndFlush();
 }
+

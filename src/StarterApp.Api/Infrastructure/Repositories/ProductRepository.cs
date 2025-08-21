@@ -26,7 +26,7 @@ public class ProductRepository : IProductRepository
 
         // Use internal method to set the ID
         product.SetId(productModel.Id);
-        
+
         return product;
     }
 
@@ -45,7 +45,7 @@ public class ProductRepository : IProductRepository
 
             // Use internal method to set the ID
             product.SetId(productModel.Id);
-            
+
             products.Add(product);
         }
 
@@ -67,7 +67,7 @@ public class ProductRepository : IProductRepository
 
         // Update domain entity with generated ID
         product.SetId(productModel.Id);
-        
+
         return product;
     }
 
@@ -83,7 +83,7 @@ public class ProductRepository : IProductRepository
             product.Description,
             Money.Create(product.Price.Amount, product.Price.Currency)
         );
-        
+
         // Handle stock changes
         if (productModel.Stock != product.Stock)
         {

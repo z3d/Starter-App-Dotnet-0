@@ -26,7 +26,7 @@ public class MoneyTests
 
         // Act & Assert
         Log.Debug("Attempting to create money with currency {Currency} that exceeds max length", currency);
-        var exception = Assert.Throws<ArgumentException>(() => 
+        var exception = Assert.Throws<ArgumentException>(() =>
             Money.Create(amount, currency));
         Assert.Contains($"Currency code cannot exceed {Money.MaxCurrencyLength} characters", exception.Message);
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);
@@ -49,7 +49,7 @@ public class MoneyTests
             // Act - Should not throw for valid currency codes
             Log.Debug("Creating money with valid currency length: {Currency}", currency);
             var money = Money.Create(amount, currency);
-            
+
             // Assert
             Assert.NotNull(money);
             Assert.Equal(currency, money.Currency);
@@ -94,7 +94,7 @@ public class MoneyTests
 
         // Act & Assert
         Log.Debug("Attempting to create money with negative amount {Amount}", amount);
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => 
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
             Money.Create(amount, currency));
         Assert.Contains("must be a non-negative value", exception.Message);
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);
@@ -110,7 +110,7 @@ public class MoneyTests
 
         // Act & Assert
         Log.Debug("Attempting to create money with empty currency");
-        var exception = Assert.Throws<ArgumentException>(() => 
+        var exception = Assert.Throws<ArgumentException>(() =>
             Money.Create(amount, currency));
         Assert.Contains("cannot be an empty string", exception.Message);
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);
@@ -144,7 +144,7 @@ public class MoneyTests
         var expectedAmount = 16.00m;
 
         // Act
-        Log.Debug("Adding {Amount1} {Currency1} + {Amount2} {Currency2}", 
+        Log.Debug("Adding {Amount1} {Currency1} + {Amount2} {Currency2}",
             money1.Amount, money1.Currency, money2.Amount, money2.Currency);
         var result = money1.Add(money2);
 
@@ -163,9 +163,9 @@ public class MoneyTests
         var money2 = Money.Create(10.00m, "EUR");
 
         // Act & Assert
-        Log.Debug("Attempting to add {Amount1} {Currency1} + {Amount2} {Currency2}", 
+        Log.Debug("Attempting to add {Amount1} {Currency1} + {Amount2} {Currency2}",
             money1.Amount, money1.Currency, money2.Amount, money2.Currency);
-        var exception = Assert.Throws<InvalidOperationException>(() => 
+        var exception = Assert.Throws<InvalidOperationException>(() =>
             money1.Add(money2));
         Assert.Contains("Cannot add money with different currencies", exception.Message);
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);
@@ -181,7 +181,7 @@ public class MoneyTests
         var expectedAmount = 5.00m;
 
         // Act
-        Log.Debug("Subtracting {Amount1} {Currency1} - {Amount2} {Currency2}", 
+        Log.Debug("Subtracting {Amount1} {Currency1} - {Amount2} {Currency2}",
             money1.Amount, money1.Currency, money2.Amount, money2.Currency);
         var result = money1.Subtract(money2);
 
@@ -200,9 +200,9 @@ public class MoneyTests
         var money2 = Money.Create(5.99m, "EUR");
 
         // Act & Assert
-        Log.Debug("Attempting to subtract {Amount1} {Currency1} - {Amount2} {Currency2}", 
+        Log.Debug("Attempting to subtract {Amount1} {Currency1} - {Amount2} {Currency2}",
             money1.Amount, money1.Currency, money2.Amount, money2.Currency);
-        var exception = Assert.Throws<InvalidOperationException>(() => 
+        var exception = Assert.Throws<InvalidOperationException>(() =>
             money1.Subtract(money2));
         Assert.Contains("Cannot subtract money with different currencies", exception.Message);
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);

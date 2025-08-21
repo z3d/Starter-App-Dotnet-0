@@ -75,7 +75,7 @@ public class DbUpApiTests : IAsyncLifetime
         // Assert
         response.EnsureSuccessStatusCode();
         var retrievedProduct = await response.Content.ReadFromJsonAsync<ProductReadModel>();
-        
+
         Assert.NotNull(retrievedProduct);
         Assert.Equal(productId, retrievedProduct.Id);
         Assert.Equal(productName, retrievedProduct.Name);
@@ -106,18 +106,18 @@ public class DbUpApiTests : IAsyncLifetime
         // Assert - Verify directly in database using SQL with parameterized query
         using var connection = new SqlConnection(_fixture.ConnectionString);
         await connection.OpenAsync();
-        
+
         // Use parameterized query instead of string interpolation
         using var command = new SqlCommand(
-            "SELECT COUNT(*) FROM Products WHERE Id = @Id AND Name = @Name", 
+            "SELECT COUNT(*) FROM Products WHERE Id = @Id AND Name = @Name",
             connection);
-        
+
         command.Parameters.AddWithValue("@Id", createdProduct.Id);
         command.Parameters.AddWithValue("@Name", newProduct.Name);
-        
+
         var result = await command.ExecuteScalarAsync();
         var count = result != null ? Convert.ToInt32(result) : 0;
-        
+
         Assert.Equal(1, count);
     }
 
@@ -154,16 +154,16 @@ public class DbUpApiTests : IAsyncLifetime
         // Step 2: Verify table and data exists using parameterized query
         using var connection = new SqlConnection(_fixture.ConnectionString);
         await connection.OpenAsync();
-        
+
         using var command = new SqlCommand("SELECT COUNT(*) FROM TestTable", connection);
         var queryResult = await command.ExecuteScalarAsync();
         var count = queryResult != null ? Convert.ToInt32(queryResult) : 0;
-        
+
         Assert.Equal(3, count);
 
         // Step 3: Clean up (drop the test table)
         var dropTableScript = "DROP TABLE TestTable";
-        
+
         var cleanupEngine = DeployChanges.To
             .SqlDatabase(_fixture.ConnectionString)
             .WithScript("DropTestTable", dropTableScript)
@@ -177,16 +177,16 @@ public class DbUpApiTests : IAsyncLifetime
         // Step 4: Verify table was dropped using parameterized query
         using var connection2 = new SqlConnection(_fixture.ConnectionString);
         await connection2.OpenAsync();
-        
+
         using var command2 = new SqlCommand(
-            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = @TableName", 
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = @TableName",
             connection2);
-        
+
         command2.Parameters.AddWithValue("@TableName", "TestTable");
-        
+
         var dropQueryResult = await command2.ExecuteScalarAsync();
         var tableExists = dropQueryResult != null ? Convert.ToInt32(dropQueryResult) : 0;
-        
+
         Assert.Equal(0, tableExists);
     }
 }

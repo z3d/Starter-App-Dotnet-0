@@ -52,7 +52,7 @@ public class ProductsController : ControllerBase
     {
         Log.Information("Creating a new product");
         var result = await _mediator.Send(command);
-        
+
         Log.Information("Created new product with ID: {Id}", result.Id);
         return CreatedAtAction(nameof(GetProduct), new { id = result.Id }, result);
     }
@@ -67,7 +67,7 @@ public class ProductsController : ControllerBase
         }
 
         Log.Information("Updating product with ID: {Id}", id);
-        
+
         try
         {
             await _mediator.Send(command);
@@ -87,7 +87,7 @@ public class ProductsController : ControllerBase
     public async Task<IActionResult> DeleteProduct(int id)
     {
         Log.Information("Deleting product with ID: {Id}", id);
-        
+
         try
         {
             await _mediator.Send(new DeleteProductCommand(id));

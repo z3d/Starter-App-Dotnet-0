@@ -12,7 +12,7 @@ public class OrderItem
     public Money UnitPriceExcludingGst { get; private set; } = null!;
     public decimal GstRate { get; private set; }
 
-    protected OrderItem() 
+    protected OrderItem()
     {
         ProductName = string.Empty;
     }

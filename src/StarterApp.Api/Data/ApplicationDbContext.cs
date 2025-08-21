@@ -41,7 +41,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Order>(orderBuilder =>
         {
             orderBuilder.HasKey(o => o.Id);
-            
+
             // Configure OrderStatus enum as string
             orderBuilder.Property(o => o.Status)
                 .HasConversion<string>();

@@ -6,7 +6,7 @@ public class CreateCustomerCommand : ICommand, IRequest<CustomerDto>
     public string Email { get; set; } = string.Empty;
 }
 
-public class CreateCustomerCommandHandler : ICommandHandler<CreateCustomerCommand>, 
+public class CreateCustomerCommandHandler : ICommandHandler<CreateCustomerCommand>,
                                           IRequestHandler<CreateCustomerCommand, CustomerDto>
 {
     private readonly ICustomerCommandService _commandService;
@@ -19,7 +19,7 @@ public class CreateCustomerCommandHandler : ICommandHandler<CreateCustomerComman
     public async Task Handle(CreateCustomerCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling CreateCustomerCommand");
-        
+
         await _commandService.CreateCustomerAsync(
             command.Name,
             Email.Create(command.Email)
@@ -30,7 +30,7 @@ public class CreateCustomerCommandHandler : ICommandHandler<CreateCustomerComman
         CreateCustomerCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling CreateCustomerCommand to return CustomerDto");
-        
+
         var createdCustomer = await _commandService.CreateCustomerAsync(
             command.Name,
             Email.Create(command.Email)

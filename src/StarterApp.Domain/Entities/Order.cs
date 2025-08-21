@@ -145,7 +145,7 @@ public class Order
         OrderDate = orderDate;
         Status = status;
         LastUpdated = lastUpdated;
-        
+
         _items.Clear();
         _items.AddRange(items);
         Items = _items.AsReadOnly();

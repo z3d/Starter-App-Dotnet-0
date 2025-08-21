@@ -20,19 +20,19 @@ public class GetCustomersQueryHandler : IQueryHandler<GetCustomersQuery, IEnumer
         var sqlserverConnection = configuration.GetConnectionString("sqlserver");
         var defaultConnection = configuration.GetConnectionString("DefaultConnection");
 
-        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ?? 
+        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ??
             throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
     }
 
     public async Task<IEnumerable<CustomerReadModel>> Handle(GetCustomersQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetCustomersQuery");
-        
+
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
         Log.Information("Retrieving all customers using Dapper");
-        
+
         var sqlQuery = @"
             SELECT 
                 Id, 
@@ -43,7 +43,7 @@ public class GetCustomersQueryHandler : IQueryHandler<GetCustomersQuery, IEnumer
             FROM Customers";
 
         var customers = await connection.QueryAsync<CustomerReadModel>(sqlQuery);
-        
+
         return customers;
     }
 }

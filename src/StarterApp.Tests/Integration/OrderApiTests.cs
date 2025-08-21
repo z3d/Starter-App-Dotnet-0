@@ -109,7 +109,7 @@ public class OrderApiTests : IAsyncLifetime
         // Assert
         response.EnsureSuccessStatusCode();
         var retrievedOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
-        
+
         Assert.NotNull(retrievedOrder);
         Assert.Equal(createdOrder.Id, retrievedOrder.Id);
         Assert.Equal(customer.Id, retrievedOrder.CustomerId);
@@ -210,14 +210,14 @@ public class OrderApiTests : IAsyncLifetime
         // Assert
         response.EnsureSuccessStatusCode();
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        
+
         var createdOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
         Assert.True(createdOrder.Id > 0);
         Assert.Equal(customer.Id, createdOrder.CustomerId);
         Assert.Equal(OrderStatus.Pending.ToString(), createdOrder.Status);
         Assert.Single(createdOrder.Items);
-        
+
         var orderItem = createdOrder.Items.First();
         Assert.Equal(2, orderItem.Quantity);
         Assert.Equal(19.99m, orderItem.UnitPriceExcludingGst);
@@ -262,7 +262,7 @@ public class OrderApiTests : IAsyncLifetime
     {
         // Arrange - Create test data
         var (customer, product) = await CreateTestData();
-        
+
         // Create second product
         var product2Command = new CreateProductCommand
         {
@@ -287,11 +287,11 @@ public class OrderApiTests : IAsyncLifetime
         var createdOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
         Assert.Equal(2, createdOrder.Items.Count);
-        
+
         var item1 = createdOrder.Items.FirstOrDefault(i => i.Quantity == 1);
         Assert.NotNull(item1);
         Assert.Equal(10.00m, item1.UnitPriceExcludingGst);
-        
+
         var item2 = createdOrder.Items.FirstOrDefault(i => i.Quantity == 3);
         Assert.NotNull(item2);
         Assert.Equal(25.00m, item2.UnitPriceExcludingGst);
@@ -461,7 +461,7 @@ public class OrderApiTests : IAsyncLifetime
         // Assert
         response.EnsureSuccessStatusCode();
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        
+
         var createdOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
         Assert.True(createdOrder.Id > 0);
@@ -571,13 +571,13 @@ public class OrderApiTests : IAsyncLifetime
         Assert.NotNull(createdOrder);
 
         // First, move to Confirmed -> Processing -> Shipped -> Delivered
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Confirmed.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Processing.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Shipped.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Delivered.ToString() });
 
         // Now try to change from Delivered to Pending (invalid transition)
@@ -615,13 +615,13 @@ public class OrderApiTests : IAsyncLifetime
         Assert.NotNull(createdOrder);
 
         // Move order to Delivered status
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Confirmed.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Processing.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Shipped.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", 
+        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Delivered.ToString() });
 
         // Act
@@ -657,16 +657,16 @@ public class OrderApiTests : IAsyncLifetime
         response.EnsureSuccessStatusCode();
         var createdOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
-        
+
         var item = createdOrder.Items.Single();
         Assert.Equal(2, item.Quantity);
         Assert.Equal(10.00m, item.UnitPriceExcludingGst);
         Assert.Equal(0.10m, item.GstRate);
-        
+
         // Verify calculations (these depend on the DTO structure)
         Assert.Equal(20.00m, item.TotalPriceExcludingGst);
         Assert.Equal(22.00m, item.TotalPriceIncludingGst);
-        
+
         // Check order-level totals
         Assert.Equal(20.00m, createdOrder.TotalExcludingGst);
         Assert.Equal(22.00m, createdOrder.TotalIncludingGst);
@@ -695,7 +695,7 @@ public class OrderApiTests : IAsyncLifetime
         // Assert
         response.EnsureSuccessStatusCode();
         var retrievedOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
-        
+
         Assert.NotNull(retrievedOrder);
         Assert.True(retrievedOrder.OrderDate >= startTime);
         Assert.True(retrievedOrder.OrderDate <= endTime);

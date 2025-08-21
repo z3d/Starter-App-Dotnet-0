@@ -50,7 +50,7 @@ public class TestDatabaseFixture : IAsyncLifetime
     private Respawner _respawner = null!;
     private const string DbName = "TestDb";
     private const string DbPassword = "Password@123";
-    
+
     public TestDatabaseFixture()
     {
         // Configure SQL Server container with more specific settings
@@ -64,8 +64,10 @@ public class TestDatabaseFixture : IAsyncLifetime
                 Wait.ForUnixContainer()
                     .UntilPortIsAvailable(1433)
                     .AddCustomWaitStrategy(new WaitUntil(
-                        async (container) => {
-                            try {
+                        async (container) =>
+                        {
+                            try
+                            {
                                 // Try to connect to the database directly
                                 var connString = $"Server=127.0.0.1,{container.GetMappedPublicPort(1433)};Database=master;User Id=sa;Password={DbPassword};TrustServerCertificate=True;Connection Timeout=5";
                                 using var connection = new SqlConnection(connString);
@@ -73,7 +75,9 @@ public class TestDatabaseFixture : IAsyncLifetime
                                 using var cmd = new SqlCommand("SELECT 1", connection);
                                 await cmd.ExecuteScalarAsync();
                                 return true;
-                            } catch {
+                            }
+                            catch
+                            {
                                 // If connection fails, container is not ready
                                 return false;
                             }
@@ -83,7 +87,7 @@ public class TestDatabaseFixture : IAsyncLifetime
             )
             .Build();
     }
-    
+
     public async Task InitializeAsync()
     {
         try
@@ -92,22 +96,22 @@ public class TestDatabaseFixture : IAsyncLifetime
             // Start SQL Server container
             await _sqlContainer.StartAsync();
             Console.WriteLine($"SQL Server container started on port {_sqlContainer.GetMappedPublicPort(1433)}");
-            
+
             // Get base connection string first (points to master database)
             var masterConnectionString = $"Server=127.0.0.1,{_sqlContainer.GetMappedPublicPort(1433)};Database=master;User Id=sa;Password={DbPassword};TrustServerCertificate=True";
             Console.WriteLine($"Master connection string: {masterConnectionString}");
-            
+
             // Create a test database
             using var connection = new SqlConnection(masterConnectionString);
             await connection.OpenAsync();
             var createDbCommand = new SqlCommand($"IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '{DbName}') CREATE DATABASE {DbName}", connection);
             await createDbCommand.ExecuteNonQueryAsync();
             Console.WriteLine($"Created test database '{DbName}'");
-            
+
             // Build connection string to the test database
             ConnectionString = masterConnectionString.Replace("Database=master", $"Database={DbName}");
             Console.WriteLine($"Using connection string: {ConnectionString}");
-            
+
             // Run DbUp migrations on the test database
             Console.WriteLine("Applying database migrations using DbUp...");
             if (!RunDbUpMigrations(ConnectionString))
@@ -115,7 +119,7 @@ public class TestDatabaseFixture : IAsyncLifetime
                 throw new Exception("Failed to apply database migrations");
             }
             Console.WriteLine("Database migrations applied successfully");
-            
+
             // Initialize Respawner for cleaning database between tests
             await InitializeRespawner();
             Console.WriteLine("Respawner initialized successfully");
@@ -126,14 +130,14 @@ public class TestDatabaseFixture : IAsyncLifetime
             throw;
         }
     }
-    
+
     private bool RunDbUpMigrations(string connectionString)
     {
         try
         {
             // Use DbUp to run migrations from the DbMigrator project
             var migratorAssembly = Assembly.Load("StarterApp.DbMigrator");
-            
+
             var upgrader = DeployChanges.To
                 .SqlDatabase(connectionString)
                 .WithScriptsEmbeddedInAssembly(migratorAssembly) // Use embedded scripts from the DbMigrator assembly
@@ -142,13 +146,13 @@ public class TestDatabaseFixture : IAsyncLifetime
                 .Build();
 
             var result = upgrader.PerformUpgrade();
-            
+
             if (!result.Successful)
             {
                 Console.WriteLine($"Database migration failed: {result.Error}");
                 return false;
             }
-            
+
             return true;
         }
         catch (Exception ex)
@@ -157,7 +161,7 @@ public class TestDatabaseFixture : IAsyncLifetime
             return false;
         }
     }
-    
+
     public async Task DisposeAsync()
     {
         try
@@ -170,7 +174,7 @@ public class TestDatabaseFixture : IAsyncLifetime
             Console.WriteLine($"Error disposing SQL container: {ex}");
         }
     }
-    
+
     private async Task InitializeRespawner()
     {
         try
@@ -190,7 +194,7 @@ public class TestDatabaseFixture : IAsyncLifetime
             throw;
         }
     }
-    
+
     public async Task ResetDatabaseAsync()
     {
         try
@@ -198,11 +202,11 @@ public class TestDatabaseFixture : IAsyncLifetime
             Console.WriteLine("Resetting database for test");
             using var connection = new SqlConnection(ConnectionString);
             await connection.OpenAsync();
-            
+
             // We don't need to manually handle SchemaVersions now
             // DbUp manages it, and we configured Respawner to ignore it
             await _respawner.ResetAsync(connection);
-            
+
             Console.WriteLine("Database reset complete");
         }
         catch (Exception ex)
@@ -219,10 +223,10 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
     private readonly TestDatabaseFixture _dbFixture;
     private readonly Serilog.ILogger _logger;
     public HttpClient Client { get; private set; } = null!;
-    
+
     // Expose the connection string from the database fixture
     public string ConnectionString => _dbFixture.ConnectionString;
-    
+
     // Parameterless constructor for xUnit collection fixture
     public ApiTestFixture()
     {
@@ -230,39 +234,40 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
             .MinimumLevel.Information()
             .WriteTo.Console()
             .CreateLogger();
-        
+
         _dbFixture = new TestDatabaseFixture();
-    }    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    }
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // The connection string is set as an environment variable in InitializeAsync
         // before this method is called, so Program.cs should find it successfully
-        
+
         builder.UseEnvironment("Testing");
-        
-        builder.ConfigureLogging(logging => 
+
+        builder.ConfigureLogging(logging =>
         {
             logging.ClearProviders();
             logging.AddSerilog(_logger);
         });
-        
+
         builder.ConfigureTestServices(services =>
         {
             // Any test-specific service overrides can go here
         });
     }
-      public async Task InitializeAsync()
+    public async Task InitializeAsync()
     {
         try
         {
             // Initialize the database fixture first to get the connection string
             Log.Information("Initializing database fixture");
             await _dbFixture.InitializeAsync();
-            
+
             // Set the connection string as environment variable before creating the client
             // This ensures Program.cs can find it during WebApplicationFactory host creation
             Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", _dbFixture.ConnectionString);
             Log.Information($"Set connection string environment variable: {_dbFixture.ConnectionString}");
-            
+
             // Then create the client with the configured web host
             Client = CreateClient(new WebApplicationFactoryClientOptions
             {
@@ -276,14 +281,14 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
             throw;
         }
     }
-      // Add 'new' keyword to hide the inherited member
+    // Add 'new' keyword to hide the inherited member
     public new async Task DisposeAsync()
     {
-        try 
+        try
         {
             // Clean up environment variable
             Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", null);
-            
+
             await _dbFixture.DisposeAsync();
             Log.Information("ApiTestFixture disposed");
         }
@@ -292,7 +297,7 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
             Log.Error(ex, "Error disposing ApiTestFixture");
         }
     }
-    
+
     public async Task ResetDatabaseAsync()
     {
         try

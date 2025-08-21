@@ -2,10 +2,6 @@ using StarterApp.Api.Data;
 using System.Reflection;
 
 namespace StarterApp.Api.Application.Commands;
-
-/// <summary>
-/// Service for order write operations using EF Core directly
-/// </summary>
 public class OrderCommandService : IOrderCommandService
 {
     private readonly ApplicationDbContext _dbContext;
@@ -18,12 +14,12 @@ public class OrderCommandService : IOrderCommandService
     public async Task<Order> CreateOrderAsync(int customerId, List<CreateOrderItemCommand> items)
     {
         Log.Information("Creating order for customer {CustomerId} with EF Core", customerId);
-        
+
         // Validate that customer exists
         var customerExists = await _dbContext.Customers.AnyAsync(c => c.Id == customerId);
         if (!customerExists)
             throw new KeyNotFoundException($"Customer with ID {customerId} was not found");
-        
+
         var order = new Order(customerId);
 
         // Create order header first
@@ -49,9 +45,9 @@ public class OrderCommandService : IOrderCommandService
 
             _dbContext.OrderItems.Add(orderItem);
         }
-        
+
         await _dbContext.SaveChangesAsync();
-        
+
         // Load the order with items for return
         return await LoadOrderWithItems(order.Id) ?? order;
     }
@@ -59,7 +55,7 @@ public class OrderCommandService : IOrderCommandService
     public async Task<Order?> UpdateOrderStatusAsync(int orderId, OrderStatus status)
     {
         Log.Information("Updating order {OrderId} status to {Status} with EF Core", orderId, status);
-        
+
         var order = await LoadOrderWithItems(orderId);
         if (order == null)
         {
@@ -69,7 +65,7 @@ public class OrderCommandService : IOrderCommandService
 
         order.UpdateStatus(status);
         _dbContext.Orders.Update(order);
-        
+
         await _dbContext.SaveChangesAsync();
         return order;
     }
@@ -77,7 +73,7 @@ public class OrderCommandService : IOrderCommandService
     public async Task<Order?> CancelOrderAsync(int orderId)
     {
         Log.Information("Cancelling order {OrderId} with EF Core", orderId);
-        
+
         var order = await LoadOrderWithItems(orderId);
         if (order == null)
         {
@@ -87,7 +83,7 @@ public class OrderCommandService : IOrderCommandService
 
         order.Cancel();
         _dbContext.Orders.Update(order);
-        
+
         await _dbContext.SaveChangesAsync();
         return order;
     }

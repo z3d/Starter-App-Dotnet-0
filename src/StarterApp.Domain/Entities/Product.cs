@@ -11,7 +11,7 @@ public class Product
     public DateTime LastUpdated { get; private set; }
 
     // Protected constructor for EF Core
-    protected Product() 
+    protected Product()
     {
         // Initialize default values to satisfy non-nullable warnings
         Name = string.Empty;

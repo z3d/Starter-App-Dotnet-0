@@ -23,7 +23,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
     private readonly MsSqlContainer _sqlContainer;
     private DbConnection _dbConnection = null!;
     private Respawner _respawner = null!;
-    
+
     public string ConnectionString { get; private set; } = null!;
 
     public TestWebApplicationFactory()
@@ -33,10 +33,10 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
             .MinimumLevel.Information()
             .WriteTo.Console()
             .CreateLogger();
-        
+
         // Use a secure password with config (this could be fetched from user secrets in a real app)
         var containerPassword = "TestContainer!Password123";
-        
+
         _sqlContainer = new MsSqlBuilder()
             .WithPassword(containerPassword)
             .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
@@ -60,7 +60,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
         builder.ConfigureServices(services =>
         {
             // Remove the app's ApplicationDbContext registration
-            var descriptor = services.SingleOrDefault(d => 
+            var descriptor = services.SingleOrDefault(d =>
                 d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
 
             if (descriptor != null)
@@ -69,7 +69,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
             }
 
             // Remove the app's IDbConnection registration
-            var dbConnectionDescriptor = services.SingleOrDefault(d => 
+            var dbConnectionDescriptor = services.SingleOrDefault(d =>
                 d.ServiceType == typeof(System.Data.IDbConnection));
 
             if (dbConnectionDescriptor != null)
@@ -98,10 +98,10 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
         {
             Log.Information("Starting SQL Server container for tests");
             await _sqlContainer.StartAsync();
-            
+
             ConnectionString = _sqlContainer.GetConnectionString();
             Log.Information("SQL Server container started");
-            
+
             // Apply migrations using DbUp
             var upgrader = DeployChanges.To
                 .SqlDatabase(ConnectionString)
@@ -111,7 +111,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
                 .Build();
 
             var result = upgrader.PerformUpgrade();
-            
+
             if (!result.Successful)
             {
                 Log.Error("Database migration failed: {Error}", result.Error);
@@ -121,7 +121,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
             // Set up connection for Respawn
             _dbConnection = new Microsoft.Data.SqlClient.SqlConnection(ConnectionString);
             await _dbConnection.OpenAsync();
-            
+
             // Initialize Respawn for database cleanup
             _respawner = await Respawner.CreateAsync(_dbConnection, new RespawnerOptions
             {
@@ -129,7 +129,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
                 SchemasToInclude = new[] { "dbo" },
                 TablesToIgnore = new Table[] { new Table("__SchemaVersions") } // Ignore DbUp's version table
             });
-            
+
             Log.Information("Test database initialized successfully");
         }
         catch (Exception ex)
@@ -163,7 +163,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<IApiMarker>, IAsy
                 await _dbConnection.CloseAsync();
                 await _dbConnection.DisposeAsync();
             }
-            
+
             if (_sqlContainer != null)
             {
                 await _sqlContainer.DisposeAsync();

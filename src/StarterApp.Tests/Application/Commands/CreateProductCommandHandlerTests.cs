@@ -30,7 +30,8 @@ public class CreateProductCommandHandlerTests
                 It.IsAny<string>(),
                 It.IsAny<Money>(),
                 It.IsAny<int>()))
-            .ReturnsAsync((string name, string description, Money price, int stock) => {
+            .ReturnsAsync((string name, string description, Money price, int stock) =>
+            {
                 var product = new Product(name, description, price, stock);
                 product.SetId(1);
                 return product;
@@ -54,7 +55,7 @@ public class CreateProductCommandHandlerTests
             command.Name,
             command.Description,
             It.Is<Money>(m => m.Amount == command.Price && m.Currency == command.Currency),
-            command.Stock), 
+            command.Stock),
             Times.Once);
     }
 }
