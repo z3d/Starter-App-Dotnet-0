@@ -4,7 +4,9 @@ public static class DatabaseMigrationEngine
 {
     public static bool MigrateDatabase(string connectionString, Assembly scriptsAssembly)
     {
-        Console.WriteLine($"Starting database migration...");
+        // Mask the connection string password for logging
+        var maskedConnectionString = MaskConnectionStringPassword(connectionString);
+        Console.WriteLine($"Starting database migration with connection: {maskedConnectionString}");
 
         // Ensure database exists
         EnsureDatabase.For.SqlDatabase(connectionString);
@@ -14,7 +16,7 @@ public static class DatabaseMigrationEngine
             .SqlDatabase(connectionString)
             .WithScriptsEmbeddedInAssembly(scriptsAssembly)
             .WithTransaction()
-            .LogToConsole()
+            .LogToNowhere() // Don't log to console to avoid exposing connection strings
             .Build();
 
         var result = upgrader.PerformUpgrade();
@@ -36,6 +38,18 @@ public static class DatabaseMigrationEngine
     public static bool Migrate(string connectionString)
     {
         return MigrateDatabase(connectionString, Assembly.GetExecutingAssembly());
+    }
+
+    private static string MaskConnectionStringPassword(string connectionString)
+    {
+        if (string.IsNullOrEmpty(connectionString))
+            return connectionString;
+            
+        return System.Text.RegularExpressions.Regex.Replace(
+            connectionString,
+            @"(password|pwd)\s*=\s*[^;]+",
+            "$1=***MASKED***",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 }
 

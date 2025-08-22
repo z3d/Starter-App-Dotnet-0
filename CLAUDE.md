@@ -41,6 +41,14 @@ This is a **Clean Architecture** .NET 9 solution implementing **CQRS** with **Do
 - **No Implementation History**: Remove comments about previous implementations
 - **Temporary TODOs**: Use TODO comments sparingly and remove them quickly
 
+#### Pre-Commit Code Review Checklist
+- **Dead-End Detection**: Review code for methods, classes, or configurations that were created during exploration but are no longer used
+- **Redundancy Removal**: Check for empty stub methods, unused interfaces, or placeholder implementations that serve no purpose
+- **Orphaned Code**: Look for code that was part of an abandoned approach and needs to be cleaned up
+- **Simplification Review**: Ensure the final implementation follows the "simplest solution that works" principle
+- **Dependency Cleanup**: Remove unused NuGet packages, using statements, and service registrations
+- **Configuration Pruning**: Remove unused configuration settings, environment variables, and connection strings
+
 ### Solution Structure
 
 ```
