@@ -19,6 +19,8 @@ This is a **Clean Architecture** .NET 9 solution implementing **CQRS** with **Do
 - **XML Documentation Comments**: Never use XML documentation comments (/// <summary>, /// <param>, etc.) - they are verbose, inconsistent when used partially, and interfere with code readability. Let good naming and clean code structure be self-documenting instead
 - **MediatR**: NEVER use MediatR - the author made it commercial, eliminating the free open source benefits. Additionally, it adds unnecessary complexity, reflection overhead, and indirection. Use a simple custom mediator pattern instead. Our custom implementation provides the same benefits (decoupling, testability) without the commercial dependency and bloat
 - **Historical Comments**: NEVER add comments like "// Create entity directly (previously in command service)" - source control already tracks these changes and such comments become noise over time
+- **Third-Party Library Dependencies**: Prefer native .NET libraries over third-party packages, especially those with single maintainers or uncertain long-term support. Avoid external dependencies that can become maintenance burdens, security risks, or points of failure. When third-party libraries are necessary, choose well-established, multi-maintainer projects with strong community support
+- **Commercial Libraries**: NEVER use commercial libraries without explicit permission from project stakeholders. Commercial dependencies create licensing compliance issues, ongoing costs, and potential legal risks. Always verify licensing terms and get explicit approval before introducing any commercial dependencies
 
 ### Code Documentation Philosophy
 
