@@ -9,10 +9,12 @@ This step covers containerizing the .NET Web API and SQL Server using Docker. Th
 ✅ **Already Configured!** - Docker setup is complete with:
 
 - **Multi-stage Dockerfile** for the .NET API
-- **Docker Compose** orchestration for API + SQL Server
+- **Docker Compose** orchestration for API + SQL Server + Seq
+- **Seq centralized logging** with web interface
 - **Health checks** for service monitoring
-- **Volume persistence** for database data
+- **Volume persistence** for database data and log storage
 - **Environment-specific configuration**
+- **Password masking** in development logs
 
 ## Docker Architecture
 
@@ -26,6 +28,10 @@ Docker Environment
 │   ├── SQL Server Database Engine
 │   ├── Persistent data volume
 │   └── Database initialization
+├── seq container (Seq Logging)
+│   ├── Centralized log aggregation
+│   ├── Web-based log viewer
+│   └── Persistent log storage
 └── backend-network (bridge network)
 ```
 
@@ -108,6 +114,7 @@ Once running, access the services at:
 | **API** | http://localhost:8080 | Main API endpoint |
 | **Swagger** | http://localhost:8080/swagger | API documentation |
 | **Health Check** | http://localhost:8080/health | Service health status |
+| **Seq Logs** | http://localhost:5341 | Centralized log viewer |
 | **SQL Server** | localhost:1433 | Database connection |
 
 ## Configuration Details
@@ -118,16 +125,27 @@ Once running, access the services at:
 ```yaml
 environment:
   - ASPNETCORE_ENVIRONMENT=Docker
-  - ConnectionStrings__DefaultConnection=Server=db;Database=ProductsDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;
-  - ASPNETCORE_HTTP_PORTS=8080
+  - ConnectionStrings__DefaultConnection=Server=db;Database=StarterApp;User Id=sa;Password=Your_password123;TrustServerCertificate=True;
+  - SEQ_URL=http://seq:5341
 ```
 
 **Database Container:**
 ```yaml
 environment:
   - ACCEPT_EULA=Y
-  - SA_PASSWORD=YourStrong@Passw0rd
+  - SA_PASSWORD=Your_password123
   - MSSQL_PID=Developer
+```
+
+**Seq Container:**
+```yaml
+environment:
+  - ACCEPT_EULA=Y
+  - SEQ_FIRSTRUN_NOAUTHENTICATION=true
+ports:
+  - "5341:80"
+volumes:
+  - seq-data:/data
 ```
 
 ### Health Checks

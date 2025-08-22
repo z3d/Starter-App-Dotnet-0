@@ -10,6 +10,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Docker
       - ConnectionStrings__DefaultConnection=Server=db;Database=StarterApp;User Id=sa;Password=Your_password123;TrustServerCertificate=True;
+      - SEQ_URL=http://seq:5341
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -18,6 +19,7 @@ services:
       start_period: 10s
     depends_on:
       - db
+      - seq
     networks:
       - backend-network
     restart: unless-stopped
@@ -36,10 +38,25 @@ services:
       - backend-network
     restart: unless-stopped
 
+  seq:
+    image: datalust/seq:latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
+    ports:
+      - "5341:80"
+    volumes:
+      - seq-data:/data
+    networks:
+      - backend-network
+    restart: unless-stopped
+
 networks:
   backend-network:
     driver: bridge
 
 volumes:
   sqldata:
+    driver: local
+  seq-data:
     driver: local
