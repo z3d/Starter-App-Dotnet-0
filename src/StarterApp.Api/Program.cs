@@ -125,17 +125,17 @@ try
     if (app.Environment.IsDevelopment())
     {
         Log.Information("=== CONNECTION STRING DEBUG ===");
-        Log.Information("database connection (primary): {DatabaseConnection}", databaseConnection);
-        Log.Information("DockerLearning connection: {DockerLearningConnection}", dockerLearningConnection);
-        Log.Information("sqlserver connection: {SqlServerConnection}", sqlserverConnection);
-        Log.Information("DefaultConnection: {DefaultConnection}", defaultConnection);
+        Log.Information("database connection (primary): {DatabaseConnection}", MaskConnectionStringPassword(databaseConnection));
+        Log.Information("DockerLearning connection: {DockerLearningConnection}", MaskConnectionStringPassword(dockerLearningConnection));
+        Log.Information("sqlserver connection: {SqlServerConnection}", MaskConnectionStringPassword(sqlserverConnection));
+        Log.Information("DefaultConnection: {DefaultConnection}", MaskConnectionStringPassword(defaultConnection));
 
         // Check all connection strings
         var allConnectionStrings = builder.Configuration.GetSection("ConnectionStrings").GetChildren();
         Log.Information("All available connection strings:");
         foreach (var conn in allConnectionStrings)
         {
-            Log.Information("  {Key}: {Value}", conn.Key, conn.Value);
+            Log.Information("  {Key}: {Value}", conn.Key, MaskConnectionStringPassword(conn.Value));
         }
 
         // Also check environment variables
@@ -145,10 +145,10 @@ try
                         e.Key?.ToString()?.Contains("DockerLearning", StringComparison.OrdinalIgnoreCase) == true ||
                         e.Key?.ToString()?.Contains("SQL", StringComparison.OrdinalIgnoreCase) == true))
         {
-            Log.Information("  {Key}: {Value}", envVar.Key, envVar.Value);
+            Log.Information("  {Key}: {Value}", envVar.Key, MaskConnectionStringPassword(envVar.Value?.ToString()));
         }
 
-        Log.Information("Using connection string: {ConnectionString}", connectionString);
+        Log.Information("Using connection string: {ConnectionString}", MaskConnectionStringPassword(connectionString));
         Log.Information("=== END CONNECTION STRING DEBUG ===");
     }
     else
@@ -247,6 +247,19 @@ catch (Exception ex)
 finally
 {
     Log.CloseAndFlush();
+}
+
+// Helper method to mask passwords in connection strings
+static string? MaskConnectionStringPassword(string? connectionString)
+{
+    if (string.IsNullOrEmpty(connectionString))
+        return connectionString;
+        
+    return System.Text.RegularExpressions.Regex.Replace(
+        connectionString,
+        @"(password|pwd)\s*=\s*[^;]+",
+        "$1=***MASKED***",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 }
 
 
