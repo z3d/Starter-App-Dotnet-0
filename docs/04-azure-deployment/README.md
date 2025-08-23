@@ -9,12 +9,12 @@ This step demonstrates deploying the containerized .NET Web API to Azure using A
 ```
 Azure Environment
 ├── Azure Container Registry (ACR)
-│   └── dockerlearning-api:latest
+│   └── starterapp-api:latest
 ├── Azure Container Apps Environment
 │   ├── Container App (API)
 │   └── Log Analytics Workspace
 ├── Azure SQL Database
-│   └── ProductsDb
+│   └── StarterApp
 └── Resource Group
     └── All resources
 ```
@@ -68,15 +68,16 @@ Follow these steps for manual deployment:
 
 ```powershell
 # Configuration variables
-$resourceGroup = "DockerLearningGroup"
+$resourceGroup = "StarterAppRG"
 $location = "eastus"
-$acrName = "dockerlearningacr$(Get-Random)"  # Must be globally unique
-$containerAppName = "dockerlearning-api"
-$environmentName = "dockerlearning-env"
-$sqlServerName = "dockerlearning-sql-$(Get-Random)"
-$sqlDatabaseName = "ProductsDb"
+$uniqueId = Get-Random -Minimum 1000 -Maximum 9999
+$acrName = "starterappacrr$uniqueId"  # Must be globally unique
+$containerAppName = "starterapp-api"
+$environmentName = "starterapp-env"
+$sqlServerName = "starterapp-sql-$uniqueId"
+$sqlDatabaseName = "StarterApp"
 $sqlAdminLogin = "sqladmin"
-$sqlAdminPassword = "YourStrong@Passw0rd123"  # Use secure password
+$sqlAdminPassword = "StarterApp_Pass123!"  # Use secure password
 
 # Create resource group
 az group create --name $resourceGroup --location $location
@@ -103,10 +104,10 @@ az acr login --name $acrName
 
 ```powershell
 # Build the Docker image locally
-docker build -t $acrLoginServer/dockerlearning-api:latest -f src/DockerLearningApi/Dockerfile src/
+docker build -t $acrLoginServer/starterapp-api:latest -f src/StarterApp.Api/Dockerfile src/
 
 # Push to ACR
-docker push $acrLoginServer/dockerlearning-api:latest
+docker push $acrLoginServer/starterapp-api:latest
 
 # Verify image was pushed
 az acr repository list --name $acrName --output table
@@ -165,7 +166,7 @@ az containerapp create `
     --name $containerAppName `
     --resource-group $resourceGroup `
     --environment $environmentName `
-    --image "$acrLoginServer/dockerlearning-api:latest" `
+    --image "$acrLoginServer/starterapp-api:latest" `
     --registry-server $acrLoginServer `
     --registry-username $acrName `
     --registry-password $acrPassword `
@@ -194,7 +195,7 @@ The application will automatically run database migrations on startup, but you c
 $connectionString = "Server=$sqlServerName.database.windows.net;Database=$sqlDatabaseName;User Id=$sqlAdminLogin;Password=$sqlAdminPassword;TrustServerCertificate=True;"
 
 # Run from local machine (requires .NET SDK)
-cd src/DockerLearning.DbMigrator
+cd src/StarterApp.DbMigrator
 dotnet run --ConnectionStrings:DefaultConnection="$connectionString"
 ```
 
