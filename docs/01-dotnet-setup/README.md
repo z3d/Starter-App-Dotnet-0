@@ -109,7 +109,7 @@ The test suite includes:
 - **Domain**: Core business logic isolated from infrastructure
 - **Application**: Use cases and application services
 - **Infrastructure**: Data access and external dependencies
-- **Presentation**: Web API controllers and DTOs
+- **Presentation**: Minimal API endpoints and DTOs
 
 ### 🔧 Configuration Management
 - Environment-specific `appsettings.json` files

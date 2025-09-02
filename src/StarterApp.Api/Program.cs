@@ -1,4 +1,5 @@
 using StarterApp.Api.Data;
+using StarterApp.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,11 +38,29 @@ builder.Services.AddOpenApi(options =>
     {
         document.Info.Title = "Starter App API";
         document.Info.Version = "v1";
-        document.Info.Description = "A sample API for the Starter App";
+        document.Info.Description = "A sample API for the Starter App built with .NET 9 Minimal APIs";
         document.Info.Contact = new()
         {
             Name = "Starter App Team"
         };
+
+        // Configure API endpoint tags for better Swagger organization
+        document.Tags = new List<Microsoft.OpenApi.Models.OpenApiTag>
+        {
+            new() {
+                Name = "Customers",
+                Description = "Customer management operations including CRUD functionality for customer data"
+            },
+            new() {
+                Name = "Orders",
+                Description = "Order processing and management including creation, status updates, and cancellation"
+            },
+            new() {
+                Name = "Products",
+                Description = "Product catalog management with full CRUD operations for product inventory"
+            }
+        };
+
         return Task.CompletedTask;
     });
 });
@@ -80,7 +99,6 @@ builder.Services.AddScoped<System.Data.IDbConnection>(provider =>
 
 // Register mediator for CQRS pattern - handlers are auto-registered via reflection
 builder.Services.AddMediator(Assembly.GetExecutingAssembly());
-builder.Services.AddControllers();
 
 // Add CORS (restrict in production)
 builder.Services.AddCors(options =>
@@ -227,7 +245,10 @@ try
     app.UseCors();
     app.UseRateLimiter();
     app.UseRouting();
-    app.MapControllers();
+
+    // Map API endpoints using the new minimal API pattern
+    app.MapApiEndpoints();
+
     app.MapHealthChecks("/health");
 
     // Map Aspire service defaults endpoints

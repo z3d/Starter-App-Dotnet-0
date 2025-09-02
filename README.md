@@ -33,8 +33,10 @@ docker-compose up --build
 ## 🎯 What This Project Demonstrates
 
 1. **Modern .NET Development**
-   - .NET 9 Web API with clean architecture
+   - .NET 9 Minimal APIs with clean architecture
+   - Endpoint filters for cross-cutting concerns
    - Domain-driven design with value objects
+   - CQRS pattern with mediator
    - Repository pattern with Entity Framework Core
 
 2. **Database Management**
@@ -111,7 +113,13 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 - **Container Orchestration**: Both Docker Compose and .NET Aspire support
 - **Comprehensive Testing**: Unit tests and integration tests with Testcontainers
 
-## 📖 Learning Resources
+## � Documentation
+
+- **[API Endpoints](docs/API-ENDPOINTS.md)**: Complete documentation of all Minimal API endpoints with examples and usage patterns
+- **[Architectural Guide](CLAUDE.md)**: Comprehensive guide to the Clean Architecture implementation, patterns, and conventions
+- **[Setup Guides](docs/)**: Step-by-step guides for development environment setup and deployment
+
+## �📖 Learning Resources
 
 This project serves as a practical example for learning:
 - Modern .NET development practices

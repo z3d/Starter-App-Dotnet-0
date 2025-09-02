@@ -2,7 +2,6 @@
 // Third-party libraries
 global using Dapper;
 // Microsoft namespaces
-global using Microsoft.AspNetCore.Mvc;
 global using Microsoft.AspNetCore.RateLimiting;
 global using Microsoft.Data.SqlClient;
 global using Microsoft.EntityFrameworkCore;

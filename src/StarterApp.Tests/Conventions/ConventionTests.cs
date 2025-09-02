@@ -21,10 +21,12 @@ public class ConventionTests
     }
 
     [Fact]
-    public void ControllersShouldFollowNamingConvention()
+    public void EndpointDefinitions_ShouldFollowNamingConvention()
     {
-        var controllerTypes = ApiAssembly.GetTypes().Where(t => t.Name.EndsWith("Controller"));
-        controllerTypes.MustConformTo(Convention.NameMustEndWith("Controller"));
+        var endpointTypes = ApiAssembly.GetTypes()
+            .Where(t => t.GetInterfaces().Any(i => i.Name == "IEndpointDefinition"));
+
+        endpointTypes.MustConformTo(Convention.NameMustEndWith("Endpoints"));
     }
 
     [Fact]
@@ -106,7 +108,6 @@ public class ConventionTests
         {
             var types = assembly.GetTypes()
                 .Where(t => t.IsClass && !t.IsAbstract &&
-                       !typeof(ControllerBase).IsAssignableFrom(t) && // Exclude controllers
                        !t.Name.EndsWith("Handler") && // Exclude command/query handlers
                        !IsCompilerGenerated(t));
             types

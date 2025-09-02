@@ -110,7 +110,7 @@ builder.Build().Run();
 
 #### 2. **Distributed Tracing**
 ```
-HTTP Request → API Controller → Repository → Database
+HTTP Request → API Endpoint → Repository → Database
      ↓              ↓             ↓          ↓
   Trace Span    Trace Span   Trace Span  SQL Span
 ```
@@ -239,7 +239,7 @@ Access health checks at:
 // Add custom business metrics
 var productCreatedCounter = meter.CreateCounter<int>("products.created");
 
-// In your controller
+// In your endpoint
 productCreatedCounter.Add(1, new("category", product.Category));
 ```
 

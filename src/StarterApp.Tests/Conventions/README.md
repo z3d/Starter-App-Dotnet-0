@@ -17,7 +17,7 @@ Convention tests serve as automated architectural guardrails that:
 ## Architectural Principles Enforced
 
 ### 1. Clean Architecture Separation
-- Controllers handle HTTP concerns only
+- Endpoints handle HTTP concerns only
 - Domain entities encapsulate business logic
 - Value objects maintain immutability
 - Services coordinate application workflows
@@ -46,13 +46,13 @@ Convention tests serve as automated architectural guardrails that:
 
 | Type | Convention | Example | Rationale |
 |------|------------|---------|-----------|
-| Controllers | Must end with "Controller" | `ProductController` | ASP.NET Core standards |
+| Endpoint Definitions | Must end with "Endpoints" | `ProductEndpoints` | Minimal API organization standards |
 | DTOs | Must end with "Dto" or "ReadModel" | `ProductDto`, `UserReadModel` | Clear data contract identification |
 | Commands | Must end with "Command" | `CreateProductCommand` | CQRS write operation identification |
 | Queries | Must end with "Query" | `GetProductQuery` | CQRS read operation identification |
 | Services | Must end with "Service" | `ProductService` | Application layer identification |
 | Repositories | Must end with "Repository" | `ProductRepository` | Data access abstraction |
-| Test Classes | Must end with "Tests" or "Test" | `ProductControllerTests` | Test organization and discovery |
+| Test Classes | Must end with "Tests" or "Test" | `ProductEndpointsTests` | Test organization and discovery |
 
 ### Encapsulation Rules
 
@@ -66,12 +66,12 @@ Convention tests serve as automated architectural guardrails that:
 
 | Convention | Scope | Exceptions | Rationale |
 |------------|-------|------------|-----------|
-| Async methods must have "Async" suffix | All assemblies | Controllers, MediatR handlers | .NET Framework Design Guidelines |
+| Async methods must have "Async" suffix | All assemblies | Endpoints, MediatR handlers | .NET Framework Design Guidelines |
 
 ## Implementation Details
 
 ### Assembly Scope
-- **API Assembly**: Controllers, DTOs, Commands, Queries, Services
+- **API Assembly**: Endpoints, DTOs, Commands, Queries, Services
 - **Domain Assembly**: Entities, Value Objects, Domain Services
 
 ### Compiler-Generated Type Filtering
@@ -95,7 +95,7 @@ Convention violations trigger test failures with descriptive messages indicating
 dotnet test --filter "FullyQualifiedName~ConventionTests"
 
 # Run specific convention test
-dotnet test --filter "FullyQualifiedName~ConventionTests.Controllers_ShouldFollowNamingConventions"
+dotnet test --filter "FullyQualifiedName~ConventionTests.EndpointDefinitions_ShouldFollowNamingConventions"
 ```
 
 ### CI/CD Integration

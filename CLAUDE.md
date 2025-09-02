@@ -5,6 +5,7 @@ This document outlines the architectural patterns, conventions, and technical st
 ## Project Overview
 
 **Clean Architecture** .NET 9 solution implementing:
+- **Minimal APIs**: Modern .NET 9 endpoint-based architecture with high performance
 - **CQRS Pattern**: Separate command/query responsibilities
 - **Domain-Driven Design**: Rich domain models with business logic
 - **Aspire Orchestration**: Service orchestration and observability
@@ -15,13 +16,24 @@ This document outlines the architectural patterns, conventions, and technical st
 ```
 Solution Root/
 ├── src/
-│   ├── [ProjectName].Api/              # Web API Layer
+│   ├── [ProjectName].Api/              # Minimal API Layer
+│   │   ├── Endpoints/                  # API endpoint definitions
+│   │   │   ├── CustomerEndpoints.cs   # Customer management endpoints
+│   │   │   ├── OrderEndpoints.cs      # Order processing endpoints
+│   │   │   ├── ProductEndpoints.cs    # Product catalog endpoints
+│   │   │   ├── IEndpointDefinition.cs # Endpoint definition contract
+│   │   │   ├── EndpointExtensions.cs  # Auto-discovery extensions
+│   │   │   └── Filters/                # Endpoint filters
+│   │   ├── Application/                # CQRS commands and queries
+│   │   ├── Data/                       # EF Core DbContext
+│   │   └── Infrastructure/             # Cross-cutting concerns
 │   ├── [ProjectName].Domain/           # Domain Layer (Core Business Logic)
 │   ├── [ProjectName].AppHost/          # Aspire Orchestration Host
 │   ├── [ProjectName].ServiceDefaults/  # Shared Aspire Service Configuration
 │   ├── [ProjectName].DbMigrator/       # Database Migration Tool
 │   └── [ProjectName].Tests/            # Comprehensive Test Suite
 └── docs/                               # Documentation
+    └── API-ENDPOINTS.md                # Detailed endpoint documentation
 ```
 
 ## Build Configuration & Standards
@@ -462,13 +474,13 @@ Tests/
 
 ```csharp
 [Fact]
-public void Controllers_Should_EndWith_Controller()
+public void EndpointDefinitions_Should_EndWith_Endpoints()
 {
     Types.InAssembly(ApiAssembly)
         .That()
-        .InheritFrom<ControllerBase>()
+        .ImplementInterface(typeof(IEndpointDefinition))
         .Should()
-        .HaveNameEndingWith("Controller")
+        .HaveNameEndingWith("Endpoints")
         .Check();
 }
 
@@ -480,6 +492,17 @@ public void Commands_Should_EndWith_Command()
         .ImplementInterface(typeof(ICommand))
         .Should()
         .HaveNameEndingWith("Command")
+        .Check();
+}
+
+[Fact]
+public void EndpointDefinitions_Should_Be_In_Endpoints_Namespace()
+{
+    Types.InAssembly(ApiAssembly)
+        .That()
+        .ImplementInterface(typeof(IEndpointDefinition))
+        .Should()
+        .ResideInNamespaceEndingWith("Endpoints")
         .Check();
 }
 ```
@@ -515,35 +538,91 @@ public class ApiTestFixture : IAsyncLifetime
 
 ## API Design Standards
 
-### Controller Patterns
+### Minimal API Patterns
+
+This project uses .NET 9 Minimal APIs with an endpoint definition pattern for better organization and maintainability.
+
+#### **Endpoint Definition Pattern**
 
 ```csharp
-[ApiController]
-[Route("api/[controller]")]
-public class CustomersController : ControllerBase
+public interface IEndpointDefinition
 {
-    private readonly IMediator _mediator;
+    void DefineEndpoints(WebApplication app);
+}
 
-    [HttpPost]
-    public async Task<ActionResult<CustomerDto>> CreateCustomer(
-        CreateCustomerCommand command,
-        CancellationToken cancellationToken)
+public class CustomerEndpoints : IEndpointDefinition
+{
+    public void DefineEndpoints(WebApplication app)
     {
-        var result = await _mediator.SendAsync(command, cancellationToken);
-        return CreatedAtAction(nameof(GetCustomer), new { id = result.Id }, result);
+        var customers = app.MapGroup("/api/customers")
+            .WithTags("Customers")
+            .WithDescription("Customer management operations including CRUD functionality");
+
+        customers.MapPost("/", CreateCustomer)
+            .WithName("CreateCustomer")
+            .WithDescription("Create a new customer")
+            .Produces<CustomerDto>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest);
+
+        customers.MapGet("/{id}", GetCustomer)
+            .WithName("GetCustomer")  
+            .WithDescription("Get customer by ID")
+            .Produces<CustomerReadModel>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
     }
 
-    [HttpGet("{id}")]
-    public async Task<ActionResult<CustomerReadModel>> GetCustomer(
-        int id, 
+    private static async Task<IResult> CreateCustomer(
+        CreateCustomerCommand command,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.SendAsync(command, cancellationToken);
+        return Results.Created($"/api/customers/{result.Id}", result);
+    }
+
+    private static async Task<IResult> GetCustomer(
+        int id,
+        IMediator mediator,
         CancellationToken cancellationToken)
     {
         var query = new GetCustomerQuery { Id = id };
-        var result = await _mediator.SendAsync(query, cancellationToken);
-        return Ok(result);
+        var result = await mediator.SendAsync(query, cancellationToken);
+        return Results.Ok(result);
     }
 }
 ```
+
+#### **Auto-Discovery Extensions**
+
+```csharp
+public static class EndpointExtensions
+{
+    public static WebApplication MapApiEndpoints(this WebApplication app)
+    {
+        var endpointDefinitions = typeof(Program).Assembly
+            .GetTypes()
+            .Where(t => t.IsAssignableTo(typeof(IEndpointDefinition)) 
+                       && !t.IsAbstract 
+                       && !t.IsInterface)
+            .Select(Activator.CreateInstance)
+            .Cast<IEndpointDefinition>();
+
+        foreach (var endpointDefinition in endpointDefinitions)
+        {
+            endpointDefinition.DefineEndpoints(app);
+        }
+
+        return app;
+    }
+}
+```
+
+#### **Benefits Over Controllers**
+- **Performance**: ~30% faster than controller-based APIs
+- **Less Boilerplate**: No inheritance, attributes, or base classes needed
+- **Source Generators**: Better AOT compilation support
+- **Flexible Filters**: Endpoint-specific middleware and behaviors
+- **Modern .NET 9**: Native integration with latest framework features
 
 ### Error Handling
 
