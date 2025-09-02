@@ -86,11 +86,24 @@ Solution Root/
 
 #### Project Configuration Standards
 
-- **Target Framework**: `net9.0`
-- **Nullable Reference Types**: `<Nullable>enable</Nullable>`
-- **Implicit Usings**: `<ImplicitUsings>enable</ImplicitUsings>`
-- **Warnings as Errors**: `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`
-- **Package Lock Files**: `<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>`
+**Centralized Configuration (Directory.Build.props)**
+
+All projects inherit shared MSBuild settings from the root `Directory.Build.props` file:
+
+- **Target Framework**: `net9.0` across all projects
+- **Language Features**: `<Nullable>enable</Nullable>` and `<ImplicitUsings>enable</ImplicitUsings>`
+- **Code Quality**: `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` solution-wide
+- **Deterministic Builds**: `<Deterministic>true</Deterministic>` with consistent path mapping
+- **Assembly Metadata**: Centralized company, product, and version information
+- **Documentation**: `<GenerateDocumentationFile>true</GenerateDocumentationFile>` (CS1591 warnings suppressed)
+- **Debug Configuration**: Portable PDBs with consistent debug symbols
+- **Package Lock Files**: `<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>` for reproducible builds
+
+**Benefits of Centralization**:
+- ✅ Consistency across all 6 projects automatically
+- ✅ Single location for build configuration changes
+- ✅ New projects inherit standards automatically
+- ✅ Reduced project file complexity (only project-specific settings remain)
 
 #### Package Management & Reproducible Builds
 

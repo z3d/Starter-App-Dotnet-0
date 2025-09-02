@@ -1,10 +1,50 @@
 <Project>
   <PropertyGroup>
-    <!-- Enable package lock files for reproducible builds -->
+    <!-- Common Target Framework -->
+    <TargetFramework>net9.0</TargetFramework>
+    
+    <!-- Language Features -->
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    
+    <!-- Code Quality -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    <WarningsNotAsErrors />
+    
+    <!-- Deterministic Builds -->
+    <Deterministic>true</Deterministic>
+    <PathMap>$(MSBuildProjectDirectory)=/_/</PathMap>
+    
+    <!-- Assembly Metadata -->
+    <Company>Starter App</Company>
+    <Product>Starter App</Product>
+    <Copyright>© 2025 Starter App. All rights reserved.</Copyright>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.0.0</Version>
+    
+    <!-- Package Lock Files for Reproducible Builds -->
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <!-- Lock file location -->
     <NuGetLockFilePath>$(MSBuildProjectDirectory)\packages.lock.json</NuGetLockFilePath>
     <!-- Restore locked mode in CI/CD -->
     <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+    
+    <!-- Build Output -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn> <!-- Missing XML comment for publicly visible type or member -->
+    
+    <!-- Debug Configuration -->
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
+  
+  <!-- Global Package References -->
+  <ItemGroup>
+    <GlobalPackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </GlobalPackageReference>
+  </ItemGroup>
 </Project>
