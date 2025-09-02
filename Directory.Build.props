@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <!-- Enable package lock files for reproducible builds -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- Lock file location -->
+    <NuGetLockFilePath>$(MSBuildProjectDirectory)\packages.lock.json</NuGetLockFilePath>
+    <!-- Restore locked mode in CI/CD -->
+    <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+  </PropertyGroup>
+</Project>

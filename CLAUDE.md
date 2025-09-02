@@ -43,6 +43,7 @@ This is a **Clean Architecture** .NET 9 solution implementing **CQRS** with **Do
 
 #### Pre-Commit Code Review Checklist
 - **Code Formatting**: ALWAYS run `dotnet format` before every commit to ensure consistent code style and remove unnecessary imports
+- **Package Lock Files**: Verify `packages.lock.json` files are updated when adding/removing/updating packages for reproducible builds
 - **Dead-End Detection**: Review code for methods, classes, or configurations that were created during exploration but are no longer used
 - **Redundancy Removal**: Check for empty stub methods, unused interfaces, or placeholder implementations that serve no purpose
 - **Orphaned Code**: Look for code that was part of an abandoned approach and needs to be cleaned up
@@ -89,6 +90,19 @@ Solution Root/
 - **Nullable Reference Types**: `<Nullable>enable</Nullable>`
 - **Implicit Usings**: `<ImplicitUsings>enable</ImplicitUsings>`
 - **Warnings as Errors**: `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`
+- **Package Lock Files**: `<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>`
+
+#### Package Management & Reproducible Builds
+
+- **Lock Files**: All projects use `packages.lock.json` for deterministic package resolution
+- **Directory.Build.props**: Centralized configuration enables lock files across entire solution
+- **CI/CD Integration**: Lock files ensure identical package versions between development and deployment
+- **Lock File Updates**: Commit `packages.lock.json` changes when adding/updating/removing packages
+- **Restore Commands**:
+  ```bash
+  dotnet restore --use-lock-file    # Generate/update lock files
+  dotnet restore --locked-mode      # Use existing lock files (CI/CD)
+  ```
 
 ### Domain-Driven Design Implementation
 
