@@ -31,10 +31,6 @@
     <!-- Restore locked mode in CI/CD -->
     <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
     
-    <!-- Build Output -->
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn> <!-- Missing XML comment for publicly visible type or member -->
-    
     <!-- Debug Configuration -->
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
