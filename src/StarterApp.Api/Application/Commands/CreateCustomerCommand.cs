@@ -22,7 +22,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         Log.Information("Handling CreateCustomerCommand to return CustomerDto");
 
         Log.Information("Creating customer {Name} with EF Core", command.Name);
-        
+
         var email = Email.Create(command.Email);
         var customer = new Customer(command.Name, email);
 

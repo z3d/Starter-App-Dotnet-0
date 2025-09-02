@@ -1,6 +1,3 @@
-using StarterApp.Api.Application.ReadModels;
-using StarterApp.Api.Application.Interfaces;
-
 namespace StarterApp.Api.Application.Queries;
 
 public class GetOrderByIdQuery : IQuery<OrderWithItemsReadModel?>, IRequest<OrderWithItemsReadModel?>

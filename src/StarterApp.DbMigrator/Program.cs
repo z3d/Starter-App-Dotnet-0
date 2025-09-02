@@ -1,5 +1,4 @@
 using StarterApp.DbMigrator;
-using Serilog;
 
 // Create configuration from appsettings.json
 var configuration = new ConfigurationBuilder()
@@ -47,7 +46,7 @@ try
 
     // Use the DatabaseMigrationEngine to run migrations
     bool success = DatabaseMigrationEngine.Migrate(connectionString);
-    
+
     if (success)
     {
         Log.Information("Database migration completed successfully");
@@ -74,7 +73,7 @@ static string MaskConnectionStringPassword(string connectionString)
 {
     if (string.IsNullOrEmpty(connectionString))
         return connectionString;
-        
+
     return System.Text.RegularExpressions.Regex.Replace(
         connectionString,
         @"(password|pwd)\s*=\s*[^;]+",

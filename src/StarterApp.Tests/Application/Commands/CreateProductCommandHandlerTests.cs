@@ -38,7 +38,7 @@ public class CreateProductCommandHandlerTests
             Name = "Test Product",
             Description = "Test Description",
             Price = 10.99m,
-            Currency = "USD", 
+            Currency = "USD",
             Stock = 100
         };
 

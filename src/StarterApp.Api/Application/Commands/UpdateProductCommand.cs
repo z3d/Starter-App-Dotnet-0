@@ -36,7 +36,7 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
 
         var price = Money.Create(command.Price, command.Currency);
         product.UpdateDetails(command.Name, command.Description, price);
-        
+
         // Update stock separately
         var stockDifference = command.Stock - product.Stock;
         if (stockDifference != 0)

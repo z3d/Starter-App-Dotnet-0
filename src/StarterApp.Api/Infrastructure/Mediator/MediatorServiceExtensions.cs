@@ -1,5 +1,3 @@
-using System.Reflection;
-
 namespace StarterApp.Api.Infrastructure.Mediator;
 
 public static class MediatorServiceExtensions
@@ -7,15 +5,15 @@ public static class MediatorServiceExtensions
     public static IServiceCollection AddMediator(this IServiceCollection services, params Assembly[] assemblies)
     {
         services.AddScoped<IMediator, Mediator>();
-        
+
         foreach (var assembly in assemblies)
         {
             RegisterHandlers(services, assembly);
         }
-        
+
         return services;
     }
-    
+
     private static void RegisterHandlers(IServiceCollection services, Assembly assembly)
     {
         var handlerTypes = assembly.GetTypes()

@@ -1,9 +1,3 @@
-using StarterApp.Domain.ValueObjects;
-using System;
-using Xunit;
-using Xunit.Abstractions;
-using Serilog;
-
 namespace StarterApp.Tests.Domain;
 
 public class MoneyTests

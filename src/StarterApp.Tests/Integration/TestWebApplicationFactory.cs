@@ -1,19 +1,13 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Respawn;
 using Respawn.Graph;
-using System.Data.Common;
-using System.Reflection;
-using Testcontainers.MsSql;
-using DbUp;
 using StarterApp.Api.Data;
 using StarterApp.Api.Infrastructure;
-using Serilog;
-using Serilog.Events;
+using System.Data.Common;
+using Testcontainers.MsSql;
 
 namespace StarterApp.Tests.Integration;
 

@@ -1,7 +1,3 @@
-using StarterApp.Api.Application.Commands;
-using StarterApp.Api.Application.DTOs;
-using StarterApp.Api.Application.ReadModels;
-
 namespace StarterApp.Tests.Integration;
 
 [Collection("Integration Tests")]

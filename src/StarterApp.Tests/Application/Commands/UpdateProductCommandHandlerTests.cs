@@ -62,7 +62,7 @@ public class UpdateProductCommandHandlerTests
             .Options;
 
         await using var context = new ApplicationDbContext(options);
-        
+
         // Create test product first
         var originalProduct = new Product("Original Product", "Original Description", Money.Create(10.99m, "USD"), 100);
         context.Products.Add(originalProduct);

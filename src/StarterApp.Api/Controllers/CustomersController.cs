@@ -1,10 +1,3 @@
-using StarterApp.Api.Application.Commands;
-using StarterApp.Api.Application.DTOs;
-using StarterApp.Api.Application.Queries;
-using StarterApp.Api.Application.ReadModels;
-using Microsoft.AspNetCore.Mvc;
-using Serilog;
-
 namespace StarterApp.Api.Controllers;
 
 [ApiController]

@@ -1,7 +1,3 @@
-using StarterApp.Api.Application.DTOs;
-using StarterApp.Api.Application.Interfaces;
-using StarterApp.Api.Application.ReadModels;
-
 namespace StarterApp.Api.Application.Queries;
 
 public class GetCustomerQuery : IQuery<CustomerReadModel?>, IRequest<CustomerReadModel?>

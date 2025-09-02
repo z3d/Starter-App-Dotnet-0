@@ -1,0 +1,48 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 180
+
+[*.{cs,csx,vb,vbx}]
+# Format document and analyzer fixes
+dotnet_analyzer_diagnostic.category-Security.severity = error
+dotnet_diagnostic.IDE0055.severity = warning
+
+# Using directives preferences
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_sort_system_directives_first = false
+dotnet_separate_import_directive_groups = false
+dotnet_sort_imports = true
+
+# Namespace preferences
+csharp_style_namespace_declarations = file_scoped:warning
+
+# Remove unused code warnings
+dotnet_diagnostic.CS0168.severity = warning
+dotnet_diagnostic.CA1801.severity = warning
+dotnet_diagnostic.CS0219.severity = warning
+dotnet_remove_unnecessary_imports = true
+dotnet_diagnostic.IDE0005.severity = warning
+
+# Global using preferences
+dotnet_style_prefer_global_using_directives = true:warning
+csharp_prefer_simple_using_statement = true:warning
+
+# Code style formatting
+csharp_new_line_before_open_brace = all
+csharp_new_line_between_query_expression_clauses = true
+csharp_preserve_single_line_statements = false
+
+# StyleCop analyzer rules
+dotnet_diagnostic.SA1200.severity = warning
+dotnet_diagnostic.SA1209.severity = warning
+dotnet_diagnostic.SA1210.severity = warning
+dotnet_diagnostic.SA1211.severity = warning
+
+# Additional IDE diagnostics
+dotnet_diagnostic.IDE0065.severity = warning
+dotnet_diagnostic.IDE0073.severity = warning

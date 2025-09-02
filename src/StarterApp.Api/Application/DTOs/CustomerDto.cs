@@ -1,6 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-using StarterApp.Domain.ValueObjects;
-
 namespace StarterApp.Api.Application.DTOs;
 
 public class CustomerDto

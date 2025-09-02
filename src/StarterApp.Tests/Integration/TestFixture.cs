@@ -1,25 +1,15 @@
-using Testcontainers.MsSql;
-using StarterApp.Api.Data;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Configurations;
+using DotNet.Testcontainers.Containers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Net.Http.Json;
-using System.Threading.Tasks;
 using Respawn;
 using Respawn.Graph;
-using System.Data.SqlClient;
-using DotNet.Testcontainers.Configurations;
-using DotNet.Testcontainers.Containers;
-using DotNet.Testcontainers.Builders;
-using System.Reflection;
-using DbUp;
-using DbUp.Engine;
 using StarterApp.Api.Infrastructure; // Added for IApiMarker access
-using Serilog;
+using Testcontainers.MsSql;
 
 namespace StarterApp.Tests.Integration;
 

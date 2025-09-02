@@ -75,11 +75,11 @@ public class CreateOrderCommandHandlerTests
             .Options;
 
         await using var context = new ApplicationDbContext(options);
-        
+
         // Create test customer and product first
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
         var product = new Product("Test Product", "Test Description", Money.Create(10.99m, "USD"), 100);
-        
+
         context.Customers.Add(customer);
         context.Products.Add(product);
         await context.SaveChangesAsync();
@@ -117,7 +117,7 @@ public class CreateOrderCommandHandlerTests
         var savedOrder = await context.Orders.FirstOrDefaultAsync(o => o.Id == result.Id);
         Assert.NotNull(savedOrder);
         Assert.Equal(command.CustomerId, savedOrder.CustomerId);
-        
+
         // Check that order items were created (they're in a separate table)
         var orderItemsCount = await context.Set<OrderItem>().CountAsync(oi => oi.OrderId == result.Id);
         Assert.Equal(command.Items.Count, orderItemsCount);

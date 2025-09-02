@@ -1,5 +1,4 @@
 using StarterApp.Api.Data;
-using Serilog;
 
 namespace StarterApp.Api.Application.Commands;
 

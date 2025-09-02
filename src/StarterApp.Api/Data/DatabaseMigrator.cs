@@ -1,5 +1,4 @@
 using StarterApp.DbMigrator;
-using System.Reflection;
 
 namespace StarterApp.Api.Data;
 public static class DatabaseMigrator

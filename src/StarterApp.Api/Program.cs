@@ -1,8 +1,4 @@
 using StarterApp.Api.Data;
-using StarterApp.Api.Application.Commands;
-using StarterApp.Api.Application.Queries;
-using Serilog;
-using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,14 +10,14 @@ if (builder.Environment.EnvironmentName == "Docker")
     builder.Configuration.AddJsonFile("appsettings.Docker.json", optional: false);
 
 // Configure Serilog using settings from appsettings.json
-builder.Host.UseSerilog((context, services, configuration) => 
+builder.Host.UseSerilog((context, services, configuration) =>
 {
     configuration
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext()
         .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
-    
+
     // Add Seq sink if URL is provided
     var seqUrl = context.Configuration["SEQ_URL"] ?? context.Configuration["SeqUrl"];
     if (!string.IsNullOrEmpty(seqUrl))
@@ -254,7 +250,7 @@ static string? MaskConnectionStringPassword(string? connectionString)
 {
     if (string.IsNullOrEmpty(connectionString))
         return connectionString;
-        
+
     return System.Text.RegularExpressions.Regex.Replace(
         connectionString,
         @"(password|pwd)\s*=\s*[^;]+",

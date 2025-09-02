@@ -1,5 +1,4 @@
 using Conventional;
-using Conventional.Conventions;
 using StarterApp.Api.Infrastructure;
 
 namespace StarterApp.Tests.Conventions;

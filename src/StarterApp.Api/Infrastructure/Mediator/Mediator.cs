@@ -14,7 +14,7 @@ public class Mediator : IMediator
         var requestType = request.GetType();
         var responseType = typeof(TResponse);
         var handlerType = typeof(IRequestHandler<,>).MakeGenericType(requestType, responseType);
-        
+
         var handler = _serviceProvider.GetService(handlerType);
         if (handler == null)
         {
@@ -35,7 +35,7 @@ public class Mediator : IMediator
     {
         var requestType = request.GetType();
         var handlerType = typeof(IRequestHandler<>).MakeGenericType(requestType);
-        
+
         var handler = _serviceProvider.GetService(handlerType);
         if (handler == null)
         {

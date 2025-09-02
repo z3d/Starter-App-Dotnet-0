@@ -44,7 +44,7 @@ public static class DatabaseMigrationEngine
     {
         if (string.IsNullOrEmpty(connectionString))
             return connectionString;
-            
+
         return System.Text.RegularExpressions.Regex.Replace(
             connectionString,
             @"(password|pwd)\s*=\s*[^;]+",
