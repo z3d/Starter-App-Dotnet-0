@@ -42,6 +42,7 @@ This is a **Clean Architecture** .NET 9 solution implementing **CQRS** with **Do
 - **Temporary TODOs**: Use TODO comments sparingly and remove them quickly
 
 #### Pre-Commit Code Review Checklist
+- **Code Formatting**: ALWAYS run `dotnet format` before every commit to ensure consistent code style and remove unnecessary imports
 - **Dead-End Detection**: Review code for methods, classes, or configurations that were created during exploration but are no longer used
 - **Redundancy Removal**: Check for empty stub methods, unused interfaces, or placeholder implementations that serve no purpose
 - **Orphaned Code**: Look for code that was part of an abandoned approach and needs to be cleaned up
