@@ -2,11 +2,11 @@
   "version": 1,
   "dependencies": {
     "net9.0": {
-      "Aspire.Dashboard.Sdk.win-x64": {
+      "Aspire.Dashboard.Sdk.osx-arm64": {
         "type": "Direct",
         "requested": "[9.3.0, )",
         "resolved": "9.3.0",
-        "contentHash": "XWe/PW2MkZbVb6UwfeXrFp8+oG+RzckZti8OgKqhg5DwQ+3OykTu7fonz2EvLuOKVqHcW3121oxWc0ulTNmRhQ=="
+        "contentHash": "gYFicjoWKz57ByR9ZMPTDZc4hC4pWMdTHiTgFQFt05Dx5DGXyMBCdpCQrxIDKw6cnzTwCoGkqTiHFDP4Sbb+Ng=="
       },
       "Aspire.Hosting.AppHost": {
         "type": "Direct",
@@ -39,11 +39,11 @@
           "System.IO.Hashing": "9.0.4"
         }
       },
-      "Aspire.Hosting.Orchestration.win-x64": {
+      "Aspire.Hosting.Orchestration.osx-arm64": {
         "type": "Direct",
         "requested": "[9.3.0, )",
         "resolved": "9.3.0",
-        "contentHash": "MhQMIdyTECjH3pclqGU2dDND6YzGCz853xO6YO4NXkw5L6wEJUuZYMNx5Tb8cBJiQUJ/UjGod79hvVOxcfXocw=="
+        "contentHash": "cc9LC5lJu2PpszS9oz523qAVBBTqGmJaLa9HigDHKy06Da5H+d/1BDUqXsR+Rpst5asDcE5T27whg4i7F78QMw=="
       },
       "Aspire.Hosting.Seq": {
         "type": "Direct",

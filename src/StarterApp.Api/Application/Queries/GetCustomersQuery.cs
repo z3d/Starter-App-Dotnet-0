@@ -10,13 +10,7 @@ public class GetCustomersQueryHandler : IRequestHandler<GetCustomersQuery, IEnum
 
     public GetCustomersQueryHandler(IConfiguration configuration)
     {
-        var databaseConnection = configuration.GetConnectionString("database");
-        var dockerLearningConnection = configuration.GetConnectionString("DockerLearning");
-        var sqlserverConnection = configuration.GetConnectionString("sqlserver");
-        var defaultConnection = configuration.GetConnectionString("DefaultConnection");
-
-        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ??
-            throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
+        _connectionString = configuration.GetRequiredConnectionString();
     }
 
     public async Task<IEnumerable<CustomerReadModel>> Handle(GetCustomersQuery query, CancellationToken cancellationToken)
@@ -47,6 +41,5 @@ public class GetCustomersQueryHandler : IRequestHandler<GetCustomersQuery, IEnum
         return await Handle(query, cancellationToken);
     }
 }
-
 
 

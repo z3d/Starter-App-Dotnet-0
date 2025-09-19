@@ -11,13 +11,7 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
 
     public GetOrderByIdQueryHandler(IConfiguration configuration)
     {
-        var databaseConnection = configuration.GetConnectionString("database");
-        var dockerLearningConnection = configuration.GetConnectionString("DockerLearning");
-        var sqlserverConnection = configuration.GetConnectionString("sqlserver");
-        var defaultConnection = configuration.GetConnectionString("DefaultConnection");
-
-        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ??
-            throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
+        _connectionString = configuration.GetRequiredConnectionString();
     }
 
     public async Task<OrderWithItemsReadModel?> Handle(GetOrderByIdQuery query, CancellationToken cancellationToken)
@@ -60,6 +54,5 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
         return await Handle(query, cancellationToken);
     }
 }
-
 
 

@@ -11,13 +11,7 @@ public class GetOrdersByCustomerQueryHandler : IRequestHandler<GetOrdersByCustom
 
     public GetOrdersByCustomerQueryHandler(IConfiguration configuration)
     {
-        var databaseConnection = configuration.GetConnectionString("database");
-        var dockerLearningConnection = configuration.GetConnectionString("DockerLearning");
-        var sqlserverConnection = configuration.GetConnectionString("sqlserver");
-        var defaultConnection = configuration.GetConnectionString("DefaultConnection");
-
-        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ??
-            throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
+        _connectionString = configuration.GetRequiredConnectionString();
     }
 
     public async Task<IEnumerable<OrderReadModel>> Handle(GetOrdersByCustomerQuery query, CancellationToken cancellationToken)
@@ -44,6 +38,5 @@ public class GetOrdersByCustomerQueryHandler : IRequestHandler<GetOrdersByCustom
         return await Handle(query, cancellationToken);
     }
 }
-
 
 
