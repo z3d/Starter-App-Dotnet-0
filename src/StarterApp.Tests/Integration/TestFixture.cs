@@ -255,7 +255,7 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
 
             // Set the connection string as environment variable before creating the client
             // This ensures Program.cs can find it during WebApplicationFactory host creation
-            Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", _dbFixture.ConnectionString);
+            Environment.SetEnvironmentVariable("ConnectionStrings__database", _dbFixture.ConnectionString);
             Log.Information($"Set connection string environment variable: {_dbFixture.ConnectionString}");
 
             // Then create the client with the configured web host
@@ -277,7 +277,7 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
         try
         {
             // Clean up environment variable
-            Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", null);
+            Environment.SetEnvironmentVariable("ConnectionStrings__database", null);
 
             await _dbFixture.DisposeAsync();
             Log.Information("ApiTestFixture disposed");

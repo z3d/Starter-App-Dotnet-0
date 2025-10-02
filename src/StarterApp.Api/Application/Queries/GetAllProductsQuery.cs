@@ -6,34 +6,29 @@ public class GetAllProductsQuery : IQuery<IEnumerable<ProductReadModel>>, IReque
 
 public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, IEnumerable<ProductReadModel>>
 {
-    private readonly string _connectionString;
+    private readonly IDbConnection _connection;
 
-    public GetAllProductsQueryHandler(IConfiguration configuration)
+    public GetAllProductsQueryHandler(IDbConnection connection)
     {
-        _connectionString = configuration.GetRequiredConnectionString();
+        _connection = connection;
     }
 
     public async Task<IEnumerable<ProductReadModel>> Handle(GetAllProductsQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetAllProductsQuery");
 
-        using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-
-        Log.Information("Retrieving all products using Dapper");
-
         var sqlQuery = @"
-            SELECT 
-                Id, 
-                Name, 
-                Description, 
-                PriceAmount, 
-                PriceCurrency, 
-                Stock, 
+            SELECT
+                Id,
+                Name,
+                Description,
+                PriceAmount,
+                PriceCurrency,
+                Stock,
                 LastUpdated
             FROM Products";
 
-        var products = await connection.QueryAsync<ProductReadModel>(sqlQuery);
+        var products = await _connection.QueryAsync<ProductReadModel>(sqlQuery);
 
         return products;
     }

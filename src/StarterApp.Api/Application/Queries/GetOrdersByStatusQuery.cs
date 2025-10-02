@@ -7,28 +7,25 @@ public class GetOrdersByStatusQuery : IQuery<IEnumerable<OrderReadModel>>, IRequ
 
 public class GetOrdersByStatusQueryHandler : IRequestHandler<GetOrdersByStatusQuery, IEnumerable<OrderReadModel>>
 {
-    private readonly string _connectionString;
+    private readonly IDbConnection _connection;
 
-    public GetOrdersByStatusQueryHandler(IConfiguration configuration)
+    public GetOrdersByStatusQueryHandler(IDbConnection connection)
     {
-        _connectionString = configuration.GetRequiredConnectionString();
+        _connection = connection;
     }
 
     public async Task<IEnumerable<OrderReadModel>> Handle(GetOrdersByStatusQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetOrdersByStatusQuery for status {Status}", query.Status);
 
-        using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-
         const string sql = @"
-            SELECT Id, CustomerId, OrderDate, Status, TotalExcludingGst, TotalIncludingGst, 
+            SELECT Id, CustomerId, OrderDate, Status, TotalExcludingGst, TotalIncludingGst,
                    TotalGstAmount, Currency, LastUpdated
-            FROM Orders 
+            FROM Orders
             WHERE Status = @Status
             ORDER BY OrderDate DESC";
 
-        var orders = await connection.QueryAsync<OrderReadModel>(sql, new { Status = query.Status });
+        var orders = await _connection.QueryAsync<OrderReadModel>(sql, new { Status = query.Status });
 
         return orders;
     }

@@ -12,35 +12,30 @@ public class GetProductByIdQuery : IQuery<ProductReadModel?>, IRequest<ProductRe
 
 public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, ProductReadModel?>
 {
-    private readonly string _connectionString;
+    private readonly IDbConnection _connection;
 
-    public GetProductByIdQueryHandler(IConfiguration configuration)
+    public GetProductByIdQueryHandler(IDbConnection connection)
     {
-        _connectionString = configuration.GetRequiredConnectionString();
+        _connection = connection;
     }
 
     public async Task<ProductReadModel?> Handle(GetProductByIdQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetProductByIdQuery for product {Id}", query.Id);
 
-        using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-
-        Log.Information("Retrieving product {Id} using Dapper", query.Id);
-
         var sqlQuery = @"
-            SELECT 
-                Id, 
-                Name, 
-                Description, 
-                PriceAmount, 
-                PriceCurrency, 
-                Stock, 
+            SELECT
+                Id,
+                Name,
+                Description,
+                PriceAmount,
+                PriceCurrency,
+                Stock,
                 LastUpdated
             FROM Products
             WHERE Id = @Id";
 
-        var product = await connection.QueryFirstOrDefaultAsync<ProductReadModel>(sqlQuery, new { Id = query.Id });
+        var product = await _connection.QueryFirstOrDefaultAsync<ProductReadModel>(sqlQuery, new { Id = query.Id });
 
         if (product == null)
         {

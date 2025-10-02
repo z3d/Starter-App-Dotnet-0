@@ -65,29 +65,9 @@ builder.Services.AddOpenApi(options =>
     });
 });
 
-// Add Database context
-// Try Aspire-provided connection string first (new simplified name), then fall back to others
-var databaseConnection = builder.Configuration.GetConnectionString("database");
-var dockerLearningConnection = builder.Configuration.GetConnectionString("DockerLearning");
-var sqlserverConnection = builder.Configuration.GetConnectionString("sqlserver");
-var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection");
-
-// Prioritize the new simplified "database" connection string from Aspire
-var connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection;
-
-if (string.IsNullOrEmpty(connectionString))
-{
-    throw new InvalidOperationException("No connection string found. Please check your configuration.");
-}
-
-// Log connection string with password masked for security  
-var maskedConnectionString = System.Text.RegularExpressions.Regex.Replace(
-    connectionString,
-    @"(password|pwd)\s*=\s*[^;]+",
-    "$1=***MASKED***",
-    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-Log.Information("Database connection configured: {ConnectionString}", maskedConnectionString);
+// Add Database context - use "database" connection string from Aspire
+var connectionString = builder.Configuration.GetConnectionString("database")
+    ?? throw new InvalidOperationException("Connection string 'database' not found. Ensure Aspire is configured correctly.");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString)
@@ -135,40 +115,14 @@ try
 {
     Log.Information("Starting up application");
 
-    // Debug logging - only in development environment for security
+    // Log connection status
     if (app.Environment.IsDevelopment())
     {
-        Log.Information("=== CONNECTION STRING DEBUG ===");
-        Log.Information("database connection (primary): {DatabaseConnection}", MaskConnectionStringPassword(databaseConnection));
-        Log.Information("DockerLearning connection: {DockerLearningConnection}", MaskConnectionStringPassword(dockerLearningConnection));
-        Log.Information("sqlserver connection: {SqlServerConnection}", MaskConnectionStringPassword(sqlserverConnection));
-        Log.Information("DefaultConnection: {DefaultConnection}", MaskConnectionStringPassword(defaultConnection));
-
-        // Check all connection strings
-        var allConnectionStrings = builder.Configuration.GetSection("ConnectionStrings").GetChildren();
-        Log.Information("All available connection strings:");
-        foreach (var conn in allConnectionStrings)
-        {
-            Log.Information("  {Key}: {Value}", conn.Key, MaskConnectionStringPassword(conn.Value));
-        }
-
-        // Also check environment variables
-        Log.Information("Relevant environment variables:");
-        foreach (var envVar in Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>()
-            .Where(e => e.Key?.ToString()?.Contains("Connection", StringComparison.OrdinalIgnoreCase) == true ||
-                        e.Key?.ToString()?.Contains("DockerLearning", StringComparison.OrdinalIgnoreCase) == true ||
-                        e.Key?.ToString()?.Contains("SQL", StringComparison.OrdinalIgnoreCase) == true))
-        {
-            Log.Information("  {Key}: {Value}", envVar.Key, MaskConnectionStringPassword(envVar.Value?.ToString()));
-        }
-
-        Log.Information("Using connection string: {ConnectionString}", MaskConnectionStringPassword(connectionString));
-        Log.Information("=== END CONNECTION STRING DEBUG ===");
+        Log.Information("Database connection configured: {ConnectionString}", MaskConnectionStringPassword(connectionString));
     }
     else
     {
-        // Production - only log that connection was found (no sensitive details)
-        Log.Information("Database connection configured: {HasConnection}", !string.IsNullOrEmpty(connectionString));
+        Log.Information("Database connection configured successfully");
     }
 
     // Configure the HTTP request pipeline
@@ -237,7 +191,7 @@ try
     }
     else
     {
-        Log.Warning("Connection string 'DockerLearning' or 'DefaultConnection' is missing or null. Skipping database migration.");
+        Log.Warning("Connection string 'database' is missing. Skipping database migration.");
     }
 
     // Enable middlewares

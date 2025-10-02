@@ -12,33 +12,28 @@ public class GetCustomerQuery : IQuery<CustomerReadModel?>, IRequest<CustomerRea
 
 public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, CustomerReadModel?>
 {
-    private readonly string _connectionString;
+    private readonly IDbConnection _connection;
 
-    public GetCustomerQueryHandler(IConfiguration configuration)
+    public GetCustomerQueryHandler(IDbConnection connection)
     {
-        _connectionString = configuration.GetRequiredConnectionString();
+        _connection = connection;
     }
 
     public async Task<CustomerReadModel?> Handle(GetCustomerQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetCustomerQuery for customer {Id}", query.Id);
 
-        using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-
-        Log.Information("Retrieving customer {Id} using Dapper", query.Id);
-
         var sqlQuery = @"
-            SELECT 
-                Id, 
-                Name, 
-                Email, 
-                DateCreated, 
+            SELECT
+                Id,
+                Name,
+                Email,
+                DateCreated,
                 IsActive
             FROM Customers
             WHERE Id = @Id";
 
-        var customer = await connection.QueryFirstOrDefaultAsync<CustomerReadModel>(sqlQuery, new { Id = query.Id });
+        var customer = await _connection.QueryFirstOrDefaultAsync<CustomerReadModel>(sqlQuery, new { Id = query.Id });
 
         if (customer == null)
         {

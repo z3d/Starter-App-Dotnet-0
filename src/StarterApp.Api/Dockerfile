@@ -5,7 +5,7 @@ WORKDIR /src
 # Copy Directory.Build.props for shared configuration
 COPY ["Directory.Build.props", "Directory.Build.props"]
 
-# Copy csproj files first for better layer caching  
+# Copy csproj files first for better layer caching
 COPY ["src/StarterApp.Api/StarterApp.Api.csproj", "src/StarterApp.Api/"]
 COPY ["src/StarterApp.Domain/StarterApp.Domain.csproj", "src/StarterApp.Domain/"]
 COPY ["src/StarterApp.DbMigrator/StarterApp.DbMigrator.csproj", "src/StarterApp.DbMigrator/"]
@@ -14,8 +14,10 @@ COPY ["src/StarterApp.ServiceDefaults/StarterApp.ServiceDefaults.csproj", "src/S
 # Restore dependencies
 RUN dotnet restore "src/StarterApp.Api/StarterApp.Api.csproj"
 
-# Copy the rest of the code but exclude the DbMigrator's appsettings.json to avoid conflict
-COPY . .
+# Copy the rest of the source code
+COPY src/ src/
+
+# Remove DbMigrator's appsettings.json to avoid publish conflicts
 RUN rm -f /src/src/StarterApp.DbMigrator/appsettings.json
 
 # Build the project

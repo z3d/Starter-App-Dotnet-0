@@ -7,43 +7,38 @@ public class GetOrderByIdQuery : IQuery<OrderWithItemsReadModel?>, IRequest<Orde
 
 public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, OrderWithItemsReadModel?>
 {
-    private readonly string _connectionString;
+    private readonly IDbConnection _connection;
 
-    public GetOrderByIdQueryHandler(IConfiguration configuration)
+    public GetOrderByIdQueryHandler(IDbConnection connection)
     {
-        _connectionString = configuration.GetRequiredConnectionString();
+        _connection = connection;
     }
 
     public async Task<OrderWithItemsReadModel?> Handle(GetOrderByIdQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetOrderByIdQuery for order {Id}", query.Id);
 
-        using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-
-        Log.Information("Getting order {Id} with items using Dapper", query.Id);
-
         const string orderSql = @"
-            SELECT Id, CustomerId, OrderDate, Status, TotalExcludingGst, TotalIncludingGst, 
+            SELECT Id, CustomerId, OrderDate, Status, TotalExcludingGst, TotalIncludingGst,
                    TotalGstAmount, Currency, LastUpdated
-            FROM Orders 
+            FROM Orders
             WHERE Id = @Id";
 
         const string itemsSql = @"
-            SELECT OrderId, ProductId, ProductName, Quantity, UnitPriceExcludingGst, 
+            SELECT OrderId, ProductId, ProductName, Quantity, UnitPriceExcludingGst,
                    UnitPriceExcludingGst * (1 + GstRate) AS UnitPriceIncludingGst,
                    UnitPriceExcludingGst * Quantity AS TotalPriceExcludingGst,
                    UnitPriceExcludingGst * Quantity * (1 + GstRate) AS TotalPriceIncludingGst,
                    GstRate, Currency
-            FROM OrderItems 
+            FROM OrderItems
             WHERE OrderId = @Id";
 
-        var order = await connection.QuerySingleOrDefaultAsync<OrderWithItemsReadModel>(orderSql, new { Id = query.Id });
+        var order = await _connection.QuerySingleOrDefaultAsync<OrderWithItemsReadModel>(orderSql, new { Id = query.Id });
 
         if (order == null)
             return null;
 
-        var items = await connection.QueryAsync<OrderItemReadModel>(itemsSql, new { Id = query.Id });
+        var items = await _connection.QueryAsync<OrderItemReadModel>(itemsSql, new { Id = query.Id });
         order.Items = items.ToList();
 
         return order;

@@ -1,4 +1,5 @@
 // Essential .NET namespaces
+global using System.Data;
 // Third-party libraries
 global using Dapper;
 // Microsoft namespaces
@@ -14,7 +15,6 @@ global using StarterApp.Api.Application.Interfaces;
 global using StarterApp.Api.Application.Queries;
 global using StarterApp.Api.Application.ReadModels;
 global using StarterApp.Api.Infrastructure.Mediator;
-global using StarterApp.Api.Infrastructure.Configuration;
 // Domain references
 global using StarterApp.Domain.Entities;
 global using StarterApp.Domain.Enums;
