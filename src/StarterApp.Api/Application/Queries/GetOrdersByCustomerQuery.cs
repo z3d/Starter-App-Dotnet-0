@@ -7,34 +7,25 @@ public class GetOrdersByCustomerQuery : IQuery<IEnumerable<OrderReadModel>>, IRe
 
 public class GetOrdersByCustomerQueryHandler : IRequestHandler<GetOrdersByCustomerQuery, IEnumerable<OrderReadModel>>
 {
-    private readonly string _connectionString;
+    private readonly IDbConnection _connection;
 
-    public GetOrdersByCustomerQueryHandler(IConfiguration configuration)
+    public GetOrdersByCustomerQueryHandler(IDbConnection connection)
     {
-        var databaseConnection = configuration.GetConnectionString("database");
-        var dockerLearningConnection = configuration.GetConnectionString("DockerLearning");
-        var sqlserverConnection = configuration.GetConnectionString("sqlserver");
-        var defaultConnection = configuration.GetConnectionString("DefaultConnection");
-
-        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ??
-            throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
+        _connection = connection;
     }
 
     public async Task<IEnumerable<OrderReadModel>> Handle(GetOrdersByCustomerQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetOrdersByCustomerQuery for customer {CustomerId}", query.CustomerId);
 
-        using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-
         const string sql = @"
-            SELECT Id, CustomerId, OrderDate, Status, TotalExcludingGst, TotalIncludingGst, 
+            SELECT Id, CustomerId, OrderDate, Status, TotalExcludingGst, TotalIncludingGst,
                    TotalGstAmount, Currency, LastUpdated
-            FROM Orders 
+            FROM Orders
             WHERE CustomerId = @CustomerId
             ORDER BY OrderDate DESC";
 
-        var orders = await connection.QueryAsync<OrderReadModel>(sql, new { CustomerId = query.CustomerId });
+        var orders = await _connection.QueryAsync<OrderReadModel>(sql, new { CustomerId = query.CustomerId });
 
         return orders;
     }
@@ -44,6 +35,5 @@ public class GetOrdersByCustomerQueryHandler : IRequestHandler<GetOrdersByCustom
         return await Handle(query, cancellationToken);
     }
 }
-
 
 

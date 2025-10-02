@@ -2,20 +2,26 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
+# Copy Directory.Build.props for shared configuration
+COPY ["Directory.Build.props", "Directory.Build.props"]
+
 # Copy csproj files first for better layer caching
-COPY ["StarterApp.Api/StarterApp.Api.csproj", "StarterApp.Api/"]
-COPY ["StarterApp.Domain/StarterApp.Domain.csproj", "StarterApp.Domain/"]
-COPY ["StarterApp.DbMigrator/StarterApp.DbMigrator.csproj", "StarterApp.DbMigrator/"]
+COPY ["src/StarterApp.Api/StarterApp.Api.csproj", "src/StarterApp.Api/"]
+COPY ["src/StarterApp.Domain/StarterApp.Domain.csproj", "src/StarterApp.Domain/"]
+COPY ["src/StarterApp.DbMigrator/StarterApp.DbMigrator.csproj", "src/StarterApp.DbMigrator/"]
+COPY ["src/StarterApp.ServiceDefaults/StarterApp.ServiceDefaults.csproj", "src/StarterApp.ServiceDefaults/"]
 
 # Restore dependencies
-RUN dotnet restore "StarterApp.Api/StarterApp.Api.csproj"
+RUN dotnet restore "src/StarterApp.Api/StarterApp.Api.csproj"
 
-# Copy the rest of the code but exclude the DbMigrator's appsettings.json to avoid conflict
-COPY . .
-RUN rm -f /src/StarterApp.DbMigrator/appsettings.json
+# Copy the rest of the source code
+COPY src/ src/
+
+# Remove DbMigrator's appsettings.json to avoid publish conflicts
+RUN rm -f /src/src/StarterApp.DbMigrator/appsettings.json
 
 # Build the project
-WORKDIR "/src/StarterApp.Api"
+WORKDIR "/src/src/StarterApp.Api"
 RUN dotnet build "StarterApp.Api.csproj" -c Release -o /app/build
 
 # Publish the application

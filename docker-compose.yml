@@ -1,13 +1,13 @@
 services:
   api:
     build:
-      context: ./src
-      dockerfile: StarterApp.Api/Dockerfile
+      context: .
+      dockerfile: src/StarterApp.Api/Dockerfile
     ports:
       - "8080:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Docker
-      - ConnectionStrings__DefaultConnection=Server=db;Database=StarterApp;User Id=sa;Password=Your_password123;TrustServerCertificate=True;
+      - ConnectionStrings__database=Server=db;Database=StarterApp;User Id=sa;Password=Your_password123;TrustServerCertificate=True;
       - SEQ_URL=http://seq:5341
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]

@@ -6,40 +6,29 @@ public class GetAllProductsQuery : IQuery<IEnumerable<ProductReadModel>>, IReque
 
 public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, IEnumerable<ProductReadModel>>
 {
-    private readonly string _connectionString;
+    private readonly IDbConnection _connection;
 
-    public GetAllProductsQueryHandler(IConfiguration configuration)
+    public GetAllProductsQueryHandler(IDbConnection connection)
     {
-        var databaseConnection = configuration.GetConnectionString("database");
-        var dockerLearningConnection = configuration.GetConnectionString("DockerLearning");
-        var sqlserverConnection = configuration.GetConnectionString("sqlserver");
-        var defaultConnection = configuration.GetConnectionString("DefaultConnection");
-
-        _connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection ??
-            throw new InvalidOperationException("No connection string found. Checked: database, DockerLearning, sqlserver, DefaultConnection.");
+        _connection = connection;
     }
 
     public async Task<IEnumerable<ProductReadModel>> Handle(GetAllProductsQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetAllProductsQuery");
 
-        using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
-
-        Log.Information("Retrieving all products using Dapper");
-
         var sqlQuery = @"
-            SELECT 
-                Id, 
-                Name, 
-                Description, 
-                PriceAmount, 
-                PriceCurrency, 
-                Stock, 
+            SELECT
+                Id,
+                Name,
+                Description,
+                PriceAmount,
+                PriceCurrency,
+                Stock,
                 LastUpdated
             FROM Products";
 
-        var products = await connection.QueryAsync<ProductReadModel>(sqlQuery);
+        var products = await _connection.QueryAsync<ProductReadModel>(sqlQuery);
 
         return products;
     }
@@ -49,6 +38,5 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, I
         return await Handle(query, cancellationToken);
     }
 }
-
 
 

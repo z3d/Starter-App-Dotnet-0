@@ -1,4 +1,5 @@
 // Essential .NET namespaces
+global using System.Data;
 // Third-party libraries
 global using Dapper;
 // Microsoft namespaces
@@ -21,6 +22,5 @@ global using StarterApp.Domain.ValueObjects;
 global using System.ComponentModel.DataAnnotations;
 global using System.Reflection;
 global using System.Threading.RateLimiting;
-
 
 
