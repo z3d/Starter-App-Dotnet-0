@@ -72,7 +72,7 @@ All projects inherit shared MSBuild settings from `Directory.Build.props`:
 
 1. **Code Formatting**: `dotnet format` - Apply formatting standards
 2. **Build Verification**: `dotnet build` - Ensure compilation success
-3. **Test Execution**: `dotnet test` - Verify all tests pass (171+ tests)
+3. **Test Execution**: `dotnet test` - Verify all tests pass (181+ tests)
 4. **Package Updates**: `dotnet restore` - Update lock files if dependencies changed
 5. **Lock File Verification**: Ensure `packages.lock.json` files are committed
 
@@ -649,7 +649,7 @@ builder.Services.AddProblemDetails(options =>
 
 #### **Testing Requirements**
 - **ALWAYS** run tests before committing changes
-- All tests must pass (171+ tests in current implementation)
+- All tests must pass (181+ tests in current implementation)
 - Write tests for new domain objects following existing patterns
 - Use integration tests for API endpoints
 
@@ -664,6 +664,87 @@ builder.Services.AddProblemDetails(options =>
 - **Document WHY not WHAT** - Explain reasoning behind decisions
 - **Remove obsolete guidance** - Delete sections that no longer apply
 - **Update examples** - Replace old patterns with current approaches
+
+### Debugging Workflow
+
+When encountering bugs or errors, **ALWAYS** follow this structured approach:
+
+#### **Step 1: Reproduce the Bug**
+- Create a minimal test case that reproduces the issue
+- Run existing tests to see if they catch the problem
+- If working with runtime errors, start the application and trigger the error
+- **Document the exact steps** to reproduce
+
+#### **Step 2: Gather Complete Error Information**
+- Collect the **full exception stack trace** (not just the first line)
+- Identify the **exception type** (e.g., `DbUpdateException`, `ArgumentException`)
+- Find the **actual error message** and any **inner exceptions**
+- Check application logs for additional context
+
+**Example**: For database errors, you need:
+```
+Microsoft.EntityFrameworkCore.DbUpdateException: An error occurred while saving...
+ ---> System.ArgumentException: Parameter value '10.0000' is out of range.
+   at Microsoft.Data.SqlClient.SqlCommand...
+```
+
+#### **Step 3: Analyze Root Cause**
+- Read the error message carefully - it often tells you exactly what's wrong
+- Check database constraints (column types, precision, null constraints)
+- Verify domain validation rules match database schema
+- Look for data type mismatches (e.g., percentage as `10.0` vs `0.10`)
+
+**Common Issues**:
+- `DECIMAL(5,4)` max value is `9.9999` - can't store `10.0`
+- Percentage rates: Use decimal format (`0.10` for 10%), not whole numbers
+- String length violations: Check `NVARCHAR(N)` limits
+- Null constraint violations: Ensure required fields are set
+
+#### **Step 4: Fix with Validation**
+- Add domain-level validation to catch errors early
+- Provide **clear, helpful error messages** that explain:
+  - What the valid range/format is
+  - Why the constraint exists (reference database schema)
+  - How to fix the issue
+
+**Example**:
+```csharp
+if (gstRate > 1.0m)
+    throw new ArgumentOutOfRangeException(nameof(gstRate), gstRate,
+        "GST rate must be a decimal value between 0 and 1 (e.g., 0.10 for 10%). " +
+        "Database constraint: DECIMAL(5,4) with max value 9.9999.");
+```
+
+#### **Step 5: Add Tests**
+- Write tests that verify the validation works correctly
+- Test boundary conditions (edge cases)
+- Test both valid and invalid inputs
+- Ensure tests document expected behavior
+
+**Example**:
+```csharp
+[Theory]
+[InlineData(1.1)]
+[InlineData(10.0)]  // Common mistake - using percentage as whole number
+public void Constructor_WithGstRateGreaterThanOne_ShouldThrowException(decimal rate)
+{
+    var exception = Assert.Throws<ArgumentOutOfRangeException>(...);
+    Assert.Contains("GST rate must be a decimal value between 0 and 1", exception.Message);
+}
+```
+
+#### **Step 6: Verify the Fix**
+- Run all tests to ensure nothing broke: `dotnet test`
+- Test the original reproduction case manually
+- Verify the error message is clear and helpful
+- Update test count in documentation if needed
+
+#### **Anti-Patterns to Avoid**
+- ❌ **Guessing at fixes** without understanding root cause
+- ❌ **Partial error messages** - always get the full stack trace
+- ❌ **Skipping tests** - untested fixes often break later
+- ❌ **Silent failures** - add validation that gives clear feedback
+- ❌ **Fixing symptoms** instead of root cause
 
 ### Development Commands
 

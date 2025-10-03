@@ -125,6 +125,55 @@ public class OrderItemTests
             new OrderItem(1, 1, "Test Product", 1, unitPrice, -0.1m));
     }
 
+    [Theory]
+    [InlineData(1.1)]
+    [InlineData(10.0)]
+    [InlineData(100.0)]
+    public void Constructor_WithGstRateGreaterThanOne_ShouldThrowArgumentOutOfRangeException(decimal gstRate)
+    {
+        // Arrange
+        var unitPrice = Money.Create(10.50m, "USD");
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new OrderItem(1, 1, "Test Product", 1, unitPrice, gstRate));
+
+        Assert.Contains("GST rate must be a decimal value between 0 and 1", exception.Message);
+        Assert.Contains("DECIMAL(5,4)", exception.Message);
+    }
+
+    [Fact]
+    public void Constructor_WithGstRateEqualToOne_ShouldSucceed()
+    {
+        // Arrange
+        var unitPrice = Money.Create(10.50m, "USD");
+
+        // Act
+        var orderItem = new OrderItem(1, 1, "Test Product", 1, unitPrice, 1.0m);
+
+        // Assert
+        Assert.Equal(1.0m, orderItem.GstRate);
+    }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(0.05)]
+    [InlineData(0.10)]
+    [InlineData(0.15)]
+    [InlineData(0.20)]
+    [InlineData(0.9999)]
+    public void Constructor_WithValidGstRateBetweenZeroAndOne_ShouldSucceed(decimal gstRate)
+    {
+        // Arrange
+        var unitPrice = Money.Create(10.50m, "USD");
+
+        // Act
+        var orderItem = new OrderItem(1, 1, "Test Product", 1, unitPrice, gstRate);
+
+        // Assert
+        Assert.Equal(gstRate, orderItem.GstRate);
+    }
+
     [Fact]
     public void GetUnitPriceIncludingGst_ShouldCalculateCorrectPrice()
     {

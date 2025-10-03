@@ -26,6 +26,10 @@ public class OrderItem
         ArgumentNullException.ThrowIfNull(unitPriceExcludingGst);
         ArgumentOutOfRangeException.ThrowIfNegative(gstRate);
 
+        if (gstRate > 1.0m)
+            throw new ArgumentOutOfRangeException(nameof(gstRate), gstRate,
+                "GST rate must be a decimal value between 0 and 1 (e.g., 0.10 for 10%). Database constraint: DECIMAL(5,4) with max value 9.9999.");
+
         OrderId = orderId;
         ProductId = productId;
         ProductName = productName;
