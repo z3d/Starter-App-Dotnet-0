@@ -366,8 +366,9 @@ Priority order: `database` → `DockerLearning` → `sqlserver` → `DefaultConn
 
 #### **Framework & Hosting**
 - **.NET 9.0**: Latest framework with performance improvements
-- **Aspire.Hosting.AppHost** (9.3.0+): Service orchestration
-- **Aspire.Hosting.SqlServer** (9.3.0+): Database container management
+- **Aspire.Hosting.AppHost** (9.5.0+): Service orchestration with GenAI visualizer and multi-resource logs
+- **Aspire.Hosting.SqlServer** (9.5.0+): Database container management
+- **Aspire.Hosting.Seq** (9.5.0+): Structured logging and observability
 
 #### **Data Access**
 - **Entity Framework Core 9.0.5+**: Write operations and migrations
@@ -426,6 +427,17 @@ public class Mediator : IMediator
 
 ## Aspire Configuration
 
+### Aspire 9.5.0 Features
+
+**Current Version**: Aspire 9.5.0 (September 2025 release)
+
+**Key Features**:
+- **CLI Tools**: New `aspire update` command for automatic package updates
+- **Dashboard**: GenAI visualizer for LLM telemetry, multi-resource console logs, custom resource icons
+- **Integrations**: OpenAI hosting, GitHub Models, Azure AI Foundry, Dev Tunnels support
+- **Deployment**: Azure Container App Jobs, built-in Azure deployment via CLI
+- **YARP**: Static file serving capabilities alongside reverse proxy functionality
+
 ### AppHost Project Setup
 
 ```csharp
@@ -450,7 +462,7 @@ builder.Build().Run();
 
 **Shared cross-cutting concerns**:
 - OpenTelemetry instrumentation (ASP.NET Core, HTTP, Runtime)
-- Service discovery and load balancing
+- Service discovery and load balancing (9.5.0)
 - Resilience patterns with circuit breakers
 - Health check endpoints
 - Common middleware registration

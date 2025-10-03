@@ -390,8 +390,8 @@
       },
       "Microsoft.Extensions.Features": {
         "type": "Transitive",
-        "resolved": "8.0.15",
-        "contentHash": "QUBxyUDGAyHppX5lDgE5XogfQ9fFtm3o4Un8cb46OMinto5hgYfKj3zZTR68QHAqKIM1iOoO6qrh1UbHUZkDQw=="
+        "resolved": "8.0.20",
+        "contentHash": "3YCswjRwDom5KEyCfdPfyfKxKOVXairlyjNLJ48BG1YIs6GP2RNbK36rZY7myOkW64kjAaZTXMY7ruscqasDew=="
       },
       "Microsoft.Extensions.FileProviders.Abstractions": {
         "type": "Transitive",
@@ -543,29 +543,29 @@
       },
       "Microsoft.Extensions.ServiceDiscovery": {
         "type": "Transitive",
-        "resolved": "9.3.0",
-        "contentHash": "rYDGIzU9XCf9Gg4DLzJ2vjlCiXbEXXJbIbFbGZQrKVppEV84sq2vkX3zH9HQIa5IVuqPzxpoCfIYWeG1x8Ipcg==",
+        "resolved": "9.5.0",
+        "contentHash": "Fj/yZriF1f9XV0xy30cCM6OXfGMwx40Irhf+zM6cREf6W1OvFjnzDKnGS/kSKPqr579PdFkXd5s8uDRIXr8N4g==",
         "dependencies": {
           "Microsoft.Extensions.Configuration.Abstractions": "8.0.0",
           "Microsoft.Extensions.Configuration.Binder": "8.0.2",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2",
-          "Microsoft.Extensions.Features": "8.0.15",
+          "Microsoft.Extensions.Features": "8.0.20",
           "Microsoft.Extensions.Http": "8.0.1",
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
           "Microsoft.Extensions.Options": "8.0.2",
           "Microsoft.Extensions.Primitives": "8.0.0",
-          "Microsoft.Extensions.ServiceDiscovery.Abstractions": "9.3.0"
+          "Microsoft.Extensions.ServiceDiscovery.Abstractions": "9.5.0"
         }
       },
       "Microsoft.Extensions.ServiceDiscovery.Abstractions": {
         "type": "Transitive",
-        "resolved": "9.3.0",
-        "contentHash": "EK+R8ZpSQdfpCPtGQoq8FJaWHdWfpTCtudTIf05P4xn/9ni4+/b3FCaeT+Xk2oT/DraEymJN4X9zxwNcBEYm6A==",
+        "resolved": "9.5.0",
+        "contentHash": "uPSUz9kPHe0vm0YQFIKJebxhTH5FrG51qGvquRntE87Z3tDKEGjQMWsxKog/RqhB0YO8OYn0F7jRxnTJlj3KvQ==",
         "dependencies": {
           "Microsoft.Extensions.Configuration.Abstractions": "8.0.0",
           "Microsoft.Extensions.Configuration.Binder": "8.0.2",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2",
-          "Microsoft.Extensions.Features": "8.0.15",
+          "Microsoft.Extensions.Features": "8.0.20",
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
           "Microsoft.Extensions.Options": "8.0.2",
           "Microsoft.Extensions.Primitives": "8.0.0"
@@ -1018,7 +1018,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Http.Resilience": "[9.1.0, )",
-          "Microsoft.Extensions.ServiceDiscovery": "[9.3.0, )",
+          "Microsoft.Extensions.ServiceDiscovery": "[9.5.0, )",
           "OpenTelemetry.Exporter.OpenTelemetryProtocol": "[1.9.0, )",
           "OpenTelemetry.Extensions.Hosting": "[1.9.0, )",
           "OpenTelemetry.Instrumentation.AspNetCore": "[1.9.0, )",

@@ -1,14 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
-<Sdk Name="Aspire.AppHost.Sdk" Version="9.0.0" />
+<Sdk Name="Aspire.AppHost.Sdk" Version="9.5.0" />
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsAspireHost>true</IsAspireHost>
     <UserSecretsId>93a225fa-bb6e-4555-ad81-8cec2527f21d</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.3.0" />
-    <PackageReference Include="Aspire.Hosting.SqlServer" Version="9.3.0" />
-    <PackageReference Include="Aspire.Hosting.Seq" Version="9.3.0" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.5.0" />
+    <PackageReference Include="Aspire.Hosting.SqlServer" Version="9.5.0" />
+    <PackageReference Include="Aspire.Hosting.Seq" Version="9.5.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\StarterApp.Api\StarterApp.Api.csproj" />
