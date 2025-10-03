@@ -624,6 +624,60 @@ public static class EndpointExtensions
 - **Flexible Filters**: Endpoint-specific middleware and behaviors
 - **Modern .NET 9**: Native integration with latest framework features
 
+#### **Filters vs Middleware: When to Use What**
+
+**Use Middleware** for cross-cutting concerns that apply to **all or most** requests:
+- Request logging (use `app.UseSerilogRequestLogging()` from Serilog)
+- Authentication/Authorization (`app.UseAuthentication()`, `app.UseAuthorization()`)
+- Error handling (`app.UseExceptionHandler()`)
+- CORS (`app.UseCors()`)
+- Response compression
+- Security headers
+
+**Use Endpoint Filters** for logic specific to **certain endpoints or groups**:
+- Endpoint-specific validation rules
+- Custom authorization rules for specific routes
+- Request/response transformation for specific endpoints
+- Caching behavior that varies by endpoint
+
+**Why it matters**:
+- **Middleware** runs once per request in the pipeline (more efficient for global concerns)
+- **Endpoint Filters** run only for matched endpoints (better for endpoint-specific logic)
+- **Middleware** runs earlier in the pipeline (before routing)
+- **Endpoint Filters** run after routing and parameter binding
+
+**Example - Request Logging**:
+```csharp
+// ✅ CORRECT - Use Serilog middleware for ALL request logging
+app.UseSerilogRequestLogging();
+
+// ❌ WRONG - Don't create endpoint filters for global concerns
+// This would require adding the filter to every endpoint group
+var orders = app.MapGroup("/api/orders")
+    .AddEndpointFilter<LoggingFilter>();  // Inefficient and repetitive
+```
+
+**Example - Endpoint-Specific Filter**:
+```csharp
+// ✅ CORRECT - Use filter for endpoint-specific validation
+public class ValidateOrderStatusFilter : IEndpointFilter
+{
+    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context,
+                                                 EndpointFilterDelegate next)
+    {
+        var status = context.GetArgument<string>(0);
+        if (!Enum.TryParse<OrderStatus>(status, out _))
+            return Results.BadRequest("Invalid order status");
+
+        return await next(context);
+    }
+}
+
+// Apply only to specific endpoints
+orders.MapGet("/status/{status}", GetOrdersByStatus)
+    .AddEndpointFilter<ValidateOrderStatusFilter>();
+```
+
 ### Error Handling
 
 **RFC 7807 Problem Details** with .NET 9 StatusCodeSelector:
@@ -670,8 +724,9 @@ builder.Services.AddProblemDetails(options =>
 When encountering bugs or errors, **ALWAYS** follow this structured approach:
 
 #### **Step 1: Reproduce the Bug**
-- Create a minimal test case that reproduces the issue
-- Run existing tests to see if they catch the problem
+- **Write a failing test first** that reproduces the issue (TDD approach)
+- The test should fail for the right reason (exposing the bug)
+- Run existing tests to see if they already catch the problem
 - If working with runtime errors, start the application and trigger the error
 - **Document the exact steps** to reproduce
 
