@@ -382,7 +382,7 @@ Priority order: `database` → `DockerLearning` → `sqlserver` → `DefaultConn
 
 #### **API & Documentation**
 - **Microsoft.AspNetCore.OpenApi 10.0.3+**: Native .NET 10 OpenAPI
-- **Swashbuckle.AspNetCore 7.3.1+**: Swagger UI generation
+- **Scalar.AspNetCore 2.11+**: API reference UI (at `/scalar/v1`)
 
 #### **Testing**
 - **xUnit**: Primary testing framework

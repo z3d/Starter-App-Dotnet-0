@@ -12,7 +12,7 @@
     <PackageReference Include="Serilog.Expressions" Version="5.0.0" />
     <PackageReference Include="Serilog.Sinks.OpenTelemetry" Version="4.1.0" />
     <PackageReference Include="Serilog.Sinks.Seq" Version="8.0.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.3.1" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.11.3" />
   </ItemGroup>
 
   <!-- No longer need SQL Scripts as embedded resources since they're in the DbMigrator project -->

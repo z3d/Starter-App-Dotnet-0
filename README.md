@@ -19,8 +19,9 @@ cd src\StarterApp.AppHost
 # Run the Aspire orchestration
 dotnet run
 ```
-- **Aspire Dashboard**: Opens automatically at http://localhost:15061
+- **Aspire Dashboard**: Opens automatically at https://localhost:17113
 - **API**: Available at dynamically assigned port (shown in dashboard)
+- **Scalar API Reference**: `https://localhost:<api-port>/scalar/v1`
 
 ### Running with Docker Compose (Production-like)
 ```powershell
@@ -28,6 +29,7 @@ dotnet run
 docker-compose up --build
 ```
 - **API**: http://localhost:8080
+- **Scalar API Reference**: http://localhost:8080/scalar/v1
 - **SQL Server**: localhost:1433
 
 ## 🎯 What This Project Demonstrates
@@ -37,7 +39,7 @@ docker-compose up --build
    - Endpoint filters for cross-cutting concerns
    - Domain-driven design with value objects
    - CQRS pattern with mediator
-   - Repository pattern with Entity Framework Core
+   - Entity Framework Core for commands, Dapper for queries
 
 2. **Database Management**
    - SQL Server with Entity Framework Core

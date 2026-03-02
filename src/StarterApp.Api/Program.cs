@@ -1,3 +1,4 @@
+using Scalar.AspNetCore;
 using StarterApp.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -112,12 +113,8 @@ try
         // Use the new native .NET 10 OpenAPI endpoints
         app.MapOpenApi(); // Serves the OpenAPI document at /openapi/v1.json
 
-        // Configure SwaggerUI to use the new OpenAPI endpoint
-        app.UseSwaggerUI(options =>
-        {
-            options.SwaggerEndpoint("/openapi/v1.json", "Docker Learning API v1");
-            options.RoutePrefix = "swagger";
-        });
+        // Scalar API reference UI
+        app.MapScalarApiReference();
     }
     else
     {
@@ -185,7 +182,10 @@ try
     // Map API endpoints using the new minimal API pattern
     app.MapApiEndpoints();
 
-    // Map Aspire service defaults endpoints (includes /health and /alive)
+    // Health checks (unconditional - needed for Docker healthcheck and production monitoring)
+    app.MapHealthChecks("/health");
+
+    // Map Aspire service defaults endpoints (adds /alive in development)
     app.MapDefaultEndpoints();
 
     app.Run();
