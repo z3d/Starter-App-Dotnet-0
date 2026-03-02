@@ -1,5 +1,3 @@
-using StarterApp.Api.Data;
-
 namespace StarterApp.Api.Application.Commands;
 
 public class UpdateProductCommand : ICommand, IRequest<ProductDto?>
@@ -31,7 +29,7 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         if (product == null)
         {
             Log.Warning("Product {Id} not found for update", command.Id);
-            return null;
+            throw new KeyNotFoundException($"Product with ID {command.Id} not found");
         }
 
         var price = Money.Create(command.Price, command.Currency);

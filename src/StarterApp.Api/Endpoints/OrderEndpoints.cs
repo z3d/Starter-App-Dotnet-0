@@ -8,7 +8,7 @@ public class OrderEndpoints : IEndpointDefinition
 {
     public void DefineEndpoints(WebApplication app)
     {
-        var orders = app.MapGroup("/api/orders")
+        var orders = app.MapGroup("/api/v1/orders")
             .WithTags("Orders")
             .WithOpenApi();
 
@@ -84,10 +84,10 @@ public class OrderEndpoints : IEndpointDefinition
     /// <summary>
     /// Gets all orders for a specific customer.
     /// </summary>
-    private static async Task<IResult> GetOrdersByCustomer(int customerId, IMediator mediator)
+    private static async Task<IResult> GetOrdersByCustomer(int customerId, IMediator mediator, int page = 1, int pageSize = 50)
     {
-        Log.Information("Getting orders for customer: {CustomerId}", customerId);
-        var query = new GetOrdersByCustomerQuery { CustomerId = customerId };
+        Log.Information("Getting orders for customer: {CustomerId} (page {Page}, size {PageSize})", customerId, page, pageSize);
+        var query = new GetOrdersByCustomerQuery { CustomerId = customerId, Page = page, PageSize = pageSize };
         var result = await mediator.SendAsync(query);
         return Results.Ok(result);
     }
@@ -95,10 +95,10 @@ public class OrderEndpoints : IEndpointDefinition
     /// <summary>
     /// Gets all orders with a specific status.
     /// </summary>
-    private static async Task<IResult> GetOrdersByStatus(string status, IMediator mediator)
+    private static async Task<IResult> GetOrdersByStatus(string status, IMediator mediator, int page = 1, int pageSize = 50)
     {
-        Log.Information("Getting orders with status: {Status}", status);
-        var query = new GetOrdersByStatusQuery { Status = status };
+        Log.Information("Getting orders with status: {Status} (page {Page}, size {PageSize})", status, page, pageSize);
+        var query = new GetOrdersByStatusQuery { Status = status, Page = page, PageSize = pageSize };
         var result = await mediator.SendAsync(query);
         return Results.Ok(result);
     }
@@ -112,7 +112,7 @@ public class OrderEndpoints : IEndpointDefinition
 
         var result = await mediator.SendAsync(command);
         Log.Information("Created new order with ID: {Id}", result.Id);
-        return Results.Created($"/api/orders/{result.Id}", result);
+        return Results.Created($"/api/v1/orders/{result.Id}", result);
     }
 
     /// <summary>

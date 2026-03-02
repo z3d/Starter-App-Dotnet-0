@@ -66,7 +66,7 @@ public class DbUpApiTests : IAsyncLifetime
         Assert.True(result.Successful, $"DbUp script execution failed: {result.Error}");
 
         // Act - Query the API to get the product
-        var response = await _fixture.Client.GetAsync($"/api/products/{productId}");
+        var response = await _fixture.Client.GetAsync($"/api/v1/products/{productId}");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -94,7 +94,7 @@ public class DbUpApiTests : IAsyncLifetime
         };
 
         // Act - Create product via API
-        var response = await _fixture.Client.PostAsJsonAsync("/api/products", newProduct);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/products", newProduct);
         response.EnsureSuccessStatusCode();
         var createdProduct = await response.Content.ReadFromJsonAsync<ProductDto>();
         Assert.NotNull(createdProduct);

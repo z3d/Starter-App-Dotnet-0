@@ -19,7 +19,7 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
         _connection = connection;
     }
 
-    public async Task<ProductReadModel?> Handle(GetProductByIdQuery query, CancellationToken cancellationToken)
+    public async Task<ProductReadModel?> HandleAsync(GetProductByIdQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetProductByIdQuery for product {Id}", query.Id);
 
@@ -38,17 +38,9 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
         var product = await _connection.QueryFirstOrDefaultAsync<ProductReadModel>(sqlQuery, new { Id = query.Id });
 
         if (product == null)
-        {
             Log.Warning("Product with ID {Id} not found", query.Id);
-            return null;
-        }
 
         return product;
-    }
-
-    public async Task<ProductReadModel?> HandleAsync(GetProductByIdQuery query, CancellationToken cancellationToken)
-    {
-        return await Handle(query, cancellationToken);
     }
 }
 

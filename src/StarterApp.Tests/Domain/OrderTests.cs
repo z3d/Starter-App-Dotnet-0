@@ -158,8 +158,8 @@ public class OrderTests
         var order = new Order(1);
         if (currentStatus != OrderStatus.Pending)
         {
-            // Manually set up the order in the desired state
-            order.LoadFromDatabase(DateTime.UtcNow, currentStatus, DateTime.UtcNow, []);
+            // Reconstitute the order in the desired state
+            order = Order.Reconstitute(1, 1, DateTime.UtcNow, currentStatus, DateTime.UtcNow, []);
         }
 
         // Act & Assert
@@ -219,8 +219,7 @@ public class OrderTests
     public void Cancel_FromDeliveredStatus_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var order = new Order(1);
-        order.LoadFromDatabase(DateTime.UtcNow, OrderStatus.Delivered, DateTime.UtcNow, []);
+        var order = Order.Reconstitute(1, 1, DateTime.UtcNow, OrderStatus.Delivered, DateTime.UtcNow, []);
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() => order.Cancel());
@@ -295,23 +294,9 @@ public class OrderTests
     }
 
     [Fact]
-    public void SetId_ShouldSetOrderId()
+    public void Reconstitute_ShouldSetAllPropertiesCorrectly()
     {
         // Arrange
-        var order = new Order(1);
-
-        // Act
-        order.SetId(123);
-
-        // Assert
-        Assert.Equal(123, order.Id);
-    }
-
-    [Fact]
-    public void LoadFromDatabase_ShouldSetAllPropertiesCorrectly()
-    {
-        // Arrange
-        var order = new Order(1);
         var orderDate = DateTime.UtcNow.AddDays(-1);
         var lastUpdated = DateTime.UtcNow;
         var money = Money.Create(10.00m, "USD");
@@ -321,9 +306,11 @@ public class OrderTests
         };
 
         // Act
-        order.LoadFromDatabase(orderDate, OrderStatus.Confirmed, lastUpdated, items);
+        var order = Order.Reconstitute(123, 1, orderDate, OrderStatus.Confirmed, lastUpdated, items);
 
         // Assert
+        Assert.Equal(123, order.Id);
+        Assert.Equal(1, order.CustomerId);
         Assert.Equal(orderDate, order.OrderDate);
         Assert.Equal(OrderStatus.Confirmed, order.Status);
         Assert.Equal(lastUpdated, order.LastUpdated);

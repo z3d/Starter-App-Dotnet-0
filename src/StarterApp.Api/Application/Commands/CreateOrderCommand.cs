@@ -1,5 +1,3 @@
-using StarterApp.Api.Data;
-
 namespace StarterApp.Api.Application.Commands;
 
 public class CreateOrderCommand : ICommand, IRequest<OrderDto>
@@ -26,42 +24,26 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         _dbContext = dbContext;
     }
 
-    public async Task Handle(CreateOrderCommand command, CancellationToken cancellationToken)
-    {
-        Log.Information("Handling CreateOrderCommand for customer {CustomerId}", command.CustomerId);
-
-        await CreateOrderAsync(command.CustomerId, command.Items);
-    }
-
     public async Task<OrderDto> HandleAsync(CreateOrderCommand command, CancellationToken cancellationToken)
     {
-        Log.Information("Handling CreateOrderCommand to return OrderDto for customer {CustomerId}", command.CustomerId);
-
-        var createdOrder = await CreateOrderAsync(command.CustomerId, command.Items);
-
-        return MapToOrderDto(createdOrder);
-    }
-
-    private async Task<Order> CreateOrderAsync(int customerId, List<CreateOrderItemCommand> items)
-    {
-        Log.Information("Creating order for customer {CustomerId} with EF Core", customerId);
+        Log.Information("Creating order for customer {CustomerId} with EF Core", command.CustomerId);
 
         // Validate that customer exists
-        var customerExists = await _dbContext.Customers.AnyAsync(c => c.Id == customerId);
+        var customerExists = await _dbContext.Customers.AnyAsync(c => c.Id == command.CustomerId, cancellationToken);
         if (!customerExists)
-            throw new KeyNotFoundException($"Customer with ID {customerId} was not found");
+            throw new KeyNotFoundException($"Customer with ID {command.CustomerId} was not found");
 
-        var order = new Order(customerId);
+        var order = new Order(command.CustomerId);
 
-        // Create order header first
+        // Save order header to get the generated ID
         _dbContext.Orders.Add(order);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
-        // Create order items as separate entities
-        foreach (var itemCommand in items)
+        // Create all order items
+        var orderItems = new List<OrderItem>();
+        foreach (var itemCommand in command.Items)
         {
-            // Validate that product exists
-            var product = await _dbContext.Products.FindAsync(itemCommand.ProductId);
+            var product = await _dbContext.Products.FindAsync([itemCommand.ProductId], cancellationToken);
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {itemCommand.ProductId} was not found");
 
@@ -75,61 +57,15 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             );
 
             _dbContext.OrderItems.Add(orderItem);
+            orderItems.Add(orderItem);
         }
 
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
-        // Load the order with items for return
-        return await LoadOrderWithItems(order.Id) ?? order;
-    }
+        // Build the order in memory instead of reloading from DB
+        var result = Order.Reconstitute(order.Id, order.CustomerId, order.OrderDate, order.Status, order.LastUpdated, orderItems);
 
-    private async Task<Order?> LoadOrderWithItems(int orderId)
-    {
-        var order = await _dbContext.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orderId);
-        if (order == null)
-            return null;
-
-        var orderItems = await _dbContext.OrderItems
-            .AsNoTracking()
-            .Where(oi => oi.OrderId == orderId)
-            .ToListAsync();
-
-        // Reconstruct the order with items
-        var orderWithItems = new Order(order.CustomerId);
-        orderWithItems.SetId(order.Id);
-        orderWithItems.LoadFromDatabase(order.OrderDate, order.Status, order.LastUpdated, orderItems);
-
-        return orderWithItems;
-    }
-
-    private static OrderDto MapToOrderDto(Order order)
-    {
-        return new OrderDto
-        {
-            Id = order.Id,
-            CustomerId = order.CustomerId,
-            OrderDate = order.OrderDate,
-            Status = order.Status.ToString(),
-            Items = order.Items.Select(item => new OrderItemDto
-            {
-                ProductId = item.ProductId,
-                ProductName = item.ProductName,
-                Quantity = item.Quantity,
-                UnitPriceExcludingGst = item.UnitPriceExcludingGst.Amount,
-                UnitPriceIncludingGst = item.GetUnitPriceIncludingGst().Amount,
-                TotalPriceExcludingGst = item.GetTotalPriceExcludingGst().Amount,
-                TotalPriceIncludingGst = item.GetTotalPriceIncludingGst().Amount,
-                GstRate = item.GstRate,
-                Currency = item.UnitPriceExcludingGst.Currency
-            }).ToList(),
-            TotalExcludingGst = order.GetTotalExcludingGst().Amount,
-            TotalIncludingGst = order.GetTotalIncludingGst().Amount,
-            TotalGstAmount = order.GetTotalGstAmount().Amount,
-            Currency = order.Items.FirstOrDefault()?.UnitPriceExcludingGst.Currency ?? "USD",
-            LastUpdated = order.LastUpdated
-        };
+        Log.Information("Created order with ID: {OrderId}", order.Id);
+        return OrderMapper.ToDto(result);
     }
 }
-
-
-

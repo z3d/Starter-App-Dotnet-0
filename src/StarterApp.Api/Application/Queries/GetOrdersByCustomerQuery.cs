@@ -3,6 +3,8 @@ namespace StarterApp.Api.Application.Queries;
 public class GetOrdersByCustomerQuery : IQuery<IEnumerable<OrderReadModel>>, IRequest<IEnumerable<OrderReadModel>>
 {
     public int CustomerId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
 }
 
 public class GetOrdersByCustomerQueryHandler : IRequestHandler<GetOrdersByCustomerQuery, IEnumerable<OrderReadModel>>
@@ -14,26 +16,22 @@ public class GetOrdersByCustomerQueryHandler : IRequestHandler<GetOrdersByCustom
         _connection = connection;
     }
 
-    public async Task<IEnumerable<OrderReadModel>> Handle(GetOrdersByCustomerQuery query, CancellationToken cancellationToken)
+    public async Task<IEnumerable<OrderReadModel>> HandleAsync(GetOrdersByCustomerQuery query, CancellationToken cancellationToken)
     {
-        Log.Information("Handling GetOrdersByCustomerQuery for customer {CustomerId}", query.CustomerId);
+        Log.Information("Handling GetOrdersByCustomerQuery for customer {CustomerId} (page {Page}, size {PageSize})",
+            query.CustomerId, query.Page, query.PageSize);
+
+        var offset = (query.Page - 1) * query.PageSize;
 
         const string sql = @"
             SELECT Id, CustomerId, OrderDate, Status, TotalExcludingGst, TotalIncludingGst,
                    TotalGstAmount, Currency, LastUpdated
             FROM Orders
             WHERE CustomerId = @CustomerId
-            ORDER BY OrderDate DESC";
+            ORDER BY OrderDate DESC
+            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-        var orders = await _connection.QueryAsync<OrderReadModel>(sql, new { CustomerId = query.CustomerId });
-
-        return orders;
-    }
-
-    public async Task<IEnumerable<OrderReadModel>> HandleAsync(GetOrdersByCustomerQuery query, CancellationToken cancellationToken)
-    {
-        return await Handle(query, cancellationToken);
+        return await _connection.QueryAsync<OrderReadModel>(sql,
+            new { CustomerId = query.CustomerId, Offset = offset, PageSize = query.PageSize });
     }
 }
-
-

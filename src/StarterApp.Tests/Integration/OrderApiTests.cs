@@ -45,7 +45,7 @@ public class OrderApiTests : IAsyncLifetime
     {
         // Create customer
         var customerCommand = CustomerBuilder.SimpleCustomer();
-        var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/customers", customerCommand);
+        var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", customerCommand);
         customerResponse.EnsureSuccessStatusCode();
         var customer = await customerResponse.Content.ReadFromJsonAsync<CustomerDto>();
         Assert.NotNull(customer);
@@ -59,7 +59,7 @@ public class OrderApiTests : IAsyncLifetime
             Currency = "USD",
             Stock = 100
         };
-        var productResponse = await _fixture.Client.PostAsJsonAsync("/api/products", productCommand);
+        var productResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/products", productCommand);
         productResponse.EnsureSuccessStatusCode();
         var product = await productResponse.Content.ReadFromJsonAsync<ProductDto>();
         Assert.NotNull(product);
@@ -74,7 +74,7 @@ public class OrderApiTests : IAsyncLifetime
         var nonExistentId = 999999;
 
         // Act
-        var response = await _fixture.Client.GetAsync($"/api/orders/{nonExistentId}");
+        var response = await _fixture.Client.GetAsync($"/api/v1/orders/{nonExistentId}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -88,7 +88,7 @@ public class OrderApiTests : IAsyncLifetime
 
         // Create order
         var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
-        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
@@ -96,7 +96,7 @@ public class OrderApiTests : IAsyncLifetime
         _output.WriteLine($"Created order with ID: {createdOrder.Id}");
 
         // Act
-        var response = await _fixture.Client.GetAsync($"/api/orders/{createdOrder.Id}");
+        var response = await _fixture.Client.GetAsync($"/api/v1/orders/{createdOrder.Id}");
 
         // Debug: Log the response details if it fails
         if (!response.IsSuccessStatusCode)
@@ -126,7 +126,7 @@ public class OrderApiTests : IAsyncLifetime
         var nonExistentCustomerId = 999999;
 
         // Act
-        var response = await _fixture.Client.GetAsync($"/api/orders/customer/{nonExistentCustomerId}");
+        var response = await _fixture.Client.GetAsync($"/api/v1/orders/customer/{nonExistentCustomerId}");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -145,11 +145,11 @@ public class OrderApiTests : IAsyncLifetime
         var order1 = OrderBuilder.SimpleOrder(customer.Id, product.Id);
         var order2 = OrderBuilder.SimpleOrder(customer.Id, product.Id);
 
-        await _fixture.Client.PostAsJsonAsync("/api/orders", order1);
-        await _fixture.Client.PostAsJsonAsync("/api/orders", order2);
+        await _fixture.Client.PostAsJsonAsync("/api/v1/orders", order1);
+        await _fixture.Client.PostAsJsonAsync("/api/v1/orders", order2);
 
         // Act
-        var response = await _fixture.Client.GetAsync($"/api/orders/customer/{customer.Id}");
+        var response = await _fixture.Client.GetAsync($"/api/v1/orders/customer/{customer.Id}");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -167,10 +167,10 @@ public class OrderApiTests : IAsyncLifetime
 
         // Create order
         var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
-        await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
 
         // Act
-        var response = await _fixture.Client.GetAsync("/api/orders/status/Pending");
+        var response = await _fixture.Client.GetAsync("/api/v1/orders/status/Pending");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -181,16 +181,13 @@ public class OrderApiTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetOrdersByStatus_WithNonExistentStatus_ShouldReturnEmptyList()
+    public async Task GetOrdersByStatus_WithNonExistentStatus_ShouldReturnBadRequest()
     {
         // Act
-        var response = await _fixture.Client.GetAsync("/api/orders/status/NonExistentStatus");
+        var response = await _fixture.Client.GetAsync("/api/v1/orders/status/NonExistentStatus");
 
-        // Assert
-        response.EnsureSuccessStatusCode();
-        var orders = await response.Content.ReadFromJsonAsync<List<OrderDto>>();
-        Assert.NotNull(orders);
-        Assert.Empty(orders);
+        // Assert - Invalid status is rejected by validation
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -205,7 +202,7 @@ public class OrderApiTests : IAsyncLifetime
             .Build();
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -235,7 +232,7 @@ public class OrderApiTests : IAsyncLifetime
             Currency = "USD",
             Stock = 100
         };
-        var productResponse = await _fixture.Client.PostAsJsonAsync("/api/products", productCommand);
+        var productResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/products", productCommand);
         productResponse.EnsureSuccessStatusCode();
         var product = await productResponse.Content.ReadFromJsonAsync<ProductDto>();
         Assert.NotNull(product);
@@ -243,7 +240,7 @@ public class OrderApiTests : IAsyncLifetime
         var orderCommand = OrderBuilder.SimpleOrder(999999, product.Id); // Non-existent customer
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
 
         // Debug: Log the response details
         if (response.StatusCode != HttpStatusCode.NotFound)
@@ -272,7 +269,7 @@ public class OrderApiTests : IAsyncLifetime
             Currency = "USD",
             Stock = 50
         };
-        var product2Response = await _fixture.Client.PostAsJsonAsync("/api/products", product2Command);
+        var product2Response = await _fixture.Client.PostAsJsonAsync("/api/v1/products", product2Command);
         product2Response.EnsureSuccessStatusCode();
         var product2 = await product2Response.Content.ReadFromJsonAsync<ProductDto>();
         Assert.NotNull(product2);
@@ -280,7 +277,7 @@ public class OrderApiTests : IAsyncLifetime
         var orderCommand = OrderBuilder.MultipleItemsOrder(customer.Id, product.Id, product2.Id);
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -304,7 +301,7 @@ public class OrderApiTests : IAsyncLifetime
         var (customer, product) = await CreateTestData();
 
         var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
-        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
@@ -316,7 +313,7 @@ public class OrderApiTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", updateCommand);
+        var response = await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status", updateCommand);
 
         // Debug: Log the response details if it fails
         if (!response.IsSuccessStatusCode)
@@ -347,7 +344,7 @@ public class OrderApiTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _fixture.Client.PutAsJsonAsync($"/api/orders/{nonExistentOrderId}/status", updateCommand);
+        var response = await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{nonExistentOrderId}/status", updateCommand);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -364,7 +361,7 @@ public class OrderApiTests : IAsyncLifetime
         };
 
         // Act - URL ID doesn't match command ID
-        var response = await _fixture.Client.PutAsJsonAsync("/api/orders/2/status", updateCommand);
+        var response = await _fixture.Client.PutAsJsonAsync("/api/v1/orders/2/status", updateCommand);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -377,13 +374,13 @@ public class OrderApiTests : IAsyncLifetime
         var (customer, product) = await CreateTestData();
 
         var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
-        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
 
         // Act
-        var response = await _fixture.Client.PostAsync($"/api/orders/{createdOrder.Id}/cancel", null);
+        var response = await _fixture.Client.PostAsync($"/api/v1/orders/{createdOrder.Id}/cancel", null);
 
         // Debug: Log the response details if it fails
         if (!response.IsSuccessStatusCode)
@@ -408,7 +405,7 @@ public class OrderApiTests : IAsyncLifetime
         var nonExistentOrderId = 999999;
 
         // Act
-        var response = await _fixture.Client.PostAsync($"/api/orders/{nonExistentOrderId}/cancel", null);
+        var response = await _fixture.Client.PostAsync($"/api/v1/orders/{nonExistentOrderId}/cancel", null);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -419,7 +416,7 @@ public class OrderApiTests : IAsyncLifetime
     {
         // Arrange - Create customer but use non-existent product
         var customerCommand = CustomerBuilder.SimpleCustomer();
-        var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/customers", customerCommand);
+        var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", customerCommand);
         customerResponse.EnsureSuccessStatusCode();
         var customer = await customerResponse.Content.ReadFromJsonAsync<CustomerDto>();
         Assert.NotNull(customer);
@@ -427,7 +424,7 @@ public class OrderApiTests : IAsyncLifetime
         var orderCommand = OrderBuilder.SimpleOrder(customer.Id, 999999); // Non-existent product
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
 
         // Debug: Log the response details
         if (response.StatusCode != HttpStatusCode.NotFound)
@@ -442,35 +439,24 @@ public class OrderApiTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateOrder_WithEmptyItems_ShouldCreateDraftOrder()
+    public async Task CreateOrder_WithEmptyItems_ShouldReturnBadRequest()
     {
         // Arrange - Create customer
         var customerCommand = CustomerBuilder.SimpleCustomer();
-        var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/customers", customerCommand);
+        var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", customerCommand);
         customerResponse.EnsureSuccessStatusCode();
         var customer = await customerResponse.Content.ReadFromJsonAsync<CustomerDto>();
         Assert.NotNull(customer);
 
         var orderCommand = OrderBuilder.Default()
             .WithCustomerId(customer.Id)
-            .Build(); // No items added - creates draft order
+            .Build(); // No items added - validation rejects this
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
 
-        // Assert
-        response.EnsureSuccessStatusCode();
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-
-        var createdOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
-        Assert.NotNull(createdOrder);
-        Assert.True(createdOrder.Id > 0);
-        Assert.Equal(customer.Id, createdOrder.CustomerId);
-        Assert.Equal(OrderStatus.Pending.ToString(), createdOrder.Status);
-        Assert.Empty(createdOrder.Items); // Draft order with no items
-        Assert.Equal(0m, createdOrder.TotalExcludingGst);
-        Assert.Equal(0m, createdOrder.TotalIncludingGst);
-        Assert.Equal(0m, createdOrder.TotalGstAmount);
+        // Assert - Orders must have at least one item
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -485,7 +471,7 @@ public class OrderApiTests : IAsyncLifetime
             .Build();
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
 
         // Debug: Log the response details
         if (response.StatusCode != HttpStatusCode.BadRequest)
@@ -511,7 +497,7 @@ public class OrderApiTests : IAsyncLifetime
             .Build();
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
 
         // Debug: Log the response details
         if (response.StatusCode != HttpStatusCode.BadRequest)
@@ -532,7 +518,7 @@ public class OrderApiTests : IAsyncLifetime
         var (customer, product) = await CreateTestData();
 
         var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
-        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
@@ -544,7 +530,7 @@ public class OrderApiTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", updateCommand);
+        var response = await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status", updateCommand);
 
         // Debug: Log the response details
         if (response.StatusCode != HttpStatusCode.BadRequest)
@@ -565,19 +551,19 @@ public class OrderApiTests : IAsyncLifetime
         var (customer, product) = await CreateTestData();
 
         var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
-        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
 
         // First, move to Confirmed -> Processing -> Shipped -> Delivered
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
+        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Confirmed.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
+        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Processing.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
+        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Shipped.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
+        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Delivered.ToString() });
 
         // Now try to change from Delivered to Pending (invalid transition)
@@ -588,7 +574,7 @@ public class OrderApiTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status", invalidUpdateCommand);
+        var response = await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status", invalidUpdateCommand);
 
         // Debug: Log the response details
         if (response.StatusCode != HttpStatusCode.BadRequest)
@@ -609,23 +595,23 @@ public class OrderApiTests : IAsyncLifetime
         var (customer, product) = await CreateTestData();
 
         var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
-        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
 
         // Move order to Delivered status
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
+        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Confirmed.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
+        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Processing.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
+        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Shipped.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/orders/{createdOrder.Id}/status",
+        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
             new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Delivered.ToString() });
 
         // Act
-        var response = await _fixture.Client.PostAsync($"/api/orders/{createdOrder.Id}/cancel", null);
+        var response = await _fixture.Client.PostAsync($"/api/v1/orders/{createdOrder.Id}/cancel", null);
 
         // Debug: Log the response details
         if (response.StatusCode != HttpStatusCode.BadRequest)
@@ -651,7 +637,7 @@ public class OrderApiTests : IAsyncLifetime
             .Build();
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -682,7 +668,7 @@ public class OrderApiTests : IAsyncLifetime
 
         // Create order
         var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
-        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/orders", orderCommand);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
@@ -690,7 +676,7 @@ public class OrderApiTests : IAsyncLifetime
         var endTime = DateTime.UtcNow;
 
         // Act
-        var response = await _fixture.Client.GetAsync($"/api/orders/{createdOrder.Id}");
+        var response = await _fixture.Client.GetAsync($"/api/v1/orders/{createdOrder.Id}");
 
         // Assert
         response.EnsureSuccessStatusCode();

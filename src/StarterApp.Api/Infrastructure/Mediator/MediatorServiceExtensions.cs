@@ -1,3 +1,5 @@
+using StarterApp.Api.Infrastructure.Validation;
+
 namespace StarterApp.Api.Infrastructure.Mediator;
 
 public static class MediatorServiceExtensions
@@ -9,6 +11,7 @@ public static class MediatorServiceExtensions
         foreach (var assembly in assemblies)
         {
             RegisterHandlers(services, assembly);
+            RegisterValidators(services, assembly);
         }
 
         return services;
@@ -33,6 +36,25 @@ public static class MediatorServiceExtensions
         }
     }
 
+    private static void RegisterValidators(IServiceCollection services, Assembly assembly)
+    {
+        var validatorTypes = assembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract)
+            .Where(t => t.GetInterfaces().Any(IsValidatorInterface))
+            .ToList();
+
+        foreach (var validatorType in validatorTypes)
+        {
+            var interfaces = validatorType.GetInterfaces()
+                .Where(IsValidatorInterface);
+
+            foreach (var @interface in interfaces)
+            {
+                services.AddScoped(@interface, validatorType);
+            }
+        }
+    }
+
     private static bool IsHandlerInterface(Type type)
     {
         if (!type.IsGenericType)
@@ -42,7 +64,9 @@ public static class MediatorServiceExtensions
         return genericTypeDefinition == typeof(IRequestHandler<,>) ||
                genericTypeDefinition == typeof(IRequestHandler<>);
     }
+
+    private static bool IsValidatorInterface(Type type)
+    {
+        return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IValidator<>);
+    }
 }
-
-
-

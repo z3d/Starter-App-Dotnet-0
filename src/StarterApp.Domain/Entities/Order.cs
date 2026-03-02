@@ -135,20 +135,19 @@ public class Order
         };
     }
 
-    public void SetId(int id)
+    public static Order Reconstitute(int id, int customerId, DateTime orderDate, OrderStatus status, DateTime lastUpdated, List<OrderItem> items)
     {
-        Id = id;
-    }
-
-    public void LoadFromDatabase(DateTime orderDate, OrderStatus status, DateTime lastUpdated, List<OrderItem> items)
-    {
-        OrderDate = orderDate;
-        Status = status;
-        LastUpdated = lastUpdated;
-
-        _items.Clear();
-        _items.AddRange(items);
-        Items = _items.AsReadOnly();
+        var order = new Order
+        {
+            Id = id,
+            CustomerId = customerId,
+            OrderDate = orderDate,
+            Status = status,
+            LastUpdated = lastUpdated
+        };
+        order._items.AddRange(items);
+        order.Items = order._items.AsReadOnly();
+        return order;
     }
 }
 

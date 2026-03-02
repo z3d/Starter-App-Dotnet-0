@@ -14,7 +14,7 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
         _connection = connection;
     }
 
-    public async Task<OrderWithItemsReadModel?> Handle(GetOrderByIdQuery query, CancellationToken cancellationToken)
+    public async Task<OrderWithItemsReadModel?> HandleAsync(GetOrderByIdQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetOrderByIdQuery for order {Id}", query.Id);
 
@@ -42,11 +42,6 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
         order.Items = items.ToList();
 
         return order;
-    }
-
-    public async Task<OrderWithItemsReadModel?> HandleAsync(GetOrderByIdQuery query, CancellationToken cancellationToken)
-    {
-        return await Handle(query, cancellationToken);
     }
 }
 

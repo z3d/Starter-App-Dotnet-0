@@ -19,7 +19,7 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
         _connection = connection;
     }
 
-    public async Task<CustomerReadModel?> Handle(GetCustomerQuery query, CancellationToken cancellationToken)
+    public async Task<CustomerReadModel?> HandleAsync(GetCustomerQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetCustomerQuery for customer {Id}", query.Id);
 
@@ -36,17 +36,9 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
         var customer = await _connection.QueryFirstOrDefaultAsync<CustomerReadModel>(sqlQuery, new { Id = query.Id });
 
         if (customer == null)
-        {
             Log.Warning("Customer with ID {Id} not found", query.Id);
-            return null;
-        }
 
         return customer;
-    }
-
-    public async Task<CustomerReadModel?> HandleAsync(GetCustomerQuery query, CancellationToken cancellationToken)
-    {
-        return await Handle(query, cancellationToken);
     }
 }
 

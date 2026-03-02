@@ -1,3 +1,5 @@
+using StarterApp.Api.Infrastructure.Validation;
+
 namespace StarterApp.Api.Infrastructure.Mediator;
 
 public class Mediator : IMediator
@@ -11,6 +13,8 @@ public class Mediator : IMediator
 
     public async Task<TResponse> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
+        RunValidators(request);
+
         var requestType = request.GetType();
         var responseType = typeof(TResponse);
         var handlerType = typeof(IRequestHandler<,>).MakeGenericType(requestType, responseType);
@@ -33,6 +37,8 @@ public class Mediator : IMediator
 
     public async Task SendAsync(IRequest request, CancellationToken cancellationToken = default)
     {
+        RunValidators(request);
+
         var requestType = request.GetType();
         var handlerType = typeof(IRequestHandler<>).MakeGenericType(requestType);
 
@@ -50,7 +56,29 @@ public class Mediator : IMediator
 
         await (Task)method.Invoke(handler, new object[] { request, cancellationToken })!;
     }
+
+    private void RunValidators<T>(T request)
+    {
+        var validatorType = typeof(IValidator<>).MakeGenericType(request!.GetType());
+        var validators = _serviceProvider.GetServices(validatorType);
+
+        var errors = new List<ValidationError>();
+        foreach (var validator in validators)
+        {
+            var validateMethod = validatorType.GetMethod(nameof(IValidator<object>.Validate));
+            if (validateMethod == null)
+                continue;
+
+            var result = validateMethod.Invoke(validator, new object[] { request });
+            if (result is IEnumerable<ValidationError> validationErrors)
+            {
+                errors.AddRange(validationErrors);
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new Validation.ValidationException(errors);
+        }
+    }
 }
-
-
-

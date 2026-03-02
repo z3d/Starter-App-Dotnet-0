@@ -1,4 +1,3 @@
-using StarterApp.Api.Data;
 using StarterApp.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -77,6 +76,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<System.Data.IDbConnection>(provider =>
     new Microsoft.Data.SqlClient.SqlConnection(connectionString));
 
+// Register repositories
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+
 // Register mediator for CQRS pattern - handlers are auto-registered via reflection
 builder.Services.AddMediator(Assembly.GetExecutingAssembly());
 
@@ -148,6 +150,7 @@ try
     {
         StatusCodeSelector = ex => ex switch
         {
+            StarterApp.Api.Infrastructure.Validation.ValidationException => StatusCodes.Status400BadRequest,
             ArgumentNullException => StatusCodes.Status400BadRequest,
             ArgumentOutOfRangeException => StatusCodes.Status400BadRequest,
             ArgumentException => StatusCodes.Status400BadRequest,

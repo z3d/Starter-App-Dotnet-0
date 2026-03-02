@@ -1,8 +1,6 @@
-using StarterApp.Api.Data;
-
 namespace StarterApp.Api.Application.Commands;
 
-public class DeleteProductCommand : ICommand, IRequest<bool>
+public class DeleteProductCommand : ICommand, IRequest
 {
     public int Id { get; }
 
@@ -12,7 +10,7 @@ public class DeleteProductCommand : ICommand, IRequest<bool>
     }
 }
 
-public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand, bool>
+public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand>
 {
     private readonly ApplicationDbContext _dbContext;
 
@@ -21,26 +19,20 @@ public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand,
         _dbContext = dbContext;
     }
 
-    public async Task<bool> HandleAsync(DeleteProductCommand command, CancellationToken cancellationToken)
+    public async Task HandleAsync(DeleteProductCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling DeleteProductCommand for product {Id}", command.Id);
-
-        Log.Information("Deleting product {Id} with EF Core", command.Id);
 
         var product = await _dbContext.Products.FindAsync([command.Id], cancellationToken);
         if (product == null)
         {
             Log.Warning("Product {Id} not found for deletion", command.Id);
-            return false;
+            throw new KeyNotFoundException($"Product with ID {command.Id} not found");
         }
 
         _dbContext.Products.Remove(product);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         Log.Information("Deleted product with ID: {ProductId}", command.Id);
-        return true;
     }
 }
-
-
-

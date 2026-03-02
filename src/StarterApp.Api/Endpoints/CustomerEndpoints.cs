@@ -8,7 +8,7 @@ public class CustomerEndpoints : IEndpointDefinition
 {
     public void DefineEndpoints(WebApplication app)
     {
-        var customers = app.MapGroup("/api/customers")
+        var customers = app.MapGroup("/api/v1/customers")
             .WithTags("Customers")
             .WithOpenApi();
 
@@ -58,10 +58,10 @@ public class CustomerEndpoints : IEndpointDefinition
     /// <summary>
     /// Gets all customers from the system.
     /// </summary>
-    private static async Task<IResult> GetCustomers(IMediator mediator)
+    private static async Task<IResult> GetCustomers(IMediator mediator, int page = 1, int pageSize = 50)
     {
-        Log.Information("Getting all customers");
-        var query = new GetCustomersQuery();
+        Log.Information("Getting customers (page {Page}, size {PageSize})", page, pageSize);
+        var query = new GetCustomersQuery { Page = page, PageSize = pageSize };
         var result = await mediator.SendAsync(query);
         return Results.Ok(result);
     }
@@ -93,7 +93,7 @@ public class CustomerEndpoints : IEndpointDefinition
         var result = await mediator.SendAsync(command);
 
         Log.Information("Created new customer with ID: {Id}", result.Id);
-        return Results.Created($"/api/customers/{result.Id}", result);
+        return Results.Created($"/api/v1/customers/{result.Id}", result);
     }
 
     /// <summary>

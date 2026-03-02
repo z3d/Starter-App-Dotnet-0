@@ -45,7 +45,7 @@ public class ProblemDetailsTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/customers", invalidCustomer);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", invalidCustomer);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -74,7 +74,7 @@ public class ProblemDetailsTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/customers", invalidCustomer);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", invalidCustomer);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -102,7 +102,7 @@ public class ProblemDetailsTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/products", invalidProduct);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/products", invalidProduct);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -130,7 +130,7 @@ public class ProblemDetailsTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/products", invalidProduct);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/products", invalidProduct);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -151,7 +151,7 @@ public class ProblemDetailsTests : IAsyncLifetime
         var nonExistentId = 99999;
 
         // Act
-        var response = await _fixture.Client.GetAsync($"/api/customers/{nonExistentId}");
+        var response = await _fixture.Client.GetAsync($"/api/v1/customers/{nonExistentId}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -172,7 +172,7 @@ public class ProblemDetailsTests : IAsyncLifetime
         var nonExistentId = 99999;
 
         // Act
-        var response = await _fixture.Client.GetAsync($"/api/products/{nonExistentId}");
+        var response = await _fixture.Client.GetAsync($"/api/v1/products/{nonExistentId}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -199,7 +199,7 @@ public class ProblemDetailsTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _fixture.Client.PutAsJsonAsync($"/api/customers/{nonExistentId}", updateCommand);
+        var response = await _fixture.Client.PutAsJsonAsync($"/api/v1/customers/{nonExistentId}", updateCommand);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -227,7 +227,7 @@ public class ProblemDetailsTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/products", invalidProduct);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/products", invalidProduct);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);

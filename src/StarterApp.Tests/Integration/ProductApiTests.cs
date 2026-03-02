@@ -58,7 +58,7 @@ public class ProductApiTests : IAsyncLifetime
         };
 
         // Act
-        var response = await _fixture.Client.PostAsJsonAsync("/api/products", newProduct);
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/products", newProduct);
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -86,13 +86,13 @@ public class ProductApiTests : IAsyncLifetime
             Stock = 50
         };
 
-        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/products", newProduct);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/products", newProduct);
         createResponse.EnsureSuccessStatusCode();
         var createdProduct = await createResponse.Content.ReadFromJsonAsync<ProductDto>();
         Assert.NotNull(createdProduct);
 
         // Act
-        var response = await _fixture.Client.GetAsync($"/api/products/{createdProduct.Id}");
+        var response = await _fixture.Client.GetAsync($"/api/v1/products/{createdProduct.Id}");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -129,12 +129,12 @@ public class ProductApiTests : IAsyncLifetime
 
         foreach (var product in products)
         {
-            var response = await _fixture.Client.PostAsJsonAsync("/api/products", product);
+            var response = await _fixture.Client.PostAsJsonAsync("/api/v1/products", product);
             response.EnsureSuccessStatusCode();
         }
 
         // Act
-        var getResponse = await _fixture.Client.GetAsync("/api/products");
+        var getResponse = await _fixture.Client.GetAsync("/api/v1/products");
 
         // Assert
         getResponse.EnsureSuccessStatusCode();
@@ -157,7 +157,7 @@ public class ProductApiTests : IAsyncLifetime
             Stock = 75
         };
 
-        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/products", newProduct);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/products", newProduct);
         createResponse.EnsureSuccessStatusCode();
         var createdProduct = await createResponse.Content.ReadFromJsonAsync<ProductDto>();
         Assert.NotNull(createdProduct);
@@ -172,13 +172,13 @@ public class ProductApiTests : IAsyncLifetime
         };
 
         // Act
-        var updateResponse = await _fixture.Client.PutAsJsonAsync($"/api/products/{createdProduct.Id}", updateCommand);
+        var updateResponse = await _fixture.Client.PutAsJsonAsync($"/api/v1/products/{createdProduct.Id}", updateCommand);
 
         // Assert
         updateResponse.EnsureSuccessStatusCode();
 
         // Verify update with GET
-        var getResponse = await _fixture.Client.GetAsync($"/api/products/{createdProduct.Id}");
+        var getResponse = await _fixture.Client.GetAsync($"/api/v1/products/{createdProduct.Id}");
         getResponse.EnsureSuccessStatusCode();
         var updatedProduct = await getResponse.Content.ReadFromJsonAsync<ProductReadModel>();
 
@@ -201,19 +201,19 @@ public class ProductApiTests : IAsyncLifetime
             Stock = 30
         };
 
-        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/products", newProduct);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/products", newProduct);
         createResponse.EnsureSuccessStatusCode();
         var createdProduct = await createResponse.Content.ReadFromJsonAsync<ProductDto>();
         Assert.NotNull(createdProduct);
 
         // Act
-        var deleteResponse = await _fixture.Client.DeleteAsync($"/api/products/{createdProduct.Id}");
+        var deleteResponse = await _fixture.Client.DeleteAsync($"/api/v1/products/{createdProduct.Id}");
 
         // Assert
         deleteResponse.EnsureSuccessStatusCode();
 
         // Verify deletion
-        var getResponse = await _fixture.Client.GetAsync($"/api/products/{createdProduct.Id}");
+        var getResponse = await _fixture.Client.GetAsync($"/api/v1/products/{createdProduct.Id}");
         Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
     }
 }

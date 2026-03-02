@@ -2,6 +2,8 @@ namespace StarterApp.Api.Application.Queries;
 
 public class GetAllProductsQuery : IQuery<IEnumerable<ProductReadModel>>, IRequest<IEnumerable<ProductReadModel>>
 {
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
 }
 
 public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, IEnumerable<ProductReadModel>>
@@ -13,9 +15,11 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, I
         _connection = connection;
     }
 
-    public async Task<IEnumerable<ProductReadModel>> Handle(GetAllProductsQuery query, CancellationToken cancellationToken)
+    public async Task<IEnumerable<ProductReadModel>> HandleAsync(GetAllProductsQuery query, CancellationToken cancellationToken)
     {
-        Log.Information("Handling GetAllProductsQuery");
+        Log.Information("Handling GetAllProductsQuery (page {Page}, size {PageSize})", query.Page, query.PageSize);
+
+        var offset = (query.Page - 1) * query.PageSize;
 
         var sqlQuery = @"
             SELECT
@@ -26,17 +30,10 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, I
                 PriceCurrency,
                 Stock,
                 LastUpdated
-            FROM Products";
+            FROM Products
+            ORDER BY Id
+            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-        var products = await _connection.QueryAsync<ProductReadModel>(sqlQuery);
-
-        return products;
-    }
-
-    public async Task<IEnumerable<ProductReadModel>> HandleAsync(GetAllProductsQuery query, CancellationToken cancellationToken)
-    {
-        return await Handle(query, cancellationToken);
+        return await _connection.QueryAsync<ProductReadModel>(sqlQuery, new { Offset = offset, PageSize = query.PageSize });
     }
 }
-
-

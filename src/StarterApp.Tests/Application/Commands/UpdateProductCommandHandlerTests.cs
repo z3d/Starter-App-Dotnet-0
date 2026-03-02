@@ -103,7 +103,7 @@ public class UpdateProductCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WithNonExistentProduct_ShouldReturnNull()
+    public async Task Handle_WithNonExistentProduct_ShouldThrowKeyNotFoundException()
     {
         // Arrange
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -123,10 +123,8 @@ public class UpdateProductCommandHandlerTests
             Stock = 50
         };
 
-        // Act
-        var result = await handler.HandleAsync(command, CancellationToken.None);
-
-        // Assert
-        Assert.Null(result);
+        // Act & Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(
+            () => handler.HandleAsync(command, CancellationToken.None));
     }
 }

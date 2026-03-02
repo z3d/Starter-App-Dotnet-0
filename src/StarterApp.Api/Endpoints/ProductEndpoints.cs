@@ -8,7 +8,7 @@ public class ProductEndpoints : IEndpointDefinition
 {
     public void DefineEndpoints(WebApplication app)
     {
-        var products = app.MapGroup("/api/products")
+        var products = app.MapGroup("/api/v1/products")
             .WithTags("Products")
             .WithOpenApi();
 
@@ -58,10 +58,10 @@ public class ProductEndpoints : IEndpointDefinition
     /// <summary>
     /// Gets all products from the catalog.
     /// </summary>
-    private static async Task<IResult> GetProducts(IMediator mediator)
+    private static async Task<IResult> GetProducts(IMediator mediator, int page = 1, int pageSize = 50)
     {
-        Log.Information("Getting all products");
-        var query = new GetAllProductsQuery();
+        Log.Information("Getting products (page {Page}, size {PageSize})", page, pageSize);
+        var query = new GetAllProductsQuery { Page = page, PageSize = pageSize };
         var result = await mediator.SendAsync(query);
         return Results.Ok(result);
     }
@@ -93,7 +93,7 @@ public class ProductEndpoints : IEndpointDefinition
         var result = await mediator.SendAsync(command);
 
         Log.Information("Created new product with ID: {Id}", result.Id);
-        return Results.Created($"/api/products/{result.Id}", result);
+        return Results.Created($"/api/v1/products/{result.Id}", result);
     }
 
     /// <summary>
