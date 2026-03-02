@@ -108,6 +108,7 @@ All projects inherit shared MSBuild settings from `Directory.Build.props`:
 #### **NEVER Use These Patterns**
 - ❌ **Anemic Domain Models**: Domain objects must have behavior
 - ❌ **Mixed CQRS Concerns**: Keep commands and queries strictly separate
+- ❌ **Repository Pattern**: Use DbContext directly in command handlers — removed in favour of simpler, more explicit data access without an unnecessary abstraction layer
 - ❌ **Code Regions**: Use proper class structure instead
 - ❌ **Historical Comments**: Use git history and meaningful commits
 - ❌ **Dual Representation**: Avoid separate entity/value object pairs
@@ -255,6 +256,16 @@ public async Task<ActionResult<IEnumerable<ProductReadModel>>> GetAllProducts()
 public async Task<ActionResult<CustomerDto>> GetCustomer(int id)      // Should be ReadModel
 public async Task<ActionResult<CustomerReadModel>> CreateCustomer()   // Should be DTO
 ```
+
+### Data Access Design
+
+**Commands use DbContext directly** — no repository abstraction. This was a deliberate decision:
+- DbContext already implements Unit of Work and Repository patterns internally
+- A repository layer added indirection without value (only 2 of 9 handlers used it)
+- Direct DbContext usage is simpler, more explicit, and easier to debug
+- Entities are loaded with `AsNoTracking()` then reconstituted via domain factory methods
+
+**Queries use Dapper** for optimised reads directly against SQL, returning lightweight ReadModels.
 
 ### Command Implementation
 
@@ -427,9 +438,9 @@ public class Mediator : IMediator
 
 ## Aspire Configuration
 
-### Aspire 13.1 Features
+### Aspire 13.1.2 Features
 
-**Current Version**: Aspire 13.1 (.NET 10 release)
+**Current Version**: Aspire 13.1.2 (.NET 10 release)
 
 **Key Features**:
 - **CLI Tools**: New `aspire update` command for automatic package updates
@@ -730,6 +741,7 @@ builder.Services.AddProblemDetails(options =>
 - **Document WHY not WHAT** - Explain reasoning behind decisions
 - **Remove obsolete guidance** - Delete sections that no longer apply
 - **Update examples** - Replace old patterns with current approaches
+- **Keep subsidiary docs in sync** - When changing framework versions, packages, patterns, or tooling (e.g. Swagger→Scalar, .NET version bumps, removing repository pattern), also update: `README.md`, `ASPIRE_SETUP_COMPLETE.md`, `docs/API-ENDPOINTS.md`, `docs/01-dotnet-setup/`, `docs/03-docker-setup/`, `docs/04-azure-deployment/`, `docs/05-aspire-setup/`
 
 ### Debugging Workflow
 
@@ -812,6 +824,17 @@ public void Constructor_WithGstRateGreaterThanOne_ShouldThrowException(decimal r
 - ❌ **Skipping tests** - untested fixes often break later
 - ❌ **Silent failures** - add validation that gives clear feedback
 - ❌ **Fixing symptoms** instead of root cause
+
+### Docker & Deployment Notes
+
+#### **.NET 10 Dockerfile Changes**
+- .NET 10 base images use **Ubuntu** (not Debian) — affects package repo setup
+- Use modern GPG key management: `gpg --dearmor` + `signed-by=` in sources list (not deprecated `apt-key add`)
+- Microsoft package repo path: `ubuntu/24.04/prod.list` (not `debian/11/prod.list`)
+
+#### **Health Endpoint Mapping**
+- `app.MapHealthChecks("/health")` must be mapped **unconditionally** in Program.cs for Docker healthcheck
+- Aspire's `MapDefaultEndpoints()` only maps health checks in Development environment — insufficient for Docker
 
 ### Development Commands
 
