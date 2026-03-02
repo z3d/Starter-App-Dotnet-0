@@ -59,9 +59,6 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<System.Data.IDbConnection>(provider =>
     new Microsoft.Data.SqlClient.SqlConnection(connectionString));
 
-// Register repositories
-builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-
 // Register mediator for CQRS pattern - handlers are auto-registered via reflection
 builder.Services.AddMediator(Assembly.GetExecutingAssembly());
 
@@ -79,8 +76,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Add Health checks and rate limiting
-builder.Services.AddHealthChecks();
+// Add rate limiting
 builder.Services.AddRateLimiter(options =>
 {
     options.AddFixedWindowLimiter("fixed", options =>
@@ -189,9 +185,7 @@ try
     // Map API endpoints using the new minimal API pattern
     app.MapApiEndpoints();
 
-    app.MapHealthChecks("/health");
-
-    // Map Aspire service defaults endpoints
+    // Map Aspire service defaults endpoints (includes /health and /alive)
     app.MapDefaultEndpoints();
 
     app.Run();
