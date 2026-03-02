@@ -30,7 +30,7 @@ cd c:\dev\scratchpad\dockerlearning
 docker-compose up --build
 ```
 - **API**: http://localhost:8080
-- **Swagger**: http://localhost:8080/swagger
+- **Scalar API Reference**: http://localhost:8080/scalar/v1
 
 ## 🔍 **Aspire Features You'll See**
 
@@ -66,7 +66,7 @@ docker-compose up
 ## 🔧 **Troubleshooting**
 
 ### If Aspire doesn't start:
-1. Check that .NET 9 SDK is installed: `dotnet --version`
+1. Check that .NET 10 SDK is installed: `dotnet --version`
 2. Ensure Aspire workload is installed: `dotnet workload list`
 3. Check the console output for specific error messages
 

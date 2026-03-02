@@ -1,6 +1,6 @@
 # API Endpoints Documentation
 
-This project uses .NET 9 Minimal APIs with a clean architecture pattern. All endpoints are organized using the endpoint definition pattern for better maintainability and testability.
+This project uses .NET 10 Minimal APIs with a clean architecture pattern. All endpoints are organized using the endpoint definition pattern for better maintainability and testability.
 
 ## 🏗️ Architecture Overview
 
@@ -22,7 +22,7 @@ src/StarterApp.Api/
 - **Performance**: ~30% faster than traditional controllers
 - **Source Generators**: Better AOT compilation support
 - **Simpler**: Less boilerplate code
-- **Modern**: Native .NET 9 integration
+- **Modern**: Native .NET 10 integration
 - **Flexible**: Endpoint-specific filters and behaviors
 
 ## 🔌 Available Endpoints
@@ -102,7 +102,7 @@ Content-Type: application/json
 
 ## 🏷️ OpenAPI Tags
 
-Endpoints are organized with OpenAPI tags for better Swagger documentation:
+Endpoints are organized with OpenAPI tags for better Scalar API reference documentation:
 
 - **Customers**: Customer management operations including CRUD functionality
 - **Orders**: Order processing and management including creation, status updates, and cancellation  
@@ -175,4 +175,4 @@ The tests use Testcontainers to spin up SQL Server instances, ensuring isolated 
 
 - [.NET Minimal APIs Documentation](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis)
 - [Endpoint Filters](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/middleware)
-- [OpenAPI in .NET 9](https://docs.microsoft.com/en-us/aspnet/core/web-api/openapi)
+- [OpenAPI in .NET 10](https://docs.microsoft.com/en-us/aspnet/core/web-api/openapi)

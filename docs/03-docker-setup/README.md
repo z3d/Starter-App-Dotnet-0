@@ -21,7 +21,7 @@ This step covers containerizing the .NET Web API and SQL Server using Docker. Th
 ```
 Docker Environment
 ├── api container (DockerLearningApi)
-│   ├── .NET 8 Runtime
+│   ├── .NET 10 Runtime
 │   ├── Published application
 │   └── Health check endpoint
 ├── db container (SQL Server 2022)
@@ -42,10 +42,10 @@ Docker Environment
 **Multi-stage build process:**
 ```dockerfile
 # Build stage - uses SDK image
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 
 # Runtime stage - uses optimized runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 ```
 
 **Key features:**
@@ -112,7 +112,7 @@ Once running, access the services at:
 | Service | URL | Description |
 |---------|-----|-------------|
 | **API** | http://localhost:8080 | Main API endpoint |
-| **Swagger** | http://localhost:8080/swagger | API documentation |
+| **Scalar API Reference** | http://localhost:8080/scalar/v1 | API documentation |
 | **Health Check** | http://localhost:8080/health | Service health status |
 | **Seq Logs** | http://localhost:5341 | Centralized log viewer |
 | **SQL Server** | localhost:1433 | Database connection |
@@ -415,7 +415,7 @@ docker-compose up -d --build
 
 Once the containers are running, you can access:
 - The API at http://localhost:8080
-- API documentation at http://localhost:8080/swagger
+- API documentation at http://localhost:8080/scalar/v1
 
 ### 7. Stopping the containers:
 

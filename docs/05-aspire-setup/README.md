@@ -355,7 +355,7 @@ builder.Services.AddServiceDefaults();
 
 You've completed the full tutorial! You now have:
 
-- ✅ A modern .NET 8 Web API with clean architecture
+- ✅ A modern .NET 10 Web API with clean architecture
 - ✅ SQL Server with automated migrations
 - ✅ Docker containerization for production
 - ✅ Azure deployment capabilities

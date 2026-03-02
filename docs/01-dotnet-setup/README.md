@@ -1,7 +1,7 @@
-# Step 1: Setting Up the .NET 8 Web API Project
+# Step 1: Setting Up the .NET 10 Web API Project
 
 ## Prerequisites
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
 - Visual Studio Code or Visual Studio 2022
 - Git (for version control)
 
@@ -40,9 +40,9 @@ public record Money(decimal Amount, string Currency = "USD");
 Features implemented:
 - RESTful API with full CRUD operations
 - Entity Framework Core with SQL Server
-- Repository pattern implementation
 - Health checks for monitoring
-- Swagger/OpenAPI documentation
+- Scalar API reference documentation (OpenAPI)
+- CQRS pattern with EF Core for commands, Dapper for queries
 - Structured logging with Serilog
 - Environment-specific configuration
 
@@ -65,7 +65,7 @@ dotnet run
 
 **Access points:**
 - API: https://localhost:7286 or http://localhost:5164
-- Swagger UI: https://localhost:7286/swagger
+- Scalar API Reference: https://localhost:7286/scalar/v1
 - Health Check: https://localhost:7286/health
 
 ### Option 2: Run with .NET Aspire (Recommended)
@@ -85,7 +85,7 @@ This will start:
 ## Testing the API
 
 ### Manual Testing
-1. Open the Swagger UI at the API URL
+1. Open the Scalar API Reference at the API URL
 2. Try the GET `/api/products` endpoint
 3. Use POST to create new products
 4. Test PUT and DELETE operations
@@ -100,8 +100,8 @@ dotnet test
 The test suite includes:
 - Unit tests for domain models
 - Integration tests for API endpoints
-- Repository pattern tests
 - Value object validation tests
+- Convention tests for architectural rules
 
 ## Key Features Implemented
 
@@ -123,7 +123,7 @@ The test suite includes:
 - Error handling and logging
 
 ### 🛡️ Best Practices
-- Repository pattern for data access
+- Entity Framework Core and Dapper for data access
 - Value objects for domain modeling
 - Dependency injection container
 - Async/await patterns throughout

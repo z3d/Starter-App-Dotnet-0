@@ -208,7 +208,7 @@ Once deployed, you can access:
 | Endpoint | URL | Description |
 |----------|-----|-------------|
 | **API Root** | `https://your-app.region.azurecontainerapps.io` | API base URL |
-| **Swagger UI** | `https://your-app.region.azurecontainerapps.io/swagger` | API documentation |
+| **Scalar API Reference** | `https://your-app.region.azurecontainerapps.io/scalar/v1` | API documentation |
 | **Health Check** | `https://your-app.region.azurecontainerapps.io/health` | Health status |
 | **Products API** | `https://your-app.region.azurecontainerapps.io/api/products` | Products endpoint |
 
