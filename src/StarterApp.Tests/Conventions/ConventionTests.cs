@@ -129,23 +129,53 @@ public class ConventionTests
     }
 
     [Fact]
-    public void Repositories_ShouldFollowNamingConventions()
+    public void Validators_ShouldFollowNamingConventions()
     {
-        var repositoryTypes = ApiAssembly.GetTypes()
-            .Where(t => t.Namespace != null && t.Namespace.Contains("Repositories") &&
+        var validatorTypes = ApiAssembly.GetTypes()
+            .Where(t => t.Namespace != null && t.Namespace.Contains("Validators") &&
                    t.IsClass && !t.IsAbstract &&
                    !IsCompilerGenerated(t));
-        repositoryTypes
-            .MustConformTo(Convention.NameMustEndWith("Repository"))
+        validatorTypes
+            .MustConformTo(Convention.NameMustEndWith("Validator"))
+            .WithFailureAssertion(Assert.Fail);
+    }
+
+    [Fact]
+    public void CommandHandlers_ShouldFollowNamingConventions()
+    {
+        var handlerTypes = ApiAssembly.GetTypes()
+            .Where(t => t.Namespace != null && t.Namespace.Contains("Commands") &&
+                   t.IsClass && !t.IsAbstract &&
+                   t.Name.EndsWith("Handler") &&
+                   !IsCompilerGenerated(t));
+        handlerTypes
+            .MustConformTo(Convention.NameMustEndWith("CommandHandler"))
+            .WithFailureAssertion(Assert.Fail);
+    }
+
+    [Fact]
+    public void QueryHandlers_ShouldFollowNamingConventions()
+    {
+        var handlerTypes = ApiAssembly.GetTypes()
+            .Where(t => t.Namespace != null && t.Namespace.Contains("Queries") &&
+                   t.IsClass && !t.IsAbstract &&
+                   t.Name.EndsWith("Handler") &&
+                   !IsCompilerGenerated(t));
+        handlerTypes
+            .MustConformTo(Convention.NameMustEndWith("QueryHandler"))
             .WithFailureAssertion(Assert.Fail);
     }
 
     [Fact]
     public void TestClasses_ShouldFollowNamingConventions()
     {
+        var propertyAttributeType = Type.GetType("FsCheck.Xunit.PropertyAttribute, FsCheck.Xunit");
+
         var testTypes = Assembly.GetExecutingAssembly().GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
-                   t.GetMethods().Any(m => m.GetCustomAttributes(typeof(FactAttribute), false).Any()));
+                   t.GetMethods().Any(m =>
+                       m.GetCustomAttributes(typeof(FactAttribute), false).Any() ||
+                       (propertyAttributeType != null && m.GetCustomAttributes(propertyAttributeType, false).Any())));
 
         testTypes
             .MustConformTo(Convention.NameMustEndWith("Tests").Or(Convention.NameMustEndWith("Test")))

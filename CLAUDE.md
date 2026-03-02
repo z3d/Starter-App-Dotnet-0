@@ -72,7 +72,7 @@ All projects inherit shared MSBuild settings from `Directory.Build.props`:
 
 1. **Code Formatting**: `dotnet format` - Apply formatting standards
 2. **Build Verification**: `dotnet build` - Ensure compilation success
-3. **Test Execution**: `dotnet test` - Verify all tests pass (181+ tests)
+3. **Test Execution**: `dotnet test` - Verify all tests pass (204+ tests)
 4. **Package Updates**: `dotnet restore` - Update lock files if dependencies changed
 5. **Lock File Verification**: Ensure `packages.lock.json` files are committed
 
@@ -214,6 +214,30 @@ public class Customer
 public class CustomerValue { } // Don't create this
 public class CustomerEntity { } // When you already have Customer above
 ```
+
+### Reconstitute Pattern
+
+**Static factory method for rebuilding aggregates from database rows**. Used when loading entities that already exist in the database and may be in any valid state (including states that the public constructor wouldn't allow creating from scratch).
+
+```csharp
+// On the Order aggregate:
+public static Order Reconstitute(int id, int customerId, DateTime orderDate,
+    OrderStatus status, DateTime lastUpdated, List<OrderItem> items)
+{
+    var order = new Order
+    {
+        Id = id, CustomerId = customerId, OrderDate = orderDate,
+        Status = status, LastUpdated = lastUpdated
+    };
+    order._items.AddRange(items);
+    order.Items = order._items.AsReadOnly();
+    return order;
+}
+```
+
+**Why it exists**: The public `Order(customerId)` constructor enforces creation-time invariants (status = Pending, empty items). When loading an order from the database that's already in `Shipped` status with 5 items, the constructor can't be used. `Reconstitute` bypasses creation validation because the data was already validated when it was originally created.
+
+**When to use**: In command handlers when loading aggregates from the database for mutation. Not needed for queries (which use Dapper and ReadModels).
 
 ## CQRS Implementation
 
@@ -397,6 +421,7 @@ Priority order: `database` → `DockerLearning` → `sqlserver` → `DefaultConn
 
 #### **Testing**
 - **xUnit**: Primary testing framework
+- **FsCheck 2.16.6 + FsCheck.Xunit**: Property-based (fuzz) testing
 - **Testcontainers.MsSql**: Database integration testing
 - **Microsoft.AspNetCore.Mvc.Testing**: API integration testing
 - **Moq**: Mocking framework
@@ -485,11 +510,25 @@ builder.Build().Run();
 ```
 Tests/
 ├── Domain/              # Entity and value object tests
-├── Application/         # Command/query handler tests  
+├── Application/         # Command/query handler tests
 ├── Integration/         # Full API integration tests
 ├── Conventions/         # Architectural rule enforcement
+├── Fuzzing/             # Property-based tests (FsCheck)
 └── TestBuilders/        # Test data builders
 ```
+
+### Property-Based Testing (Fuzzing)
+
+**FsCheck 2.16.6** with **FsCheck.Xunit** integration for property-based testing. Instead of hand-picked test values, FsCheck generates hundreds of random inputs to verify domain invariants hold universally.
+
+**Key properties tested**:
+- **Money**: Addition commutativity/associativity, subtract-inverse, negative rejection, currency validation
+- **Email**: Whitespace rejection, valid acceptance, equality reflexivity, random string robustness
+- **Product**: Stock update round-trip (`+n` then `-n` restores original), over-deduction throws
+- **OrderItem**: Price invariant (`TotalIncGst == UnitIncGst * Qty`), GST rate bounds, ID/quantity validation
+- **Order State Machine**: Valid transition paths never throw, invalid transitions always throw, Reconstitute preserves all properties, order totals equal sum of item totals
+
+**Usage**: Tests use `[Property]` attribute (FsCheck.Xunit) instead of `[Fact]`. Convention tests detect both attributes. FsCheck automatically shrinks failing inputs to minimal counterexamples.
 
 ### Convention Testing
 
@@ -726,7 +765,7 @@ builder.Services.AddProblemDetails(options =>
 
 #### **Testing Requirements**
 - **ALWAYS** run tests before committing changes
-- All tests must pass (181+ tests in current implementation)
+- All tests must pass (204+ tests in current implementation)
 - Write tests for new domain objects following existing patterns
 - Use integration tests for API endpoints
 

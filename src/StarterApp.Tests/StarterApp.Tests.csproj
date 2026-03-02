@@ -12,6 +12,8 @@
   </ItemGroup>  <ItemGroup>
     <PackageReference Include="Best.Conventional" Version="12.0.0" />
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <PackageReference Include="FsCheck" Version="2.16.6" />
+    <PackageReference Include="FsCheck.Xunit" Version="2.16.6" />
     <PackageReference Include="dbup-sqlserver" Version="6.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.3" />

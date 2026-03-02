@@ -28,6 +28,25 @@
           "dbup-core": "6.0.3"
         }
       },
+      "FsCheck": {
+        "type": "Direct",
+        "requested": "[2.16.6, )",
+        "resolved": "2.16.6",
+        "contentHash": "8yQlt7HgoigIXIoe7ZouNh551rypxp4WtQnqBlpB9a7gf4IkpdMSnEzsnJS/gFmeNtIf9hEJ37celeCq/6FuHA==",
+        "dependencies": {
+          "FSharp.Core": "4.2.3"
+        }
+      },
+      "FsCheck.Xunit": {
+        "type": "Direct",
+        "requested": "[2.16.6, )",
+        "resolved": "2.16.6",
+        "contentHash": "Gd8xOmsHCfi5NR3tDWTia8VGc81jgA+ca7n8RCzdPnYUlG1/WbAy2WG9PGM9DFP4ft23JeO7+9xpE/7kqujVBw==",
+        "dependencies": {
+          "FsCheck": "[2.16.6]",
+          "xunit.extensibility.execution": "[2.2.0, 3.0.0)"
+        }
+      },
       "Microsoft.AspNetCore.Mvc.Testing": {
         "type": "Direct",
         "requested": "[10.0.3, )",
@@ -238,6 +257,11 @@
         "dependencies": {
           "Docker.DotNet": "3.125.15"
         }
+      },
+      "FSharp.Core": {
+        "type": "Transitive",
+        "resolved": "4.2.3",
+        "contentHash": "PthzJd0cY9L7+mPHoMB0B9Z9moR4oO1rU5RDrVW44cfMm0R9AYFf+F3BsuTvP9clr9w/Wa0wbSfEwbJV8sV80A=="
       },
       "Google.Protobuf": {
         "type": "Transitive",
