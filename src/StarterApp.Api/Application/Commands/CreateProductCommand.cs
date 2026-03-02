@@ -1,5 +1,3 @@
-using StarterApp.Api.Data;
-
 namespace StarterApp.Api.Application.Commands;
 
 public class CreateProductCommand : ICommand, IRequest<ProductDto>

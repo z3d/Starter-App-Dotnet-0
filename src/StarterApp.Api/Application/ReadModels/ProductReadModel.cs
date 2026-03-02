@@ -1,4 +1,5 @@
 namespace StarterApp.Api.Application.ReadModels;
+
 public class ProductReadModel
 {
     public int Id { get; set; }

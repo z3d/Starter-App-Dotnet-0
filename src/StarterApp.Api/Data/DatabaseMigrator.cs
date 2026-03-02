@@ -1,6 +1,7 @@
 using StarterApp.DbMigrator;
 
 namespace StarterApp.Api.Data;
+
 public static class DatabaseMigrator
 {
     public static bool MigrateDatabase(string connectionString)
