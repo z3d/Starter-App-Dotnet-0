@@ -10,7 +10,7 @@ public class OrderEndpoints : IEndpointDefinition
     {
         var orders = app.MapGroup("/api/v1/orders")
             .WithTags("Orders")
-            .WithOpenApi();
+;
 
         orders.MapGet("/{id:int}", GetOrder)
             .WithName("GetOrder")

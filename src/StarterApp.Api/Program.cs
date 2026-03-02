@@ -30,34 +30,17 @@ builder.Host.UseSerilog((context, services, configuration) =>
 builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 
-// Add native OpenAPI support with .NET 9
+// Add native OpenAPI support with .NET 10
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
         document.Info.Title = "Starter App API";
         document.Info.Version = "v1";
-        document.Info.Description = "A sample API for the Starter App built with .NET 9 Minimal APIs";
+        document.Info.Description = "A sample API for the Starter App built with .NET 10 Minimal APIs";
         document.Info.Contact = new()
         {
             Name = "Starter App Team"
-        };
-
-        // Configure API endpoint tags for better Swagger organization
-        document.Tags = new List<Microsoft.OpenApi.Models.OpenApiTag>
-        {
-            new() {
-                Name = "Customers",
-                Description = "Customer management operations including CRUD functionality for customer data"
-            },
-            new() {
-                Name = "Orders",
-                Description = "Order processing and management including creation, status updates, and cancellation"
-            },
-            new() {
-                Name = "Products",
-                Description = "Product catalog management with full CRUD operations for product inventory"
-            }
         };
 
         return Task.CompletedTask;
@@ -130,7 +113,7 @@ try
     // Configure the HTTP request pipeline
     if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docker")
     {
-        // Use the new native .NET 9 OpenAPI endpoints
+        // Use the new native .NET 10 OpenAPI endpoints
         app.MapOpenApi(); // Serves the OpenAPI document at /openapi/v1.json
 
         // Configure SwaggerUI to use the new OpenAPI endpoint
@@ -145,7 +128,7 @@ try
         app.UseHsts();
     }
 
-    // Use .NET 9 Problem Details with StatusCodeSelector for centralized exception handling
+    // Use .NET 10 Problem Details with StatusCodeSelector for centralized exception handling
     app.UseExceptionHandler(new ExceptionHandlerOptions
     {
         StatusCodeSelector = ex => ex switch

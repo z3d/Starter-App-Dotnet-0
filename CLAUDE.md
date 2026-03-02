@@ -1,11 +1,11 @@
-# .NET 9 Clean Architecture Template
+# .NET 10 Clean Architecture Template
 
-This document outlines the architectural patterns, conventions, and technical standards for a .NET 9 project template using **Aspire** orchestration. It serves as comprehensive guidance for implementing Clean Architecture with CQRS and Domain-Driven Design principles.
+This document outlines the architectural patterns, conventions, and technical standards for a .NET 10 project template using **Aspire** orchestration. It serves as comprehensive guidance for implementing Clean Architecture with CQRS and Domain-Driven Design principles.
 
 ## Project Overview
 
-**Clean Architecture** .NET 9 solution implementing:
-- **Minimal APIs**: Modern .NET 9 endpoint-based architecture with high performance
+**Clean Architecture** .NET 10 solution implementing:
+- **Minimal APIs**: Modern .NET 10 endpoint-based architecture with high performance
 - **CQRS Pattern**: Separate command/query responsibilities
 - **Domain-Driven Design**: Rich domain models with business logic
 - **Aspire Orchestration**: Service orchestration and observability
@@ -43,7 +43,7 @@ Solution Root/
 All projects inherit shared MSBuild settings from `Directory.Build.props`:
 
 #### **Framework & Language Features**
-- **Target Framework**: `.NET 9.0` across all projects
+- **Target Framework**: `.NET 10.0` across all projects
 - **Nullable Reference Types**: Enabled solution-wide
 - **Implicit Usings**: Enabled with project-specific `GlobalUsings.cs`
 - **Deterministic Builds**: Consistent build outputs across environments
@@ -365,24 +365,24 @@ Priority order: `database` → `DockerLearning` → `sqlserver` → `DefaultConn
 ### Core Dependencies
 
 #### **Framework & Hosting**
-- **.NET 9.0**: Latest framework with performance improvements
-- **Aspire.Hosting.AppHost** (9.5.0+): Service orchestration with GenAI visualizer and multi-resource logs
-- **Aspire.Hosting.SqlServer** (9.5.0+): Database container management
-- **Aspire.Hosting.Seq** (9.5.0+): Structured logging and observability
+- **.NET 10.0**: Latest framework with performance improvements
+- **Aspire.Hosting.AppHost** (13.1.0+): Service orchestration with GenAI visualizer and multi-resource logs
+- **Aspire.Hosting.SqlServer** (13.1.0+): Database container management
+- **Aspire.Hosting.Seq** (13.1.0+): Structured logging and observability
 
 #### **Data Access**
-- **Entity Framework Core 9.0.5+**: Write operations and migrations
+- **Entity Framework Core 10.0.3+**: Write operations and migrations
 - **Dapper 2.1.35+**: Optimized read operations
 - **Microsoft.Data.SqlClient**: SQL Server connectivity
 
 #### **Logging & Observability**
-- **Serilog.AspNetCore 9.0.0+**: Structured logging
+- **Serilog.AspNetCore 10.0.0+**: Structured logging
 - **OpenTelemetry**: Metrics, tracing, and telemetry
 - **Aspire Dashboard**: Development-time observability
 
 #### **API & Documentation**
-- **Microsoft.AspNetCore.OpenApi 9.0.5+**: Native .NET 9 OpenAPI
-- **Swashbuckle.AspNetCore 6.5.0+**: Swagger UI generation
+- **Microsoft.AspNetCore.OpenApi 10.0.3+**: Native .NET 10 OpenAPI
+- **Swashbuckle.AspNetCore 7.3.1+**: Swagger UI generation
 
 #### **Testing**
 - **xUnit**: Primary testing framework
@@ -427,9 +427,9 @@ public class Mediator : IMediator
 
 ## Aspire Configuration
 
-### Aspire 9.5.0 Features
+### Aspire 13.1 Features
 
-**Current Version**: Aspire 9.5.0 (September 2025 release)
+**Current Version**: Aspire 13.1 (.NET 10 release)
 
 **Key Features**:
 - **CLI Tools**: New `aspire update` command for automatic package updates
@@ -462,7 +462,7 @@ builder.Build().Run();
 
 **Shared cross-cutting concerns**:
 - OpenTelemetry instrumentation (ASP.NET Core, HTTP, Runtime)
-- Service discovery and load balancing (9.5.0)
+- Service discovery and load balancing
 - Resilience patterns with circuit breakers
 - Health check endpoints
 - Common middleware registration
@@ -552,7 +552,7 @@ public class ApiTestFixture : IAsyncLifetime
 
 ### Minimal API Patterns
 
-This project uses .NET 9 Minimal APIs with an endpoint definition pattern for better organization and maintainability.
+This project uses .NET 10 Minimal APIs with an endpoint definition pattern for better organization and maintainability.
 
 #### **Endpoint Definition Pattern**
 
@@ -634,7 +634,7 @@ public static class EndpointExtensions
 - **Less Boilerplate**: No inheritance, attributes, or base classes needed
 - **Source Generators**: Better AOT compilation support
 - **Flexible Filters**: Endpoint-specific middleware and behaviors
-- **Modern .NET 9**: Native integration with latest framework features
+- **Modern .NET 10**: Native integration with latest framework features
 
 #### **Filters vs Middleware: When to Use What**
 
@@ -692,7 +692,7 @@ orders.MapGet("/status/{status}", GetOrdersByStatus)
 
 ### Error Handling
 
-**RFC 7807 Problem Details** with .NET 9 StatusCodeSelector:
+**RFC 7807 Problem Details** with .NET 10 StatusCodeSelector:
 
 ```csharp
 builder.Services.AddProblemDetails(options =>

@@ -12,7 +12,7 @@ public static class EndpointExtensions
     /// <returns>The WebApplication for method chaining</returns>
     public static WebApplication MapApiEndpoints(this WebApplication app)
     {
-        var endpointDefinitions = typeof(Program).Assembly
+        var endpointDefinitions = typeof(IApiMarker).Assembly
             .GetTypes()
             .Where(t => t.IsAssignableTo(typeof(IEndpointDefinition)) &&
                        !t.IsAbstract &&

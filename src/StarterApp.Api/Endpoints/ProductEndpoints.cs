@@ -10,7 +10,7 @@ public class ProductEndpoints : IEndpointDefinition
     {
         var products = app.MapGroup("/api/v1/products")
             .WithTags("Products")
-            .WithOpenApi();
+;
 
         products.MapGet("/", GetProducts)
             .WithName("GetProducts")

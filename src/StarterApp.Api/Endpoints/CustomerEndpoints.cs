@@ -10,7 +10,7 @@ public class CustomerEndpoints : IEndpointDefinition
     {
         var customers = app.MapGroup("/api/v1/customers")
             .WithTags("Customers")
-            .WithOpenApi();
+;
 
         customers.MapGet("/", GetCustomers)
             .WithName("GetCustomers")

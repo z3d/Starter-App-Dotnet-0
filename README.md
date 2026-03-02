@@ -5,7 +5,7 @@ A comprehensive tutorial project demonstrating modern .NET development with Dock
 ## 🚀 Quick Start
 
 ### Prerequisites
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
 - [Docker Desktop](https://www.docker.com/products/docker-desktop) (**Required** - must be running for integration tests)
 - Visual Studio Code or Visual Studio 2022
 
@@ -33,7 +33,7 @@ docker-compose up --build
 ## 🎯 What This Project Demonstrates
 
 1. **Modern .NET Development**
-   - .NET 9 Minimal APIs with clean architecture
+   - .NET 10 Minimal APIs with clean architecture
    - Endpoint filters for cross-cutting concerns
    - Domain-driven design with value objects
    - CQRS pattern with mediator
@@ -105,7 +105,7 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 ## 🔍 Key Features
 
 - **Clean Architecture**: Separation of concerns with Domain, Application, and Infrastructure layers
-- **Modern .NET Patterns**: Uses C# 12/.NET 9 features like collection expressions, guard clauses, and using declarations
+- **Modern .NET Patterns**: Uses C# 13/.NET 10 features like collection expressions, guard clauses, and using declarations
 - **Health Checks**: Built-in health monitoring for all services
 - **Observability**: Distributed tracing, metrics, and structured logging
 - **Configuration Management**: Environment-specific settings with .NET configuration

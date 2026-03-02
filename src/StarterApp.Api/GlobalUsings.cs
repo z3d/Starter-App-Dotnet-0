@@ -14,6 +14,7 @@ global using StarterApp.Api.Application.Mapping;
 global using StarterApp.Api.Application.Queries;
 global using StarterApp.Api.Application.ReadModels;
 global using StarterApp.Api.Data;
+global using StarterApp.Api.Infrastructure;
 global using StarterApp.Api.Infrastructure.Mediator;
 // Domain references
 global using StarterApp.Domain.Entities;

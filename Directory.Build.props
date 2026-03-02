@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
     <!-- Common Target Framework -->
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     
     <!-- Language Features -->
     <ImplicitUsings>enable</ImplicitUsings>
