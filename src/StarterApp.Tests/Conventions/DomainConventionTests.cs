@@ -84,6 +84,34 @@ public class DomainConventionTests : ConventionTestBase
         }
     }
 
+    // === Async Void ===
+
+    [Fact]
+    public void Methods_MustNotBeAsyncVoid()
+    {
+        var assemblies = new[] { ApiAssembly, DomainAssembly };
+        foreach (var assembly in assemblies)
+        {
+            var types = assembly.GetTypes()
+                .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
+            types
+                .MustConformTo(Convention.VoidMethodsMustNotBeAsync)
+                .WithFailureAssertion(Assert.Fail);
+        }
+    }
+
+    // === DateTime Safety ===
+
+    [Fact]
+    public void Types_MustNotResolveCurrentTimeViaDateTime()
+    {
+        var types = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
+        types
+            .MustConformTo(Convention.MustNotResolveCurrentTimeViaDateTime)
+            .WithFailureAssertion(Assert.Fail);
+    }
+
     // === Custom Convention Specifications ===
 
     private class MustOverrideEqualsAndGetHashCodeConvention : ConventionSpecification

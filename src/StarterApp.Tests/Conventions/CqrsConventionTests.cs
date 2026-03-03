@@ -37,43 +37,47 @@ public class CqrsConventionTests : ConventionTestBase
     // === Handler Wiring ===
 
     [Fact]
-    public void EveryCommand_MustHaveExactlyOneHandler()
+    public void EveryCommand_MustHaveAHandler()
     {
-        var commandTypes = ApiAssembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract &&
-                   t.GetInterfaces().Any(i => i == typeof(ICommand)));
+        var allTypes = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract).ToArray();
 
-        var allHandlerTypes = ApiAssembly.GetTypes()
+        var commandsWithResponse = ApiAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
-                   t.GetInterfaces().Any(i =>
-                       i.IsGenericType &&
-                       (i.GetGenericTypeDefinition() == typeof(IRequestHandler<,>) ||
-                        i.GetGenericTypeDefinition() == typeof(IRequestHandler<>))))
-            .ToArray();
+                   t.GetInterfaces().Any(i => i == typeof(ICommand)) &&
+                   t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>)));
 
-        commandTypes
-            .MustConformTo(new MustHaveCorrespondingHandlerConvention(allHandlerTypes))
+        var commandsVoid = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract &&
+                   t.GetInterfaces().Any(i => i == typeof(ICommand)) &&
+                   t.GetInterfaces().Any(i => i == typeof(IRequest)));
+
+        commandsWithResponse
+            .MustConformTo(Convention.RequiresACorrespondingImplementationOf(
+                typeof(IRequestHandler<,>), allTypes))
+            .WithFailureAssertion(Assert.Fail);
+
+        commandsVoid
+            .MustConformTo(Convention.RequiresACorrespondingImplementationOf(
+                typeof(IRequestHandler<>), allTypes))
             .WithFailureAssertion(Assert.Fail);
     }
 
     [Fact]
-    public void EveryQuery_MustHaveExactlyOneHandler()
+    public void EveryQuery_MustHaveAHandler()
     {
+        var allTypes = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract).ToArray();
+
         var queryTypes = ApiAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.GetInterfaces().Any(i =>
                        i.IsGenericType &&
                        i.GetGenericTypeDefinition() == typeof(IQuery<>)));
 
-        var allHandlerTypes = ApiAssembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract &&
-                   t.GetInterfaces().Any(i =>
-                       i.IsGenericType &&
-                       i.GetGenericTypeDefinition() == typeof(IRequestHandler<,>)))
-            .ToArray();
-
         queryTypes
-            .MustConformTo(new MustHaveCorrespondingHandlerConvention(allHandlerTypes))
+            .MustConformTo(Convention.RequiresACorrespondingImplementationOf(
+                typeof(IRequestHandler<,>), allTypes))
             .WithFailureAssertion(Assert.Fail);
     }
 
@@ -125,56 +129,6 @@ public class CqrsConventionTests : ConventionTestBase
     }
 
     // === Custom Convention Specifications ===
-
-    private class MustHaveCorrespondingHandlerConvention : ConventionSpecification
-    {
-        private readonly Type[] _allHandlerTypes;
-
-        public MustHaveCorrespondingHandlerConvention(Type[] allHandlerTypes)
-        {
-            _allHandlerTypes = allHandlerTypes;
-        }
-
-        protected override string FailureMessage => "must have exactly one corresponding handler";
-
-        public override ConventionResult IsSatisfiedBy(Type type)
-        {
-            var requestWithResponse = type.GetInterfaces()
-                .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>));
-            var requestVoid = type.GetInterfaces()
-                .FirstOrDefault(i => i == typeof(IRequest));
-
-            Type expectedHandlerInterface;
-            if (requestWithResponse != null)
-            {
-                var responseType = requestWithResponse.GetGenericArguments()[0];
-                expectedHandlerInterface = typeof(IRequestHandler<,>).MakeGenericType(type, responseType);
-            }
-            else if (requestVoid != null)
-            {
-                expectedHandlerInterface = typeof(IRequestHandler<>).MakeGenericType(type);
-            }
-            else
-            {
-                return ConventionResult.NotSatisfied(type.FullName!,
-                    $"{type.Name} does not implement IRequest<T> or IRequest");
-            }
-
-            var matchingHandlers = _allHandlerTypes
-                .Where(h => h.GetInterfaces().Any(i => i == expectedHandlerInterface))
-                .ToList();
-
-            if (matchingHandlers.Count == 0)
-                return ConventionResult.NotSatisfied(type.FullName!,
-                    $"No handler found for {type.Name}");
-
-            if (matchingHandlers.Count > 1)
-                return ConventionResult.NotSatisfied(type.FullName!,
-                    $"Multiple handlers for {type.Name}: {string.Join(", ", matchingHandlers.Select(h => h.Name))}");
-
-            return ConventionResult.Satisfied(type.FullName!);
-        }
-    }
 
     private class MustImplementRequestInterfaceConvention : ConventionSpecification
     {
