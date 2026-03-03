@@ -11,11 +11,19 @@ var sql = builder.AddSqlServer("sql")
 var db = sql.AddDatabase("database");
 
 // Add the API project with reference to the database
-builder.AddProject<Projects.StarterApp_Api>("api")
+var api = builder.AddProject<Projects.StarterApp_Api>("api")
        .WithReference(db)
        .WithEnvironment("SEQ_URL", seq.GetEndpoint("http"))
        .WaitFor(db)
        .WaitFor(seq);
+
+// Dev Tunnel: expose the API to the internet for webhook/mobile testing
+// Enable with: dotnet run -- --devtunnel  OR  set ENABLE_DEV_TUNNEL=true
+if (args.Contains("--devtunnel") || Environment.GetEnvironmentVariable("ENABLE_DEV_TUNNEL") == "true")
+{
+    builder.AddDevTunnel("api-tunnel")
+           .WithReference(api);
+}
 
 // Add the database migrator as a separate service
 builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")

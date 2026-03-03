@@ -404,6 +404,7 @@ Priority order: `database` → `DockerLearning` → `sqlserver` → `DefaultConn
 - **Aspire.Hosting.AppHost** (13.1.0+): Service orchestration with GenAI visualizer and multi-resource logs
 - **Aspire.Hosting.SqlServer** (13.1.0+): Database container management
 - **Aspire.Hosting.Seq** (13.1.0+): Structured logging and observability
+- **Aspire.Hosting.DevTunnels** (13.1.0+): Expose local services to the internet for testing
 
 #### **Data Access**
 - **Entity Framework Core 10.0.3+**: Write operations and migrations
@@ -875,13 +876,68 @@ public void Constructor_WithGstRateGreaterThanOne_ShouldThrowException(decimal r
 - `app.MapHealthChecks("/health")` must be mapped **unconditionally** in Program.cs for Docker healthcheck
 - Aspire's `MapDefaultEndpoints()` only maps health checks in Development environment — insufficient for Docker
 
+### Dev Tunnels
+
+**What**: Expose your local API to the internet for webhook testing, mobile app development, or sharing with teammates. Uses Microsoft's Dev Tunnels infrastructure via `Aspire.Hosting.DevTunnels`.
+
+**Prerequisites**: Install the Dev Tunnel CLI:
+```bash
+# macOS
+brew install --cask devtunnel
+
+# Then authenticate (one-time)
+devtunnel user login
+```
+
+**Usage**: Dev tunnels are opt-in. Enable when starting the AppHost:
+```bash
+# Via command-line flag
+dotnet run --project src/StarterApp.AppHost -- --devtunnel
+
+# Via environment variable
+ENABLE_DEV_TUNNEL=true dotnet run --project src/StarterApp.AppHost
+```
+
+When enabled, the Aspire dashboard shows the tunnel URL alongside the local API endpoint. The tunnel URL is publicly accessible (authenticated by default — use `.WithAnonymousAccess()` in Program.cs if you need unauthenticated webhook access).
+
+### Local CI with nektos/act
+
+**What**: Run GitHub Actions workflows locally using Docker before pushing. Tests your CI pipeline without commit-push-wait cycles.
+
+**Prerequisites**:
+```bash
+# Install act
+brew install act
+
+# Requires Docker Desktop running
+```
+
+**Usage**:
+```bash
+# Run the CI workflow locally (from repo root)
+act
+
+# First run: choose "Medium" runner image when prompted
+
+# Run specific job
+act -j build
+
+# Run with verbose output for debugging
+act -v
+
+# List available workflows
+act --list
+```
+
+**Existing CI workflow** (`.github/workflows/ci.yml`): Restores, builds (Release), and runs non-integration tests on .NET 10.
+
 ### Development Commands
 
 ```bash
 # Format code and remove unnecessary imports
 dotnet format
 
-# Build entire solution  
+# Build entire solution
 dotnet build
 
 # Run all tests
@@ -892,6 +948,12 @@ dotnet restore --use-lock-file
 
 # Use locked mode (CI/CD)
 dotnet restore --locked-mode
+
+# Run with dev tunnel (exposes API to internet)
+dotnet run --project src/StarterApp.AppHost -- --devtunnel
+
+# Run CI locally
+act
 ```
 
 This template ensures consistency, maintainability, and scalability while following .NET community best practices and modern architectural patterns.
