@@ -880,12 +880,18 @@ public void Constructor_WithGstRateGreaterThanOne_ShouldThrowException(decimal r
 
 **What**: Expose your local API to the internet for webhook testing, mobile app development, or sharing with teammates. Uses Microsoft's Dev Tunnels infrastructure via `Aspire.Hosting.DevTunnels`.
 
-**Prerequisites**: Install the Dev Tunnel CLI:
+**Prerequisites**: Install the Dev Tunnel CLI (see https://aka.ms/devtunnels/docs):
 ```bash
 # macOS
 brew install --cask devtunnel
 
-# Then authenticate (one-time)
+# Windows
+winget install Microsoft.devtunnel
+
+# Linux
+curl -sL https://aka.ms/DevTunnelCliInstall | bash
+
+# Then authenticate (one-time, all platforms)
 devtunnel user login
 ```
 
@@ -904,12 +910,18 @@ When enabled, the Aspire dashboard shows the tunnel URL alongside the local API 
 
 **What**: Run GitHub Actions workflows locally using Docker before pushing. Tests your CI pipeline without commit-push-wait cycles.
 
-**Prerequisites**:
+**Prerequisites** (see https://nektosact.com/installation/):
 ```bash
-# Install act
+# macOS
 brew install act
 
-# Requires Docker Desktop running
+# Windows
+winget install nektos.act
+
+# Linux
+curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+
+# Requires Docker running (Docker Desktop, Colima, etc.)
 ```
 
 **Usage**:
