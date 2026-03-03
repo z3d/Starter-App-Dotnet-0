@@ -533,7 +533,7 @@ Tests/
 
 ### Convention Testing
 
-**Architectural Rule Enforcement** with [Best.Conventional](https://github.com/andrewabest/Conventional) (`Conventions/ConventionTests.cs`, 21 tests).
+**Architectural Rule Enforcement** with [Best.Conventional](https://github.com/andrewabest/Conventional) (`Conventions/` directory, 21 tests across `NamingConventionTests`, `CqrsConventionTests`, `DomainConventionTests`).
 
 **Approach**: Use built-in conventions where possible. For structural checks not covered by built-ins, create custom conventions extending `ConventionSpecification` (from `Conventional.Conventions` namespace) to stay consistent with the library's fluent `MustConformTo` / `WithFailureAssertion` API.
 
