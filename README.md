@@ -86,6 +86,44 @@ Follow the numbered directories in the `docs/` folder:
 4. **[Azure Deployment](docs/04-azure-deployment/README.md)** - Deploy to Azure Container Apps
 5. **[Aspire Setup](docs/05-aspire-setup/README.md)** - .NET Aspire orchestration
 
+## 🧪 Running CI Locally with Act
+
+[Act](https://github.com/nektos/act) lets you run GitHub Actions workflows locally using Docker.
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) (must be running)
+- [Act](https://github.com/nektos/act#installation):
+  ```powershell
+  # macOS
+  brew install act
+
+  # Windows (via Chocolatey)
+  choco install act-cli
+
+  # Windows (via winget)
+  winget install nektos.act
+  ```
+
+### Running the CI Workflow
+```powershell
+# Run the workflow (simulates a push event)
+act push
+
+# Run the workflow (simulates a pull request event)
+act pull_request
+
+# Use a larger runner image for better compatibility
+act push -P ubuntu-latest=catthehacker/ubuntu:full-latest
+
+# Dry run (shows what would execute without running)
+act push -n
+
+# Run with verbose output for debugging
+act push -v
+```
+
+> **Note**: The CI workflow filters out integration tests, so Docker-in-Docker is not required. If you encounter .NET SDK issues, use the larger runner image (`catthehacker/ubuntu:full-latest`) which includes more pre-installed tools.
+
 ## 🛠️ Development Commands
 
 ```powershell
