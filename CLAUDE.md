@@ -533,40 +533,68 @@ Tests/
 
 ### Convention Testing
 
-**Architectural Rule Enforcement** with Best.Conventional:
+**Architectural Rule Enforcement** with [Best.Conventional](https://github.com/andrewabest/Conventional) (`Conventions/ConventionTests.cs`, 21 tests).
+
+**Approach**: Use built-in conventions where possible. For structural checks not covered by built-ins, create custom conventions extending `ConventionSpecification` (from `Conventional.Conventions` namespace) to stay consistent with the library's fluent `MustConformTo` / `WithFailureAssertion` API.
+
+#### Convention Categories
+
+**Naming Conventions** — built-in `Convention.NameMustEndWith`:
+```csharp
+// Endpoints, Commands, Queries, Handlers, Services, Validators, DTOs/ReadModels, Test classes
+endpointTypes.MustConformTo(Convention.NameMustEndWith("Endpoints"));
+commandTypes.MustConformTo(Convention.NameMustEndWith("Command"));
+```
+
+**Encapsulation** — built-in `Convention.PropertiesMustHavePrivateSetters` / `PropertiesMustHavePublicGetters`:
+```csharp
+entityTypes.MustConformTo(Convention.PropertiesMustHavePrivateSetters);
+dtoTypes.MustConformTo(Convention.PropertiesMustHavePublicGetters);
+```
+
+**CQRS Data Access Separation** — built-in `Convention.MustNotTakeADependencyOn`:
+```csharp
+// Commands must use ApplicationDbContext (EF Core), not IDbConnection (Dapper)
+commandHandlers.MustConformTo(Convention.MustNotTakeADependencyOn(typeof(IDbConnection), "Commands should use ApplicationDbContext"));
+// Queries must use IDbConnection (Dapper), not ApplicationDbContext (EF Core)
+queryHandlers.MustConformTo(Convention.MustNotTakeADependencyOn(typeof(ApplicationDbContext), "Queries should use IDbConnection"));
+```
+
+**Domain Model Integrity** — built-in `Convention.MustHaveANonPublicDefaultConstructor` + custom `ConventionSpecification`:
+```csharp
+// EF Core requires non-public parameterless constructors on entities
+entityTypes.MustConformTo(Convention.MustHaveANonPublicDefaultConstructor);
+// Value objects must have proper equality semantics
+valueObjectTypes.MustConformTo(new MustOverrideEqualsAndGetHashCodeConvention());
+```
+
+**CQRS Handler Wiring** — custom `ConventionSpecification` (catches missing handlers at build time):
+```csharp
+// Every ICommand must have exactly one IRequestHandler<TCommand, TResponse>
+commandTypes.MustConformTo(new MustHaveCorrespondingHandlerConvention(allHandlerTypes));
+```
+
+**CQRS Dual Interface Enforcement** — custom `ConventionSpecification`:
+```csharp
+// Commands must implement both ICommand (marker) AND IRequest<T>/IRequest (mediator dispatch)
+commandTypes.MustConformTo(new MustImplementRequestInterfaceConvention());
+```
+
+#### Adding New Conventions
+
+For checks covered by Best.Conventional built-ins (naming, properties, dependencies, constructors), use `Convention.*` directly. For structural/wiring checks, extend `ConventionSpecification`:
 
 ```csharp
-[Fact]
-public void EndpointDefinitions_Should_EndWith_Endpoints()
+private class MyCustomConvention : ConventionSpecification
 {
-    Types.InAssembly(ApiAssembly)
-        .That()
-        .ImplementInterface(typeof(IEndpointDefinition))
-        .Should()
-        .HaveNameEndingWith("Endpoints")
-        .Check();
-}
+    protected override string FailureMessage => "description of what's expected";
 
-[Fact]
-public void Commands_Should_EndWith_Command()
-{
-    Types.InAssembly(ApiAssembly)
-        .That()
-        .ImplementInterface(typeof(ICommand))
-        .Should()
-        .HaveNameEndingWith("Command")
-        .Check();
-}
-
-[Fact]
-public void EndpointDefinitions_Should_Be_In_Endpoints_Namespace()
-{
-    Types.InAssembly(ApiAssembly)
-        .That()
-        .ImplementInterface(typeof(IEndpointDefinition))
-        .Should()
-        .ResideInNamespaceEndingWith("Endpoints")
-        .Check();
+    public override ConventionResult IsSatisfiedBy(Type type)
+    {
+        return /* check passes */
+            ? ConventionResult.Satisfied(type.FullName!)
+            : ConventionResult.NotSatisfied(type.FullName!, "specific failure reason");
+    }
 }
 ```
 
