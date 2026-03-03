@@ -924,18 +924,16 @@ curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo ba
 # Requires Docker running (Docker Desktop, Colima, etc.)
 ```
 
-**Usage**:
+**Usage** (`.actrc` pre-configures architecture and image — just run `act`):
 ```bash
 # Run the CI workflow locally (from repo root)
-act --container-architecture linux/amd64
-
-# First run: choose "Medium" runner image when prompted
+act
 
 # Run specific job
-act --container-architecture linux/amd64 -j build
+act -j build
 
 # Run with verbose output for debugging
-act --container-architecture linux/amd64 -v
+act -v
 
 # List available workflows
 act --list
@@ -943,7 +941,7 @@ act --list
 
 **Existing CI workflow** (`.github/workflows/ci.yml`): Restores, builds (Release), and runs non-integration tests on .NET 10.
 
-**Known limitation**: The Medium act image doesn't include Node.js, so the `actions/setup-dotnet@v4` post-step (cache-save) fails with `node: not found`. This is harmless — the actual build and test steps complete successfully. Real GitHub Actions runners have Node.js pre-installed and don't hit this issue.
+**Configuration files**: `.actrc` sets `--container-architecture linux/amd64` and the runner image. `.act.env` sets the container `PATH` so the `actions/setup-dotnet@v4` post-step can find Node.js (act's `docker exec` for post-steps doesn't inherit the container's `/etc/environment`).
 
 ### Development Commands
 
@@ -966,8 +964,8 @@ dotnet restore --locked-mode
 # Run with dev tunnel (exposes API to internet)
 dotnet run --project src/StarterApp.AppHost -- --devtunnel
 
-# Run CI locally
-act --container-architecture linux/amd64
+# Run CI locally (flags pre-configured in .actrc)
+act
 ```
 
 This template ensures consistency, maintainability, and scalability while following .NET community best practices and modern architectural patterns.
