@@ -927,21 +927,23 @@ curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo ba
 **Usage**:
 ```bash
 # Run the CI workflow locally (from repo root)
-act
+act --container-architecture linux/amd64
 
 # First run: choose "Medium" runner image when prompted
 
 # Run specific job
-act -j build
+act --container-architecture linux/amd64 -j build
 
 # Run with verbose output for debugging
-act -v
+act --container-architecture linux/amd64 -v
 
 # List available workflows
 act --list
 ```
 
 **Existing CI workflow** (`.github/workflows/ci.yml`): Restores, builds (Release), and runs non-integration tests on .NET 10.
+
+**Known limitation**: The Medium act image doesn't include Node.js, so the `actions/setup-dotnet@v4` post-step (cache-save) fails with `node: not found`. This is harmless — the actual build and test steps complete successfully. Real GitHub Actions runners have Node.js pre-installed and don't hit this issue.
 
 ### Development Commands
 
@@ -965,7 +967,7 @@ dotnet restore --locked-mode
 dotnet run --project src/StarterApp.AppHost -- --devtunnel
 
 # Run CI locally
-act
+act --container-architecture linux/amd64
 ```
 
 This template ensures consistency, maintainability, and scalability while following .NET community best practices and modern architectural patterns.
