@@ -72,14 +72,18 @@ if (gstRate > 1.0m)
 
 ## Docker & Deployment Notes
 
+### Dual-Runtime Requirement
+
+The API must work both as a **standalone Docker container** and under **Aspire orchestration**. When making infrastructure changes, always verify both modes:
+
+- **Connection strings**: Must resolve via fallback chain (`database` → `DockerLearning` → `sqlserver` → `DefaultConnection`) so both Aspire-injected and Docker-compose-provided values work
+- **Health checks**: `app.MapHealthChecks("/health")` must be mapped unconditionally — Aspire's `MapDefaultEndpoints()` only maps in Development environment, which is insufficient for Docker healthchecks
+- **Service registration**: All DI registrations must work without Aspire service discovery present — use conditional checks or fallback defaults where Aspire provides configuration
+
 ### .NET 10 Dockerfile Changes
 - .NET 10 base images use Ubuntu (not Debian)
 - Use modern GPG key management: `gpg --dearmor` + `signed-by=` in sources list
 - Microsoft package repo path: `ubuntu/24.04/prod.list`
-
-### Health Endpoint Mapping
-- `app.MapHealthChecks("/health")` must be mapped unconditionally in Program.cs for Docker healthcheck
-- Aspire's `MapDefaultEndpoints()` only maps health checks in Development environment — insufficient for Docker
 
 ## Dev Tunnels
 
