@@ -39,8 +39,10 @@ public class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void EveryCommand_MustHaveAHandler()
     {
-        var allTypes = ApiAssembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract).ToArray();
+        var allHandlers = ApiAssembly
+            .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
+            .Concat(ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<>)))
+            .Distinct().ToArray();
 
         var commandsWithResponse = ApiAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
@@ -54,30 +56,28 @@ public class CqrsConventionTests : ConventionTestBase
 
         commandsWithResponse
             .MustConformTo(Convention.RequiresACorrespondingImplementationOf(
-                typeof(IRequestHandler<,>), allTypes))
+                typeof(IRequestHandler<,>), allHandlers))
             .WithFailureAssertion(Assert.Fail);
 
         commandsVoid
             .MustConformTo(Convention.RequiresACorrespondingImplementationOf(
-                typeof(IRequestHandler<>), allTypes))
+                typeof(IRequestHandler<>), allHandlers))
             .WithFailureAssertion(Assert.Fail);
     }
 
     [Fact]
     public void EveryQuery_MustHaveAHandler()
     {
-        var allTypes = ApiAssembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract).ToArray();
+        var allHandlers = ApiAssembly
+            .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
+            .ToArray();
 
-        var queryTypes = ApiAssembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract &&
-                   t.GetInterfaces().Any(i =>
-                       i.IsGenericType &&
-                       i.GetGenericTypeDefinition() == typeof(IQuery<>)));
+        var queryTypes = ApiAssembly
+            .GetAllTypesImplementingOpenGenericType(typeof(IQuery<>));
 
         queryTypes
             .MustConformTo(Convention.RequiresACorrespondingImplementationOf(
-                typeof(IRequestHandler<,>), allTypes))
+                typeof(IRequestHandler<,>), allHandlers))
             .WithFailureAssertion(Assert.Fail);
     }
 

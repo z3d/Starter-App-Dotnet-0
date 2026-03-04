@@ -10,7 +10,9 @@ public class NamingConventionTests : ConventionTestBase
         var endpointTypes = ApiAssembly.GetTypes()
             .Where(t => t.GetInterfaces().Any(i => i.Name == "IEndpointDefinition"));
 
-        endpointTypes.MustConformTo(Convention.NameMustEndWith("Endpoints"));
+        endpointTypes
+            .MustConformTo(Convention.NameMustEndWith("Endpoints"))
+            .WithFailureAssertion(Assert.Fail);
     }
 
     [Fact]
