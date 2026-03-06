@@ -27,7 +27,7 @@ Tests/
 
 ## Convention Testing
 
-**Architectural Rule Enforcement** with [Best.Conventional](https://github.com/andrewabest/Conventional) (`Conventions/` directory, 38 tests across 6 test classes: `NamingConventionTests`, `CqrsConventionTests`, `DomainConventionTests`, `ApiConventionTests`, `PersistenceConventionTests`, `DapperConventionTests`).
+**Architectural Rule Enforcement** with [Best.Conventional](https://github.com/andrewabest/Conventional) (`Conventions/` directory, 6 test classes: `NamingConventionTests`, `CqrsConventionTests`, `DomainConventionTests`, `ApiConventionTests`, `PersistenceConventionTests`, `DapperConventionTests`).
 
 **Approach**: Use built-in conventions where possible. For structural checks not covered by built-ins, create custom conventions extending `ConventionSpecification` (from `Conventional.Conventions` namespace).
 

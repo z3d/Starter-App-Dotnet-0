@@ -12,15 +12,16 @@ A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern
 
 ### Clean Architecture with Convention-Enforced Boundaries
 
-The project enforces architectural rules through **37 convention tests** across 5 test classes using Best.Conventional. This is the strongest feature of the codebase — architectural decisions are not just documented but mechanically verified on every test run.
+The project enforces architectural rules through convention tests across 6 test classes using Best.Conventional. This is the strongest feature of the codebase — architectural decisions are not just documented but mechanically verified on every test run.
 
-| Test Class | Tests | What It Enforces |
-|------------|-------|-----------------|
-| `NamingConventionTests` | 9 | Endpoints, DTOs, commands, queries, handlers, validators, services, and test classes follow naming conventions |
-| `CqrsConventionTests` | 6 | Command handlers don't touch `IDbConnection`; query handlers don't touch `DbContext`; every command/query has a handler; dual interface enforcement (`ICommand` + `IRequest<T>`) |
-| `DomainConventionTests` | 8 | Private property setters on entities; immutable value objects; public getters on DTOs; non-public default constructors; `Equals`/`GetHashCode` overrides; async suffix; no async void; no `DateTime.Now` |
-| `ApiConventionTests` | 8 | Endpoints don't access DB directly; validators are pure; DTOs have no instance methods; mappers are static; handlers don't dispatch to other handlers; domain doesn't reference API |
-| `PersistenceConventionTests` | 6 | Every entity has a `DbSet`; value objects use `OwnsOne` not `DbSet`; enum properties configured; no static mutable state on `DbContext`; collection properties have private setters; migration scripts follow numbered prefix |
+| Test Class | What It Enforces |
+|------------|-----------------|
+| `NamingConventionTests` | Endpoints, DTOs, commands, queries, handlers, validators, services, and test classes follow naming conventions |
+| `CqrsConventionTests` | Command handlers don't touch `IDbConnection`; query handlers don't touch `DbContext`; every command/query has a handler; dual interface enforcement (`ICommand` + `IRequest<T>`) |
+| `DomainConventionTests` | Private property setters on entities; immutable value objects; public getters on DTOs; non-public default constructors; `Equals`/`GetHashCode` overrides; async suffix; no async void; no `DateTime.Now` |
+| `ApiConventionTests` | Endpoints don't access DB directly; validators are pure; DTOs have no instance methods; mappers are static; handlers don't dispatch to other handlers; domain doesn't reference API |
+| `PersistenceConventionTests` | Every entity has a `DbSet`; value objects use `OwnsOne` not `DbSet`; enum properties configured; no static mutable state on `DbContext`; collection properties have private setters; migration scripts follow numbered prefix |
+| `DapperConventionTests` | Query handlers must not use `SELECT *` in SQL (IL inspection of compiled string literals) |
 
 These tests catch entire categories of mistakes at compile time rather than in production.
 
@@ -185,7 +186,7 @@ While domain validation exists, it throws `ArgumentException`/`ArgumentNullExcep
 |----------|-------|---------------|
 | Domain unit tests | 6 | Entity creation, validation, state transitions, value object behavior |
 | Property-based (FsCheck) | 5 | Money arithmetic invariants, order state machine, GST calculations, email validation |
-| Convention tests | 5 (37 tests) | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping |
+| Convention tests | 6 classes | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping, Dapper SQL quality |
 | Application tests | 4 | Command handler behavior with mocked DbContext |
 | Integration tests | 4+ | Full API endpoint testing with Testcontainers SQL Server, DbUp migrations, ProblemDetails responses |
 | Test builders | 3 | Fluent builders for Customer, Product, Order |
@@ -196,7 +197,7 @@ While domain validation exists, it throws `ArgumentException`/`ArgumentNullExcep
 
 ## Verdict
 
-A well-engineered starter template that gets the hard things right: architecture enforcement through 38 convention tests (including Dapper SELECT * prevention), proper CQRS separation, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
+A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention), proper CQRS separation, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
 Issues #1, #3, #4, #5, and #9 have been fixed. The Order aggregate boundary is correct: items are managed through the aggregate root via `Order.AddItem()`, EF Core persists order + items atomically in a single `SaveChangesAsync`, and dead total columns have been dropped from the schema. Domain encapsulation is tightened: `SetId()` methods removed, `Reconstitute` made internal, command handlers use tracked entities with change detection, and `Money.Subtract` enforces the non-negative invariant. Remaining issues are (2) no authentication, (6) thin application layer, (7) sparse validation, (8) migrations on startup, and (10) missing patterns.
 

@@ -138,7 +138,7 @@ After completing a significant batch of work (bug fixes, feature additions, refa
 
 1. Re-read all `.claude/rules/*.md` files
 2. Identify stale guidance that contradicts the changes just made (e.g., old patterns that were replaced)
-3. Update test counts, convention lists, and pattern descriptions to match current reality
+3. Update convention class lists and pattern descriptions to match current reality (do NOT hardcode test counts — they go stale immediately)
 4. Add new patterns or anti-patterns discovered during the session
 5. Update `CLAUDE.md` if architectural decisions or project structure changed
 6. Update `docs/ARCHITECTURE_REVIEW.md` to mark resolved issues

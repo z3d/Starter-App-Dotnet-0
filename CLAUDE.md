@@ -110,7 +110,7 @@ Solution Root/
 
 **Data Access**: EF Core with `OwnsOne` for value objects, DbUp migrations in DbMigrator project. See `.claude/rules/data-access.md`.
 
-**Testing**: xUnit + FsCheck property-based testing + Best.Conventional architectural conventions (38 tests across 6 classes including `DapperConventionTests` for SELECT * prevention via IL inspection). Convention tests use built-in conventions where possible, custom `ConventionSpecification` for structural checks. See `.claude/rules/testing-strategy.md`.
+**Testing**: xUnit + FsCheck property-based testing + Best.Conventional architectural conventions across 6 test classes (including `DapperConventionTests` for SELECT * prevention via IL inspection). Convention tests use built-in conventions where possible, custom `ConventionSpecification` for structural checks. See `.claude/rules/testing-strategy.md`.
 
 **API Design**: Minimal APIs with `IEndpointDefinition` pattern, auto-discovery, endpoint filters for route-specific logic. See `.claude/rules/api-design.md`.
 
