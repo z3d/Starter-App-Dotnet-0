@@ -87,6 +87,7 @@ Solution Root/
 ### Code Formatting (.editorconfig)
 - 180 char line length, file-scoped namespaces, system usings first
 - StyleCop rules: SA1200, SA1209, SA1210, SA1211
+- Prefer `GlobalUsings.cs` per project over per-file using directives
 
 ## Pre-Commit Checklist
 
