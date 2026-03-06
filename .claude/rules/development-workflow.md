@@ -131,3 +131,16 @@ act --list       # List available workflows
 ```
 
 **Config files**: `.actrc` sets `--container-architecture linux/amd64` and runner image. `.act.env` sets container `PATH` for Node.js in post-steps.
+
+## Post-Session Retrospective
+
+After completing a significant batch of work (bug fixes, feature additions, refactoring), **retrospect and update rules**:
+
+1. Re-read all `.claude/rules/*.md` files
+2. Identify stale guidance that contradicts the changes just made (e.g., old patterns that were replaced)
+3. Update test counts, convention lists, and pattern descriptions to match current reality
+4. Add new patterns or anti-patterns discovered during the session
+5. Update `CLAUDE.md` if architectural decisions or project structure changed
+6. Update `docs/ARCHITECTURE_REVIEW.md` to mark resolved issues
+
+This prevents rules from drifting out of sync with the codebase — stale rules actively mislead future work.

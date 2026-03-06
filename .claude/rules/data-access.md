@@ -19,6 +19,22 @@ modelBuilder.Entity<Customer>()
     });
 ```
 
+**Aggregate Navigation Properties** with backing field access:
+
+```csharp
+// Order → OrderItems: EF Core manages FK, backing field stores collection
+modelBuilder.Entity<Order>(orderBuilder => {
+    orderBuilder.HasMany(o => o.Items)
+        .WithOne()
+        .HasForeignKey(oi => oi.OrderId)
+        .OnDelete(DeleteBehavior.Cascade);
+    orderBuilder.Navigation(o => o.Items)
+        .UsePropertyAccessMode(PropertyAccessMode.Field);
+});
+```
+
+This lets the aggregate root own the collection privately (`_items` backing field) while EF Core populates it via `.Include()`. Items added through `Order.AddItem()` get their `OrderId` set by EF on save — no need to know the ID upfront.
+
 ## Database Migrations
 
 **DbUp with Embedded Scripts**:

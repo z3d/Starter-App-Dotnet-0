@@ -44,7 +44,8 @@ Solution Root/
 - Rich domain models: entities contain business behavior, not just properties
 - Value objects: immutable objects with business meaning (Email, Money)
 - Aggregate roots control access and maintain consistency
-- Reconstitute pattern for rebuilding aggregates from database rows
+- Aggregate roots own child collections via backing fields; EF Core populates via `.Include()`
+- `Reconstitute` is internal/test-only — production handlers use tracked EF entities
 
 **CQRS Implementation**
 - Commands → EF Core (ApplicationDbContext) → return DTOs
@@ -69,6 +70,8 @@ Solution Root/
 - Mixed CQRS concerns — keep commands and queries strictly separate
 - Repository pattern — use DbContext directly in command handlers
 - Explicit transactions — use EF Core navigation properties and single `SaveChangesAsync` instead. If you need two saves, the aggregate boundary is wrong.
+- `AsNoTracking` + `Update` in command handlers — marks all columns modified, creates lost-update risks. Load tracked entities instead.
+- Public `SetId()` methods on entities — EF Core sets Id via private setter. No identity mutation methods.
 - Code regions, historical comments, XML doc comments (for app code)
 - Dual representation (separate entity/value object pairs)
 
@@ -103,11 +106,11 @@ Solution Root/
 
 **DDD Entities**: Private setters, protected EF Core constructor, public domain constructor with validation, domain methods for mutations. See `.claude/rules/ddd-implementation.md`.
 
-**CQRS Handlers**: Commands use `ApplicationDbContext` directly (no repository). Queries use `IDbConnection` with Dapper SQL. Convention tests enforce this separation. See `.claude/rules/cqrs-patterns.md`.
+**CQRS Handlers**: Commands load tracked entities via DbContext with `.Include()`, mutate through domain methods, single `SaveChangesAsync(cancellationToken)`. Queries use `IDbConnection` with Dapper SQL. Convention tests enforce this separation. See `.claude/rules/cqrs-patterns.md`.
 
 **Data Access**: EF Core with `OwnsOne` for value objects, DbUp migrations in DbMigrator project. See `.claude/rules/data-access.md`.
 
-**Testing**: xUnit + FsCheck property-based testing + Best.Conventional architectural conventions (23 tests across `NamingConventionTests`, `CqrsConventionTests`, `DomainConventionTests`). Convention tests use built-in conventions where possible, custom `ConventionSpecification` for structural checks. See `.claude/rules/testing-strategy.md`.
+**Testing**: xUnit + FsCheck property-based testing + Best.Conventional architectural conventions (38 tests across 6 classes including `DapperConventionTests` for SELECT * prevention via IL inspection). Convention tests use built-in conventions where possible, custom `ConventionSpecification` for structural checks. See `.claude/rules/testing-strategy.md`.
 
 **API Design**: Minimal APIs with `IEndpointDefinition` pattern, auto-discovery, endpoint filters for route-specific logic. See `.claude/rules/api-design.md`.
 

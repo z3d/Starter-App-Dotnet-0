@@ -17,7 +17,7 @@ Tests/
 **FsCheck 2.16.6** with **FsCheck.Xunit** integration. Instead of hand-picked test values, FsCheck generates hundreds of random inputs to verify domain invariants hold universally.
 
 **Key properties tested**:
-- **Money**: Addition commutativity/associativity, subtract-inverse, negative rejection, currency validation
+- **Money**: Addition commutativity/associativity, subtract-inverse, subtract never produces negative amounts, negative rejection, currency validation
 - **Email**: Whitespace rejection, valid acceptance, equality reflexivity, random string robustness
 - **Product**: Stock update round-trip (`+n` then `-n` restores original), over-deduction throws
 - **OrderItem**: Price invariant (`TotalIncGst == UnitIncGst * Qty`), GST rate bounds, ID/quantity validation
@@ -27,7 +27,7 @@ Tests/
 
 ## Convention Testing
 
-**Architectural Rule Enforcement** with [Best.Conventional](https://github.com/andrewabest/Conventional) (`Conventions/` directory, 23 tests across `NamingConventionTests`, `CqrsConventionTests`, `DomainConventionTests`).
+**Architectural Rule Enforcement** with [Best.Conventional](https://github.com/andrewabest/Conventional) (`Conventions/` directory, 38 tests across 6 test classes: `NamingConventionTests`, `CqrsConventionTests`, `DomainConventionTests`, `ApiConventionTests`, `PersistenceConventionTests`, `DapperConventionTests`).
 
 **Approach**: Use built-in conventions where possible. For structural checks not covered by built-ins, create custom conventions extending `ConventionSpecification` (from `Conventional.Conventions` namespace).
 
@@ -64,6 +64,12 @@ valueObjectTypes.MustConformTo(new MustOverrideEqualsAndGetHashCodeConvention())
 ```
 
 **Safety** — `Convention.VoidMethodsMustNotBeAsync`, `Convention.MustNotResolveCurrentTimeViaDateTime`
+
+**Dapper SQL Quality** — Custom IL inspection convention (`DapperConventionTests`):
+- Scans compiled query handler IL for `ldstr` opcodes (0x72) to extract SQL string literals
+- Checks string literals against `Regex(@"SELECT\s+\*")` to prevent `SELECT *`
+- Handles async state machine nested types (where string literals actually live in compiled IL)
+- Allows `COUNT(*)` and other non-column-expanding uses of `*`
 
 ### Adding New Conventions
 

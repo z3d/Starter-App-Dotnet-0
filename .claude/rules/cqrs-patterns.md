@@ -45,7 +45,10 @@ public async Task<ActionResult<IEnumerable<ProductReadModel>>> GetAllProducts()
 - DbContext already implements Unit of Work and Repository patterns internally
 - A repository layer added indirection without value
 - Direct DbContext usage is simpler, more explicit, and easier to debug
-- Entities loaded with `AsNoTracking()` then reconstituted via domain factory methods
+- Load entities as **tracked** (no `AsNoTracking`) so EF detects only changed properties
+- Use `.Include()` to load navigations (e.g., `Orders.Include(o => o.Items)`)
+- Mutate through domain methods, then single `SaveChangesAsync(cancellationToken)`
+- **Never** use `AsNoTracking` + `Reconstitute` + `Update` in handlers — it marks all columns modified and creates lost-update risks
 
 **Queries use Dapper** for optimized reads directly against SQL, returning lightweight ReadModels.
 
