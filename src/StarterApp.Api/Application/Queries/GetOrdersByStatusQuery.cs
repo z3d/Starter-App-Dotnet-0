@@ -24,11 +24,23 @@ public class GetOrdersByStatusQueryHandler : IRequestHandler<GetOrdersByStatusQu
         var offset = (query.Page - 1) * query.PageSize;
 
         const string sql = @"
-            SELECT Id, CustomerId, OrderDate, Status, TotalExcludingGst, TotalIncludingGst,
-                   TotalGstAmount, Currency, LastUpdated
-            FROM Orders
-            WHERE Status = @Status
-            ORDER BY OrderDate DESC
+            SELECT o.Id, o.CustomerId, o.OrderDate, o.Status,
+                   ISNULL(t.TotalExcludingGst, 0) AS TotalExcludingGst,
+                   ISNULL(t.TotalIncludingGst, 0) AS TotalIncludingGst,
+                   ISNULL(t.TotalGstAmount, 0) AS TotalGstAmount,
+                   ISNULL(t.Currency, o.Currency) AS Currency,
+                   o.LastUpdated
+            FROM Orders o
+            OUTER APPLY (
+                SELECT SUM(UnitPriceExcludingGst * Quantity) AS TotalExcludingGst,
+                       SUM(UnitPriceExcludingGst * Quantity * (1 + GstRate)) AS TotalIncludingGst,
+                       SUM(UnitPriceExcludingGst * Quantity * GstRate) AS TotalGstAmount,
+                       MIN(Currency) AS Currency
+                FROM OrderItems
+                WHERE OrderId = o.Id
+            ) t
+            WHERE o.Status = @Status
+            ORDER BY o.OrderDate DESC
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
         return await _connection.QueryAsync<OrderReadModel>(sql,

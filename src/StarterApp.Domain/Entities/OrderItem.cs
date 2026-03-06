@@ -18,8 +18,18 @@ public class OrderItem
     }
 
     public OrderItem(int orderId, int productId, string productName, int quantity, Money unitPriceExcludingGst, decimal gstRate = DefaultGstRate)
+        : this(productId, productName, quantity, unitPriceExcludingGst, gstRate)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(orderId);
+        OrderId = orderId;
+    }
+
+    /// <summary>
+    /// Creates an OrderItem without an OrderId. Used by Order.AddItem when the order
+    /// hasn't been saved yet — EF Core sets OrderId via the FK relationship on save.
+    /// </summary>
+    internal OrderItem(int productId, string productName, int quantity, Money unitPriceExcludingGst, decimal gstRate = DefaultGstRate)
+    {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(productId);
         ArgumentException.ThrowIfNullOrWhiteSpace(productName);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(quantity);
@@ -30,7 +40,6 @@ public class OrderItem
             throw new ArgumentOutOfRangeException(nameof(gstRate), gstRate,
                 "GST rate must be a decimal value between 0 and 1 (e.g., 0.10 for 10%). Database constraint: DECIMAL(5,4) with max value 9.9999.");
 
-        OrderId = orderId;
         ProductId = productId;
         ProductName = productName;
         Quantity = quantity;

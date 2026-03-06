@@ -35,37 +35,26 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         var order = new Order(command.CustomerId);
 
-        // Save order header to get the generated ID
-        _dbContext.Orders.Add(order);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        // Create all order items
-        var orderItems = new List<OrderItem>();
         foreach (var itemCommand in command.Items)
         {
             var product = await _dbContext.Products.FindAsync([itemCommand.ProductId], cancellationToken);
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {itemCommand.ProductId} was not found");
 
-            var orderItem = new OrderItem(
-                order.Id,
+            order.AddItem(
                 itemCommand.ProductId,
                 product.Name,
                 itemCommand.Quantity,
                 Money.Create(itemCommand.UnitPriceExcludingGst, itemCommand.Currency),
                 itemCommand.GstRate
             );
-
-            _dbContext.OrderItems.Add(orderItem);
-            orderItems.Add(orderItem);
         }
 
+        // Single save — EF Core persists order + items atomically and sets OrderId via FK
+        _dbContext.Orders.Add(order);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        // Build the order in memory instead of reloading from DB
-        var result = Order.Reconstitute(order.Id, order.CustomerId, order.OrderDate, order.Status, order.LastUpdated, orderItems);
-
         Log.Information("Created order with ID: {OrderId}", order.Id);
-        return OrderMapper.ToDto(result);
+        return OrderMapper.ToDto(order);
     }
 }

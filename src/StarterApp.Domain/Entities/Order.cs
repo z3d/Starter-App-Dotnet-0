@@ -50,6 +50,26 @@ public class Order
         LastUpdated = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Creates and adds an OrderItem without requiring an OrderId.
+    /// EF Core sets the FK when the Order is saved.
+    /// </summary>
+    public OrderItem AddItem(int productId, string productName, int quantity, Money unitPrice, decimal gstRate = OrderItem.DefaultGstRate)
+    {
+        if (Status != OrderStatus.Pending)
+            throw new InvalidOperationException("Cannot add items to a non-pending order");
+
+        var existingItem = _items.FirstOrDefault(i => i.ProductId == productId);
+        if (existingItem != null)
+            _items.Remove(existingItem);
+
+        var item = new OrderItem(productId, productName, quantity, unitPrice, gstRate);
+        _items.Add(item);
+        Items = _items.AsReadOnly();
+        LastUpdated = DateTime.UtcNow;
+        return item;
+    }
+
     public void RemoveItem(int productId)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(productId);

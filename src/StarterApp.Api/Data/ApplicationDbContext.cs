@@ -46,14 +46,15 @@ public class ApplicationDbContext : DbContext
             orderBuilder.Property(o => o.Status)
                 .HasConversion<string>();
 
-            // Configure the Items collection relationship
-            orderBuilder.HasMany<OrderItem>()
+            // Configure Items navigation via backing field (_items).
+            // EF Core sets OrderId on each item when the Order is saved.
+            orderBuilder.HasMany(o => o.Items)
                 .WithOne()
                 .HasForeignKey(oi => oi.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Configure the Items as ignored since EF will load via relationship
-            orderBuilder.Ignore(o => o.Items);
+            orderBuilder.Navigation(o => o.Items)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
         });
 
         // Configure OrderItem entity

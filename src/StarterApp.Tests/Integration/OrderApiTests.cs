@@ -660,6 +660,58 @@ public class OrderApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetOrder_ShouldReturnCorrectTotals()
+    {
+        // Arrange - Create test data
+        var (customer, product) = await CreateTestData();
+
+        var orderCommand = OrderBuilder.Default()
+            .WithCustomerId(customer.Id)
+            .WithItem(product.Id, 2, 10.00m, "USD", 0.10m) // 2 * 10.00 = 20.00 excl, 22.00 incl
+            .Build();
+
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
+        createResponse.EnsureSuccessStatusCode();
+        var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
+        Assert.NotNull(createdOrder);
+
+        // Act - GET the same order back via the Dapper read path
+        var getResponse = await _fixture.Client.GetAsync($"/api/v1/orders/{createdOrder.Id}");
+        getResponse.EnsureSuccessStatusCode();
+        var retrievedOrder = await getResponse.Content.ReadFromJsonAsync<OrderDto>();
+
+        // Assert - Read path totals must match write path totals
+        Assert.NotNull(retrievedOrder);
+        Assert.Equal(20.00m, retrievedOrder.TotalExcludingGst);
+        Assert.Equal(22.00m, retrievedOrder.TotalIncludingGst);
+        Assert.Equal(2.00m, retrievedOrder.TotalGstAmount);
+    }
+
+    [Fact]
+    public async Task CreateOrder_WithSecondProductNotFound_ShouldNotLeavePartialOrder()
+    {
+        // Arrange - Create test data with one valid product
+        var (customer, product) = await CreateTestData();
+
+        var orderCommand = OrderBuilder.Default()
+            .WithCustomerId(customer.Id)
+            .WithItem(product.Id, 1, 10.00m)       // Valid product
+            .WithItem(999999, 1, 5.00m)              // Non-existent product
+            .Build();
+
+        // Act - This should fail on the second item
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        // Assert - No orphaned order should exist; customer's orders should be empty
+        var ordersResponse = await _fixture.Client.GetAsync($"/api/v1/orders/customer/{customer.Id}");
+        ordersResponse.EnsureSuccessStatusCode();
+        var orders = await ordersResponse.Content.ReadFromJsonAsync<List<OrderDto>>();
+        Assert.NotNull(orders);
+        Assert.Empty(orders);
+    }
+
+    [Fact]
     public async Task GetOrder_ShouldIncludeCorrectTimestamps()
     {
         // Arrange - Create test data

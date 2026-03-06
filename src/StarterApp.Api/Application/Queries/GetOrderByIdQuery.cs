@@ -19,10 +19,22 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
         Log.Information("Handling GetOrderByIdQuery for order {Id}", query.Id);
 
         const string orderSql = @"
-            SELECT Id, CustomerId, OrderDate, Status, TotalExcludingGst, TotalIncludingGst,
-                   TotalGstAmount, Currency, LastUpdated
-            FROM Orders
-            WHERE Id = @Id";
+            SELECT o.Id, o.CustomerId, o.OrderDate, o.Status,
+                   ISNULL(t.TotalExcludingGst, 0) AS TotalExcludingGst,
+                   ISNULL(t.TotalIncludingGst, 0) AS TotalIncludingGst,
+                   ISNULL(t.TotalGstAmount, 0) AS TotalGstAmount,
+                   ISNULL(t.Currency, o.Currency) AS Currency,
+                   o.LastUpdated
+            FROM Orders o
+            OUTER APPLY (
+                SELECT SUM(UnitPriceExcludingGst * Quantity) AS TotalExcludingGst,
+                       SUM(UnitPriceExcludingGst * Quantity * (1 + GstRate)) AS TotalIncludingGst,
+                       SUM(UnitPriceExcludingGst * Quantity * GstRate) AS TotalGstAmount,
+                       MIN(Currency) AS Currency
+                FROM OrderItems
+                WHERE OrderId = o.Id
+            ) t
+            WHERE o.Id = @Id";
 
         const string itemsSql = @"
             SELECT OrderId, ProductId, ProductName, Quantity, UnitPriceExcludingGst,
