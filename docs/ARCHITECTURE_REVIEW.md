@@ -95,22 +95,9 @@ Good adoption of modern .NET:
 
 ## Weaknesses
 
-### 1. Read Model Totals Are Never Written — CQRS Data Consistency Bug
+### ~~1. Read Model Totals Are Never Written — CQRS Data Consistency Bug~~ FIXED
 
-**Severity: High**
-
-The `Orders` table has `TotalExcludingGst`, `TotalIncludingGst`, `TotalGstAmount`, and `Currency` columns (defined in `0004_CreateOrdersTable.sql` with `DEFAULT 0.00`). However, the `Order` domain entity does not map these columns — it computes totals via methods (`GetTotalExcludingGst()`, etc.) from its `Items` collection.
-
-**The write side never updates these columns.** When `CreateOrderCommand` saves an order via EF Core, the totals remain at 0.00. The `OrderMapper.ToDto()` correctly computes totals from the domain for command responses, but all **Dapper read queries** (`GetOrderByIdQuery`, `GetOrdersByCustomerQuery`, `GetOrdersByStatusQuery`) select these columns directly from the table — returning 0 for every order's totals.
-
-```sql
--- GetOrderByIdQuery reads TotalExcludingGst directly from table (always 0)
-SELECT Id, CustomerId, OrderDate, Status, TotalExcludingGst, TotalIncludingGst,
-       TotalGstAmount, Currency, LastUpdated
-FROM Orders WHERE Id = @Id
-```
-
-**Recommendation:** Either (a) compute totals in the Dapper queries via `JOIN`/subquery against `OrderItems`, or (b) update the totals columns in the command handlers after saving items. Option (a) is more consistent with CQRS principles since it avoids denormalization drift.
+**Status: Resolved.** Dapper read queries now compute totals via `OUTER APPLY` subqueries against `OrderItems` instead of reading dead columns from the `Orders` table. The total columns (`TotalExcludingGst`, `TotalIncludingGst`, `TotalGstAmount`) have been dropped from the schema. Regression test `GetOrder_ShouldReturnCorrectTotals` verifies read-path totals match write-path totals.
 
 ### 2. No Authentication or Authorization
 
@@ -120,21 +107,9 @@ No auth exists. Rate limiting and security headers are present, but they protect
 
 **Recommendation:** Add a JWT bearer setup with a placeholder identity provider. Even a minimal `AddAuthentication().AddJwtBearer()` with `RequireAuthorization()` on the endpoint groups would demonstrate the pattern.
 
-### 3. CreateOrderCommand Has Two SaveChanges Without Transaction Boundary
+### ~~3. CreateOrderCommand Has Two SaveChanges Without Transaction Boundary~~ FIXED
 
-**Severity: Medium**
-
-`CreateOrderCommandHandler` calls `SaveChangesAsync` twice: once to get the generated order ID, then again after creating items. If the second save fails, the database contains an order with no items — a partial write.
-
-```csharp
-_dbContext.Orders.Add(order);
-await _dbContext.SaveChangesAsync(cancellationToken); // Gets ID
-
-foreach (var itemCommand in command.Items) { /* ... */ }
-await _dbContext.SaveChangesAsync(cancellationToken); // Could fail here
-```
-
-**Recommendation:** Wrap both saves in an explicit `using var transaction = await _dbContext.Database.BeginTransactionAsync()` with commit/rollback. Alternatively, use a temporary negative ID strategy or Hi-Lo sequence to avoid the two-phase save entirely.
+**Status: Resolved.** The root cause was a broken aggregate boundary: EF Core's `Items` navigation was `Ignore()`d, forcing items to be saved separately via `DbSet<OrderItem>`. Fix: restored the `Order→Items` navigation via backing field access (`UsePropertyAccessMode(PropertyAccessMode.Field)`), added `Order.AddItem(productId, name, qty, price, rate)` overload that constructs items through an `internal` OrderItem constructor (no orderId needed — EF sets FK on save). Handler now uses a single `SaveChangesAsync`. Regression test `CreateOrder_WithSecondProductNotFound_ShouldNotLeavePartialOrder` verifies no orphaned rows.
 
 ### 4. Public `SetId()` Methods Break Domain Encapsulation
 
@@ -246,10 +221,10 @@ var negative = small.Subtract(large); // Amount = -5, valid Money instance
 
 ## Verdict
 
-A well-engineered starter template that gets the hard things right: architecture enforcement through 37 convention tests, proper CQRS separation, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
+A well-engineered starter template that gets the hard things right: architecture enforcement through 38 convention tests (including Dapper SELECT * prevention), proper CQRS separation, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-The main issues are (1) a CQRS data consistency bug where order totals are never written to the read model columns, (2) no authentication, and (3) several domain encapsulation holes (`SetId()`, two-phase save, `AsNoTracking` + `Update`). These are all fixable without structural changes.
+The CQRS data consistency bug (#1) and partial-write risk (#3) have been fixed. The Order aggregate boundary is now correct: items are managed through the aggregate root via `Order.AddItem()`, EF Core persists order + items atomically in a single `SaveChangesAsync`, and dead total columns have been dropped from the schema. Remaining issues are (2) no authentication and domain encapsulation holes (`SetId()`, `AsNoTracking` + `Update`).
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 
-**Best suited for:** Teams starting a new .NET API who want architectural guardrails from day one and are willing to add auth, domain events, and fix the read model consistency gap themselves.
+**Best suited for:** Teams starting a new .NET API who want architectural guardrails from day one and are willing to add auth and domain events themselves.

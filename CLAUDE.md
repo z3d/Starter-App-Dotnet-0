@@ -68,6 +68,7 @@ Solution Root/
 - Anemic domain models — domain objects must have behavior
 - Mixed CQRS concerns — keep commands and queries strictly separate
 - Repository pattern — use DbContext directly in command handlers
+- Explicit transactions — use EF Core navigation properties and single `SaveChangesAsync` instead. If you need two saves, the aggregate boundary is wrong.
 - Code regions, historical comments, XML doc comments (for app code)
 - Dual representation (separate entity/value object pairs)
 
