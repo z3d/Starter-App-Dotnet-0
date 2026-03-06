@@ -2,109 +2,117 @@
 
 ## Overview
 
-A .NET 10 Clean Architecture starter template demonstrating CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
+A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 8/10**
+**Score: 7.5/10**
 
 ---
 
 ## Strengths
 
-### Clean Architecture with Enforced Boundaries
+### Clean Architecture with Convention-Enforced Boundaries
 
-The project separates concerns across well-defined layers:
+The project enforces architectural rules through **37 convention tests** across 5 test classes using Best.Conventional. This is the strongest feature of the codebase — architectural decisions are not just documented but mechanically verified on every test run.
 
-- **Domain** (`StarterApp.Domain`) — Pure business logic, zero infrastructure dependencies
-- **Application** (`StarterApp.Api/Application`) — Commands, queries, validators, DTOs
-- **Infrastructure** (`StarterApp.Api/Infrastructure`) — Mediator, validation, data access
-- **API** (`StarterApp.Api/Endpoints`) — Minimal APIs with endpoint definitions
+| Test Class | Tests | What It Enforces |
+|------------|-------|-----------------|
+| `NamingConventionTests` | 9 | Endpoints, DTOs, commands, queries, handlers, validators, services, and test classes follow naming conventions |
+| `CqrsConventionTests` | 6 | Command handlers don't touch `IDbConnection`; query handlers don't touch `DbContext`; every command/query has a handler; dual interface enforcement (`ICommand` + `IRequest<T>`) |
+| `DomainConventionTests` | 8 | Private property setters on entities; immutable value objects; public getters on DTOs; non-public default constructors; `Equals`/`GetHashCode` overrides; async suffix; no async void; no `DateTime.Now` |
+| `ApiConventionTests` | 8 | Endpoints don't access DB directly; validators are pure; DTOs have no instance methods; mappers are static; handlers don't dispatch to other handlers; domain doesn't reference API |
+| `PersistenceConventionTests` | 6 | Every entity has a `DbSet`; value objects use `OwnsOne` not `DbSet`; enum properties configured; no static mutable state on `DbContext`; collection properties have private setters; migration scripts follow numbered prefix |
 
-These boundaries are **enforced by 37 convention tests** across 5 test classes, not just documented. For example, `CqrsConventionTests` ensures command handlers never touch `IDbConnection` and query handlers never touch `DbContext`. `ApiConventionTests` ensures endpoints only dispatch through the mediator and that validators remain pure. `PersistenceConventionTests` ensures every entity has a `DbSet` registration and value objects use `OwnsOne` instead.
+These tests catch entire categories of mistakes at compile time rather than in production.
 
 ### CQRS Implementation
 
-The read/write split is well executed:
+The read/write split is cleanly executed:
 
-- **Commands** flow through EF Core `DbContext` for writes
-- **Queries** flow through Dapper `IDbConnection` for reads
-- A **custom mediator** replaces MediatR, avoiding commercial licensing while maintaining the same dispatch pattern with auto-discovery and integrated validation
+- **Commands** flow through EF Core `DbContext` for writes, returning `*Dto` types
+- **Queries** flow through Dapper `IDbConnection` for reads, returning `*ReadModel` types
+- A **custom mediator** replaces MediatR, avoiding commercial licensing. It auto-discovers handlers via reflection and integrates validation as a pipeline behavior
+- Convention tests mechanically prevent cross-contamination between read and write paths
 
 ### Rich Domain Models
 
-Entities are not anemic:
+Entities contain real behavior, not just properties:
 
-- `Order` has a proper state machine (Pending > Confirmed > Processing > Shipped > Delivered, with cancellation)
-- Value objects (`Money`, `Email`) are immutable with static factories and equality overrides
-- Private setters and protected constructors enforce encapsulation
-- `Reconstitute()` factory methods handle database hydration without bypassing invariants at creation time
-
-### Convention Tests
-
-The standout feature. 37 tests using Best.Conventional across 5 classes enforce:
-
-**Naming** (`NamingConventionTests` — 9 tests)
-- Endpoints, DTOs, commands, queries, handlers, validators, services, and test classes follow naming conventions
-
-**CQRS Boundaries** (`CqrsConventionTests` — 5 tests)
-- Command handlers must not depend on `IDbConnection`
-- Query handlers must not depend on `DbContext`
-- Every command and query must have a handler
-- Commands must implement both `ICommand` and `IRequest<T>`
-- Queries must implement both `IQuery<T>` and `IRequest<T>`
-
-**Domain Integrity** (`DomainConventionTests` — 7 tests)
-- Entities have private property setters and non-public default constructors
-- Value objects are immutable and override `Equals`/`GetHashCode`
-- DTOs have public getters
-- Async methods have `Async` suffix; no async void; no `DateTime.Now`
-
-**API Layer** (`ApiConventionTests` — 8 tests)
-- Endpoints must not depend on `DbContext` or `IDbConnection` directly
-- Validators must be pure (no database access)
-- DTOs must not have instance methods (plain data carriers only)
-- Mappers must be static classes
-- Handlers must not depend on `IMediator` (no handler-to-handler dispatch chains)
-- Domain types must not reference the API assembly
-
-**Persistence** (`PersistenceConventionTests` — 6 tests — _new_)
-- All domain entities must have a `DbSet<T>` in `ApplicationDbContext`
-- Value objects must not be registered as `DbSet` (use `OwnsOne`)
-- Entities with domain enums must have enum properties configured
-- `DbContext` must not have static mutable state
-- Collection navigation properties must not have public setters
-- Migration scripts must follow numbered prefix pattern (`0001_`)
+- **`Order`** has a state machine (Pending > Confirmed > Processing > Shipped > Delivered, with cancellation from valid states). `IsValidStatusTransition()` uses a switch expression that makes valid/invalid transitions explicit. `Confirm()` requires non-empty items. `Cancel()` prevents cancellation of delivered orders.
+- **Value objects** (`Money`, `Email`) are immutable with private constructors, static factory methods, and proper `Equals`/`GetHashCode` overrides
+- **`OrderItem`** encapsulates GST calculation logic with multiple derived values (`GetUnitPriceIncludingGst`, `GetTotalPriceExcludingGst`, `GetTotalPriceIncludingGst`, `GetTotalGstAmount`)
+- Private setters and protected constructors enforce encapsulation throughout
+- `Reconstitute()` factory methods handle database hydration without bypassing creation-time invariants
 
 ### Property-Based Testing
 
-FsCheck tests go beyond typical unit testing:
+FsCheck tests go beyond typical unit tests by generating hundreds of random inputs per test:
 
-- Money arithmetic (commutativity, associativity, currency validation)
-- Order state machine (valid/invalid transitions)
+- Money arithmetic (commutativity, associativity, currency mismatch)
+- Order state machine (valid/invalid transitions across random states)
 - OrderItem GST calculations and boundary conditions
-- Email format validation edge cases
+- Email format edge cases
+
+### Custom Mediator
+
+The mediator at `Infrastructure/Mediator/Mediator.cs` is well-designed:
+
+- Auto-discovery and registration via `MediatorServiceExtensions.AddMediator()`
+- Validation pipeline: validators run before handlers, collecting all errors before throwing
+- Supports both `IRequest<TResponse>` (returns value) and `IRequest` (void) dispatch
+- Keeps the codebase free from MediatR's commercial licensing constraints
 
 ### DevOps and Observability
 
-- Aspire orchestration — single command to spin up API + SQL Server + Seq
-- Serilog structured logging with console, file, Seq, and OpenTelemetry sinks
-- Docker multi-stage build with docker-compose
-- CI pipeline with GitHub Actions
-- Health checks at `/health`
+- **Aspire orchestration** — `AppHost/Program.cs` wires up API, SQL Server, Seq, and DbMigrator with proper `WaitFor` dependencies and optional dev tunnel support
+- **Serilog** structured logging with console, file, Seq, and OpenTelemetry sinks
+- **OpenTelemetry** metrics (ASP.NET Core, HTTP, runtime) and tracing via `ServiceDefaults`
+- **Docker** multi-stage build with docker-compose (API + SQL Server + Seq)
+- **CI** pipeline with GitHub Actions (build + test on push/PR)
+- **Health checks** at `/health` and `/alive`
+- **Password masking** in log output — implemented consistently across `Program.cs`, `DatabaseMigrationEngine`, and `DbMigrator`
 
-### Build Configuration
+### Build Quality
 
 `Directory.Build.props` enforces quality globally:
 
 - Warnings as errors
 - Nullable reference types
-- Deterministic builds
-- Package lock files for reproducibility
+- Deterministic builds with `PathMap`
+- Package lock files with `RestoreLockedMode` in CI
+- Global Roslyn analyzers (`Microsoft.CodeAnalysis.Analyzers`)
+
+### .NET 10 Features
+
+Good adoption of modern .NET:
+
+- Native OpenAPI support (`AddOpenApi` with document transformer)
+- `StatusCodeSelector` on `UseExceptionHandler` for type-based exception-to-status mapping
+- Minimal APIs with `MapGroup` and endpoint metadata
+- Scalar API reference UI replacing Swagger
+- `ArgumentOutOfRangeException.ThrowIfNegativeOrZero()` and similar guard clause helpers
 
 ---
 
 ## Weaknesses
 
-### 1. No Authentication or Authorization
+### 1. Read Model Totals Are Never Written — CQRS Data Consistency Bug
+
+**Severity: High**
+
+The `Orders` table has `TotalExcludingGst`, `TotalIncludingGst`, `TotalGstAmount`, and `Currency` columns (defined in `0004_CreateOrdersTable.sql` with `DEFAULT 0.00`). However, the `Order` domain entity does not map these columns — it computes totals via methods (`GetTotalExcludingGst()`, etc.) from its `Items` collection.
+
+**The write side never updates these columns.** When `CreateOrderCommand` saves an order via EF Core, the totals remain at 0.00. The `OrderMapper.ToDto()` correctly computes totals from the domain for command responses, but all **Dapper read queries** (`GetOrderByIdQuery`, `GetOrdersByCustomerQuery`, `GetOrdersByStatusQuery`) select these columns directly from the table — returning 0 for every order's totals.
+
+```sql
+-- GetOrderByIdQuery reads TotalExcludingGst directly from table (always 0)
+SELECT Id, CustomerId, OrderDate, Status, TotalExcludingGst, TotalIncludingGst,
+       TotalGstAmount, Currency, LastUpdated
+FROM Orders WHERE Id = @Id
+```
+
+**Recommendation:** Either (a) compute totals in the Dapper queries via `JOIN`/subquery against `OrderItems`, or (b) update the totals columns in the command handlers after saving items. Option (a) is more consistent with CQRS principles since it avoids denormalization drift.
+
+### 2. No Authentication or Authorization
 
 **Severity: High**
 
@@ -112,69 +120,136 @@ No auth exists. Rate limiting and security headers are present, but they protect
 
 **Recommendation:** Add a JWT bearer setup with a placeholder identity provider. Even a minimal `AddAuthentication().AddJwtBearer()` with `RequireAuthorization()` on the endpoint groups would demonstrate the pattern.
 
-### 2. Thin Application Layer
+### 3. CreateOrderCommand Has Two SaveChanges Without Transaction Boundary
 
 **Severity: Medium**
 
-Command handlers are mostly CRUD pass-through. The mediator + validator pipeline is well-built infrastructure, but the handlers don't demonstrate complex business workflows (e.g., "create order > validate stock > reserve inventory > send confirmation").
+`CreateOrderCommandHandler` calls `SaveChangesAsync` twice: once to get the generated order ID, then again after creating items. If the second save fails, the database contains an order with no items — a partial write.
 
-**Recommendation:** Add a `CreateOrderCommandHandler` that checks product stock before creating the order, demonstrating cross-aggregate coordination through the application layer.
+```csharp
+_dbContext.Orders.Add(order);
+await _dbContext.SaveChangesAsync(cancellationToken); // Gets ID
 
-### 3. No Repository Abstraction
+foreach (var itemCommand in command.Items) { /* ... */ }
+await _dbContext.SaveChangesAsync(cancellationToken); // Could fail here
+```
 
-**Severity: Low**
+**Recommendation:** Wrap both saves in an explicit `using var transaction = await _dbContext.Database.BeginTransactionAsync()` with commit/rollback. Alternatively, use a temporary negative ID strategy or Hi-Lo sequence to avoid the two-phase save entirely.
 
-`DbContext` is used directly in command handlers. This is a valid simplification, but it makes unit testing handlers harder without Testcontainers.
-
-**Recommendation:** This is a deliberate trade-off. If unit test speed becomes an issue, introduce a lightweight `IRepository<T>` only then.
-
-### 4. Database Migrations Run on API Startup
+### 4. Public `SetId()` Methods Break Domain Encapsulation
 
 **Severity: Medium**
 
-`DatabaseMigrator.MigrateDatabase()` runs in `Program.cs` on startup. With multiple replicas, this creates race conditions. The standalone `DbMigrator` project exists but isn't clearly the designated production path.
+`Customer.SetId()`, `Product.SetId()`, and `OrderItem.SetId()` are public methods that allow any caller to reassign entity identity. This directly undermines the private setter discipline enforced by convention tests.
 
-**Recommendation:** Document that production deployments should run `DbMigrator` as a job/init container, and gate the API startup migration behind a configuration flag (e.g., `RunMigrationsOnStartup=true` defaulting to `false` in production).
+```csharp
+// Anyone can call this
+product.SetId(999);
+```
 
-### 5. Missing Patterns for a Starter Template
+**Recommendation:** Remove these methods entirely. EF Core sets `Id` via the private setter or backing field. If cross-assembly access is needed for testing, make the method `internal` and use `InternalsVisibleTo` for the test project.
+
+### 5. UpdateOrderStatus and CancelOrder Use AsNoTracking Then Update
+
+**Severity: Medium**
+
+Both `UpdateOrderStatusCommandHandler` and `CancelOrderCommandHandler` load the order with `AsNoTracking()`, reconstitute it in memory, mutate it, then call `_dbContext.Orders.Update(order)`. The `Update()` method marks **all properties** as modified, which overwrites any concurrent changes to other fields.
+
+Additionally, both handlers call `SaveChangesAsync()` without passing `cancellationToken`, inconsistent with other handlers.
+
+**Recommendation:** Either track the entity normally (remove `AsNoTracking`) and let EF Core detect only changed properties, or use `ExecuteUpdateAsync` for targeted column updates. Pass `cancellationToken` to all `SaveChangesAsync` calls.
+
+### 6. Thin Application Layer
+
+**Severity: Medium**
+
+Most command handlers are CRUD pass-through: receive DTO, create/update entity, save, return DTO. The mediator + validator pipeline is well-built infrastructure, but the handlers don't demonstrate complex business workflows.
+
+`CreateOrderCommandHandler` is the closest to real business logic (validates customer exists, validates products exist), but it doesn't check stock availability or reserve inventory — a natural next step for an e-commerce domain.
+
+**Recommendation:** Enhance `CreateOrderCommandHandler` to check product stock before creating items and decrement stock on creation. This demonstrates cross-aggregate coordination without adding excessive complexity.
+
+### 7. Sparse Validation Coverage
+
+**Severity: Medium**
+
+Only 3 out of 9 commands have validators (`CreateOrderCommandValidator`, `UpdateOrderStatusCommandValidator`, `GetOrdersByStatusQueryValidator`). The remaining 6 commands rely on domain constructor exceptions for validation.
+
+While domain validation exists, it throws `ArgumentException`/`ArgumentNullException`/`KeyNotFoundException` with single error messages. The validator pipeline returns structured `ValidationError` collections with property names — a much better API experience. Without validators, clients can't get multiple validation errors in one response.
+
+**Recommendation:** Add validators for `CreateCustomerCommand` and `CreateProductCommand` at minimum, since these are the primary creation endpoints. Validate name length, email format, price range, and stock bounds before hitting the domain.
+
+### 8. Database Migrations Run on API Startup
+
+**Severity: Medium**
+
+`DatabaseMigrator.MigrateDatabase()` runs in `Program.cs` on every API startup. The separate `DbMigrator` project exists and is wired into Aspire as a standalone service, but the API also runs migrations independently. With multiple API replicas, this creates a race condition.
+
+**Recommendation:** Remove the migration call from `Program.cs` and rely exclusively on the `DbMigrator` service. If API-startup migration is needed for local development, gate it behind a configuration flag (`"RunMigrationsOnStartup": true`) that defaults to `false`.
+
+### 9. Money.Subtract Can Produce Negative Amounts
 
 **Severity: Low**
 
-Several common patterns are absent:
+`Money.Create()` enforces `Amount >= 0`, but `Money.Subtract()` can produce negative amounts by subtracting a larger value from a smaller one. This bypasses the non-negative invariant:
+
+```csharp
+var small = Money.Create(5);
+var large = Money.Create(10);
+var negative = small.Subtract(large); // Amount = -5, valid Money instance
+```
+
+**Recommendation:** Add a guard in `Subtract` that throws if the result would be negative, or introduce a separate `MoneyDifference` type if negative amounts are intentionally valid for refunds/credits.
+
+### 10. Missing Patterns for a Starter Template
+
+**Severity: Low**
 
 | Pattern | Impact |
 |---------|--------|
 | Domain events | No way to react to domain changes (e.g., "order created" > send email) |
 | Outbox pattern | No reliable event publishing |
 | Caching | No `IDistributedCache` or response caching |
-| Pagination response wrapper | Endpoints accept `page`/`pageSize` but return raw collections |
-| API versioning middleware | Routes use `/api/v1/` prefix strings but no formal versioning library |
+| `PagedResult<T>` | Endpoints accept `page`/`pageSize` but return raw collections without total count |
+| API versioning | Routes use `/api/v1/` prefix strings but no formal versioning library |
 
 **Recommendation:** Domain events are the highest-value addition. The custom mediator already has the infrastructure to dispatch them.
-
-### 6. Test Coverage Gaps
-
-**Severity: Medium**
-
-Convention and fuzzing tests are strong, but application-layer handler tests (the actual business logic) appear sparse relative to the infrastructure tests. No load/performance testing baseline exists.
-
-**Recommendation:** Add handler-level tests that verify command handlers interact correctly with `DbContext` (using Testcontainers). This would complement the existing convention tests that verify structural rules.
 
 ---
 
 ## Minor Issues
 
-- **CORS** is fully permissive in development (`AllowAnyOrigin`) — standard but worth a code comment
-- **`Reconstitute` on `Order`** bypasses validation, which is correct for DB loading but could be misused — consider making it `internal`
-- **Scalar UI** replaces Swagger, which may slow onboarding for developers expecting Swagger UI
-- **No `PagedResult<T>`** wrapper — endpoints return raw `IEnumerable<T>` without total count or pagination metadata
+- **Dockerfile installs SQL Server ODBC tools in production image** — adds ~200MB for debugging utilities that shouldn't ship. Move to a separate debug stage or remove.
+- **CI pipeline skips integration tests** — `--filter "FullyQualifiedName!~Integration"` means Testcontainers-based tests never run in CI. Add a separate job with Docker support.
+- **CORS is fully permissive in development** — `AllowAnyOrigin()` is standard for dev but worth a code comment explaining the production restriction.
+- **`Email.IsValidEmail` uses try/catch for flow control** — `MailAddress` parsing with exception handling is functional but allocates on invalid input. Consider a regex pre-check.
+- **No `appsettings.Development.json`** — running the API without Aspire requires manually setting connection strings. A development config with `localhost` defaults would improve standalone DX.
+- **`Order.Reconstitute()` is public** — correct for cross-assembly database hydration, but could be misused to construct orders in arbitrary states. Consider making it `internal` with `InternalsVisibleTo`.
+- **Scalar UI replaces Swagger UI** — may slow onboarding for developers expecting Swagger, though Scalar is a clear upgrade in functionality.
+
+---
+
+## Test Coverage Summary
+
+| Category | Files | What's Tested |
+|----------|-------|---------------|
+| Domain unit tests | 6 | Entity creation, validation, state transitions, value object behavior |
+| Property-based (FsCheck) | 5 | Money arithmetic invariants, order state machine, GST calculations, email validation |
+| Convention tests | 5 (37 tests) | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping |
+| Application tests | 4 | Command handler behavior with mocked DbContext |
+| Integration tests | 4+ | Full API endpoint testing with Testcontainers SQL Server, DbUp migrations, ProblemDetails responses |
+| Test builders | 3 | Fluent builders for Customer, Product, Order |
+
+**Gap:** Application-layer handler tests are sparse relative to the convention and domain tests. The most complex handler (`CreateOrderCommandHandler`) has a test, but the order status/cancellation handlers (which have the `AsNoTracking`/`Update` issue) lack targeted tests.
 
 ---
 
 ## Verdict
 
-A well-engineered, opinionated starter template that gets the hard things right: architecture enforcement through tests, proper CQRS separation, rich domain modeling, and modern DevOps. The convention tests alone make it worth studying.
+A well-engineered starter template that gets the hard things right: architecture enforcement through 37 convention tests, proper CQRS separation, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-Its main gap is that it's more of an architecture showcase than a production-ready starter. Adding authentication, domain events, and a non-trivial business workflow would close that gap.
+The main issues are (1) a CQRS data consistency bug where order totals are never written to the read model columns, (2) no authentication, and (3) several domain encapsulation holes (`SetId()`, two-phase save, `AsNoTracking` + `Update`). These are all fixable without structural changes.
 
-**Best suited for:** Teams starting a new .NET API who want guardrails from day one and are willing to add auth/caching/eventing themselves.
+The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
+
+**Best suited for:** Teams starting a new .NET API who want architectural guardrails from day one and are willing to add auth, domain events, and fix the read model consistency gap themselves.
