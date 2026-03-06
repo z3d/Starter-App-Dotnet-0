@@ -1,6 +1,3 @@
-using Conventional;
-using Conventional.Conventions;
-
 namespace StarterApp.Tests.Conventions;
 
 public class DomainConventionTests : ConventionTestBase

@@ -1,5 +1,7 @@
 // Essential .NET namespaces
 // Application libraries
+global using Conventional;
+global using Conventional.Conventions;
 global using DbUp;
 // Microsoft ASP.NET Core
 global using Microsoft.AspNetCore.Mvc;

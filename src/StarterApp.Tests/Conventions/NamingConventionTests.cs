@@ -1,5 +1,3 @@
-using Conventional;
-
 namespace StarterApp.Tests.Conventions;
 
 public class NamingConventionTests : ConventionTestBase

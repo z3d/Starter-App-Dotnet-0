@@ -1,5 +1,3 @@
-using Conventional;
-using Conventional.Conventions;
 using StarterApp.Api.Application.Interfaces;
 using StarterApp.Api.Data;
 using StarterApp.Api.Infrastructure.Mediator;
