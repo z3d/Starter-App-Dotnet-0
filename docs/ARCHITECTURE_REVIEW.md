@@ -100,13 +100,11 @@ Good adoption of modern .NET:
 
 **Status: Resolved.** Dapper read queries now compute totals via `OUTER APPLY` subqueries against `OrderItems` instead of reading dead columns from the `Orders` table. The total columns (`TotalExcludingGst`, `TotalIncludingGst`, `TotalGstAmount`) have been dropped from the schema. Regression test `GetOrder_ShouldReturnCorrectTotals` verifies read-path totals match write-path totals.
 
-### 2. No Authentication or Authorization
+### ~~2. No Authentication or Authorization~~ BY DESIGN
 
-**Severity: High**
+**Status: Intentional.** This template assumes the API runs behind an API gateway (API Management, YARP, nginx, etc.) that handles authentication and authorization. Embedding auth in the API would duplicate gateway concerns and couple the service to a specific identity provider.
 
-No auth exists. Rate limiting and security headers are present, but they protect an open API. For a starter template, this is the most common thing teams need to add first.
-
-**Recommendation:** Add a JWT bearer setup with a placeholder identity provider. Even a minimal `AddAuthentication().AddJwtBearer()` with `RequireAuthorization()` on the endpoint groups would demonstrate the pattern.
+Rate limiting and security headers provide defense-in-depth at the service level. If the API is ever exposed directly to clients without a gateway, add `AddAuthentication().AddJwtBearer()` with `RequireAuthorization()` on the endpoint groups.
 
 ### ~~3. CreateOrderCommand Has Two SaveChanges Without Transaction Boundary~~ FIXED
 
@@ -169,9 +167,9 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 ## Minor Issues
 
-- **Dockerfile installs SQL Server ODBC tools in production image** — adds ~200MB for debugging utilities that shouldn't ship. Move to a separate debug stage or remove.
+- ~~**Dockerfile installs SQL Server ODBC tools in production image**~~ — resolved. Removed ODBC tools and `mssql-tools18` from the runtime stage. The API uses `Microsoft.Data.SqlClient` (not ODBC); for `sqlcmd` debugging, use the `db` container directly.
 - ~~**CI pipeline skips integration tests**~~ — resolved. A separate `integration` job now runs Testcontainers-based tests after the unit test job passes.
-- **CORS is fully permissive in development** — `AllowAnyOrigin()` is standard for dev but worth a code comment explaining the production restriction.
+- ~~**CORS is fully permissive in development**~~ — resolved. Added comment clarifying intent: dev is permissive for local frontend testing; production blocks all browser cross-origin by default (secure for API-only use). To allow a browser SPA, configure `AllowedOrigins` in appsettings.
 - ~~**`Email.IsValidEmail` uses try/catch for flow control**~~ — resolved. Now uses `MailAddress.TryCreate()` (available since .NET 8) to avoid exception-based flow control.
 - ~~**No `appsettings.Development.json`**~~ — resolved. Added with `localhost` connection string defaults for standalone dev without Aspire.
 - ~~**`Order.Reconstitute()` is public**~~ — now `internal`, visible only to the test assembly via `InternalsVisibleTo`.
@@ -198,7 +196,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention), proper CQRS separation, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-Issues #1, #3, #4, #5, #6, #7, #8, and #9 have been fixed or improved. The Order aggregate boundary is correct: items are managed through the aggregate root via `Order.AddItem()`, EF Core persists order + items atomically in a single `SaveChangesAsync`, and dead total columns have been dropped from the schema. Domain encapsulation is tightened: `SetId()` methods removed, `Reconstitute` made internal, command handlers use tracked entities with change detection, and `Money.Subtract` enforces the non-negative invariant. `CreateOrderCommandHandler` now validates stock availability and reserves inventory atomically with order creation. Every command and query has a validator, enforced by convention tests — a deliberate design choice for AI-agent maintenance where mechanical rules beat architectural taste. Database migrations are handled exclusively by the dedicated `DbMigrator` service across all deployment modes (Aspire, Docker Compose, standalone). Remaining issues are (2) no authentication and (10) missing patterns.
+Issues #1, #3, #4, #5, #6, #7, #8, and #9 have been fixed or improved. The Order aggregate boundary is correct: items are managed through the aggregate root via `Order.AddItem()`, EF Core persists order + items atomically in a single `SaveChangesAsync`, and dead total columns have been dropped from the schema. Domain encapsulation is tightened: `SetId()` methods removed, `Reconstitute` made internal, command handlers use tracked entities with change detection, and `Money.Subtract` enforces the non-negative invariant. `CreateOrderCommandHandler` now validates stock availability and reserves inventory atomically with order creation. Every command and query has a validator, enforced by convention tests — a deliberate design choice for AI-agent maintenance where mechanical rules beat architectural taste. Database migrations are handled exclusively by the dedicated `DbMigrator` service across all deployment modes (Aspire, Docker Compose, standalone). Issue #2 (no auth) is intentional — the API assumes a gateway handles authentication. Remaining issue is (10) missing patterns (domain events, outbox, caching, `PagedResult<T>`, API versioning).
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 

@@ -67,6 +67,11 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - Never mix: no DTOs from queries, no ReadModels from commands
 - Custom mediator (not MediatR) with auto-registration via `builder.Services.AddMediator()`
 
+**Authentication**
+- This API assumes it runs behind an API gateway that handles auth — do not add authentication middleware to the API itself
+- Rate limiting and security headers provide defense-in-depth at the service level
+- If the API is ever exposed directly to clients without a gateway, add `AddAuthentication().AddJwtBearer()` with `RequireAuthorization()` on endpoint groups
+
 **Clean Architecture**
 - Domain layer has no external dependencies
 - Interface segregation: small, focused interfaces
@@ -106,6 +111,10 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - 180 char line length, file-scoped namespaces, system usings first
 - StyleCop rules: SA1200, SA1209, SA1210, SA1211
 - Prefer `GlobalUsings.cs` per project over per-file using directives
+
+## Commit Discipline
+
+**ALWAYS commit or ask to commit after completing a task.** Do not leave uncommitted changes in the working tree. If unsure whether the user wants a commit, ask. Uncommitted work is invisible to other agents and at risk of being lost.
 
 ## Pre-Commit Checklist
 

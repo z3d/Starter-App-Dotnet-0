@@ -63,7 +63,9 @@ builder.Services.AddScoped<System.Data.IDbConnection>(provider =>
 // Register mediator for CQRS pattern - handlers are auto-registered via reflection
 builder.Services.AddMediator(Assembly.GetExecutingAssembly());
 
-// Add CORS (restrict in production)
+// CORS: permissive in dev for local frontend testing; production blocks all browser
+// cross-origin by default (no AllowedOrigins configured). To allow a browser SPA,
+// add "AllowedOrigins": ["https://app.example.com"] to appsettings or environment.
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
