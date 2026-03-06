@@ -10,12 +10,20 @@ var sql = builder.AddSqlServer("sql")
 
 var db = sql.AddDatabase("database");
 
+// Add the database migrator as a separate service (must complete before API starts)
+var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
+       .WithReference(db)
+       .WithEnvironment("SEQ_URL", seq.GetEndpoint("http"))
+       .WaitFor(db)
+       .WaitFor(seq);
+
 // Add the API project with reference to the database
 var api = builder.AddProject<Projects.StarterApp_Api>("api")
        .WithReference(db)
        .WithEnvironment("SEQ_URL", seq.GetEndpoint("http"))
        .WaitFor(db)
-       .WaitFor(seq);
+       .WaitFor(seq)
+       .WaitForCompletion(migrator);
 
 // Dev Tunnel: expose the API to the internet for webhook/mobile testing
 // Enable with: dotnet run -- --devtunnel  OR  set ENABLE_DEV_TUNNEL=true
@@ -24,13 +32,6 @@ if (args.Contains("--devtunnel") || Environment.GetEnvironmentVariable("ENABLE_D
     builder.AddDevTunnel("api-tunnel")
            .WithReference(api);
 }
-
-// Add the database migrator as a separate service
-builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
-       .WithReference(db)
-       .WithEnvironment("SEQ_URL", seq.GetEndpoint("http"))
-       .WaitFor(db)
-       .WaitFor(seq);
 
 // After adding all resources, run the app...
 builder.Build().Run();

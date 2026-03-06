@@ -36,6 +36,20 @@ Solution Root/
     └── API-ENDPOINTS.md
 ```
 
+## AI-Agent Maintenance Context
+
+This codebase is maintained by AI agents. Design decisions favour **mechanical rules over architectural taste**:
+- Convention tests enforce structural rules that agents follow perfectly — ambiguity is the real risk, not boilerplate
+- Every command and query must have a validator (enforced by convention test), even trivial ones — agents generate boilerplate cheaply, and skipping coverage creates judgment calls that cause drift
+- **Example:** The validator coverage rule was a deliberate trade-off. For human-maintained code, requiring a validator for `DeleteProductCommand` (just `Id > 0`) would be busywork. For agent-maintained code, the mechanical rule eliminates the question "does this command need a validator?" and the convention test catches missing validators on every build.
+
+### Validator–Domain Guard Sync Rule
+
+Validators and domain guards intentionally overlap (defense-in-depth). When modifying either:
+- **Adding/changing a domain constructor guard or value object validation** → update the corresponding `IValidator<T>` to match
+- **Adding/changing a validator rule** → verify the domain guard covers the same invariant as a safety net
+- Domain guards throw single exceptions (last line of defense). Validators yield structured multi-error `ValidationError` collections (API UX).
+
 ## Architecture Principles
 
 ### Core Design Principles
@@ -109,6 +123,12 @@ Solution Root/
 **CQRS Handlers**: Commands load tracked entities via DbContext with `.Include()`, mutate through domain methods, single `SaveChangesAsync(cancellationToken)`. Queries use `IDbConnection` with Dapper SQL. Convention tests enforce this separation. See `.claude/rules/cqrs-patterns.md`.
 
 **Data Access**: EF Core with `OwnsOne` for value objects, DbUp migrations in DbMigrator project. See `.claude/rules/data-access.md`.
+
+**Database Migrations**: Migrations run exclusively via the dedicated `DbMigrator` console app — never embedded in API startup (eliminates race conditions with multiple replicas).
+- **Aspire:** `AppHost` runs `DbMigrator` with `WaitFor` dependency on SQL Server
+- **Docker Compose:** `migrator` service runs before the API (`condition: service_completed_successfully`)
+- **Standalone dev:** Run `dotnet run --project src/StarterApp.DbMigrator` before starting the API
+- **Integration tests:** `TestFixture.RunDbUpMigrations()` runs migrations independently
 
 **Testing**: xUnit + FsCheck property-based testing + Best.Conventional architectural conventions across 6 test classes (including `DapperConventionTests` for SELECT * prevention via IL inspection). Convention tests use built-in conventions where possible, custom `ConventionSpecification` for structural checks. See `.claude/rules/testing-strategy.md`.
 

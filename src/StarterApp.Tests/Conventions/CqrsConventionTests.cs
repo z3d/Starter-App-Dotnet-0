@@ -1,6 +1,7 @@
 using StarterApp.Api.Application.Interfaces;
 using StarterApp.Api.Data;
 using StarterApp.Api.Infrastructure.Mediator;
+using StarterApp.Api.Infrastructure.Validation;
 
 namespace StarterApp.Tests.Conventions;
 
@@ -77,6 +78,53 @@ public class CqrsConventionTests : ConventionTestBase
             .MustConformTo(Convention.RequiresACorrespondingImplementationOf(
                 typeof(IRequestHandler<,>), allHandlers))
             .WithFailureAssertion(Assert.Fail);
+    }
+
+    // === Validator Coverage ===
+    // AI-agent maintained: mechanical rule eliminates judgment calls about which commands "need" validators.
+    // Agents generate boilerplate cheaply; ambiguity about coverage is the real risk.
+
+    [Fact]
+    public void EveryCommand_MustHaveAValidator()
+    {
+        var validatorTypes = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t))
+            .ToArray();
+
+        var commandTypes = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract &&
+                   t.GetInterfaces().Any(i => i == typeof(ICommand)));
+
+        foreach (var command in commandTypes)
+        {
+            var expectedValidator = typeof(IValidator<>).MakeGenericType(command);
+            var hasValidator = validatorTypes.Any(t => expectedValidator.IsAssignableFrom(t));
+            Assert.True(hasValidator,
+                $"Command {command.Name} must have a validator implementing IValidator<{command.Name}>. " +
+                "This codebase is AI-agent maintained — every command requires a validator for structured error responses.");
+        }
+    }
+
+    [Fact]
+    public void EveryQuery_MustHaveAValidator()
+    {
+        var validatorTypes = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t))
+            .ToArray();
+
+        var queryTypes = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract &&
+                   t.GetInterfaces().Any(i =>
+                       i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>)));
+
+        foreach (var query in queryTypes)
+        {
+            var expectedValidator = typeof(IValidator<>).MakeGenericType(query);
+            var hasValidator = validatorTypes.Any(t => expectedValidator.IsAssignableFrom(t));
+            Assert.True(hasValidator,
+                $"Query {query.Name} must have a validator implementing IValidator<{query.Name}>. " +
+                "This codebase is AI-agent maintained — every query requires a validator for structured error responses.");
+        }
     }
 
     // === Dual Interface Enforcement ===

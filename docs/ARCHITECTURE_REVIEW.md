@@ -120,33 +120,32 @@ No auth exists. Rate limiting and security headers are present, but they protect
 
 **Status: Resolved.** Both handlers now load tracked entities via `.Include(o => o.Items)`, mutate through domain methods, and call `SaveChangesAsync(cancellationToken)`. EF Core detects only changed properties — no more full-row overwrites. `Reconstitute` is no longer used in production handlers (made `internal`, retained for fuzz tests via `InternalsVisibleTo`).
 
-### 6. Thin Application Layer
+### ~~6. Thin Application Layer~~ IMPROVED
 
-**Severity: Medium**
+**Status: Partially resolved.** `CreateOrderCommandHandler` now checks stock availability before adding each order item and decrements stock via `Product.UpdateStock()`. Stock reservation is atomic with order creation — if any item fails (product not found, insufficient stock), no stock is decremented and no order is saved. Three handler tests cover: insufficient stock rejection, stock decrement on success, and atomicity (second item failure leaves first product's stock unchanged).
 
-Most command handlers are CRUD pass-through: receive DTO, create/update entity, save, return DTO. The mediator + validator pipeline is well-built infrastructure, but the handlers don't demonstrate complex business workflows.
+**Remaining gap:** Other command handlers are still CRUD pass-through. `CancelOrderCommandHandler` now restores stock on cancellation, completing the stock lifecycle for the order flow.
 
-`CreateOrderCommandHandler` is the closest to real business logic (validates customer exists, validates products exist), but it doesn't check stock availability or reserve inventory — a natural next step for an e-commerce domain.
+### ~~7. Sparse Validation Coverage~~ FIXED
 
-**Recommendation:** Enhance `CreateOrderCommandHandler` to check product stock before creating items and decrement stock on creation. This demonstrates cross-aggregate coordination without adding excessive complexity.
+**Status: Resolved.** Every command and query now has an `IValidator<T>` implementation (16 total). Convention tests `EveryCommand_MustHaveAValidator` and `EveryQuery_MustHaveAValidator` enforce coverage — adding a new command or query without a validator fails the build.
 
-### 7. Sparse Validation Coverage
+Validators intentionally overlap with domain constructor guards (defense-in-depth). Validators provide structured multi-error `ValidationError` responses at the API boundary; domain guards are the safety net. The sync rule is documented in CLAUDE.md.
 
-**Severity: Medium**
+**Design rationale:** This codebase is AI-agent maintained. For human maintainers, requiring a validator for `DeleteProductCommand` (just `Id > 0`) would be busywork. For agents, the mechanical rule eliminates the judgment call "does this command need a validator?" — boilerplate is cheap, ambiguity is expensive.
 
-Only 3 out of 9 commands have validators (`CreateOrderCommandValidator`, `UpdateOrderStatusCommandValidator`, `GetOrdersByStatusQueryValidator`). The remaining 6 commands rely on domain constructor exceptions for validation.
+### ~~8. Database Migrations Run on API Startup~~ FIXED
 
-While domain validation exists, it throws `ArgumentException`/`ArgumentNullException`/`KeyNotFoundException` with single error messages. The validator pipeline returns structured `ValidationError` collections with property names — a much better API experience. Without validators, clients can't get multiple validation errors in one response.
+**Status: Resolved.** Removed `DatabaseMigrator.MigrateDatabase()` call from `Program.cs` and deleted the `DatabaseMigrator.cs` wrapper. Removed the DbMigrator project reference from the API `.csproj`. Migrations are now handled exclusively by the dedicated `DbMigrator` service:
 
-**Recommendation:** Add validators for `CreateCustomerCommand` and `CreateProductCommand` at minimum, since these are the primary creation endpoints. Validate name length, email format, price range, and stock bounds before hitting the domain.
+- **Aspire:** `AppHost` runs `DbMigrator` as a standalone service with `WaitFor` dependency on SQL Server
+- **Docker Compose:** New `migrator` service runs before the API via `condition: service_completed_successfully`. The `db` service has a health check so the migrator waits for SQL Server readiness
+- **Standalone dev:** Run `dotnet run --project src/StarterApp.DbMigrator` before starting the API
+- **Integration tests:** Unaffected — `TestFixture.RunDbUpMigrations()` runs migrations independently
 
-### 8. Database Migrations Run on API Startup
+The API Dockerfile no longer copies the DbMigrator project or its appsettings.json.
 
-**Severity: Medium**
-
-`DatabaseMigrator.MigrateDatabase()` runs in `Program.cs` on every API startup. The separate `DbMigrator` project exists and is wired into Aspire as a standalone service, but the API also runs migrations independently. With multiple API replicas, this creates a race condition.
-
-**Recommendation:** Remove the migration call from `Program.cs` and rely exclusively on the `DbMigrator` service. If API-startup migration is needed for local development, gate it behind a configuration flag (`"RunMigrationsOnStartup": true`) that defaults to `false`.
+**Deployment note:** Any deployment pipeline that targets a real environment must run the migrator to completion before starting the API. The mechanism varies by platform (Kubernetes init container/Job, Azure Container Apps sidecar, AWS ECS essential container dependency with `"condition": "SUCCESS"`, or a CI/CD step running `dotnet run --project src/StarterApp.DbMigrator` with the target connection string). The Docker Compose setup is the reference pattern.
 
 ### ~~9. Money.Subtract Can Produce Negative Amounts~~ FIXED
 
@@ -171,12 +170,12 @@ While domain validation exists, it throws `ArgumentException`/`ArgumentNullExcep
 ## Minor Issues
 
 - **Dockerfile installs SQL Server ODBC tools in production image** — adds ~200MB for debugging utilities that shouldn't ship. Move to a separate debug stage or remove.
-- **CI pipeline skips integration tests** — `--filter "FullyQualifiedName!~Integration"` means Testcontainers-based tests never run in CI. Add a separate job with Docker support.
+- ~~**CI pipeline skips integration tests**~~ — resolved. A separate `integration` job now runs Testcontainers-based tests after the unit test job passes.
 - **CORS is fully permissive in development** — `AllowAnyOrigin()` is standard for dev but worth a code comment explaining the production restriction.
-- **`Email.IsValidEmail` uses try/catch for flow control** — `MailAddress` parsing with exception handling is functional but allocates on invalid input. Consider a regex pre-check.
-- **No `appsettings.Development.json`** — running the API without Aspire requires manually setting connection strings. A development config with `localhost` defaults would improve standalone DX.
+- ~~**`Email.IsValidEmail` uses try/catch for flow control**~~ — resolved. Now uses `MailAddress.TryCreate()` (available since .NET 8) to avoid exception-based flow control.
+- ~~**No `appsettings.Development.json`**~~ — resolved. Added with `localhost` connection string defaults for standalone dev without Aspire.
 - ~~**`Order.Reconstitute()` is public**~~ — now `internal`, visible only to the test assembly via `InternalsVisibleTo`.
-- **Scalar UI replaces Swagger UI** — may slow onboarding for developers expecting Swagger, though Scalar is a clear upgrade in functionality.
+- ~~**Scalar UI replaces Swagger UI**~~ — no longer relevant. Swashbuckle was removed from .NET 9+; Scalar is the standard replacement for OpenAPI UI.
 
 ---
 
@@ -199,7 +198,7 @@ While domain validation exists, it throws `ArgumentException`/`ArgumentNullExcep
 
 A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention), proper CQRS separation, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-Issues #1, #3, #4, #5, and #9 have been fixed. The Order aggregate boundary is correct: items are managed through the aggregate root via `Order.AddItem()`, EF Core persists order + items atomically in a single `SaveChangesAsync`, and dead total columns have been dropped from the schema. Domain encapsulation is tightened: `SetId()` methods removed, `Reconstitute` made internal, command handlers use tracked entities with change detection, and `Money.Subtract` enforces the non-negative invariant. Remaining issues are (2) no authentication, (6) thin application layer, (7) sparse validation, (8) migrations on startup, and (10) missing patterns.
+Issues #1, #3, #4, #5, #6, #7, #8, and #9 have been fixed or improved. The Order aggregate boundary is correct: items are managed through the aggregate root via `Order.AddItem()`, EF Core persists order + items atomically in a single `SaveChangesAsync`, and dead total columns have been dropped from the schema. Domain encapsulation is tightened: `SetId()` methods removed, `Reconstitute` made internal, command handlers use tracked entities with change detection, and `Money.Subtract` enforces the non-negative invariant. `CreateOrderCommandHandler` now validates stock availability and reserves inventory atomically with order creation. Every command and query has a validator, enforced by convention tests — a deliberate design choice for AI-agent maintenance where mechanical rules beat architectural taste. Database migrations are handled exclusively by the dedicated `DbMigrator` service across all deployment modes (Aspire, Docker Compose, standalone). Remaining issues are (2) no authentication and (10) missing patterns.
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 

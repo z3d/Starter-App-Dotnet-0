@@ -15,13 +15,8 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.11.3" />
   </ItemGroup>
 
-  <!-- No longer need SQL Scripts as embedded resources since they're in the DbMigrator project -->
   <ItemGroup>
     <ProjectReference Include="..\StarterApp.Domain\StarterApp.Domain.csproj" />
-    <ProjectReference Include="..\StarterApp.DbMigrator\StarterApp.DbMigrator.csproj">
-      <!-- Exclude conflicting appsettings.json from DbMigrator project -->
-      <ExcludeAssets>ContentFiles</ExcludeAssets>
-    </ProjectReference>
     <ProjectReference Include="..\StarterApp.ServiceDefaults\StarterApp.ServiceDefaults.csproj" />
   </ItemGroup>
 

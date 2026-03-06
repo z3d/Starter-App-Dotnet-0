@@ -152,27 +152,6 @@ try
         await next();
     });
 
-    // Use DbUp for database migrations
-    if (connectionString != null)
-    {
-        Log.Information("Starting database migrations...");
-        var migrationResult = DatabaseMigrator.MigrateDatabase(connectionString);
-        if (migrationResult)
-        {
-            Log.Information("Database migrations completed successfully.");
-        }
-        else
-        {
-            Log.Error("Database migrations failed!");
-            if (!app.Environment.IsDevelopment())
-                Environment.Exit(1);
-        }
-    }
-    else
-    {
-        Log.Warning("Connection string 'database' is missing. Skipping database migration.");
-    }
-
     // Enable middlewares
     app.UseHttpsRedirection();
     app.UseCors();

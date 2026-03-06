@@ -41,6 +41,12 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             if (product == null)
                 throw new KeyNotFoundException($"Product with ID {itemCommand.ProductId} was not found");
 
+            if (product.Stock < itemCommand.Quantity)
+                throw new InvalidOperationException(
+                    $"Insufficient stock for product '{product.Name}'. Available: {product.Stock}, Requested: {itemCommand.Quantity}");
+
+            product.UpdateStock(-itemCommand.Quantity);
+
             order.AddItem(
                 itemCommand.ProductId,
                 product.Name,

@@ -27,6 +27,14 @@ public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, Ord
         }
 
         order.Cancel();
+
+        // Restore stock for each item in the cancelled order
+        foreach (var item in order.Items)
+        {
+            var product = await _dbContext.Products.FindAsync([item.ProductId], cancellationToken);
+            product?.UpdateStock(item.Quantity);
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return OrderMapper.ToDto(order);

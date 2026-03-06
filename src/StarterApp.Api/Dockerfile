@@ -8,7 +8,6 @@ COPY ["Directory.Build.props", "Directory.Build.props"]
 # Copy csproj files first for better layer caching
 COPY ["src/StarterApp.Api/StarterApp.Api.csproj", "src/StarterApp.Api/"]
 COPY ["src/StarterApp.Domain/StarterApp.Domain.csproj", "src/StarterApp.Domain/"]
-COPY ["src/StarterApp.DbMigrator/StarterApp.DbMigrator.csproj", "src/StarterApp.DbMigrator/"]
 COPY ["src/StarterApp.ServiceDefaults/StarterApp.ServiceDefaults.csproj", "src/StarterApp.ServiceDefaults/"]
 
 # Restore dependencies
@@ -16,9 +15,6 @@ RUN dotnet restore "src/StarterApp.Api/StarterApp.Api.csproj"
 
 # Copy the rest of the source code
 COPY src/ src/
-
-# Remove DbMigrator's appsettings.json to avoid publish conflicts
-RUN rm -f /src/src/StarterApp.DbMigrator/appsettings.json
 
 # Build the project
 WORKDIR "/src/src/StarterApp.Api"
@@ -50,5 +46,5 @@ ENV PATH="$PATH:/opt/mssql-tools18/bin"
 
 EXPOSE 8080
 
-# Start the application directly - DbUp handles database connectivity
+# Start the application — migrations handled by the dedicated migrator service
 ENTRYPOINT ["dotnet", "StarterApp.Api.dll"]

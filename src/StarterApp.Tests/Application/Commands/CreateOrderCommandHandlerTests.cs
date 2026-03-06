@@ -122,4 +122,116 @@ public class CreateOrderCommandHandlerTests
         var orderItemsCount = await context.Set<OrderItem>().CountAsync(oi => oi.OrderId == result.Id);
         Assert.Equal(command.Items.Count, orderItemsCount);
     }
+
+    [Fact]
+    public async Task Handle_WithInsufficientStock_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        await using var context = new ApplicationDbContext(options);
+
+        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product = new Product("Low Stock Product", "Description", Money.Create(10.00m, "USD"), 1);
+
+        context.Customers.Add(customer);
+        context.Products.Add(product);
+        await context.SaveChangesAsync();
+
+        var handler = new CreateOrderCommandHandler(context);
+
+        var command = new CreateOrderCommand
+        {
+            CustomerId = customer.Id,
+            Items =
+            [
+                new() { ProductId = product.Id, Quantity = 5, UnitPriceExcludingGst = 10.00m }
+            ]
+        };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => handler.HandleAsync(command, CancellationToken.None));
+        Assert.Contains("Insufficient stock", ex.Message);
+        Assert.Contains("Available: 1", ex.Message);
+        Assert.Contains("Requested: 5", ex.Message);
+    }
+
+    [Fact]
+    public async Task Handle_WithValidCommand_ShouldDecrementProductStock()
+    {
+        // Arrange
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        await using var context = new ApplicationDbContext(options);
+
+        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 50);
+
+        context.Customers.Add(customer);
+        context.Products.Add(product);
+        await context.SaveChangesAsync();
+
+        var handler = new CreateOrderCommandHandler(context);
+
+        var command = new CreateOrderCommand
+        {
+            CustomerId = customer.Id,
+            Items =
+            [
+                new() { ProductId = product.Id, Quantity = 8, UnitPriceExcludingGst = 10.00m }
+            ]
+        };
+
+        // Act
+        await handler.HandleAsync(command, CancellationToken.None);
+
+        // Assert — stock should be decremented from 50 to 42
+        var updatedProduct = await context.Products.FindAsync(product.Id);
+        Assert.Equal(42, updatedProduct!.Stock);
+    }
+
+    [Fact]
+    public async Task Handle_WithSecondProductInsufficientStock_ShouldNotDecrementFirstProductStock()
+    {
+        // Arrange
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        await using var context = new ApplicationDbContext(options);
+
+        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product1 = new Product("Product A", "Description", Money.Create(10.00m, "USD"), 100);
+        var product2 = new Product("Product B", "Description", Money.Create(20.00m, "USD"), 2);
+
+        context.Customers.Add(customer);
+        context.Products.AddRange(product1, product2);
+        await context.SaveChangesAsync();
+
+        var handler = new CreateOrderCommandHandler(context);
+
+        var command = new CreateOrderCommand
+        {
+            CustomerId = customer.Id,
+            Items =
+            [
+                new() { ProductId = product1.Id, Quantity = 5, UnitPriceExcludingGst = 10.00m },
+                new() { ProductId = product2.Id, Quantity = 10, UnitPriceExcludingGst = 20.00m }
+            ]
+        };
+
+        // Act — second item should fail stock check
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => handler.HandleAsync(command, CancellationToken.None));
+
+        // Assert — first product's stock should be unchanged (SaveChanges never called)
+        await using var verifyContext = new ApplicationDbContext(options);
+        var p1 = await verifyContext.Products.FindAsync(product1.Id);
+        Assert.Equal(100, p1!.Stock);
+    }
 }

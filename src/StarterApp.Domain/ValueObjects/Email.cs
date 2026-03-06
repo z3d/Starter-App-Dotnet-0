@@ -26,15 +26,8 @@ public class Email
 
     private static bool IsValidEmail(string email)
     {
-        try
-        {
-            var addr = new System.Net.Mail.MailAddress(email);
-            return addr.Address == email;
-        }
-        catch
-        {
-            return false;
-        }
+        return System.Net.Mail.MailAddress.TryCreate(email, out var addr)
+            && addr.Address == email;
     }
 
     public override bool Equals(object? obj)

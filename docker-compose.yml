@@ -1,4 +1,16 @@
 services:
+  migrator:
+    build:
+      context: .
+      dockerfile: src/StarterApp.DbMigrator/Dockerfile
+    environment:
+      - ConnectionStrings__database=Server=db;Database=StarterApp;User Id=sa;Password=Your_password123;TrustServerCertificate=True;
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend-network
+
   api:
     build:
       context: .
@@ -16,8 +28,12 @@ services:
       retries: 3
       start_period: 10s
     depends_on:
-      - db
-      - seq
+      migrator:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      seq:
+        condition: service_started
     networks:
       - backend-network
     restart: unless-stopped
@@ -32,6 +48,12 @@ services:
       - "1433:1433"
     volumes:
       - sqldata:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Your_password123" -C -Q "SELECT 1" -b
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - backend-network
     restart: unless-stopped
