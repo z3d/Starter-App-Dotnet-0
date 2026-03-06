@@ -74,10 +74,6 @@ public class OrderItem
         return Money.Create(totalGst, UnitPriceExcludingGst.Currency);
     }
 
-    public void SetId(int id)
-    {
-        Id = id;
-    }
 }
 
 

@@ -43,7 +43,7 @@ public class Money
         if (other.Currency != Currency)
             throw new InvalidOperationException("Cannot subtract money with different currencies");
 
-        return new Money(Amount - other.Amount, Currency);
+        return Create(Amount - other.Amount, Currency);
     }
 
     public override bool Equals(object? obj)

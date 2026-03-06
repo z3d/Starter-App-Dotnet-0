@@ -132,19 +132,6 @@ public class CustomerTests
         Assert.False(customer.IsActive);
     }
 
-    [Fact]
-    public void SetId_ShouldSetIdProperty()
-    {
-        // Arrange
-        var customer = new Customer("John Doe", Email.Create("john@example.com"));
-        var expectedId = 123;
-
-        // Act
-        customer.SetId(expectedId);
-
-        // Assert
-        Assert.Equal(expectedId, customer.Id);
-    }
 }
 
 

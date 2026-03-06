@@ -186,6 +186,17 @@ public class MoneyTests
     }
 
     [Fact]
+    public void Subtract_WithLargerAmount_ShouldThrowArgumentOutOfRangeException()
+    {
+        // Arrange
+        var small = Money.Create(5.00m, "USD");
+        var large = Money.Create(10.00m, "USD");
+
+        // Act & Assert
+        Assert.Throws<ArgumentOutOfRangeException>(() => small.Subtract(large));
+    }
+
+    [Fact]
     public void Subtract_WithDifferentCurrencies_ShouldThrowInvalidOperationException()
     {
         // Arrange

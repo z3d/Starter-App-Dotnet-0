@@ -44,11 +44,6 @@ public class Customer
     {
         IsActive = false;
     }
-
-    public void SetId(int id)
-    {
-        Id = id;
-    }
 }
 
 

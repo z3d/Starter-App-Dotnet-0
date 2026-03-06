@@ -155,7 +155,7 @@ public class Order
         };
     }
 
-    public static Order Reconstitute(int id, int customerId, DateTime orderDate, OrderStatus status, DateTime lastUpdated, List<OrderItem> items)
+    internal static Order Reconstitute(int id, int customerId, DateTime orderDate, OrderStatus status, DateTime lastUpdated, List<OrderItem> items)
     {
         var order = new Order
         {

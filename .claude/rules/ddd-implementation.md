@@ -89,25 +89,15 @@ public class Customer
 // public class CustomerEntity { } // When you already have Customer
 ```
 
-## Reconstitute Pattern
+## Reconstitute Pattern (Test-Only)
 
-Static factory method for rebuilding aggregates from database rows. Used when loading entities that already exist in the database and may be in any valid state (including states the public constructor wouldn't allow creating from scratch).
+`internal static` factory method for rebuilding aggregates in arbitrary states. Visible to the test project via `InternalsVisibleTo`.
 
 ```csharp
-public static Order Reconstitute(int id, int customerId, DateTime orderDate,
+internal static Order Reconstitute(int id, int customerId, DateTime orderDate,
     OrderStatus status, DateTime lastUpdated, List<OrderItem> items)
-{
-    var order = new Order
-    {
-        Id = id, CustomerId = customerId, OrderDate = orderDate,
-        Status = status, LastUpdated = lastUpdated
-    };
-    order._items.AddRange(items);
-    order.Items = order._items.AsReadOnly();
-    return order;
-}
 ```
 
-**Why it exists**: The public `Order(customerId)` constructor enforces creation-time invariants (status = Pending, empty items). When loading an order from the database that's already in `Shipped` status with 5 items, the constructor can't be used. `Reconstitute` bypasses creation validation because the data was already validated when originally created.
+**Why it exists**: The public `Order(customerId)` constructor enforces creation-time invariants (status = Pending, empty items). Property-based fuzz tests need to create orders in arbitrary states (e.g., Shipped, Delivered) without going through the full state machine.
 
-**When to use**: In command handlers when loading aggregates from the database for mutation. Not needed for queries (which use Dapper and ReadModels).
+**Not for production handlers**: Command handlers load aggregates via EF Core with `.Include(o => o.Items)` on a tracked entity, mutate through domain methods, and call `SaveChangesAsync`. EF Core detects only the changed properties. Do not use `AsNoTracking` + `Reconstitute` + `Update` — that marks all columns modified and creates lost-update risks.

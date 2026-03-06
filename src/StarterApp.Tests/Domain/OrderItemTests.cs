@@ -241,20 +241,6 @@ public class OrderItemTests
     }
 
     [Fact]
-    public void SetId_ShouldSetOrderItemId()
-    {
-        // Arrange
-        var unitPrice = Money.Create(10.00m, "USD");
-        var orderItem = new OrderItem(1, 1, "Test Product", 1, unitPrice);
-
-        // Act
-        orderItem.SetId(456);
-
-        // Assert
-        Assert.Equal(456, orderItem.Id);
-    }
-
-    [Fact]
     public void DefaultGstRate_ShouldBeCorrectValue()
     {
         // Assert

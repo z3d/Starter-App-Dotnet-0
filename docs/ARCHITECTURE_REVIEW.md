@@ -111,28 +111,13 @@ No auth exists. Rate limiting and security headers are present, but they protect
 
 **Status: Resolved.** The root cause was a broken aggregate boundary: EF Core's `Items` navigation was `Ignore()`d, forcing items to be saved separately via `DbSet<OrderItem>`. Fix: restored the `Order→Items` navigation via backing field access (`UsePropertyAccessMode(PropertyAccessMode.Field)`), added `Order.AddItem(productId, name, qty, price, rate)` overload that constructs items through an `internal` OrderItem constructor (no orderId needed — EF sets FK on save). Handler now uses a single `SaveChangesAsync`. Regression test `CreateOrder_WithSecondProductNotFound_ShouldNotLeavePartialOrder` verifies no orphaned rows.
 
-### 4. Public `SetId()` Methods Break Domain Encapsulation
+### ~~4. Public `SetId()` Methods Break Domain Encapsulation~~ FIXED
 
-**Severity: Medium**
+**Status: Resolved.** Removed `SetId()` from `Customer`, `Product`, and `OrderItem`. EF Core sets `Id` via the private setter. Deleted the corresponding unit tests that exercised these methods.
 
-`Customer.SetId()`, `Product.SetId()`, and `OrderItem.SetId()` are public methods that allow any caller to reassign entity identity. This directly undermines the private setter discipline enforced by convention tests.
+### ~~5. UpdateOrderStatus and CancelOrder Use AsNoTracking Then Update~~ FIXED
 
-```csharp
-// Anyone can call this
-product.SetId(999);
-```
-
-**Recommendation:** Remove these methods entirely. EF Core sets `Id` via the private setter or backing field. If cross-assembly access is needed for testing, make the method `internal` and use `InternalsVisibleTo` for the test project.
-
-### 5. UpdateOrderStatus and CancelOrder Use AsNoTracking Then Update
-
-**Severity: Medium**
-
-Both `UpdateOrderStatusCommandHandler` and `CancelOrderCommandHandler` load the order with `AsNoTracking()`, reconstitute it in memory, mutate it, then call `_dbContext.Orders.Update(order)`. The `Update()` method marks **all properties** as modified, which overwrites any concurrent changes to other fields.
-
-Additionally, both handlers call `SaveChangesAsync()` without passing `cancellationToken`, inconsistent with other handlers.
-
-**Recommendation:** Either track the entity normally (remove `AsNoTracking`) and let EF Core detect only changed properties, or use `ExecuteUpdateAsync` for targeted column updates. Pass `cancellationToken` to all `SaveChangesAsync` calls.
+**Status: Resolved.** Both handlers now load tracked entities via `.Include(o => o.Items)`, mutate through domain methods, and call `SaveChangesAsync(cancellationToken)`. EF Core detects only changed properties — no more full-row overwrites. `Reconstitute` is no longer used in production handlers (made `internal`, retained for fuzz tests via `InternalsVisibleTo`).
 
 ### 6. Thin Application Layer
 
@@ -162,19 +147,9 @@ While domain validation exists, it throws `ArgumentException`/`ArgumentNullExcep
 
 **Recommendation:** Remove the migration call from `Program.cs` and rely exclusively on the `DbMigrator` service. If API-startup migration is needed for local development, gate it behind a configuration flag (`"RunMigrationsOnStartup": true`) that defaults to `false`.
 
-### 9. Money.Subtract Can Produce Negative Amounts
+### ~~9. Money.Subtract Can Produce Negative Amounts~~ FIXED
 
-**Severity: Low**
-
-`Money.Create()` enforces `Amount >= 0`, but `Money.Subtract()` can produce negative amounts by subtracting a larger value from a smaller one. This bypasses the non-negative invariant:
-
-```csharp
-var small = Money.Create(5);
-var large = Money.Create(10);
-var negative = small.Subtract(large); // Amount = -5, valid Money instance
-```
-
-**Recommendation:** Add a guard in `Subtract` that throws if the result would be negative, or introduce a separate `MoneyDifference` type if negative amounts are intentionally valid for refunds/credits.
+**Status: Resolved.** `Subtract` now routes through `Create()` instead of the private constructor, so the existing `ThrowIfNegative` guard applies to all Money creation paths. Subtracting a larger amount from a smaller one throws `ArgumentOutOfRangeException`.
 
 ### 10. Missing Patterns for a Starter Template
 
@@ -199,7 +174,7 @@ var negative = small.Subtract(large); // Amount = -5, valid Money instance
 - **CORS is fully permissive in development** — `AllowAnyOrigin()` is standard for dev but worth a code comment explaining the production restriction.
 - **`Email.IsValidEmail` uses try/catch for flow control** — `MailAddress` parsing with exception handling is functional but allocates on invalid input. Consider a regex pre-check.
 - **No `appsettings.Development.json`** — running the API without Aspire requires manually setting connection strings. A development config with `localhost` defaults would improve standalone DX.
-- **`Order.Reconstitute()` is public** — correct for cross-assembly database hydration, but could be misused to construct orders in arbitrary states. Consider making it `internal` with `InternalsVisibleTo`.
+- ~~**`Order.Reconstitute()` is public**~~ — now `internal`, visible only to the test assembly via `InternalsVisibleTo`.
 - **Scalar UI replaces Swagger UI** — may slow onboarding for developers expecting Swagger, though Scalar is a clear upgrade in functionality.
 
 ---
@@ -215,7 +190,7 @@ var negative = small.Subtract(large); // Amount = -5, valid Money instance
 | Integration tests | 4+ | Full API endpoint testing with Testcontainers SQL Server, DbUp migrations, ProblemDetails responses |
 | Test builders | 3 | Fluent builders for Customer, Product, Order |
 
-**Gap:** Application-layer handler tests are sparse relative to the convention and domain tests. The most complex handler (`CreateOrderCommandHandler`) has a test, but the order status/cancellation handlers (which have the `AsNoTracking`/`Update` issue) lack targeted tests.
+**Gap:** Application-layer handler tests are sparse relative to the convention and domain tests. The most complex handler (`CreateOrderCommandHandler`) has a test, but the order status/cancellation handlers lack targeted tests.
 
 ---
 
@@ -223,7 +198,7 @@ var negative = small.Subtract(large); // Amount = -5, valid Money instance
 
 A well-engineered starter template that gets the hard things right: architecture enforcement through 38 convention tests (including Dapper SELECT * prevention), proper CQRS separation, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-The CQRS data consistency bug (#1) and partial-write risk (#3) have been fixed. The Order aggregate boundary is now correct: items are managed through the aggregate root via `Order.AddItem()`, EF Core persists order + items atomically in a single `SaveChangesAsync`, and dead total columns have been dropped from the schema. Remaining issues are (2) no authentication and domain encapsulation holes (`SetId()`, `AsNoTracking` + `Update`).
+Issues #1, #3, #4, #5, and #9 have been fixed. The Order aggregate boundary is correct: items are managed through the aggregate root via `Order.AddItem()`, EF Core persists order + items atomically in a single `SaveChangesAsync`, and dead total columns have been dropped from the schema. Domain encapsulation is tightened: `SetId()` methods removed, `Reconstitute` made internal, command handlers use tracked entities with change detection, and `Money.Subtract` enforces the non-negative invariant. Remaining issues are (2) no authentication, (6) thin application layer, (7) sparse validation, (8) migrations on startup, and (10) missing patterns.
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 

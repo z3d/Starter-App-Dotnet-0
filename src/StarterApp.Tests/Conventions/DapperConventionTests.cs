@@ -69,20 +69,24 @@ public class DapperConventionTests : ConventionTestBase
     private static IEnumerable<string> ExtractStringLiterals(MethodInfo method)
     {
         var body = method.GetMethodBody();
-        if (body == null) yield break;
+        if (body == null)
+            yield break;
 
         var il = body.GetILAsByteArray();
-        if (il == null || il.Length < 5) yield break;
+        if (il == null || il.Length < 5)
+            yield break;
 
         var module = method.Module;
 
         for (var i = 0; i < il.Length - 4; i++)
         {
-            if (il[i] != 0x72) continue;
+            if (il[i] != 0x72)
+                continue;
 
             var token = BitConverter.ToInt32(il, i + 1);
             string? resolved = null;
-            try { resolved = module.ResolveString(token); }
+            try
+            { resolved = module.ResolveString(token); }
             catch { /* not a valid string token — skip */ }
 
             if (resolved != null)

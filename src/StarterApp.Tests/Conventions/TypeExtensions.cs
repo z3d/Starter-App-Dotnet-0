@@ -1,5 +1,3 @@
-using System.Reflection;
-
 namespace StarterApp.Tests.Conventions;
 
 public static class TypeExtensions

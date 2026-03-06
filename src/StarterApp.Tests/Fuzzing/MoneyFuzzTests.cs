@@ -79,6 +79,23 @@ public class MoneyFuzzTests
     }
 
     [Property]
+    public Property Subtract_NeverProducesNegativeAmount()
+    {
+        var bounded = Gen.Choose(0, 999_999).Select(i => (decimal)i / 100m).ToArbitrary();
+        return Prop.ForAll(bounded, bounded,
+            (a, b) =>
+            {
+                var moneyA = Money.Create(a, "USD");
+                var moneyB = Money.Create(b, "USD");
+                if (a >= b)
+                    return moneyA.Subtract(moneyB).Amount >= 0;
+                try
+                { moneyA.Subtract(moneyB); return false; }
+                catch (ArgumentOutOfRangeException) { return true; }
+            });
+    }
+
+    [Property]
     public Property CurrencyCodeOver3Chars_AlwaysRejected()
     {
         var longCurrency = Gen.Elements("USDX", "EURO", "GBPP", "AUDD", "ABCDE", "TOOLONG")

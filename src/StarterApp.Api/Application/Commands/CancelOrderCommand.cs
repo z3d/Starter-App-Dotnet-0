@@ -18,20 +18,16 @@ public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, Ord
     {
         Log.Information("Handling CancelOrderCommand to return OrderDto for order {OrderId}", command.OrderId);
 
-        var orderEntity = await _dbContext.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == command.OrderId);
-        if (orderEntity == null)
+        var order = await _dbContext.Orders.Include(o => o.Items)
+            .FirstOrDefaultAsync(o => o.Id == command.OrderId, cancellationToken);
+        if (order == null)
         {
             Log.Warning("Order {OrderId} not found for cancellation", command.OrderId);
             throw new KeyNotFoundException($"Order with ID {command.OrderId} was not found");
         }
 
-        var orderItems = await _dbContext.OrderItems.AsNoTracking()
-            .Where(oi => oi.OrderId == command.OrderId).ToListAsync();
-
-        var order = Order.Reconstitute(orderEntity.Id, orderEntity.CustomerId, orderEntity.OrderDate, orderEntity.Status, orderEntity.LastUpdated, orderItems);
         order.Cancel();
-        _dbContext.Orders.Update(order);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
         return OrderMapper.ToDto(order);
     }
