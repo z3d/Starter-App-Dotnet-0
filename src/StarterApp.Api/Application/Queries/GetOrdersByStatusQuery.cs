@@ -41,9 +41,9 @@ public class GetOrdersByStatusQueryHandler : IRequestHandler<GetOrdersByStatusQu
             ) t
             WHERE o.Status = @Status
             ORDER BY o.OrderDate DESC
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+            OFFSET @Offset ROWS FETCH NEXT @FetchSize ROWS ONLY";
 
         return await _connection.QueryAsync<OrderReadModel>(sql,
-            new { Status = query.Status, Offset = offset, PageSize = query.PageSize });
+            new { Status = query.Status, Offset = offset, FetchSize = query.PageSize + 1 });
     }
 }

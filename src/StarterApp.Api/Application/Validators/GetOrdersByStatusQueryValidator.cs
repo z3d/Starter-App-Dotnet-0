@@ -17,5 +17,13 @@ public class GetOrdersByStatusQueryValidator : IValidator<GetOrdersByStatusQuery
             var validStatuses = string.Join(", ", Enum.GetNames<OrderStatus>());
             yield return new ValidationError(nameof(request.Status), $"Invalid status '{request.Status}'. Valid values: {validStatuses}");
         }
+
+        if (request.Page <= 0)
+            yield return new ValidationError(nameof(request.Page), "Page must be a positive integer");
+
+        if (request.PageSize <= 0)
+            yield return new ValidationError(nameof(request.PageSize), "PageSize must be a positive integer");
+        else if (request.PageSize > 100)
+            yield return new ValidationError(nameof(request.PageSize), "PageSize cannot exceed 100");
     }
 }

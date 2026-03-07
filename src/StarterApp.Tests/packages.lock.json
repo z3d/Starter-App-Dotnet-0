@@ -1240,7 +1240,6 @@
           "Serilog.Expressions": "[5.0.0, )",
           "Serilog.Sinks.OpenTelemetry": "[4.1.0, )",
           "Serilog.Sinks.Seq": "[8.0.0, )",
-          "StarterApp.DbMigrator": "[1.0.0, )",
           "StarterApp.Domain": "[1.0.0, )",
           "StarterApp.ServiceDefaults": "[1.0.0, )"
         }

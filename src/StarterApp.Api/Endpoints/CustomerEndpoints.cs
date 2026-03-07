@@ -58,12 +58,15 @@ public class CustomerEndpoints : IEndpointDefinition
     /// <summary>
     /// Gets all customers from the system.
     /// </summary>
-    private static async Task<IResult> GetCustomers(IMediator mediator, int page = 1, int pageSize = 50)
+    private static async Task<IResult> GetCustomers(HttpContext httpContext, IMediator mediator, int page = 1, int pageSize = 50)
     {
         Log.Information("Getting customers (page {Page}, size {PageSize})", page, pageSize);
         var query = new GetCustomersQuery { Page = page, PageSize = pageSize };
-        var result = await mediator.SendAsync(query);
-        return Results.Ok(result);
+        var items = (await mediator.SendAsync(query)).ToList();
+        var hasMore = items.Count > pageSize;
+        if (hasMore) items.RemoveAt(items.Count - 1);
+        httpContext.Response.Headers["X-Has-More"] = hasMore.ToString().ToLower();
+        return Results.Ok(items);
     }
 
     /// <summary>

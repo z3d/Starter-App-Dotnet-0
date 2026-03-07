@@ -108,20 +108,6 @@
           "Microsoft.Identity.Client.Extensions.Msal": "4.73.1"
         }
       },
-      "dbup-core": {
-        "type": "Transitive",
-        "resolved": "6.0.3",
-        "contentHash": "iGDG7mv93ePpZq4lttfr4duj1A/WsNI9HQG8241ROoWdwyGT6fUQtK0U2YOyi8aIebhRcgqba87Bcomjh4lFRw=="
-      },
-      "dbup-sqlserver": {
-        "type": "Transitive",
-        "resolved": "6.0.0",
-        "contentHash": "62CDuGfFqNHBIluFxSIJaW8MDukjWI3WhMCyuDHNMvZxtsVlX6zPq30z7fC0VP6Id2ve3tHLsVhMM3t25QsEhQ==",
-        "dependencies": {
-          "Microsoft.Data.SqlClient": "5.2.2",
-          "dbup-core": "6.0.3"
-        }
-      },
       "Google.Protobuf": {
         "type": "Transitive",
         "resolved": "3.26.1",
@@ -538,17 +524,6 @@
         "type": "Transitive",
         "resolved": "9.0.4",
         "contentHash": "o94k2RKuAce3GeDMlUvIXlhVa1kWpJw95E6C9LwW0KlG0nj5+SgCiIxJ2Eroqb9sLtG1mEMbFttZIBZ13EJPvQ=="
-      },
-      "starterapp.dbmigrator": {
-        "type": "Project",
-        "dependencies": {
-          "Serilog": "[4.3.0, )",
-          "Serilog.Sinks.Console": "[6.1.1, )",
-          "Serilog.Sinks.File": "[7.0.0, )",
-          "Serilog.Sinks.Seq": "[8.0.0, )",
-          "StarterApp.ServiceDefaults": "[1.0.0, )",
-          "dbup-sqlserver": "[6.0.0, )"
-        }
       },
       "starterapp.domain": {
         "type": "Project",

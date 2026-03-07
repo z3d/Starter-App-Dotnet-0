@@ -84,23 +84,29 @@ public class OrderEndpoints : IEndpointDefinition
     /// <summary>
     /// Gets all orders for a specific customer.
     /// </summary>
-    private static async Task<IResult> GetOrdersByCustomer(int customerId, IMediator mediator, int page = 1, int pageSize = 50)
+    private static async Task<IResult> GetOrdersByCustomer(HttpContext httpContext, int customerId, IMediator mediator, int page = 1, int pageSize = 50)
     {
         Log.Information("Getting orders for customer: {CustomerId} (page {Page}, size {PageSize})", customerId, page, pageSize);
         var query = new GetOrdersByCustomerQuery { CustomerId = customerId, Page = page, PageSize = pageSize };
-        var result = await mediator.SendAsync(query);
-        return Results.Ok(result);
+        var items = (await mediator.SendAsync(query)).ToList();
+        var hasMore = items.Count > pageSize;
+        if (hasMore) items.RemoveAt(items.Count - 1);
+        httpContext.Response.Headers["X-Has-More"] = hasMore.ToString().ToLower();
+        return Results.Ok(items);
     }
 
     /// <summary>
     /// Gets all orders with a specific status.
     /// </summary>
-    private static async Task<IResult> GetOrdersByStatus(string status, IMediator mediator, int page = 1, int pageSize = 50)
+    private static async Task<IResult> GetOrdersByStatus(HttpContext httpContext, string status, IMediator mediator, int page = 1, int pageSize = 50)
     {
         Log.Information("Getting orders with status: {Status} (page {Page}, size {PageSize})", status, page, pageSize);
         var query = new GetOrdersByStatusQuery { Status = status, Page = page, PageSize = pageSize };
-        var result = await mediator.SendAsync(query);
-        return Results.Ok(result);
+        var items = (await mediator.SendAsync(query)).ToList();
+        var hasMore = items.Count > pageSize;
+        if (hasMore) items.RemoveAt(items.Count - 1);
+        httpContext.Response.Headers["X-Has-More"] = hasMore.ToString().ToLower();
+        return Results.Ok(items);
     }
 
     /// <summary>

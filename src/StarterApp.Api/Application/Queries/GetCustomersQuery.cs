@@ -30,8 +30,8 @@ public class GetCustomersQueryHandler : IRequestHandler<GetCustomersQuery, IEnum
                 IsActive
             FROM Customers
             ORDER BY Id
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+            OFFSET @Offset ROWS FETCH NEXT @FetchSize ROWS ONLY";
 
-        return await _connection.QueryAsync<CustomerReadModel>(sqlQuery, new { Offset = offset, PageSize = query.PageSize });
+        return await _connection.QueryAsync<CustomerReadModel>(sqlQuery, new { Offset = offset, FetchSize = query.PageSize + 1 });
     }
 }

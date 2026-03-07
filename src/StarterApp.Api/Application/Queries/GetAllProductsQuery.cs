@@ -32,8 +32,8 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, I
                 LastUpdated
             FROM Products
             ORDER BY Id
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+            OFFSET @Offset ROWS FETCH NEXT @FetchSize ROWS ONLY";
 
-        return await _connection.QueryAsync<ProductReadModel>(sqlQuery, new { Offset = offset, PageSize = query.PageSize });
+        return await _connection.QueryAsync<ProductReadModel>(sqlQuery, new { Offset = offset, FetchSize = query.PageSize + 1 });
     }
 }

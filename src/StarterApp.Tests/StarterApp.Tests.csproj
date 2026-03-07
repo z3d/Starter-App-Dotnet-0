@@ -37,6 +37,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\StarterApp.Api\StarterApp.Api.csproj" />
+    <ProjectReference Include="..\StarterApp.DbMigrator\StarterApp.DbMigrator.csproj" />
     <ProjectReference Include="..\StarterApp.Domain\StarterApp.Domain.csproj" />
   </ItemGroup>
 
