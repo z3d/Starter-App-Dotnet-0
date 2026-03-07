@@ -97,6 +97,18 @@ private class MyCustomConvention : ConventionSpecification
 
 ## Integration Testing
 
+**Why WebApplicationFactory + Testcontainers (not Aspire's `DistributedApplicationTestingBuilder`)**:
+
+The project uses `WebApplicationFactory<IApiMarker>` with Testcontainers for SQL Server and Respawn for per-test cleanup. Aspire's `DistributedApplicationTestingBuilder` was evaluated and deliberately not adopted because:
+
+- **Speed**: WebApplicationFactory runs the API in-process — no container orchestration overhead per test run
+- **Test isolation**: Respawn resets the database in milliseconds between tests; Aspire's heavier lifecycle makes fine-grained reset harder
+- **Debugging**: In-process execution allows easy breakpoints; Aspire testing runs out-of-process
+- **Scope**: This is a single-service project — Aspire testing's main advantage is testing inter-service communication across multiple services, which doesn't apply here
+- **AppHost coupling**: Aspire testing depends on the AppHost project, meaning orchestration changes can break tests
+
+**Reconsider Aspire testing when**: the project grows to multiple services that need to test real inter-service communication (e.g., API → background worker → message queue).
+
 **Testcontainers for Realistic Testing**:
 
 ```csharp
