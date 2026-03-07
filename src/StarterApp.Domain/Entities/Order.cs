@@ -8,7 +8,11 @@ public class Order
     public int CustomerId { get; private set; }
     public DateTime OrderDate { get; private set; }
     public OrderStatus Status { get; private set; }
-    public IReadOnlyList<OrderItem> Items { get; private set; } = [];
+    public IReadOnlyList<OrderItem> Items
+    {
+        get => _items.AsReadOnly();
+        private set { } // EF Core uses _items backing field directly via PropertyAccessMode.Field
+    }
     public DateTime LastUpdated { get; private set; }
 
     protected Order()
@@ -16,7 +20,6 @@ public class Order
         OrderDate = DateTime.UtcNow;
         Status = OrderStatus.Pending;
         LastUpdated = DateTime.UtcNow;
-        Items = _items.AsReadOnly();
     }
 
     public Order(int customerId)
@@ -27,7 +30,6 @@ public class Order
         OrderDate = DateTime.UtcNow;
         Status = OrderStatus.Pending;
         LastUpdated = DateTime.UtcNow;
-        Items = _items.AsReadOnly();
     }
 
     public void AddItem(OrderItem item)
@@ -46,7 +48,6 @@ public class Order
         }
 
         _items.Add(item);
-        Items = _items.AsReadOnly();
         LastUpdated = DateTime.UtcNow;
     }
 
@@ -65,7 +66,6 @@ public class Order
 
         var item = new OrderItem(productId, productName, quantity, unitPrice, gstRate);
         _items.Add(item);
-        Items = _items.AsReadOnly();
         LastUpdated = DateTime.UtcNow;
         return item;
     }
@@ -81,7 +81,6 @@ public class Order
         if (item != null)
         {
             _items.Remove(item);
-            Items = _items.AsReadOnly();
             LastUpdated = DateTime.UtcNow;
         }
     }
@@ -166,7 +165,6 @@ public class Order
             LastUpdated = lastUpdated
         };
         order._items.AddRange(items);
-        order.Items = order._items.AsReadOnly();
         return order;
     }
 }
