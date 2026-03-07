@@ -1,3 +1,9 @@
+---
+name: data-access
+description: EF Core configuration, value object embedding, DbUp migrations, Aspire setup. Use when modifying database schema, migrations, or data access code.
+user-invocable: false
+---
+
 # Data Access & Configuration
 
 ## EF Core Configuration

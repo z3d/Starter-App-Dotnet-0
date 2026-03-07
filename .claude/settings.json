@@ -1,0 +1,9 @@
+{
+  "hooks": {
+    "PreCommit": [
+      {
+        "command": "cd /Users/z3d/dev/Starter-App-Dotnet-0 && dotnet format --verify-no-changes && dotnet build --no-restore && dotnet test --no-build"
+      }
+    ]
+  }
+}

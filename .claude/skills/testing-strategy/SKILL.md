@@ -1,3 +1,9 @@
+---
+name: testing-strategy
+description: Test organization, FsCheck property-based testing, Best.Conventional convention tests. Use when writing or modifying tests.
+user-invocable: false
+---
+
 # Testing Strategy
 
 ## Test Organization

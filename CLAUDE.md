@@ -1,6 +1,6 @@
 # .NET 10 Clean Architecture Template
 
-Architectural patterns, conventions, and standards for a .NET 10 project using Aspire orchestration. Detailed implementation guides are in `.claude/rules/`.
+Architectural patterns, conventions, and standards for a .NET 10 project using Aspire orchestration. Detailed implementation guides are in `.claude/skills/`.
 
 ## Project Overview
 
@@ -127,11 +127,11 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 
 ## Key Patterns
 
-**DDD Entities**: Private setters, protected EF Core constructor, public domain constructor with validation, domain methods for mutations. See `.claude/rules/ddd-implementation.md`.
+**DDD Entities**: Private setters, protected EF Core constructor, public domain constructor with validation, domain methods for mutations. See `.claude/skills/ddd-implementation/SKILL.md`.
 
-**CQRS Handlers**: Commands load tracked entities via DbContext with `.Include()`, mutate through domain methods, single `SaveChangesAsync(cancellationToken)`. Queries use `IDbConnection` with Dapper SQL. Convention tests enforce this separation. See `.claude/rules/cqrs-patterns.md`.
+**CQRS Handlers**: Commands load tracked entities via DbContext with `.Include()`, mutate through domain methods, single `SaveChangesAsync(cancellationToken)`. Queries use `IDbConnection` with Dapper SQL. Convention tests enforce this separation. See `.claude/skills/cqrs-patterns/SKILL.md`.
 
-**Data Access**: EF Core with `OwnsOne` for value objects, DbUp migrations in DbMigrator project. See `.claude/rules/data-access.md`.
+**Data Access**: EF Core with `OwnsOne` for value objects, DbUp migrations in DbMigrator project. See `.claude/skills/data-access/SKILL.md`.
 
 **Database Migrations**: Migrations run exclusively via the dedicated `DbMigrator` console app — never embedded in API startup (eliminates race conditions with multiple replicas).
 - **Aspire:** `AppHost` runs `DbMigrator` with `WaitFor` dependency on SQL Server
@@ -139,13 +139,13 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - **Standalone dev:** Run `dotnet run --project src/StarterApp.DbMigrator` before starting the API
 - **Integration tests:** `TestFixture.RunDbUpMigrations()` runs migrations independently
 
-**Testing**: xUnit + FsCheck property-based testing + Best.Conventional architectural conventions across 6 test classes (including `DapperConventionTests` for SELECT * prevention via IL inspection). Convention tests use built-in conventions where possible, custom `ConventionSpecification` for structural checks. See `.claude/rules/testing-strategy.md`.
+**Testing**: xUnit + FsCheck property-based testing + Best.Conventional architectural conventions across 6 test classes (including `DapperConventionTests` for SELECT * prevention via IL inspection). Convention tests use built-in conventions where possible, custom `ConventionSpecification` for structural checks. See `.claude/skills/testing-strategy/SKILL.md`.
 
-**API Design**: Minimal APIs with `IEndpointDefinition` pattern, auto-discovery, endpoint filters for route-specific logic. See `.claude/rules/api-design.md`.
+**API Design**: Minimal APIs with `IEndpointDefinition` pattern, auto-discovery, endpoint filters for route-specific logic. See `.claude/skills/api-design/SKILL.md`.
 
 **Pagination**: List endpoints use `page`/`pageSize` query params with SQL `OFFSET/FETCH`. Handlers fetch `pageSize + 1` rows; endpoints trim the extra row and set `X-Has-More: true/false` response header. This is non-breaking (body stays a plain array) and avoids expensive COUNT queries. Total count is a UI concern — if a frontend needs it, add a separate count endpoint rather than embedding it in every list response.
 
-**Debugging**: Always reproduce with a failing test first, get full stack trace, fix root cause not symptoms. See `.claude/rules/development-workflow.md`.
+**Debugging**: Always reproduce with a failing test first, get full stack trace, fix root cause not symptoms. See `.claude/skills/development-workflow/SKILL.md`.
 
 ## Documentation Maintenance
 

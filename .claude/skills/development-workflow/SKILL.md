@@ -1,3 +1,9 @@
+---
+name: development-workflow
+description: Debugging workflow, Docker dual-runtime requirements, dev tunnels, local CI. Use when debugging issues or working with deployment configuration.
+user-invocable: false
+---
+
 # Development Workflow
 
 ## Code Quality Standards
@@ -136,7 +142,7 @@ act --list       # List available workflows
 
 After completing a significant batch of work (bug fixes, feature additions, refactoring), **retrospect and update rules**:
 
-1. Re-read all `.claude/rules/*.md` files
+1. Re-read all `.claude/skills/*/SKILL.md` files
 2. Identify stale guidance that contradicts the changes just made (e.g., old patterns that were replaced)
 3. Update convention class lists and pattern descriptions to match current reality (do NOT hardcode test counts — they go stale immediately)
 4. Add new patterns or anti-patterns discovered during the session

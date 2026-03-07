@@ -1,3 +1,9 @@
+---
+name: api-design
+description: Minimal API endpoint patterns with IEndpointDefinition, filters, error handling. Use when creating or modifying API endpoints.
+user-invocable: false
+---
+
 # API Design Standards
 
 ## Minimal API Patterns

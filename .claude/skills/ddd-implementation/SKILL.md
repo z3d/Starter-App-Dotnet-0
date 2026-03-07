@@ -1,3 +1,9 @@
+---
+name: ddd-implementation
+description: Domain entity and value object patterns — private setters, factory methods, Reconstitute. Use when creating or modifying domain models.
+user-invocable: false
+---
+
 # Domain-Driven Design Implementation
 
 ## Domain Entities

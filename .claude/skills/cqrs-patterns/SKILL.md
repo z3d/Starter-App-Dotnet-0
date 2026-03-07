@@ -1,3 +1,9 @@
+---
+name: cqrs-patterns
+description: CQRS implementation — commands use EF Core DbContext, queries use Dapper IDbConnection. Use when implementing or modifying command/query handlers.
+user-invocable: false
+---
+
 # CQRS Implementation Patterns
 
 ## Core CQRS Separation

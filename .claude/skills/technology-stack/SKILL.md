@@ -1,3 +1,9 @@
+---
+name: technology-stack
+description: Core dependencies and versions, custom mediator implementation. Use when adding dependencies or checking version compatibility.
+user-invocable: false
+---
+
 # Technology Stack
 
 ## Core Dependencies
