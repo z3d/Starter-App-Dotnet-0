@@ -158,7 +158,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 | Domain events | No way to react to domain changes (e.g., "order created" > send email) |
 | Outbox pattern | No reliable event publishing |
 | Caching | No `IDistributedCache` or response caching |
-| `PagedResult<T>` | Endpoints accept `page`/`pageSize` but return raw collections without total count |
+| ~~`PagedResult<T>`~~ | ~~Endpoints accept `page`/`pageSize` but return raw collections without total count~~ — resolved. Endpoints now fetch `pageSize + 1` rows and set `X-Has-More` response header. Total count is a UI concern; APIs just signal whether more data exists. |
 | API versioning | Routes use `/api/v1/` prefix strings but no formal versioning library |
 
 **Recommendation:** Domain events are the highest-value addition. The custom mediator already has the infrastructure to dispatch them.
@@ -184,11 +184,11 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 | Domain unit tests | 6 | Entity creation, validation, state transitions, value object behavior |
 | Property-based (FsCheck) | 5 | Money arithmetic invariants, order state machine, GST calculations, email validation |
 | Convention tests | 6 classes | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping, Dapper SQL quality |
-| Application tests | 4 | Command handler behavior with mocked DbContext |
+| Application tests | 7 | Command handler behavior with in-memory DbContext |
 | Integration tests | 4+ | Full API endpoint testing with Testcontainers SQL Server, DbUp migrations, ProblemDetails responses |
 | Test builders | 3 | Fluent builders for Customer, Product, Order |
 
-**Gap:** Application-layer handler tests are sparse relative to the convention and domain tests. The most complex handler (`CreateOrderCommandHandler`) has a test, but the order status/cancellation handlers lack targeted tests.
+**Coverage:** Every command handler now has targeted tests. All 9 handlers (Create/Update/Delete for Product and Customer, plus CreateOrder, UpdateOrderStatus, CancelOrder) have test classes covering successful operations, not-found exceptions, and domain invariant enforcement.
 
 ---
 
@@ -196,7 +196,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention), proper CQRS separation, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-Issues #1, #3, #4, #5, #6, #7, #8, and #9 have been fixed or improved. The Order aggregate boundary is correct: items are managed through the aggregate root via `Order.AddItem()`, EF Core persists order + items atomically in a single `SaveChangesAsync`, and dead total columns have been dropped from the schema. Domain encapsulation is tightened: `SetId()` methods removed, `Reconstitute` made internal, command handlers use tracked entities with change detection, and `Money.Subtract` enforces the non-negative invariant. `CreateOrderCommandHandler` now validates stock availability and reserves inventory atomically with order creation. Every command and query has a validator, enforced by convention tests — a deliberate design choice for AI-agent maintenance where mechanical rules beat architectural taste. Database migrations are handled exclusively by the dedicated `DbMigrator` service across all deployment modes (Aspire, Docker Compose, standalone). Issue #2 (no auth) is intentional — the API assumes a gateway handles authentication. Remaining issue is (10) missing patterns (domain events, outbox, caching, `PagedResult<T>`, API versioning).
+Issues #1, #3, #4, #5, #6, #7, #8, and #9 have been fixed or improved. The Order aggregate boundary is correct: items are managed through the aggregate root via `Order.AddItem()`, EF Core persists order + items atomically in a single `SaveChangesAsync`, and dead total columns have been dropped from the schema. Domain encapsulation is tightened: `SetId()` methods removed, `Reconstitute` made internal, command handlers use tracked entities with change detection, and `Money.Subtract` enforces the non-negative invariant. `CreateOrderCommandHandler` now validates stock availability and reserves inventory atomically with order creation. Every command and query has a validator, enforced by convention tests — a deliberate design choice for AI-agent maintenance where mechanical rules beat architectural taste. Database migrations are handled exclusively by the dedicated `DbMigrator` service across all deployment modes (Aspire, Docker Compose, standalone). Issue #2 (no auth) is intentional — the API assumes a gateway handles authentication. Remaining issue is (10) missing patterns (domain events, outbox, caching, API versioning). `PagedResult<T>` resolved with `X-Has-More` header pattern.
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 
