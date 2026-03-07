@@ -10,6 +10,7 @@ global using Microsoft.Extensions.Configuration;
 global using Serilog;
 global using Serilog.Events;
 // Application references
+global using StarterApp.Api.Application;
 global using StarterApp.Api.Application.Commands;
 global using StarterApp.Api.Application.DTOs;
 global using StarterApp.Api.Application.ReadModels;

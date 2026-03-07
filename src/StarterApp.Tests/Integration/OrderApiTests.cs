@@ -130,9 +130,9 @@ public class OrderApiTests : IAsyncLifetime
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var orders = await response.Content.ReadFromJsonAsync<List<OrderDto>>();
-        Assert.NotNull(orders);
-        Assert.Empty(orders);
+        var pagedResult = await response.Content.ReadFromJsonAsync<PagedResponse<OrderReadModel>>();
+        Assert.NotNull(pagedResult);
+        Assert.Empty(pagedResult.Data);
     }
 
     [Fact]
@@ -153,10 +153,10 @@ public class OrderApiTests : IAsyncLifetime
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var orders = await response.Content.ReadFromJsonAsync<List<OrderDto>>();
-        Assert.NotNull(orders);
-        Assert.Equal(2, orders.Count);
-        Assert.All(orders, order => Assert.Equal(customer.Id, order.CustomerId));
+        var pagedResult = await response.Content.ReadFromJsonAsync<PagedResponse<OrderReadModel>>();
+        Assert.NotNull(pagedResult);
+        Assert.Equal(2, pagedResult.Data.Count);
+        Assert.All(pagedResult.Data, order => Assert.Equal(customer.Id, order.CustomerId));
     }
 
     [Fact]
@@ -174,10 +174,10 @@ public class OrderApiTests : IAsyncLifetime
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var orders = await response.Content.ReadFromJsonAsync<List<OrderDto>>();
-        Assert.NotNull(orders);
-        Assert.True(orders.Count >= 1);
-        Assert.All(orders, order => Assert.Equal("Pending", order.Status));
+        var pagedResult = await response.Content.ReadFromJsonAsync<PagedResponse<OrderReadModel>>();
+        Assert.NotNull(pagedResult);
+        Assert.True(pagedResult.Data.Count >= 1);
+        Assert.All(pagedResult.Data, order => Assert.Equal("Pending", order.Status));
     }
 
     [Fact]
@@ -690,9 +690,9 @@ public class OrderApiTests : IAsyncLifetime
         // Assert - No orphaned order should exist; customer's orders should be empty
         var ordersResponse = await _fixture.Client.GetAsync($"/api/v1/orders/customer/{customer.Id}");
         ordersResponse.EnsureSuccessStatusCode();
-        var orders = await ordersResponse.Content.ReadFromJsonAsync<List<OrderDto>>();
-        Assert.NotNull(orders);
-        Assert.Empty(orders);
+        var pagedResult = await ordersResponse.Content.ReadFromJsonAsync<PagedResponse<OrderReadModel>>();
+        Assert.NotNull(pagedResult);
+        Assert.Empty(pagedResult.Data);
     }
 
     [Fact]

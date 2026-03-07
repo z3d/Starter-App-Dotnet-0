@@ -138,10 +138,10 @@ public class ProductApiTests : IAsyncLifetime
 
         // Assert
         getResponse.EnsureSuccessStatusCode();
-        var retrievedProducts = await getResponse.Content.ReadFromJsonAsync<IEnumerable<ProductDto>>();
+        var pagedResult = await getResponse.Content.ReadFromJsonAsync<PagedResponse<ProductReadModel>>();
 
-        Assert.NotNull(retrievedProducts);
-        Assert.Equal(products.Length, retrievedProducts.Count());
+        Assert.NotNull(pagedResult);
+        Assert.Equal(products.Length, pagedResult.Data.Count);
     }
 
     [Fact]

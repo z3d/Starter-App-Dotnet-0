@@ -6,6 +6,7 @@ global using Microsoft.AspNetCore.RateLimiting;
 global using Microsoft.EntityFrameworkCore;
 // Logging with Serilog
 global using Serilog;
+global using StarterApp.Api.Application;
 global using StarterApp.Api.Application.Commands;
 // Application references
 global using StarterApp.Api.Application.DTOs;

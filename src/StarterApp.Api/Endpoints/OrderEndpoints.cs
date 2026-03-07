@@ -24,14 +24,14 @@ public class OrderEndpoints : IEndpointDefinition
             .WithName("GetOrdersByCustomer")
             .WithSummary("Get orders by customer ID")
             .WithDescription("Retrieves all orders for a specific customer")
-            .Produces<IEnumerable<OrderReadModel>>(200, "application/json")
+            .Produces<PagedResponse<OrderReadModel>>(200, "application/json")
             .ProducesProblem(500);
 
         orders.MapGet("/status/{status}", GetOrdersByStatus)
             .WithName("GetOrdersByStatus")
             .WithSummary("Get orders by status")
             .WithDescription("Retrieves all orders with the specified status")
-            .Produces<IEnumerable<OrderReadModel>>(200, "application/json")
+            .Produces<PagedResponse<OrderReadModel>>(200, "application/json")
             .ProducesProblem(500);
 
         orders.MapPost("/", CreateOrder)
@@ -77,24 +77,22 @@ public class OrderEndpoints : IEndpointDefinition
         return Results.Ok(result);
     }
 
-    private static async Task<IResult> GetOrdersByCustomer(HttpContext httpContext, int customerId, IMediator mediator, int page = 1, int pageSize = 50)
+    private static async Task<IResult> GetOrdersByCustomer(int customerId, IMediator mediator, int page = 1, int pageSize = 50)
     {
         var query = new GetOrdersByCustomerQuery { CustomerId = customerId, Page = page, PageSize = pageSize };
         var items = (await mediator.SendAsync(query)).ToList();
         var hasMore = items.Count > pageSize;
         if (hasMore) items.RemoveAt(items.Count - 1);
-        httpContext.Response.Headers["X-Has-More"] = hasMore.ToString().ToLower();
-        return Results.Ok(items);
+        return Results.Ok(new PagedResponse<OrderReadModel> { Data = items, HasMore = hasMore });
     }
 
-    private static async Task<IResult> GetOrdersByStatus(HttpContext httpContext, string status, IMediator mediator, int page = 1, int pageSize = 50)
+    private static async Task<IResult> GetOrdersByStatus(string status, IMediator mediator, int page = 1, int pageSize = 50)
     {
         var query = new GetOrdersByStatusQuery { Status = status, Page = page, PageSize = pageSize };
         var items = (await mediator.SendAsync(query)).ToList();
         var hasMore = items.Count > pageSize;
         if (hasMore) items.RemoveAt(items.Count - 1);
-        httpContext.Response.Headers["X-Has-More"] = hasMore.ToString().ToLower();
-        return Results.Ok(items);
+        return Results.Ok(new PagedResponse<OrderReadModel> { Data = items, HasMore = hasMore });
     }
 
     private static async Task<IResult> CreateOrder(CreateOrderCommand command, IMediator mediator)

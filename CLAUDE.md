@@ -143,7 +143,7 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 
 **API Design**: Minimal APIs with `IEndpointDefinition` pattern, auto-discovery, endpoint filters for route-specific logic. See `.claude/skills/api-design/SKILL.md`.
 
-**Pagination**: List endpoints use `page`/`pageSize` query params with SQL `OFFSET/FETCH`. Handlers fetch `pageSize + 1` rows; endpoints trim the extra row and set `X-Has-More: true/false` response header. This is non-breaking (body stays a plain array) and avoids expensive COUNT queries. Total count is a UI concern — if a frontend needs it, add a separate count endpoint rather than embedding it in every list response.
+**Pagination**: List endpoints use `page`/`pageSize` query params with SQL `OFFSET/FETCH`. Handlers fetch `pageSize + 1` rows; endpoints trim the extra row and return a `PagedResponse<T>` envelope (`{ data: [...], hasMore: true/false }`). This avoids expensive COUNT queries. Total count is a UI concern — if a frontend needs it, add a separate count endpoint rather than embedding it in every list response.
 
 **Debugging**: Always reproduce with a failing test first, get full stack trace, fix root cause not symptoms. See `.claude/skills/development-workflow/SKILL.md`.
 

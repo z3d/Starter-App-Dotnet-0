@@ -16,7 +16,7 @@ public class ProductEndpoints : IEndpointDefinition
             .WithName("GetProducts")
             .WithSummary("Get all products")
             .WithDescription("Retrieves a list of all products in the catalog")
-            .Produces<IEnumerable<ProductReadModel>>(200, "application/json")
+            .Produces<PagedResponse<ProductReadModel>>(200, "application/json")
             .ProducesProblem(500);
 
         products.MapGet("/{id:int}", GetProduct)
@@ -55,14 +55,13 @@ public class ProductEndpoints : IEndpointDefinition
             .ProducesProblem(500);
     }
 
-    private static async Task<IResult> GetProducts(HttpContext httpContext, IMediator mediator, int page = 1, int pageSize = 50)
+    private static async Task<IResult> GetProducts(IMediator mediator, int page = 1, int pageSize = 50)
     {
         var query = new GetAllProductsQuery { Page = page, PageSize = pageSize };
         var items = (await mediator.SendAsync(query)).ToList();
         var hasMore = items.Count > pageSize;
         if (hasMore) items.RemoveAt(items.Count - 1);
-        httpContext.Response.Headers["X-Has-More"] = hasMore.ToString().ToLower();
-        return Results.Ok(items);
+        return Results.Ok(new PagedResponse<ProductReadModel> { Data = items, HasMore = hasMore });
     }
 
     private static async Task<IResult> GetProduct(int id, IMediator mediator)

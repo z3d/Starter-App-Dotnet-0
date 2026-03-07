@@ -16,7 +16,7 @@ public class CustomerEndpoints : IEndpointDefinition
             .WithName("GetCustomers")
             .WithSummary("Get all customers")
             .WithDescription("Retrieves a list of all customers in the system")
-            .Produces<IEnumerable<CustomerReadModel>>(200, "application/json")
+            .Produces<PagedResponse<CustomerReadModel>>(200, "application/json")
             .ProducesProblem(500);
 
         customers.MapGet("/{id:int}", GetCustomer)
@@ -55,14 +55,13 @@ public class CustomerEndpoints : IEndpointDefinition
             .ProducesProblem(500);
     }
 
-    private static async Task<IResult> GetCustomers(HttpContext httpContext, IMediator mediator, int page = 1, int pageSize = 50)
+    private static async Task<IResult> GetCustomers(IMediator mediator, int page = 1, int pageSize = 50)
     {
         var query = new GetCustomersQuery { Page = page, PageSize = pageSize };
         var items = (await mediator.SendAsync(query)).ToList();
         var hasMore = items.Count > pageSize;
         if (hasMore) items.RemoveAt(items.Count - 1);
-        httpContext.Response.Headers["X-Has-More"] = hasMore.ToString().ToLower();
-        return Results.Ok(items);
+        return Results.Ok(new PagedResponse<CustomerReadModel> { Data = items, HasMore = hasMore });
     }
 
     private static async Task<IResult> GetCustomer(int id, IMediator mediator)
