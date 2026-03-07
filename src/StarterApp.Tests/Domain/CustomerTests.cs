@@ -73,36 +73,27 @@ public class CustomerTests
         Assert.Equal(newEmail, customer.Email);
     }
 
-    [Fact]
-    public void UpdateDetails_WithEmptyName_ShouldNotUpdate()
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void UpdateDetails_WithEmptyOrWhitespaceName_ShouldThrowArgumentException(string invalidName)
     {
         // Arrange
-        var originalName = "John Doe";
-        var customer = new Customer(originalName, Email.Create("john@example.com"));
+        var customer = new Customer("John Doe", Email.Create("john@example.com"));
         var newEmail = Email.Create("jane@example.com");
 
-        // Act
-        customer.UpdateDetails("", newEmail);
-
-        // Assert
-        Assert.Equal(originalName, customer.Name);
-        Assert.Equal(newEmail, customer.Email);
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => customer.UpdateDetails(invalidName, newEmail));
     }
 
     [Fact]
-    public void UpdateDetails_WithNullEmail_ShouldNotUpdate()
+    public void UpdateDetails_WithNullEmail_ShouldThrowArgumentNullException()
     {
         // Arrange
-        var originalEmail = Email.Create("john@example.com");
-        var customer = new Customer("John Doe", originalEmail);
-        var newName = "Jane Doe";
+        var customer = new Customer("John Doe", Email.Create("john@example.com"));
 
-        // Act
-        customer.UpdateDetails(newName, null!);
-
-        // Assert
-        Assert.Equal(newName, customer.Name);
-        Assert.Equal(originalEmail, customer.Email);
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => customer.UpdateDetails("Jane Doe", null!));
     }
 
     [Fact]

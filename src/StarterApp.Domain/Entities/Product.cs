@@ -38,15 +38,12 @@ public class Product
     // Domain methods
     public void UpdateDetails(string name, string description, Money price)
     {
-        if (!string.IsNullOrWhiteSpace(name))
-            Name = name;
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(price);
 
-        if (description != null)
-            Description = description;
-
-        if (price != null)
-            Price = price;
-
+        Name = name;
+        Description = description ?? string.Empty;
+        Price = price;
         LastUpdated = DateTime.UtcNow;
     }
 

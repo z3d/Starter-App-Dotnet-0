@@ -32,7 +32,14 @@ public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, Ord
         foreach (var item in order.Items)
         {
             var product = await _dbContext.Products.FindAsync([item.ProductId], cancellationToken);
-            product?.UpdateStock(item.Quantity);
+            if (product == null)
+            {
+                Log.Warning("Product {ProductId} no longer exists; cannot restore {Quantity} units of stock for order {OrderId}",
+                    item.ProductId, item.Quantity, order.Id);
+                continue;
+            }
+
+            product.UpdateStock(item.Quantity);
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);

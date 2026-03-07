@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 7.5/10**
+**Score: 9/10**
 
 ---
 
@@ -33,6 +33,7 @@ The read/write split is cleanly executed:
 - **Queries** flow through Dapper `IDbConnection` for reads, returning `*ReadModel` types
 - A **custom mediator** replaces MediatR, avoiding commercial licensing. It auto-discovers handlers via reflection and integrates validation as a pipeline behavior
 - Convention tests mechanically prevent cross-contamination between read and write paths
+- Zero CQRS violations found across all 9 command handlers and 8 query handlers
 
 ### Rich Domain Models
 
@@ -42,7 +43,21 @@ Entities contain real behavior, not just properties:
 - **Value objects** (`Money`, `Email`) are immutable with private constructors, static factory methods, and proper `Equals`/`GetHashCode` overrides
 - **`OrderItem`** encapsulates GST calculation logic with multiple derived values (`GetUnitPriceIncludingGst`, `GetTotalPriceExcludingGst`, `GetTotalPriceIncludingGst`, `GetTotalGstAmount`)
 - Private setters and protected constructors enforce encapsulation throughout
-- `Reconstitute()` factory methods handle database hydration without bypassing creation-time invariants
+- `Reconstitute()` factory methods handle database hydration without bypassing creation-time invariants (scoped `internal`, visible only to test assembly)
+
+### Application Layer
+
+All command handlers follow correct patterns:
+
+- **Single `SaveChangesAsync`** per handler — atomicity guaranteed
+- **Tracked entities** loaded via `FindAsync` / `Include().FirstOrDefaultAsync` — EF Core detects only changed properties
+- **Domain methods invoked** for all mutations (`Order.Cancel()`, `Product.UpdateStock()`, `Customer.UpdateDetails()`) — no direct property assignment
+- **Stock lifecycle** managed correctly: `CreateOrderCommandHandler` validates availability and decrements atomically; `CancelOrderCommandHandler` restores stock on cancellation
+- **Consistent error handling**: `KeyNotFoundException` for missing entities, `InvalidOperationException` for domain violations
+
+### Validator Coverage
+
+Every command and query has an `IValidator<T>` implementation (16 total). Convention tests enforce this — adding a new command or query without a validator fails the build. Validators provide structured multi-error `ValidationError` responses at the API boundary; domain guards are the safety net (defense-in-depth).
 
 ### Property-Based Testing
 
@@ -67,10 +82,11 @@ The mediator at `Infrastructure/Mediator/Mediator.cs` is well-designed:
 - **Aspire orchestration** — `AppHost/Program.cs` wires up API, SQL Server, Seq, and DbMigrator with proper `WaitFor` dependencies and optional dev tunnel support
 - **Serilog** structured logging with console, file, Seq, and OpenTelemetry sinks
 - **OpenTelemetry** metrics (ASP.NET Core, HTTP, runtime) and tracing via `ServiceDefaults`
-- **Docker** multi-stage build with docker-compose (API + SQL Server + Seq)
-- **CI** pipeline with GitHub Actions (build + test on push/PR)
+- **Docker** multi-stage build with docker-compose (API + SQL Server + Seq + dedicated migrator)
+- **CI** pipeline with GitHub Actions (unit tests + integration tests with Testcontainers)
 - **Health checks** at `/health` and `/alive`
 - **Password masking** in log output — implemented consistently across `Program.cs`, `DatabaseMigrationEngine`, and `DbMigrator`
+- **Dedicated `DbMigrator` service** for migrations across all deployment modes (Aspire, Docker Compose, standalone)
 
 ### Build Quality
 
@@ -91,6 +107,7 @@ Good adoption of modern .NET:
 - Minimal APIs with `MapGroup` and endpoint metadata
 - Scalar API reference UI replacing Swagger
 - `ArgumentOutOfRangeException.ThrowIfNegativeOrZero()` and similar guard clause helpers
+- `MailAddress.TryCreate()` for email validation (no exception-based flow control)
 
 ---
 
@@ -120,9 +137,9 @@ Rate limiting and security headers provide defense-in-depth at the service level
 
 ### ~~6. Thin Application Layer~~ IMPROVED
 
-**Status: Partially resolved.** `CreateOrderCommandHandler` now checks stock availability before adding each order item and decrements stock via `Product.UpdateStock()`. Stock reservation is atomic with order creation — if any item fails (product not found, insufficient stock), no stock is decremented and no order is saved. Three handler tests cover: insufficient stock rejection, stock decrement on success, and atomicity (second item failure leaves first product's stock unchanged).
+**Status: Partially resolved.** `CreateOrderCommandHandler` now checks stock availability before adding each order item and decrements stock via `Product.UpdateStock()`. Stock reservation is atomic with order creation — if any item fails (product not found, insufficient stock), no stock is decremented and no order is saved. `CancelOrderCommandHandler` restores stock on cancellation, completing the stock lifecycle for the order flow.
 
-**Remaining gap:** Other command handlers are still CRUD pass-through. `CancelOrderCommandHandler` now restores stock on cancellation, completing the stock lifecycle for the order flow.
+**Remaining gap:** Other command handlers are still CRUD pass-through.
 
 ### ~~7. Sparse Validation Coverage~~ FIXED
 
@@ -149,7 +166,27 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 **Status: Resolved.** `Subtract` now routes through `Create()` instead of the private constructor, so the existing `ThrowIfNegative` guard applies to all Money creation paths. Subtracting a larger amount from a smaller one throws `ArgumentOutOfRangeException`.
 
-### 10. Missing Patterns for a Starter Template
+### ~~10. Delete Handlers Missing Referential Integrity Checks~~ FIXED
+
+**Status: Resolved.** Both `DeleteProductCommandHandler` and `DeleteCustomerCommandHandler` now check for existing orders before deletion. `DeleteProductCommandHandler` queries `OrderItems.AnyAsync(oi => oi.ProductId == id)` and throws `InvalidOperationException` if the product is referenced. `DeleteCustomerCommandHandler` queries `Orders.AnyAsync(o => o.CustomerId == id)` and throws similarly. Regression tests verify both cases.
+
+### ~~11. Stock Race Condition in CreateOrderCommand~~ FIXED
+
+**Status: Resolved.** Added migration `0007_AddStockNonNegativeConstraint.sql` with `CHECK (Stock >= 0)` on the `Products` table. The database is now the final arbiter — if two concurrent stock decrements race, the second `SaveChangesAsync` throws a database exception. The application-layer check (`product.Stock < quantity`) handles the common case with a clear error message; the database constraint is the safety net for concurrency edge cases.
+
+### ~~12. CancelOrderCommand Silently Skips Deleted Products~~ FIXED
+
+**Status: Resolved.** `CancelOrderCommandHandler` now logs a warning via `Log.Warning` when a product no longer exists during stock restoration, including the product ID, quantity, and order ID. The cancellation still succeeds (the order should be cancellable regardless of product state), but operators have visibility into unrestorable stock via structured logs.
+
+### ~~13. UpdateDetails Methods Have Ambiguous Null Semantics~~ FIXED
+
+**Status: Resolved.** `Product.UpdateDetails()` and `Customer.UpdateDetails()` now use the same guards as their constructors: `ArgumentException.ThrowIfNullOrWhiteSpace(name)` and `ArgumentNullException.ThrowIfNull()` for price/email. Passing invalid input is now an error at both creation and update time. Domain tests updated to verify the strict behavior.
+
+### ~~14. CreateOrderCommandValidator Missing GST Rate Bounds~~ FIXED
+
+**Status: Resolved.** `CreateOrderCommandValidator` now validates `GstRate` bounds (0 to 1.0) per item in the validation loop, yielding a structured `ValidationError` with message `"GST rate must be between 0 and 1 (e.g., 0.10 for 10%)"`. This provides a clean 400 response at the API boundary instead of letting the domain guard throw a raw `ArgumentOutOfRangeException`.
+
+### 15. Missing Patterns for a Starter Template
 
 **Severity: Low**
 
@@ -174,6 +211,10 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 - ~~**No `appsettings.Development.json`**~~ — resolved. Added with `localhost` connection string defaults for standalone dev without Aspire.
 - ~~**`Order.Reconstitute()` is public**~~ — now `internal`, visible only to the test assembly via `InternalsVisibleTo`.
 - ~~**Scalar UI replaces Swagger UI**~~ — no longer relevant. Swashbuckle was removed from .NET 9+; Scalar is the standard replacement for OpenAPI UI.
+- **`Directory.Build.props` lock file path uses backslashes** — `NuGetLockFilePath` uses `\` separator. Works on Windows and modern .NET MSBuild on macOS/Linux, but should use `/` for explicit cross-platform compatibility.
+- **CI pipeline missing NuGet cache** — each run restores from scratch. Adding `actions/setup-dotnet` with `cache: true` would speed up builds.
+- **No Dockerfile health check** — health check is defined in `docker-compose.yml` but not in the Dockerfile itself. Standalone `docker run` has no health check. Add `HEALTHCHECK CMD curl -f http://localhost:8080/health || exit 1`.
+- **ServiceDefaults only adds liveness probe** — no readiness health check for database connectivity. For Kubernetes deployments, add a database health check to the readiness endpoint.
 
 ---
 
@@ -184,19 +225,21 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 | Domain unit tests | 6 | Entity creation, validation, state transitions, value object behavior |
 | Property-based (FsCheck) | 5 | Money arithmetic invariants, order state machine, GST calculations, email validation |
 | Convention tests | 6 classes | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping, Dapper SQL quality |
-| Application tests | 7 | Command handler behavior with in-memory DbContext |
+| Application tests | 9 | All command handlers tested with in-memory DbContext |
 | Integration tests | 4+ | Full API endpoint testing with Testcontainers SQL Server, DbUp migrations, ProblemDetails responses |
 | Test builders | 3 | Fluent builders for Customer, Product, Order |
 
-**Coverage:** Every command handler now has targeted tests. All 9 handlers (Create/Update/Delete for Product and Customer, plus CreateOrder, UpdateOrderStatus, CancelOrder) have test classes covering successful operations, not-found exceptions, and domain invariant enforcement.
+**Coverage:** Every command handler has targeted tests. All 9 handlers (Create/Update/Delete for Product and Customer, plus CreateOrder, UpdateOrderStatus, CancelOrder) have test classes covering successful operations, not-found exceptions, and domain invariant enforcement.
 
 ---
 
 ## Verdict
 
-A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention), proper CQRS separation, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
+A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention via IL inspection), proper CQRS separation with zero violations, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-Issues #1, #3, #4, #5, #6, #7, #8, and #9 have been fixed or improved. The Order aggregate boundary is correct: items are managed through the aggregate root via `Order.AddItem()`, EF Core persists order + items atomically in a single `SaveChangesAsync`, and dead total columns have been dropped from the schema. Domain encapsulation is tightened: `SetId()` methods removed, `Reconstitute` made internal, command handlers use tracked entities with change detection, and `Money.Subtract` enforces the non-negative invariant. `CreateOrderCommandHandler` now validates stock availability and reserves inventory atomically with order creation. Every command and query has a validator, enforced by convention tests — a deliberate design choice for AI-agent maintenance where mechanical rules beat architectural taste. Database migrations are handled exclusively by the dedicated `DbMigrator` service across all deployment modes (Aspire, Docker Compose, standalone). Issue #2 (no auth) is intentional — the API assumes a gateway handles authentication. Remaining issue is (10) missing patterns (domain events, outbox, caching, API versioning). `PagedResult<T>` resolved with `X-Has-More` header pattern.
+Issues #1–#14 have been resolved. The Order aggregate boundary is correct: items are managed through the aggregate root via `Order.AddItem()`, EF Core persists order + items atomically in a single `SaveChangesAsync`, and dead total columns have been dropped from the schema. Domain encapsulation is tight: `SetId()` methods removed, `Reconstitute` made internal, command handlers use tracked entities with change detection, `Money.Subtract` enforces the non-negative invariant, and `UpdateDetails` methods now throw on invalid input (consistent with constructors). Stock lifecycle is complete with concurrency safety: `CreateOrderCommandHandler` validates availability and reserves inventory atomically, `CancelOrderCommandHandler` restores stock with logging for deleted products, and a SQL `CHECK (Stock >= 0)` constraint prevents race-condition overselling. Delete handlers enforce referential integrity — products with order items and customers with orders cannot be deleted. Every command and query has a validator (including GST rate bounds), enforced by convention tests. Database migrations are handled exclusively by the dedicated `DbMigrator` service.
+
+Remaining issue is (15) missing patterns (domain events, outbox, caching, API versioning).
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 

@@ -92,6 +92,30 @@ public class ProductTests
         Assert.Equal(newPrice, product.Price);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void UpdateDetails_WithEmptyOrWhitespaceName_ShouldThrowArgumentException(string invalidName)
+    {
+        // Arrange
+        var product = ProductBuilder.AValidProduct().Build();
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            product.UpdateDetails(invalidName, "Description", Money.Create(10.00m)));
+    }
+
+    [Fact]
+    public void UpdateDetails_WithNullPrice_ShouldThrowArgumentNullException()
+    {
+        // Arrange
+        var product = ProductBuilder.AValidProduct().Build();
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            product.UpdateDetails("Name", "Description", null!));
+    }
+
     [Fact]
     public void UpdateStock_WithValidQuantity_ShouldUpdateStock()
     {

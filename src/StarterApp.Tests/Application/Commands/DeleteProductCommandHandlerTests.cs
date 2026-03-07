@@ -56,4 +56,34 @@ public class DeleteProductCommandHandlerTests
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
             handler.HandleAsync(command, CancellationToken.None));
     }
+
+    [Fact]
+    public async Task Handle_WithProductReferencedByOrder_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var options = CreateInMemoryOptions();
+        await using var context = new ApplicationDbContext(options);
+
+        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);
+        context.Customers.Add(customer);
+        context.Products.Add(product);
+        await context.SaveChangesAsync();
+
+        // Create an order referencing the product
+        var createHandler = new CreateOrderCommandHandler(context);
+        await createHandler.HandleAsync(new CreateOrderCommand
+        {
+            CustomerId = customer.Id,
+            Items = [new() { ProductId = product.Id, Quantity = 1, UnitPriceExcludingGst = 10.00m }]
+        }, CancellationToken.None);
+
+        var handler = new DeleteProductCommandHandler(context);
+        var command = new DeleteProductCommand(product.Id);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.HandleAsync(command, CancellationToken.None));
+        Assert.Contains("existing orders", ex.Message);
+    }
 }

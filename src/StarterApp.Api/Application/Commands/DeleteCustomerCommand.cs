@@ -27,6 +27,13 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
             throw new KeyNotFoundException($"Customer with ID {command.Id} not found");
         }
 
+        var hasOrders = await _dbContext.Orders.AnyAsync(o => o.CustomerId == command.Id, cancellationToken);
+        if (hasOrders)
+        {
+            Log.Warning("Customer {Id} cannot be deleted because they have existing orders", command.Id);
+            throw new InvalidOperationException($"Cannot delete customer '{customer.Name}' because they have existing orders");
+        }
+
         _dbContext.Customers.Remove(customer);
         await _dbContext.SaveChangesAsync(cancellationToken);
 

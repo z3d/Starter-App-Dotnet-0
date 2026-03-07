@@ -30,6 +30,13 @@ public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand>
             throw new KeyNotFoundException($"Product with ID {command.Id} not found");
         }
 
+        var hasOrderItems = await _dbContext.OrderItems.AnyAsync(oi => oi.ProductId == command.Id, cancellationToken);
+        if (hasOrderItems)
+        {
+            Log.Warning("Product {Id} cannot be deleted because it has existing order items", command.Id);
+            throw new InvalidOperationException($"Cannot delete product '{product.Name}' because it is referenced by existing orders");
+        }
+
         _dbContext.Products.Remove(product);
         await _dbContext.SaveChangesAsync(cancellationToken);
 

@@ -28,11 +28,11 @@ public class Customer
 
     public void UpdateDetails(string name, Email email)
     {
-        if (!string.IsNullOrWhiteSpace(name))
-            Name = name;
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(email);
 
-        if (email != null)
-            Email = email;
+        Name = name;
+        Email = email;
     }
 
     public void Activate()

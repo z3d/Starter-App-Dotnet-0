@@ -27,6 +27,9 @@ public class CreateOrderCommandValidator : IValidator<CreateOrderCommand>
 
             if (item.UnitPriceExcludingGst < 0)
                 yield return new ValidationError($"Items[{i}].UnitPriceExcludingGst", "UnitPriceExcludingGst cannot be negative");
+
+            if (item.GstRate < 0 || item.GstRate > 1.0m)
+                yield return new ValidationError($"Items[{i}].GstRate", "GST rate must be between 0 and 1 (e.g., 0.10 for 10%)");
         }
     }
 }
