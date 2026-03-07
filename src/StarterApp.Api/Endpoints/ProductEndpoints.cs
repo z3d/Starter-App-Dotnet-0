@@ -55,12 +55,8 @@ public class ProductEndpoints : IEndpointDefinition
             .ProducesProblem(500);
     }
 
-    /// <summary>
-    /// Gets all products from the catalog.
-    /// </summary>
     private static async Task<IResult> GetProducts(HttpContext httpContext, IMediator mediator, int page = 1, int pageSize = 50)
     {
-        Log.Information("Getting products (page {Page}, size {PageSize})", page, pageSize);
         var query = new GetAllProductsQuery { Page = page, PageSize = pageSize };
         var items = (await mediator.SendAsync(query)).ToList();
         var hasMore = items.Count > pageSize;
@@ -69,12 +65,8 @@ public class ProductEndpoints : IEndpointDefinition
         return Results.Ok(items);
     }
 
-    /// <summary>
-    /// Gets a specific product by its ID.
-    /// </summary>
     private static async Task<IResult> GetProduct(int id, IMediator mediator)
     {
-        Log.Information("Getting product with ID: {Id}", id);
         var query = new GetProductByIdQuery(id);
         var result = await mediator.SendAsync(query);
 
@@ -87,21 +79,12 @@ public class ProductEndpoints : IEndpointDefinition
         return Results.Ok(result);
     }
 
-    /// <summary>
-    /// Creates a new product in the catalog.
-    /// </summary>
     private static async Task<IResult> CreateProduct(CreateProductCommand command, IMediator mediator)
     {
-        Log.Information("Creating a new product");
         var result = await mediator.SendAsync(command);
-
-        Log.Information("Created new product with ID: {Id}", result.Id);
         return Results.Created($"/api/v1/products/{result.Id}", result);
     }
 
-    /// <summary>
-    /// Updates an existing product.
-    /// </summary>
     private static async Task<IResult> UpdateProduct(int id, UpdateProductCommand command, IMediator mediator)
     {
         if (id != command.Id)
@@ -109,40 +92,13 @@ public class ProductEndpoints : IEndpointDefinition
             return Results.BadRequest("ID in URL does not match ID in request body");
         }
 
-        Log.Information("Updating product with ID: {Id}", id);
-
-        try
-        {
-            await mediator.SendAsync(command);
-            Log.Information("Updated product with ID: {Id}", id);
-        }
-        catch (KeyNotFoundException)
-        {
-            Log.Warning("Product with ID: {Id} not found during update", id);
-            return Results.NotFound();
-        }
-
+        await mediator.SendAsync(command);
         return Results.NoContent();
     }
 
-    /// <summary>
-    /// Deletes a product by its ID.
-    /// </summary>
     private static async Task<IResult> DeleteProduct(int id, IMediator mediator)
     {
-        Log.Information("Deleting product with ID: {Id}", id);
-
-        try
-        {
-            await mediator.SendAsync(new DeleteProductCommand(id));
-            Log.Information("Deleted product with ID: {Id}", id);
-        }
-        catch (KeyNotFoundException)
-        {
-            Log.Warning("Product with ID: {Id} not found during delete", id);
-            return Results.NotFound();
-        }
-
+        await mediator.SendAsync(new DeleteProductCommand(id));
         return Results.NoContent();
     }
 }

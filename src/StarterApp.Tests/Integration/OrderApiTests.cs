@@ -545,7 +545,7 @@ public class OrderApiTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UpdateOrderStatus_WithInvalidTransition_ShouldReturnBadRequest()
+    public async Task UpdateOrderStatus_WithInvalidTransition_ShouldReturnConflict()
     {
         // Arrange - Create test data and order, then update to Delivered
         var (customer, product) = await CreateTestData();
@@ -576,20 +576,12 @@ public class OrderApiTests : IAsyncLifetime
         // Act
         var response = await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status", invalidUpdateCommand);
 
-        // Debug: Log the response details
-        if (response.StatusCode != HttpStatusCode.BadRequest)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            _output.WriteLine($"Expected BadRequest but got: {response.StatusCode}");
-            _output.WriteLine($"Error response: {errorContent}");
-        }
-
-        // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        // Assert — business rule violation returns 409 Conflict via global exception handler
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
-    public async Task CancelOrder_WhenOrderIsDelivered_ShouldReturnBadRequest()
+    public async Task CancelOrder_WhenOrderIsDelivered_ShouldReturnConflict()
     {
         // Arrange - Create test data and order, then move to Delivered
         var (customer, product) = await CreateTestData();
@@ -613,16 +605,8 @@ public class OrderApiTests : IAsyncLifetime
         // Act
         var response = await _fixture.Client.PostAsync($"/api/v1/orders/{createdOrder.Id}/cancel", null);
 
-        // Debug: Log the response details
-        if (response.StatusCode != HttpStatusCode.BadRequest)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            _output.WriteLine($"Expected BadRequest but got: {response.StatusCode}");
-            _output.WriteLine($"Error response: {errorContent}");
-        }
-
-        // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        // Assert — business rule violation returns 409 Conflict via global exception handler
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]

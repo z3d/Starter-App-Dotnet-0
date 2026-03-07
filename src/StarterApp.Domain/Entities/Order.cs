@@ -11,7 +11,7 @@ public class Order
     public IReadOnlyList<OrderItem> Items
     {
         get => _items.AsReadOnly();
-        private set { } // EF Core uses _items backing field directly via PropertyAccessMode.Field
+        private set { } // Required by EF Core property detection; data loaded via _items backing field (see ApplicationDbContext HasMany config with PropertyAccessMode.Field)
     }
     public DateTime LastUpdated { get; private set; }
 

@@ -63,12 +63,8 @@ public class OrderEndpoints : IEndpointDefinition
             .ProducesProblem(500);
     }
 
-    /// <summary>
-    /// Gets a specific order with all its items by ID.
-    /// </summary>
     private static async Task<IResult> GetOrder(int id, IMediator mediator)
     {
-        Log.Information("Getting order with ID: {Id}", id);
         var query = new GetOrderByIdQuery { Id = id };
         var result = await mediator.SendAsync(query);
 
@@ -81,12 +77,8 @@ public class OrderEndpoints : IEndpointDefinition
         return Results.Ok(result);
     }
 
-    /// <summary>
-    /// Gets all orders for a specific customer.
-    /// </summary>
     private static async Task<IResult> GetOrdersByCustomer(HttpContext httpContext, int customerId, IMediator mediator, int page = 1, int pageSize = 50)
     {
-        Log.Information("Getting orders for customer: {CustomerId} (page {Page}, size {PageSize})", customerId, page, pageSize);
         var query = new GetOrdersByCustomerQuery { CustomerId = customerId, Page = page, PageSize = pageSize };
         var items = (await mediator.SendAsync(query)).ToList();
         var hasMore = items.Count > pageSize;
@@ -95,12 +87,8 @@ public class OrderEndpoints : IEndpointDefinition
         return Results.Ok(items);
     }
 
-    /// <summary>
-    /// Gets all orders with a specific status.
-    /// </summary>
     private static async Task<IResult> GetOrdersByStatus(HttpContext httpContext, string status, IMediator mediator, int page = 1, int pageSize = 50)
     {
-        Log.Information("Getting orders with status: {Status} (page {Page}, size {PageSize})", status, page, pageSize);
         var query = new GetOrdersByStatusQuery { Status = status, Page = page, PageSize = pageSize };
         var items = (await mediator.SendAsync(query)).ToList();
         var hasMore = items.Count > pageSize;
@@ -109,21 +97,12 @@ public class OrderEndpoints : IEndpointDefinition
         return Results.Ok(items);
     }
 
-    /// <summary>
-    /// Creates a new order for a customer.
-    /// </summary>
     private static async Task<IResult> CreateOrder(CreateOrderCommand command, IMediator mediator)
     {
-        Log.Information("Creating a new order for customer: {CustomerId}", command.CustomerId);
-
         var result = await mediator.SendAsync(command);
-        Log.Information("Created new order with ID: {Id}", result.Id);
         return Results.Created($"/api/v1/orders/{result.Id}", result);
     }
 
-    /// <summary>
-    /// Updates the status of an existing order.
-    /// </summary>
     private static async Task<IResult> UpdateOrderStatus(int id, UpdateOrderStatusCommand command, IMediator mediator)
     {
         if (id != command.OrderId)
@@ -131,54 +110,14 @@ public class OrderEndpoints : IEndpointDefinition
             return Results.BadRequest("ID in URL does not match ID in request body");
         }
 
-        Log.Information("Updating order {Id} status to: {Status}", id, command.Status);
-
-        try
-        {
-            var result = await mediator.SendAsync(command);
-            Log.Information("Updated order {Id} status to: {Status}", id, command.Status);
-            return Results.Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            Log.Warning("Order with ID: {Id} not found during status update: {Message}", id, ex.Message);
-            return Results.NotFound(ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            Log.Warning("Invalid status transition for order {Id}: {Message}", id, ex.Message);
-            return Results.BadRequest(ex.Message);
-        }
-        catch (ArgumentException ex)
-        {
-            Log.Warning("Invalid status value for order {Id}: {Message}", id, ex.Message);
-            return Results.BadRequest(ex.Message);
-        }
+        var result = await mediator.SendAsync(command);
+        return Results.Ok(result);
     }
 
-    /// <summary>
-    /// Cancels an existing order.
-    /// </summary>
     private static async Task<IResult> CancelOrder(int id, IMediator mediator)
     {
-        Log.Information("Cancelling order with ID: {Id}", id);
-
-        try
-        {
-            var command = new CancelOrderCommand { OrderId = id };
-            var result = await mediator.SendAsync(command);
-            Log.Information("Cancelled order with ID: {Id}", id);
-            return Results.Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            Log.Warning("Order with ID: {Id} not found during cancellation: {Message}", id, ex.Message);
-            return Results.NotFound(ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            Log.Warning("Cannot cancel order {Id}: {Message}", id, ex.Message);
-            return Results.BadRequest(ex.Message);
-        }
+        var command = new CancelOrderCommand { OrderId = id };
+        var result = await mediator.SendAsync(command);
+        return Results.Ok(result);
     }
 }

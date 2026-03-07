@@ -1,6 +1,6 @@
 namespace StarterApp.Domain.ValueObjects;
 
-public class Email
+public class Email : IEquatable<Email>
 {
     public const int MaxEmailLength = 320;
 
@@ -30,13 +30,15 @@ public class Email
             && addr.Address == email;
     }
 
-    public override bool Equals(object? obj)
+    public bool Equals(Email? other)
     {
-        if (obj is not Email other)
+        if (other is null)
             return false;
 
         return Value == other.Value;
     }
+
+    public override bool Equals(object? obj) => Equals(obj as Email);
 
     public override int GetHashCode()
     {

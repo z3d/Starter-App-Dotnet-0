@@ -55,12 +55,8 @@ public class CustomerEndpoints : IEndpointDefinition
             .ProducesProblem(500);
     }
 
-    /// <summary>
-    /// Gets all customers from the system.
-    /// </summary>
     private static async Task<IResult> GetCustomers(HttpContext httpContext, IMediator mediator, int page = 1, int pageSize = 50)
     {
-        Log.Information("Getting customers (page {Page}, size {PageSize})", page, pageSize);
         var query = new GetCustomersQuery { Page = page, PageSize = pageSize };
         var items = (await mediator.SendAsync(query)).ToList();
         var hasMore = items.Count > pageSize;
@@ -69,12 +65,8 @@ public class CustomerEndpoints : IEndpointDefinition
         return Results.Ok(items);
     }
 
-    /// <summary>
-    /// Gets a specific customer by their ID.
-    /// </summary>
     private static async Task<IResult> GetCustomer(int id, IMediator mediator)
     {
-        Log.Information("Getting customer with ID: {Id}", id);
         var query = new GetCustomerQuery(id);
         var result = await mediator.SendAsync(query);
 
@@ -87,21 +79,12 @@ public class CustomerEndpoints : IEndpointDefinition
         return Results.Ok(result);
     }
 
-    /// <summary>
-    /// Creates a new customer.
-    /// </summary>
     private static async Task<IResult> CreateCustomer(CreateCustomerCommand command, IMediator mediator)
     {
-        Log.Information("Creating a new customer");
         var result = await mediator.SendAsync(command);
-
-        Log.Information("Created new customer with ID: {Id}", result.Id);
         return Results.Created($"/api/v1/customers/{result.Id}", result);
     }
 
-    /// <summary>
-    /// Updates an existing customer.
-    /// </summary>
     private static async Task<IResult> UpdateCustomer(int id, UpdateCustomerCommand command, IMediator mediator)
     {
         if (id != command.Id)
@@ -109,40 +92,13 @@ public class CustomerEndpoints : IEndpointDefinition
             return Results.BadRequest("ID in URL does not match ID in request body");
         }
 
-        Log.Information("Updating customer with ID: {Id}", id);
-
-        try
-        {
-            await mediator.SendAsync(command);
-            Log.Information("Updated customer with ID: {Id}", id);
-        }
-        catch (KeyNotFoundException)
-        {
-            Log.Warning("Customer with ID: {Id} not found during update", id);
-            return Results.NotFound();
-        }
-
+        await mediator.SendAsync(command);
         return Results.NoContent();
     }
 
-    /// <summary>
-    /// Deletes a customer by their ID.
-    /// </summary>
     private static async Task<IResult> DeleteCustomer(int id, IMediator mediator)
     {
-        Log.Information("Deleting customer with ID: {Id}", id);
-
-        try
-        {
-            await mediator.SendAsync(new DeleteCustomerCommand { Id = id });
-            Log.Information("Deleted customer with ID: {Id}", id);
-        }
-        catch (KeyNotFoundException)
-        {
-            Log.Warning("Customer with ID: {Id} not found during delete", id);
-            return Results.NotFound();
-        }
-
+        await mediator.SendAsync(new DeleteCustomerCommand { Id = id });
         return Results.NoContent();
     }
 }

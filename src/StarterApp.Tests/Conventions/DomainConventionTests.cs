@@ -98,9 +98,13 @@ public class DomainConventionTests : ConventionTestBase
     }
 
     // === DateTime Safety ===
+    // Domain entities are excluded — they use DateTime.UtcNow for timestamps in constructors
+    // and mutation methods, which is acceptable for domain-level auditing. This test enforces
+    // that API-layer code (handlers, validators, endpoints) does not resolve time directly,
+    // ensuring testability of application logic.
 
     [Fact]
-    public void Types_MustNotResolveCurrentTimeViaDateTime()
+    public void ApiTypes_MustNotResolveCurrentTimeViaDateTime()
     {
         var types = ApiAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));

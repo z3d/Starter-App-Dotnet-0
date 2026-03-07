@@ -1,6 +1,6 @@
 namespace StarterApp.Domain.ValueObjects;
 
-public class Money
+public class Money : IEquatable<Money>
 {
     public const int MaxCurrencyLength = 3;
 
@@ -46,13 +46,15 @@ public class Money
         return Create(Amount - other.Amount, Currency);
     }
 
-    public override bool Equals(object? obj)
+    public bool Equals(Money? other)
     {
-        if (obj is not Money other)
+        if (other is null)
             return false;
 
         return Amount == other.Amount && Currency == other.Currency;
     }
+
+    public override bool Equals(object? obj) => Equals(obj as Money);
 
     public override int GetHashCode()
     {

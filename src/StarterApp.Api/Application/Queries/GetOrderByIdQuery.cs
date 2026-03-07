@@ -23,7 +23,7 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
                    ISNULL(t.TotalExcludingGst, 0) AS TotalExcludingGst,
                    ISNULL(t.TotalIncludingGst, 0) AS TotalIncludingGst,
                    ISNULL(t.TotalGstAmount, 0) AS TotalGstAmount,
-                   ISNULL(t.Currency, o.Currency) AS Currency,
+                   ISNULL(t.Currency, 'USD') AS Currency,
                    o.LastUpdated
             FROM Orders o
             OUTER APPLY (
