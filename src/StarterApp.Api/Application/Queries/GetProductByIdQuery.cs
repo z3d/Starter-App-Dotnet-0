@@ -37,9 +37,6 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
 
         var product = await _connection.QueryFirstOrDefaultAsync<ProductReadModel>(sqlQuery, new { Id = query.Id });
 
-        if (product == null)
-            Log.Warning("Product with ID {Id} not found", query.Id);
-
         return product;
     }
 }

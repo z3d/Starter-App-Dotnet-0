@@ -52,6 +52,7 @@ public class ProductEndpoints : IEndpointDefinition
             .WithDescription("Permanently removes a product from the catalog")
             .Produces(204)
             .ProducesProblem(404)
+            .ProducesProblem(409)
             .ProducesProblem(500);
     }
 
@@ -60,7 +61,8 @@ public class ProductEndpoints : IEndpointDefinition
         var query = new GetAllProductsQuery { Page = page, PageSize = pageSize };
         var items = (await mediator.SendAsync(query)).ToList();
         var hasMore = items.Count > pageSize;
-        if (hasMore) items.RemoveAt(items.Count - 1);
+        if (hasMore)
+            items.RemoveAt(items.Count - 1);
         return Results.Ok(new PagedResponse<ProductReadModel> { Data = items, HasMore = hasMore });
     }
 

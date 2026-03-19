@@ -35,9 +35,6 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
 
         var customer = await _connection.QueryFirstOrDefaultAsync<CustomerReadModel>(sqlQuery, new { Id = query.Id });
 
-        if (customer == null)
-            Log.Warning("Customer with ID {Id} not found", query.Id);
-
         return customer;
     }
 }

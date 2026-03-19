@@ -51,6 +51,7 @@ public class OrderEndpoints : IEndpointDefinition
             .Produces<OrderDto>(200, "application/json")
             .ProducesProblem(400)
             .ProducesProblem(404)
+            .ProducesProblem(409)
             .ProducesProblem(500);
 
         orders.MapPost("/{id:int}/cancel", CancelOrder)
@@ -60,6 +61,7 @@ public class OrderEndpoints : IEndpointDefinition
             .Produces<OrderDto>(200, "application/json")
             .ProducesProblem(400)
             .ProducesProblem(404)
+            .ProducesProblem(409)
             .ProducesProblem(500);
     }
 
@@ -82,7 +84,8 @@ public class OrderEndpoints : IEndpointDefinition
         var query = new GetOrdersByCustomerQuery { CustomerId = customerId, Page = page, PageSize = pageSize };
         var items = (await mediator.SendAsync(query)).ToList();
         var hasMore = items.Count > pageSize;
-        if (hasMore) items.RemoveAt(items.Count - 1);
+        if (hasMore)
+            items.RemoveAt(items.Count - 1);
         return Results.Ok(new PagedResponse<OrderReadModel> { Data = items, HasMore = hasMore });
     }
 
@@ -91,7 +94,8 @@ public class OrderEndpoints : IEndpointDefinition
         var query = new GetOrdersByStatusQuery { Status = status, Page = page, PageSize = pageSize };
         var items = (await mediator.SendAsync(query)).ToList();
         var hasMore = items.Count > pageSize;
-        if (hasMore) items.RemoveAt(items.Count - 1);
+        if (hasMore)
+            items.RemoveAt(items.Count - 1);
         return Results.Ok(new PagedResponse<OrderReadModel> { Data = items, HasMore = hasMore });
     }
 

@@ -27,6 +27,7 @@ public static class WebApplicationExtensions
         {
             StatusCodeSelector = ex => ex switch
             {
+                OperationCanceledException => 499,
                 StarterApp.Api.Infrastructure.Validation.ValidationException => StatusCodes.Status400BadRequest,
                 ArgumentNullException => StatusCodes.Status400BadRequest,
                 ArgumentOutOfRangeException => StatusCodes.Status400BadRequest,

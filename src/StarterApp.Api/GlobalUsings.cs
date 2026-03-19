@@ -21,7 +21,6 @@ global using StarterApp.Api.Infrastructure.Mediator;
 global using StarterApp.Domain.Entities;
 global using StarterApp.Domain.Enums;
 global using StarterApp.Domain.ValueObjects;
-global using System.ComponentModel.DataAnnotations;
 global using System.Data;
 global using System.Reflection;
 global using System.Threading.RateLimiting;

@@ -5,7 +5,6 @@ global using Conventional.Conventions;
 global using DbUp;
 // Microsoft ASP.NET Core
 global using Microsoft.AspNetCore.Mvc;
-global using Microsoft.Extensions.Configuration;
 // Logging with Serilog
 global using Serilog;
 global using Serilog.Events;

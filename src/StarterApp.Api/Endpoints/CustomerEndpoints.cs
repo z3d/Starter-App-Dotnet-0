@@ -52,6 +52,7 @@ public class CustomerEndpoints : IEndpointDefinition
             .WithDescription("Permanently deletes a customer from the system")
             .Produces(204)
             .ProducesProblem(404)
+            .ProducesProblem(409)
             .ProducesProblem(500);
     }
 
@@ -60,7 +61,8 @@ public class CustomerEndpoints : IEndpointDefinition
         var query = new GetCustomersQuery { Page = page, PageSize = pageSize };
         var items = (await mediator.SendAsync(query)).ToList();
         var hasMore = items.Count > pageSize;
-        if (hasMore) items.RemoveAt(items.Count - 1);
+        if (hasMore)
+            items.RemoveAt(items.Count - 1);
         return Results.Ok(new PagedResponse<CustomerReadModel> { Data = items, HasMore = hasMore });
     }
 
