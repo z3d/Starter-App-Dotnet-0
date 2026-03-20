@@ -109,6 +109,29 @@ The project uses `WebApplicationFactory<IApiMarker>` with Testcontainers for SQL
 
 **Reconsider Aspire testing when**: the project grows to multiple services that need to test real inter-service communication (e.g., API → background worker → message queue).
 
+## Smoke Testing (Post-Deployment)
+
+**Shell script** (`scripts/smoke-test.sh`) for verifying a live deployment. Complements integration tests — integration tests verify correctness in-process, smoke tests verify the deployed artifact works end-to-end.
+
+```bash
+./scripts/smoke-test.sh [BASE_URL]   # default: http://localhost:8080
+./scripts/smoke-test.sh https://localhost:7286  # Aspire
+```
+
+**What it covers** (25 assertions):
+- Health check (warn-only, Aspire health probes can fail externally)
+- CRUD for products, customers, orders
+- All validator rules (email format/length, currency, OrderId, status enum)
+- Conflict responses (invalid state transitions, referential integrity)
+- Not-found responses
+- Order lifecycle (create → confirm → cancel)
+
+**Design decisions**:
+- Uses `curl` — zero dependencies, runs anywhere
+- Unique test data per run (timestamp suffix) — idempotent, no cleanup needed
+- Exits non-zero on failure — CI-friendly for post-deploy gates
+- Auto-detects HTTPS and skips cert verification for dev certs
+
 **Testcontainers for Realistic Testing**:
 
 ```csharp

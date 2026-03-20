@@ -82,9 +82,26 @@ if (gstRate > 1.0m)
 
 The API must work both as a **standalone Docker container** and under **Aspire orchestration**. When making infrastructure changes, always verify both modes:
 
-- **Connection strings**: Must resolve via fallback chain (`database` → `DockerLearning` → `sqlserver` → `DefaultConnection`) so both Aspire-injected and Docker-compose-provided values work
+- **Connection strings**: Standardized on `database` key — Aspire injects this, Docker Compose sets it via environment variable, and `appsettings.Docker.json` provides it as fallback
 - **Health checks**: `app.MapHealthChecks("/health")` must be mapped unconditionally — Aspire's `MapDefaultEndpoints()` only maps in Development environment, which is insufficient for Docker healthchecks
 - **Service registration**: All DI registrations must work without Aspire service discovery present — use conditional checks or fallback defaults where Aspire provides configuration
+
+### Smoke Testing
+
+After deploying or modifying infrastructure, run the smoke test script against the live environment:
+
+```bash
+# Docker Compose (default: http://localhost:8080)
+./scripts/smoke-test.sh
+
+# Aspire (HTTPS with dev certs)
+./scripts/smoke-test.sh https://localhost:7286
+
+# Any environment
+./scripts/smoke-test.sh https://staging.example.com
+```
+
+The script tests all CRUD endpoints, validators (email, currency, OrderId), conflict responses (409), and not-found responses (404). It uses unique test data per run and exits non-zero on failure — suitable for CI post-deploy gates.
 
 ### .NET 10 Dockerfile Changes
 - .NET 10 base images use Ubuntu (not Debian)
