@@ -1,4 +1,5 @@
 using Scalar.AspNetCore;
+using StarterApp.Api.Infrastructure.HealthChecks;
 
 namespace StarterApp.Api.Infrastructure;
 
@@ -77,6 +78,14 @@ public static class ServiceCollectionExtensions
 
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
         });
+
+        return services;
+    }
+
+    public static IServiceCollection AddApiHealthChecks(this IServiceCollection services)
+    {
+        services.AddHealthChecks()
+            .AddCheck<DatabaseReadinessHealthCheck>("database", tags: ["ready"]);
 
         return services;
     }

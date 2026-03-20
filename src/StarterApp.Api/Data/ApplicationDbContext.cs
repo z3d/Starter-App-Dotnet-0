@@ -1,3 +1,5 @@
+using StarterApp.Api.Infrastructure.Outbox;
+
 namespace StarterApp.Api.Data;
 
 public class ApplicationDbContext : DbContext
@@ -11,6 +13,29 @@ public class ApplicationDbContext : DbContext
     public DbSet<Customer> Customers { get; set; } = null!;
     public DbSet<Order> Orders { get; set; } = null!;
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
+    public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        return SaveChangesWithOutboxAsync(acceptAllChangesOnSuccess, sync: true, CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+    }
+
+    public override int SaveChanges()
+    {
+        return SaveChanges(acceptAllChangesOnSuccess: true);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return SaveChangesAsync(acceptAllChangesOnSuccess: true, cancellationToken);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        return SaveChangesWithOutboxAsync(acceptAllChangesOnSuccess, sync: false, cancellationToken);
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -86,8 +111,59 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(oi => oi.ProductId);
         });
+
+        modelBuilder.Entity<OutboxMessage>(outboxBuilder =>
+        {
+            outboxBuilder.ToTable("OutboxMessages");
+            outboxBuilder.HasKey(message => message.Id);
+
+            outboxBuilder.Property(message => message.Type)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            outboxBuilder.Property(message => message.Payload)
+                .IsRequired();
+
+            outboxBuilder.Property(message => message.Error);
+
+            outboxBuilder.HasIndex(message => new { message.ProcessedOnUtc, message.OccurredOnUtc });
+        });
+    }
+
+    private async Task<int> SaveChangesWithOutboxAsync(
+        bool acceptAllChangesOnSuccess,
+        bool sync,
+        CancellationToken cancellationToken)
+    {
+        var aggregatesWithEvents = ChangeTracker.Entries<AggregateRoot>()
+            .Where(entry => entry.Entity.DomainEvents.Count > 0)
+            .Select(entry => entry.Entity)
+            .ToList();
+
+        var rowsAffected = sync
+            ? base.SaveChanges(acceptAllChangesOnSuccess)
+            : await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+
+        if (aggregatesWithEvents.Count == 0)
+            return rowsAffected;
+
+        var outboxMessages = aggregatesWithEvents
+            .SelectMany(aggregate => aggregate.DequeueDomainEvents())
+            .Select(OutboxMessage.Create)
+            .ToList();
+
+        if (outboxMessages.Count == 0)
+            return rowsAffected;
+
+        OutboxMessages.AddRange(outboxMessages);
+
+        if (sync)
+            base.SaveChanges(acceptAllChangesOnSuccess);
+        else
+            await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+
+        return rowsAffected;
     }
 }
-
 
 

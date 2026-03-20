@@ -84,9 +84,10 @@ The mediator at `Infrastructure/Mediator/Mediator.cs` is well-designed:
 - **OpenTelemetry** metrics (ASP.NET Core, HTTP, runtime) and tracing via `ServiceDefaults`
 - **Docker** multi-stage build with docker-compose (API + SQL Server + Seq + dedicated migrator)
 - **CI** pipeline with GitHub Actions (unit tests + integration tests with Testcontainers)
-- **Health checks** at `/health` and `/alive`
+- **Health checks** at `/health`, `/health/ready`, `/health/live`, and `/alive`
 - **Password masking** in log output — implemented consistently across `Program.cs`, `DatabaseMigrationEngine`, and `DbMigrator`
 - **Dedicated `DbMigrator` service** for migrations across all deployment modes (Aspire, Docker Compose, standalone)
+- **Outbox persistence** — order domain events are captured durably in `OutboxMessages` during `SaveChangesAsync`
 
 ### Build Quality
 
@@ -192,8 +193,8 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 | Pattern | Impact |
 |---------|--------|
-| Domain events | No way to react to domain changes (e.g., "order created" > send email) |
-| Outbox pattern | No reliable event publishing |
+| Domain events | Implemented for the `Order` aggregate; other aggregates can adopt the same pattern as they gain side effects |
+| Outbox pattern | Implemented for order lifecycle events; still needs a background dispatcher when external integrations are added |
 | Caching | No `IDistributedCache` or response caching |
 | ~~`PagedResult<T>`~~ | ~~Endpoints accept `page`/`pageSize` but return raw collections without total count~~ — resolved. Endpoints now fetch `pageSize + 1` rows and set `X-Has-More` response header. Total count is a UI concern; APIs just signal whether more data exists. |
 | API versioning | Routes use `/api/v1/` prefix strings but no formal versioning library |
@@ -212,9 +213,9 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 - ~~**`Order.Reconstitute()` is public**~~ — now `internal`, visible only to the test assembly via `InternalsVisibleTo`.
 - ~~**Scalar UI replaces Swagger UI**~~ — no longer relevant. Swashbuckle was removed from .NET 9+; Scalar is the standard replacement for OpenAPI UI.
 - **`Directory.Build.props` lock file path uses backslashes** — `NuGetLockFilePath` uses `\` separator. Works on Windows and modern .NET MSBuild on macOS/Linux, but should use `/` for explicit cross-platform compatibility.
-- **CI pipeline missing NuGet cache** — each run restores from scratch. Adding `actions/setup-dotnet` with `cache: true` would speed up builds.
-- **No Dockerfile health check** — health check is defined in `docker-compose.yml` but not in the Dockerfile itself. Standalone `docker run` has no health check. Add `HEALTHCHECK CMD curl -f http://localhost:8080/health || exit 1`.
-- **ServiceDefaults only adds liveness probe** — no readiness health check for database connectivity. For Kubernetes deployments, add a database health check to the readiness endpoint.
+- ~~**CI pipeline missing NuGet cache**~~ — resolved. `actions/setup-dotnet` now uses built-in NuGet caching keyed from `packages.lock.json`.
+- ~~**No Dockerfile health check**~~ — resolved. The runtime image now includes a `HEALTHCHECK` targeting `/health/live`.
+- ~~**ServiceDefaults only adds liveness probe**~~ — resolved at the API layer. The API now exposes `/health/ready` backed by a database readiness check, alongside `/health/live` and `/alive`.
 
 ---
 

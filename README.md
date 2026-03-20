@@ -49,12 +49,17 @@ docker-compose up --build
 3. **Containerization**
    - Multi-stage Docker builds
    - Docker Compose orchestration
-   - Health checks and container dependencies
+   - Readiness/liveness health checks and container dependencies
 
 4. **Cloud-Native Development**
    - .NET Aspire for local orchestration
    - Service discovery and configuration
    - Built-in observability and telemetry
+
+5. **Reliable Integration Hooks**
+   - Domain events raised inside aggregates
+   - Durable outbox persistence for order lifecycle changes
+   - Ready for asynchronous publishers/workers
 
 5. **DevOps & Deployment**
    - Azure deployment with Container Apps
@@ -147,6 +152,7 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 - **Clean Architecture**: Separation of concerns with Domain, Application, and Infrastructure layers
 - **Modern .NET Patterns**: Uses C# 13/.NET 10 features like collection expressions, guard clauses, and using declarations
 - **Health Checks**: Built-in health monitoring for all services
+- **Outbox Pattern**: Domain events are captured durably for reliable downstream processing
 - **Observability**: Distributed tracing, metrics, and structured logging
 - **Configuration Management**: Environment-specific settings with .NET configuration
 - **Database Migrations**: Automated schema updates with DbUp

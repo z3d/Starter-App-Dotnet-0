@@ -1,6 +1,8 @@
+using StarterApp.Domain.Events;
+
 namespace StarterApp.Domain.Entities;
 
-public class Order
+public class Order : AggregateRoot
 {
     private readonly List<OrderItem> _items = [];
 
@@ -96,8 +98,10 @@ public class Order
         if (!IsValidStatusTransition(Status, newStatus))
             throw new InvalidOperationException($"Cannot transition from {Status} to {newStatus}");
 
+        var previousStatus = Status;
         Status = newStatus;
         LastUpdated = DateTime.UtcNow;
+        RaiseDomainEvent(new OrderStatusChangedDomainEvent(this, previousStatus, newStatus));
     }
 
     public void Confirm()
@@ -146,6 +150,11 @@ public class Order
         return Money.Create(totalGst, firstCurrency);
     }
 
+    public void RecordCreation()
+    {
+        RaiseDomainEvent(new OrderCreatedDomainEvent(this));
+    }
+
     private void EnsureCurrencyMatchesExistingItems(string currency)
     {
         if (_items.Count == 0)
@@ -184,5 +193,4 @@ public class Order
         return order;
     }
 }
-
 

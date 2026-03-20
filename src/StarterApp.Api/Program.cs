@@ -31,6 +31,7 @@ builder.Services.AddPersistence(connectionString);
 builder.Services.AddMediator(Assembly.GetExecutingAssembly());
 builder.Services.AddApiCors(builder.Configuration, builder.Environment);
 builder.Services.AddApiRateLimiting();
+builder.Services.AddApiHealthChecks();
 
 var app = builder.Build();
 
@@ -63,7 +64,18 @@ try
 
     app.MapApiEndpoints();
     app.MapHealthChecks("/health");
-    app.MapDefaultEndpoints();
+    app.MapHealthChecks("/health/ready", new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("ready")
+    });
+    app.MapHealthChecks("/health/live", new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("live")
+    });
+    app.MapHealthChecks("/alive", new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("live")
+    });
 
     app.Run();
 }

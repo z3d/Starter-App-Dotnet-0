@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using StarterApp.Api.Data;
+using System.Text.Json;
 
 namespace StarterApp.Tests.Application.Commands;
 
@@ -87,5 +88,40 @@ public class CancelOrderCommandHandlerTests
         // Assert — stock should be restored to 100
         var updatedProduct = await context.Products.FindAsync(product.Id);
         Assert.Equal(100, updatedProduct!.Stock);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldPersistCancelledStatusOutboxMessage()
+    {
+        // Arrange
+        var options = CreateInMemoryOptions();
+        await using var context = new ApplicationDbContext(options);
+
+        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);
+        context.Customers.Add(customer);
+        context.Products.Add(product);
+        await context.SaveChangesAsync();
+
+        var createHandler = new CreateOrderCommandHandler(context);
+        var createdOrder = await createHandler.HandleAsync(new CreateOrderCommand
+        {
+            CustomerId = customer.Id,
+            Items = [new() { ProductId = product.Id, Quantity = 1 }]
+        }, CancellationToken.None);
+
+        var cancelHandler = new CancelOrderCommandHandler(context);
+
+        // Act
+        await cancelHandler.HandleAsync(new CancelOrderCommand { OrderId = createdOrder.Id }, CancellationToken.None);
+
+        // Assert
+        var statusChangedMessage = await context.OutboxMessages
+            .Where(message => message.Type == "OrderStatusChangedDomainEvent")
+            .SingleAsync();
+
+        using var payload = JsonDocument.Parse(statusChangedMessage.Payload);
+        Assert.Equal("Pending", payload.RootElement.GetProperty("PreviousStatus").GetString());
+        Assert.Equal("Cancelled", payload.RootElement.GetProperty("NewStatus").GetString());
     }
 }

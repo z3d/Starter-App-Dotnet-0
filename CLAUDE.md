@@ -58,6 +58,7 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - Rich domain models: entities contain business behavior, not just properties
 - Value objects: immutable objects with business meaning (Email, Money)
 - Aggregate roots control access and maintain consistency
+- Aggregate roots may raise domain events; persistence captures them into the outbox in the same unit of work
 - Aggregate roots own child collections via backing fields; EF Core populates via `.Include()`
 - `Reconstitute` is internal/test-only — production handlers use tracked EF entities
 
@@ -133,6 +134,8 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 
 **Data Access**: EF Core with `OwnsOne` for value objects, DbUp migrations in DbMigrator project. See `.claude/skills/data-access/SKILL.md`.
 
+**Domain Events / Outbox**: Domain events are raised inside aggregates and persisted to the `OutboxMessages` table by `ApplicationDbContext` during `SaveChangesAsync`. Handlers still call a single save; the DbContext handles durable event capture internally so external publishers can process the outbox asynchronously later.
+
 **Database Migrations**: Migrations run exclusively via the dedicated `DbMigrator` console app — never embedded in API startup (eliminates race conditions with multiple replicas).
 - **Aspire:** `AppHost` runs `DbMigrator` with `WaitFor` dependency on SQL Server
 - **Docker Compose:** `migrator` service runs before the API (`condition: service_completed_successfully`)
@@ -142,6 +145,8 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 **Testing**: xUnit + FsCheck property-based testing + Best.Conventional architectural conventions across 6 test classes (including `DapperConventionTests` for SELECT * prevention via IL inspection). Convention tests use built-in conventions where possible, custom `ConventionSpecification` for structural checks. See `.claude/skills/testing-strategy/SKILL.md`.
 
 **API Design**: Minimal APIs with `IEndpointDefinition` pattern, auto-discovery, endpoint filters for route-specific logic. See `.claude/skills/api-design/SKILL.md`.
+
+**Health Endpoints**: Expose `/health` for aggregate status, `/health/ready` for readiness (including database connectivity), and `/health/live` plus `/alive` for liveness. Docker and container platforms should use readiness for traffic gating and liveness for restart decisions.
 
 **Pagination**: List endpoints use `page`/`pageSize` query params with SQL `OFFSET/FETCH`. Handlers fetch `pageSize + 1` rows; endpoints trim the extra row and return a `PagedResponse<T>` envelope (`{ data: [...], hasMore: true/false }`). This avoids expensive COUNT queries. Total count is a UI concern — if a frontend needs it, add a separate count endpoint rather than embedding it in every list response.
 

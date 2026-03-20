@@ -113,7 +113,9 @@ Once running, access the services at:
 |---------|-----|-------------|
 | **API** | http://localhost:8080 | Main API endpoint |
 | **Scalar API Reference** | http://localhost:8080/scalar/v1 | API documentation |
-| **Health Check** | http://localhost:8080/health | Service health status |
+| **Health Check** | http://localhost:8080/health | Aggregate service health status |
+| **Readiness** | http://localhost:8080/health/ready | Traffic-ready probe (includes database connectivity) |
+| **Liveness** | http://localhost:8080/health/live | Container liveness probe |
 | **Seq Logs** | http://localhost:5341 | Centralized log viewer |
 | **SQL Server** | localhost:1433 | Database connection |
 
@@ -153,7 +155,7 @@ volumes:
 **API Health Check:**
 ```yaml
 healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+  test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
   interval: 30s
   timeout: 10s
   retries: 3
@@ -214,7 +216,7 @@ networks:
 
 ### Automatic Schema Creation
 
-The API automatically runs database migrations on startup through the configured startup process. This ensures:
+The dedicated migrator service runs database migrations before the API starts. This ensures:
 
 - ✅ Database is created if it doesn't exist
 - ✅ Schema is up-to-date with latest migrations

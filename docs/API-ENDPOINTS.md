@@ -59,6 +59,15 @@ Content-Type: application/json
 | `PUT` | `/api/orders/{id}/status` | Update order status | `200 OK` or `404 Not Found` |
 | `POST` | `/api/orders/{id}/cancel` | Cancel order | `200 OK` or `400 Bad Request` |
 
+### Operational Endpoints
+
+| Method | Endpoint | Description | Response |
+|--------|----------|-------------|----------|
+| `GET` | `/health` | Aggregate health status | `200 OK` or `503 Service Unavailable` |
+| `GET` | `/health/ready` | Readiness probe including database connectivity | `200 OK` or `503 Service Unavailable` |
+| `GET` | `/health/live` | Liveness probe for container restarts | `200 OK` or `503 Service Unavailable` |
+| `GET` | `/alive` | Backward-compatible liveness alias | `200 OK` or `503 Service Unavailable` |
+
 **Example Request**:
 ```http
 POST /api/orders
@@ -130,6 +139,8 @@ customers.MapPost("/", CreateCustomer)
 ### Error Responses
 - `400 Bad Request`: Validation errors or business rule violations
 - `404 Not Found`: Resource not found
+- `409 Conflict`: Business rule conflict or state transition violation
+- `429 Too Many Requests`: Rate limit exceeded
 - `500 Internal Server Error`: Unexpected server errors
 
 All error responses follow the Problem Details specification (RFC 7807).

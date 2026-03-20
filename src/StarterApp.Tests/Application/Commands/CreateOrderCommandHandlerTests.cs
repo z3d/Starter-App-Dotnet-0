@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using StarterApp.Api.Data;
+using System.Text.Json;
 
 namespace StarterApp.Tests.Application.Commands;
 
@@ -264,6 +265,44 @@ public class CreateOrderCommandHandlerTests
         Assert.Equal(24.50m, item.UnitPriceExcludingGst);
         Assert.Equal("AUD", item.Currency);
         Assert.Equal(OrderItem.DefaultGstRate, item.GstRate);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldPersistOrderCreatedOutboxMessage()
+    {
+        // Arrange
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        await using var context = new ApplicationDbContext(options);
+
+        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product = new Product("Test Product", "Description", Money.Create(19.99m, "USD"), 20);
+
+        context.Customers.Add(customer);
+        context.Products.Add(product);
+        await context.SaveChangesAsync();
+
+        var handler = new CreateOrderCommandHandler(context);
+
+        // Act
+        var result = await handler.HandleAsync(new CreateOrderCommand
+        {
+            CustomerId = customer.Id,
+            Items = [new() { ProductId = product.Id, Quantity = 2 }]
+        }, CancellationToken.None);
+
+        // Assert
+        var outboxMessage = await context.OutboxMessages.SingleAsync();
+        Assert.Equal("OrderCreatedDomainEvent", outboxMessage.Type);
+
+        using var payload = JsonDocument.Parse(outboxMessage.Payload);
+        Assert.Equal(result.Id, payload.RootElement.GetProperty("OrderId").GetInt32());
+        Assert.Equal(customer.Id, payload.RootElement.GetProperty("CustomerId").GetInt32());
+        Assert.Equal(1, payload.RootElement.GetProperty("LineItemCount").GetInt32());
+        Assert.Equal(2, payload.RootElement.GetProperty("TotalQuantity").GetInt32());
+        Assert.Equal("Pending", payload.RootElement.GetProperty("Status").GetString());
     }
 
     [Fact]
