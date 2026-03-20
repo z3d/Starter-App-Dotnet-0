@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 8.5/10**
+**Score: 9/10**
 
 ---
 
@@ -120,12 +120,17 @@ These are unresolved issues identified across multiple agent review sessions. Wh
 
 | # | Severity | Finding | Files |
 |---|----------|---------|-------|
-| 16 | High | **UpdateProduct zeros Price/Stock on field omission.** `UpdateProductCommand` uses non-nullable primitives with default 0 values. Validator only rejects negatives. A client omitting `Price` or `Stock` silently sets them to 0. | `UpdateProductCommand.cs`, `UpdateProductCommandValidator.cs` |
-| 17 | Medium | **Order status case sensitivity mismatch.** Validator accepts case-insensitive values (`Enum.TryParse` with `ignoreCase: true`), but handler uses case-sensitive `Enum.Parse`. `"confirmed"` passes validation then throws in the handler. | `UpdateOrderStatusCommandValidator.cs:16`, `UpdateOrderStatusCommand.cs:22` |
-| 18 | Medium | **DB constraints surface as 500s.** Customer email uniqueness (SQL unique index) and field length limits (`NVARCHAR(100)` on product name) are enforced only in the schema. Validators don't mirror these constraints, and exception middleware doesn't translate `DbUpdateException`. | `0003_CreateCustomersTable.sql:11`, `WebApplicationExtensions.cs:28`, validators |
-| 19 | Medium | **TestFixture `new DisposeAsync()` hides base disposal.** `ApiTestFixture.DisposeAsync` uses `new` keyword, hiding `WebApplicationFactory.DisposeAsync()`. The Kestrel host and HttpClient are never disposed. | `TestFixture.cs:275` |
 | 20 | Low | **Closed switch in `OutboxMessage.Create`.** Only supports `OrderCreatedDomainEvent` and `OrderStatusChangedDomainEvent`. New event types throw `NotSupportedException` at runtime with no convention test to catch the miss. | `OutboxMessage.cs` |
-| 21 | Low | **PropertiesTest methods are false positives.** Several handler test classes use `Validator.TryValidateObject` (DataAnnotations) on command types with no data-annotation attributes. These tests always pass and prove nothing about actual validation. | `CreateProductCommandHandlerTests.cs`, `CreateCustomerCommandHandlerTests.cs`, `CreateOrderCommandHandlerTests.cs`, `UpdateCustomerCommandHandlerTests.cs`, `UpdateProductCommandHandlerTests.cs` |
+
+#### Recently resolved (commit 614f069)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~16~~ | UpdateProduct zeros Price/Stock on field omission | Command properties changed to nullable; validator rejects nulls |
+| ~~17~~ | Order status case sensitivity mismatch | Handler now uses `Enum.Parse` with `ignoreCase: true` |
+| ~~18~~ | DB constraints surface as 500s | `DbUpdateExceptionExtensions` maps SQL errors to 409/400; domain guards + validators enforce max lengths; customer handlers check email uniqueness pre-save |
+| ~~19~~ | TestFixture hides base disposal | Added `Client?.Dispose()` and `base.Dispose()` |
+| ~~21~~ | PropertiesTest false positives | Tests now use actual `IValidator<T>` implementations instead of DataAnnotations |
 
 ### Recently Resolved (commits 05d2996–898424c)
 
@@ -140,6 +145,11 @@ These are unresolved issues identified across multiple agent review sessions. Wh
 | `RecordCreation()` was caller-responsibility | Auto-detected via change tracker in `SaveChangesWithOutboxAsync` | 2fbf07c |
 | Stock reservation checked existence after UPDATE | Reordered: load product first, then atomic reserve | 898424c |
 | No upper bound on order items count | Validator caps at 50 items | 898424c |
+| UpdateProduct zeros Price/Stock on field omission | Nullable command properties; validator rejects nulls | 614f069 |
+| Order status case sensitivity mismatch | `Enum.Parse` with `ignoreCase: true` | 614f069 |
+| DB constraints surface as 500s | `DbUpdateExceptionExtensions`, domain max-length guards, validator mirrors | 614f069 |
+| TestFixture hides base disposal | Added `Client?.Dispose()` and `base.Dispose()` | 614f069 |
+| PropertiesTest false positives | Tests now use actual `IValidator<T>` implementations | 614f069 |
 
 ---
 
@@ -269,7 +279,7 @@ A well-engineered starter template that gets the hard things right: architecture
 
 Issues #1–#14 have been resolved. Recent hardening (commits 05d2996–898424c) addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, the outbox persists events transactionally, rate limiting is enforced globally, and mixed-currency orders are rejected at the domain level.
 
-Six open findings remain (see #16–#21 above). The most impactful is #16 (UpdateProduct zeroing fields on omission) — data-destructive and easy to hit. Items #17–#18 are correctness gaps in validation/error handling. Items #19–#21 are test infrastructure and maintainability issues.
+One low-severity finding remains open (#20 — closed switch in outbox serialization). All high and medium findings (#16–#19, #21) were resolved in commit 614f069, which hardened validation, constraint handling, test disposal, and test correctness.
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 
