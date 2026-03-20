@@ -54,8 +54,6 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             );
         }
 
-        order.RecordCreation();
-
         // Single save — EF Core persists order + items atomically and sets OrderId via FK
         _dbContext.Orders.Add(order);
         await _dbContext.SaveChangesAsync(cancellationToken);

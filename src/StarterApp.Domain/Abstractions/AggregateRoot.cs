@@ -13,10 +13,5 @@ public abstract class AggregateRoot
         _domainEvents.Add(domainEvent);
     }
 
-    internal IReadOnlyCollection<IDomainEvent> DequeueDomainEvents()
-    {
-        var events = _domainEvents.ToList();
-        _domainEvents.Clear();
-        return events;
-    }
+    internal void ClearDomainEvents() => _domainEvents.Clear();
 }

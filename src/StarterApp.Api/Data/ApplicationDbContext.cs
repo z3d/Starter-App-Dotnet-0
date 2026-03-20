@@ -1,4 +1,6 @@
 using StarterApp.Api.Infrastructure.Outbox;
+using StarterApp.Domain.Events;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace StarterApp.Api.Data;
 
@@ -135,35 +137,93 @@ public class ApplicationDbContext : DbContext
         bool sync,
         CancellationToken cancellationToken)
     {
+        RecordCreationEventsForNewOrders();
+
         var aggregatesWithEvents = ChangeTracker.Entries<AggregateRoot>()
             .Where(entry => entry.Entity.DomainEvents.Count > 0)
             .Select(entry => entry.Entity)
             .ToList();
 
-        var rowsAffected = sync
-            ? base.SaveChanges(acceptAllChangesOnSuccess)
-            : await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        var shouldManageTransaction = Database.IsRelational() && Database.CurrentTransaction == null;
+        IDbContextTransaction? transaction = null;
 
-        if (aggregatesWithEvents.Count == 0)
+        try
+        {
+            if (shouldManageTransaction)
+            {
+                transaction = sync
+                    ? Database.BeginTransaction()
+                    : await Database.BeginTransactionAsync(cancellationToken);
+            }
+
+            var rowsAffected = sync
+                ? base.SaveChanges(acceptAllChangesOnSuccess)
+                : await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+
+            if (aggregatesWithEvents.Count > 0)
+            {
+                var outboxMessages = aggregatesWithEvents
+                    .SelectMany(aggregate => aggregate.DomainEvents)
+                    .Select(OutboxMessage.Create)
+                    .ToList();
+
+                if (outboxMessages.Count > 0)
+                {
+                    OutboxMessages.AddRange(outboxMessages);
+
+                    if (sync)
+                        base.SaveChanges(acceptAllChangesOnSuccess);
+                    else
+                        await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+                }
+            }
+
+            if (transaction != null)
+            {
+                if (sync)
+                    transaction.Commit();
+                else
+                    await transaction.CommitAsync(cancellationToken);
+            }
+
+            foreach (var aggregate in aggregatesWithEvents)
+                aggregate.ClearDomainEvents();
+
             return rowsAffected;
+        }
+        catch
+        {
+            if (transaction != null)
+            {
+                if (sync)
+                    transaction.Rollback();
+                else
+                    await transaction.RollbackAsync(cancellationToken);
+            }
 
-        var outboxMessages = aggregatesWithEvents
-            .SelectMany(aggregate => aggregate.DequeueDomainEvents())
-            .Select(OutboxMessage.Create)
-            .ToList();
+            throw;
+        }
+        finally
+        {
+            if (transaction != null)
+            {
+                if (sync)
+                    transaction.Dispose();
+                else
+                    await transaction.DisposeAsync();
+            }
+        }
+    }
 
-        if (outboxMessages.Count == 0)
-            return rowsAffected;
+    private void RecordCreationEventsForNewOrders()
+    {
+        var newOrders = ChangeTracker.Entries<Order>()
+            .Where(entry => entry.State == EntityState.Added)
+            .Select(entry => entry.Entity)
+            .Where(order => order.DomainEvents.OfType<OrderCreatedDomainEvent>().Any() == false);
 
-        OutboxMessages.AddRange(outboxMessages);
-
-        if (sync)
-            base.SaveChanges(acceptAllChangesOnSuccess);
-        else
-            await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-
-        return rowsAffected;
+        foreach (var order in newOrders)
+            order.RecordCreation();
     }
 }
-
 

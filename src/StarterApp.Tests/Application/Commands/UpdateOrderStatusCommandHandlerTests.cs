@@ -60,13 +60,44 @@ public class UpdateOrderStatusCommandHandlerTests
         await handler.HandleAsync(new UpdateOrderStatusCommand { OrderId = order.Id, Status = "Confirmed" }, CancellationToken.None);
 
         // Assert
-        var outboxMessage = await context.OutboxMessages.SingleAsync();
+        var outboxMessage = await context.OutboxMessages
+            .Where(message => message.Type == "OrderStatusChangedDomainEvent")
+            .SingleAsync();
         Assert.Equal("OrderStatusChangedDomainEvent", outboxMessage.Type);
 
         using var payload = JsonDocument.Parse(outboxMessage.Payload);
         Assert.Equal(order.Id, payload.RootElement.GetProperty("OrderId").GetInt32());
         Assert.Equal("Pending", payload.RootElement.GetProperty("PreviousStatus").GetString());
         Assert.Equal("Confirmed", payload.RootElement.GetProperty("NewStatus").GetString());
+    }
+
+    [Fact]
+    public async Task SavingNewOrder_ShouldPersistOrderCreatedOutboxMessageWithoutHandlerOptIn()
+    {
+        // Arrange
+        var options = CreateInMemoryOptions();
+        await using var context = new ApplicationDbContext(options);
+
+        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        context.Customers.Add(customer);
+        await context.SaveChangesAsync();
+
+        var order = new Order(customer.Id);
+        order.AddItem(1, "Product A", 2, Money.Create(10m, "USD"), 0.1m);
+        context.Orders.Add(order);
+
+        // Act
+        await context.SaveChangesAsync();
+
+        // Assert
+        var outboxMessage = await context.OutboxMessages
+            .Where(message => message.Type == "OrderCreatedDomainEvent")
+            .SingleAsync();
+
+        using var payload = JsonDocument.Parse(outboxMessage.Payload);
+        Assert.Equal(order.Id, payload.RootElement.GetProperty("OrderId").GetInt32());
+        Assert.Equal(1, payload.RootElement.GetProperty("LineItemCount").GetInt32());
+        Assert.Equal(2, payload.RootElement.GetProperty("TotalQuantity").GetInt32());
     }
 
     [Fact]
