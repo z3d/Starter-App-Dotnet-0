@@ -85,7 +85,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         if (updatedRows == 0)
             throw new InvalidOperationException(
-                $"Insufficient stock for product '{product.Name}'. Available: {product.Stock}, Requested: {itemCommand.Quantity}");
+                $"Insufficient stock for product '{product.Name}'. Available stock changed before the order could be placed.");
 
         return product;
     }
@@ -100,7 +100,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         if (product.Stock < itemCommand.Quantity)
             throw new InvalidOperationException(
-                $"Insufficient stock for product '{product.Name}'. Available: {product.Stock}, Requested: {itemCommand.Quantity}");
+                $"Insufficient stock for product '{product.Name}'. Available stock changed before the order could be placed.");
 
         product.UpdateStock(-itemCommand.Quantity);
         return product;

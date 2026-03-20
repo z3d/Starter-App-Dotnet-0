@@ -146,8 +146,7 @@ public class CreateOrderCommandHandlerTests
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => handler.HandleAsync(command, CancellationToken.None));
         Assert.Contains("Insufficient stock", ex.Message);
-        Assert.Contains("Available: 1", ex.Message);
-        Assert.Contains("Requested: 5", ex.Message);
+        Assert.Contains("Available stock changed before the order could be placed", ex.Message);
     }
 
     [Fact]
