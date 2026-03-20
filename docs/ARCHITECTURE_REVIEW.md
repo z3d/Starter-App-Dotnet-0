@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9/10**
+**Score: 8.5/10**
 
 ---
 
@@ -113,6 +113,35 @@ Good adoption of modern .NET:
 ---
 
 ## Weaknesses
+
+### Open Findings
+
+These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
+
+| # | Severity | Finding | Files |
+|---|----------|---------|-------|
+| 16 | High | **UpdateProduct zeros Price/Stock on field omission.** `UpdateProductCommand` uses non-nullable primitives with default 0 values. Validator only rejects negatives. A client omitting `Price` or `Stock` silently sets them to 0. | `UpdateProductCommand.cs`, `UpdateProductCommandValidator.cs` |
+| 17 | Medium | **Order status case sensitivity mismatch.** Validator accepts case-insensitive values (`Enum.TryParse` with `ignoreCase: true`), but handler uses case-sensitive `Enum.Parse`. `"confirmed"` passes validation then throws in the handler. | `UpdateOrderStatusCommandValidator.cs:16`, `UpdateOrderStatusCommand.cs:22` |
+| 18 | Medium | **DB constraints surface as 500s.** Customer email uniqueness (SQL unique index) and field length limits (`NVARCHAR(100)` on product name) are enforced only in the schema. Validators don't mirror these constraints, and exception middleware doesn't translate `DbUpdateException`. | `0003_CreateCustomersTable.sql:11`, `WebApplicationExtensions.cs:28`, validators |
+| 19 | Medium | **TestFixture `new DisposeAsync()` hides base disposal.** `ApiTestFixture.DisposeAsync` uses `new` keyword, hiding `WebApplicationFactory.DisposeAsync()`. The Kestrel host and HttpClient are never disposed. | `TestFixture.cs:275` |
+| 20 | Low | **Closed switch in `OutboxMessage.Create`.** Only supports `OrderCreatedDomainEvent` and `OrderStatusChangedDomainEvent`. New event types throw `NotSupportedException` at runtime with no convention test to catch the miss. | `OutboxMessage.cs` |
+| 21 | Low | **PropertiesTest methods are false positives.** Several handler test classes use `Validator.TryValidateObject` (DataAnnotations) on command types with no data-annotation attributes. These tests always pass and prove nothing about actual validation. | `CreateProductCommandHandlerTests.cs`, `CreateCustomerCommandHandlerTests.cs`, `CreateOrderCommandHandlerTests.cs`, `UpdateCustomerCommandHandlerTests.cs`, `UpdateProductCommandHandlerTests.cs` |
+
+### Recently Resolved (commits 05d2996–898424c)
+
+| Finding | Fix | Commit |
+|---------|-----|--------|
+| Client-trusted pricing on order creation | Price, currency, GST now sourced from product catalog | 05d2996 |
+| Duplicate ProductId corrupts stock reservation | Validator + handler duplicate check, defense-in-depth | 05d2996 |
+| No concurrency control on stock (overselling) | Atomic `ExecuteUpdateAsync` with `WHERE Stock >= @qty` | 05d2996 |
+| Rate limiting configured but never enforced | Added `GlobalLimiter` with per-IP partitioning | 05d2996 |
+| Mixed currencies produce incorrect order totals | `Order.EnsureCurrencyMatchesExistingItems` domain guard | 05d2996 |
+| Outbox two-save atomicity gap | DbContext manages internal transaction when no outer one exists | 2fbf07c |
+| `RecordCreation()` was caller-responsibility | Auto-detected via change tracker in `SaveChangesWithOutboxAsync` | 2fbf07c |
+| Stock reservation checked existence after UPDATE | Reordered: load product first, then atomic reserve | 898424c |
+| No upper bound on order items count | Validator caps at 50 items | 898424c |
+
+---
 
 ### ~~1. Read Model Totals Are Never Written — CQRS Data Consistency Bug~~ FIXED
 
@@ -238,10 +267,10 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention via IL inspection), proper CQRS separation with zero violations, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-Issues #1–#14 have been resolved. The Order aggregate boundary is correct: items are managed through the aggregate root via `Order.AddItem()`, EF Core persists order + items atomically in a single `SaveChangesAsync`, and dead total columns have been dropped from the schema. Domain encapsulation is tight: `SetId()` methods removed, `Reconstitute` made internal, command handlers use tracked entities with change detection, `Money.Subtract` enforces the non-negative invariant, and `UpdateDetails` methods now throw on invalid input (consistent with constructors). Stock lifecycle is complete with concurrency safety: `CreateOrderCommandHandler` validates availability and reserves inventory atomically, `CancelOrderCommandHandler` restores stock with logging for deleted products, and a SQL `CHECK (Stock >= 0)` constraint prevents race-condition overselling. Delete handlers enforce referential integrity — products with order items and customers with orders cannot be deleted. Every command and query has a validator (including GST rate bounds), enforced by convention tests. Database migrations are handled exclusively by the dedicated `DbMigrator` service.
+Issues #1–#14 have been resolved. Recent hardening (commits 05d2996–898424c) addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, the outbox persists events transactionally, rate limiting is enforced globally, and mixed-currency orders are rejected at the domain level.
 
-Remaining issue is (15) missing patterns (domain events, outbox, caching, API versioning).
+Six open findings remain (see #16–#21 above). The most impactful is #16 (UpdateProduct zeroing fields on omission) — data-destructive and easy to hit. Items #17–#18 are correctness gaps in validation/error handling. Items #19–#21 are test infrastructure and maintainability issues.
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 
-**Best suited for:** Teams starting a new .NET API who want architectural guardrails from day one and are willing to add auth and domain events themselves.
+**Best suited for:** Teams starting a new .NET API who want architectural guardrails from day one. Auth is left to the API gateway by design; domain events and outbox are implemented for the Order aggregate.
