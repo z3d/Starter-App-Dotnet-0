@@ -39,6 +39,8 @@ public class Order
         if (Status != OrderStatus.Pending)
             throw new InvalidOperationException("Cannot add items to a non-pending order");
 
+        EnsureCurrencyMatchesExistingItems(item.UnitPriceExcludingGst.Currency);
+
         // Check if item with same product already exists
         var existingItem = _items.FirstOrDefault(i => i.ProductId == item.ProductId);
         if (existingItem != null)
@@ -59,6 +61,10 @@ public class Order
     {
         if (Status != OrderStatus.Pending)
             throw new InvalidOperationException("Cannot add items to a non-pending order");
+
+        ArgumentNullException.ThrowIfNull(unitPrice);
+
+        EnsureCurrencyMatchesExistingItems(unitPrice.Currency);
 
         var existingItem = _items.FirstOrDefault(i => i.ProductId == productId);
         if (existingItem != null)
@@ -140,6 +146,16 @@ public class Order
         return Money.Create(totalGst, firstCurrency);
     }
 
+    private void EnsureCurrencyMatchesExistingItems(string currency)
+    {
+        if (_items.Count == 0)
+            return;
+
+        var existingCurrency = _items[0].UnitPriceExcludingGst.Currency;
+        if (!string.Equals(existingCurrency, currency, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("All order items must use the same currency");
+    }
+
     private static bool IsValidStatusTransition(OrderStatus currentStatus, OrderStatus newStatus)
     {
         return currentStatus switch
@@ -168,6 +184,5 @@ public class Order
         return order;
     }
 }
-
 
 

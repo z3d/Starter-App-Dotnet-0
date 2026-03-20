@@ -55,6 +55,18 @@ public static class ServiceCollectionExtensions
     {
         services.AddRateLimiter(options =>
         {
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+            {
+                var key = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 100,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 5
+                });
+            });
+
             options.AddFixedWindowLimiter("fixed", options =>
             {
                 options.PermitLimit = 100;

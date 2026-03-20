@@ -17,10 +17,7 @@ public class CreateOrderCommandHandlerTests
                 new()
                 {
                     ProductId = 1,
-                    Quantity = 2,
-                    UnitPriceExcludingGst = 10.99m,
-                    Currency = "USD",
-                    GstRate = 0.1m
+                    Quantity = 2
                 }
             }
         };
@@ -48,10 +45,7 @@ public class CreateOrderCommandHandlerTests
                 new()
                 {
                     ProductId = 456,
-                    Quantity = 3,
-                    UnitPriceExcludingGst = 15.99m,
-                    Currency = "USD",
-                    GstRate = 0.15m
+                    Quantity = 3
                 }
             }
         };
@@ -61,9 +55,6 @@ public class CreateOrderCommandHandlerTests
         Assert.Single(command.Items);
         Assert.Equal(456, command.Items[0].ProductId);
         Assert.Equal(3, command.Items[0].Quantity);
-        Assert.Equal(15.99m, command.Items[0].UnitPriceExcludingGst);
-        Assert.Equal("USD", command.Items[0].Currency);
-        Assert.Equal(0.15m, command.Items[0].GstRate);
     }
 
     [Fact]
@@ -94,10 +85,7 @@ public class CreateOrderCommandHandlerTests
                 new()
                 {
                     ProductId = product.Id,
-                    Quantity = 2,
-                    UnitPriceExcludingGst = 10.99m,
-                    Currency = "USD",
-                    GstRate = 0.1m
+                    Quantity = 2
                 }
             }
         };
@@ -112,6 +100,9 @@ public class CreateOrderCommandHandlerTests
         Assert.Equal(command.Items[0].ProductId, result.Items[0].ProductId);
         Assert.Equal(command.Items[0].Quantity, result.Items[0].Quantity);
         Assert.True(result.Id > 0);
+        Assert.Equal(product.Price.Amount, result.Items[0].UnitPriceExcludingGst);
+        Assert.Equal(product.Price.Currency, result.Items[0].Currency);
+        Assert.Equal(OrderItem.DefaultGstRate, result.Items[0].GstRate);
 
         // Verify the order was actually saved to the database
         var savedOrder = await context.Orders.FirstOrDefaultAsync(o => o.Id == result.Id);
@@ -147,7 +138,7 @@ public class CreateOrderCommandHandlerTests
             CustomerId = customer.Id,
             Items =
             [
-                new() { ProductId = product.Id, Quantity = 5, UnitPriceExcludingGst = 10.00m }
+                new() { ProductId = product.Id, Quantity = 5 }
             ]
         };
 
@@ -183,7 +174,7 @@ public class CreateOrderCommandHandlerTests
             CustomerId = customer.Id,
             Items =
             [
-                new() { ProductId = product.Id, Quantity = 8, UnitPriceExcludingGst = 10.00m }
+                new() { ProductId = product.Id, Quantity = 8 }
             ]
         };
 
@@ -220,8 +211,8 @@ public class CreateOrderCommandHandlerTests
             CustomerId = customer.Id,
             Items =
             [
-                new() { ProductId = product1.Id, Quantity = 5, UnitPriceExcludingGst = 10.00m },
-                new() { ProductId = product2.Id, Quantity = 10, UnitPriceExcludingGst = 20.00m }
+                new() { ProductId = product1.Id, Quantity = 5 },
+                new() { ProductId = product2.Id, Quantity = 10 }
             ]
         };
 
@@ -233,5 +224,79 @@ public class CreateOrderCommandHandlerTests
         await using var verifyContext = new ApplicationDbContext(options);
         var p1 = await verifyContext.Products.FindAsync(product1.Id);
         Assert.Equal(100, p1!.Stock);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldUseCatalogValuesForOrderItems()
+    {
+        // Arrange
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        await using var context = new ApplicationDbContext(options);
+
+        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product = new Product("Test Product", "Description", Money.Create(24.50m, "AUD"), 10);
+
+        context.Customers.Add(customer);
+        context.Products.Add(product);
+        await context.SaveChangesAsync();
+
+        var handler = new CreateOrderCommandHandler(context);
+        var command = new CreateOrderCommand
+        {
+            CustomerId = customer.Id,
+            Items =
+            [
+                new()
+                {
+                    ProductId = product.Id,
+                    Quantity = 2
+                }
+            ]
+        };
+
+        // Act
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        // Assert
+        var item = Assert.Single(result.Items);
+        Assert.Equal(24.50m, item.UnitPriceExcludingGst);
+        Assert.Equal("AUD", item.Currency);
+        Assert.Equal(OrderItem.DefaultGstRate, item.GstRate);
+    }
+
+    [Fact]
+    public async Task Handle_WithDuplicateProductIds_ShouldThrowValidationException()
+    {
+        // Arrange
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        await using var context = new ApplicationDbContext(options);
+
+        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);
+
+        context.Customers.Add(customer);
+        context.Products.Add(product);
+        await context.SaveChangesAsync();
+
+        var handler = new CreateOrderCommandHandler(context);
+        var command = new CreateOrderCommand
+        {
+            CustomerId = customer.Id,
+            Items =
+            [
+                new() { ProductId = product.Id, Quantity = 1 },
+                new() { ProductId = product.Id, Quantity = 2 }
+            ]
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<StarterApp.Api.Infrastructure.Validation.ValidationException>(
+            () => handler.HandleAsync(command, CancellationToken.None));
     }
 }

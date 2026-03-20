@@ -75,7 +75,7 @@ public class DeleteProductCommandHandlerTests
         await createHandler.HandleAsync(new CreateOrderCommand
         {
             CustomerId = customer.Id,
-            Items = [new() { ProductId = product.Id, Quantity = 1, UnitPriceExcludingGst = 10.00m }]
+            Items = [new() { ProductId = product.Id, Quantity = 1 }]
         }, CancellationToken.None);
 
         var handler = new DeleteProductCommandHandler(context);

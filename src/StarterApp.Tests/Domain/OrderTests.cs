@@ -89,6 +89,20 @@ public class OrderTests
     }
 
     [Fact]
+    public void AddItem_WithMixedCurrency_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var order = new Order(1);
+        order.AddItem(new OrderItem(1, 1, "Product 1", 1, Money.Create(10.00m, "USD")));
+
+        // Act & Assert
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            order.AddItem(new OrderItem(1, 2, "Product 2", 1, Money.Create(10.00m, "AUD"))));
+
+        Assert.Equal("All order items must use the same currency", exception.Message);
+    }
+
+    [Fact]
     public void RemoveItem_WithValidProductId_ShouldRemoveItem()
     {
         // Arrange
@@ -318,7 +332,6 @@ public class OrderTests
         Assert.Equal("Product 1", order.Items.First().ProductName);
     }
 }
-
 
 
 

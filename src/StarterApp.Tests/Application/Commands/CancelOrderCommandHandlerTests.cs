@@ -71,13 +71,14 @@ public class CancelOrderCommandHandlerTests
             CustomerId = customer.Id,
             Items =
             [
-                new() { ProductId = product.Id, Quantity = 15, UnitPriceExcludingGst = 10.00m }
+                new() { ProductId = product.Id, Quantity = 15 }
             ]
         };
         var orderDto = await createHandler.HandleAsync(createCommand, CancellationToken.None);
 
         // Verify stock was decremented
-        Assert.Equal(85, product.Stock);
+        var decrementedProduct = await context.Products.FindAsync(product.Id);
+        Assert.Equal(85, decrementedProduct!.Stock);
 
         // Act — cancel the order
         var cancelHandler = new CancelOrderCommandHandler(context);

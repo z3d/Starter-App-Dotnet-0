@@ -198,7 +198,7 @@ public class OrderApiTests : IAsyncLifetime
 
         var orderCommand = OrderBuilder.Default()
             .WithCustomerId(customer.Id)
-            .WithItem(product.Id, 2, 19.99m)
+            .WithItem(product.Id, 2)
             .Build();
 
         // Act
@@ -287,11 +287,11 @@ public class OrderApiTests : IAsyncLifetime
 
         var item1 = createdOrder.Items.FirstOrDefault(i => i.Quantity == 1);
         Assert.NotNull(item1);
-        Assert.Equal(10.00m, item1.UnitPriceExcludingGst);
+        Assert.Equal(product.Price, item1.UnitPriceExcludingGst);
 
         var item2 = createdOrder.Items.FirstOrDefault(i => i.Quantity == 3);
         Assert.NotNull(item2);
-        Assert.Equal(25.00m, item2.UnitPriceExcludingGst);
+        Assert.Equal(product2.Price, item2.UnitPriceExcludingGst);
     }
 
     [Fact]
@@ -467,7 +467,7 @@ public class OrderApiTests : IAsyncLifetime
 
         var orderCommand = OrderBuilder.Default()
             .WithCustomerId(customer.Id)
-            .WithItem(product.Id, -1, 19.99m) // Negative quantity
+            .WithItem(product.Id, -1) // Negative quantity
             .Build();
 
         // Act
@@ -486,26 +486,19 @@ public class OrderApiTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateOrder_WithNegativePrice_ShouldReturnBadRequest()
+    public async Task CreateOrder_WithDuplicateProductIds_ShouldReturnBadRequest()
     {
-        // Arrange - Create test data
+        // Arrange
         var (customer, product) = await CreateTestData();
 
         var orderCommand = OrderBuilder.Default()
             .WithCustomerId(customer.Id)
-            .WithItem(product.Id, 1, -10.00m) // Negative price
+            .WithItem(product.Id, 1)
+            .WithItem(product.Id, 2)
             .Build();
 
         // Act
         var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
-
-        // Debug: Log the response details
-        if (response.StatusCode != HttpStatusCode.BadRequest)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            _output.WriteLine($"Expected BadRequest but got: {response.StatusCode}");
-            _output.WriteLine($"Error response: {errorContent}");
-        }
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -617,7 +610,7 @@ public class OrderApiTests : IAsyncLifetime
 
         var orderCommand = OrderBuilder.Default()
             .WithCustomerId(customer.Id)
-            .WithItem(product.Id, 2, 10.00m, "USD", 0.10m) // 2 * 10.00 = 20.00 excl, 22.00 incl
+            .WithItem(product.Id, 2)
             .Build();
 
         // Act
@@ -630,17 +623,21 @@ public class OrderApiTests : IAsyncLifetime
 
         var item = createdOrder.Items.Single();
         Assert.Equal(2, item.Quantity);
-        Assert.Equal(10.00m, item.UnitPriceExcludingGst);
-        Assert.Equal(0.10m, item.GstRate);
+        Assert.Equal(product.Price, item.UnitPriceExcludingGst);
+        Assert.Equal(OrderItem.DefaultGstRate, item.GstRate);
 
-        // Verify calculations (these depend on the DTO structure)
-        Assert.Equal(20.00m, item.TotalPriceExcludingGst);
-        Assert.Equal(22.00m, item.TotalPriceIncludingGst);
+        var expectedTotalExcludingGst = product.Price * item.Quantity;
+        var expectedTotalGstAmount = expectedTotalExcludingGst * OrderItem.DefaultGstRate;
+        var expectedTotalIncludingGst = expectedTotalExcludingGst + expectedTotalGstAmount;
+
+        // Verify calculations use catalog pricing and server-side GST
+        Assert.Equal(expectedTotalExcludingGst, item.TotalPriceExcludingGst);
+        Assert.Equal(expectedTotalIncludingGst, item.TotalPriceIncludingGst);
 
         // Check order-level totals
-        Assert.Equal(20.00m, createdOrder.TotalExcludingGst);
-        Assert.Equal(22.00m, createdOrder.TotalIncludingGst);
-        Assert.Equal(2.00m, createdOrder.TotalGstAmount);
+        Assert.Equal(expectedTotalExcludingGst, createdOrder.TotalExcludingGst);
+        Assert.Equal(expectedTotalIncludingGst, createdOrder.TotalIncludingGst);
+        Assert.Equal(expectedTotalGstAmount, createdOrder.TotalGstAmount);
     }
 
     [Fact]
@@ -651,7 +648,7 @@ public class OrderApiTests : IAsyncLifetime
 
         var orderCommand = OrderBuilder.Default()
             .WithCustomerId(customer.Id)
-            .WithItem(product.Id, 2, 10.00m, "USD", 0.10m) // 2 * 10.00 = 20.00 excl, 22.00 incl
+            .WithItem(product.Id, 2)
             .Build();
 
         var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
@@ -666,9 +663,13 @@ public class OrderApiTests : IAsyncLifetime
 
         // Assert - Read path totals must match write path totals
         Assert.NotNull(retrievedOrder);
-        Assert.Equal(20.00m, retrievedOrder.TotalExcludingGst);
-        Assert.Equal(22.00m, retrievedOrder.TotalIncludingGst);
-        Assert.Equal(2.00m, retrievedOrder.TotalGstAmount);
+        var expectedTotalExcludingGst = product.Price * 2;
+        var expectedTotalGstAmount = expectedTotalExcludingGst * OrderItem.DefaultGstRate;
+        var expectedTotalIncludingGst = expectedTotalExcludingGst + expectedTotalGstAmount;
+
+        Assert.Equal(expectedTotalExcludingGst, retrievedOrder.TotalExcludingGst);
+        Assert.Equal(expectedTotalIncludingGst, retrievedOrder.TotalIncludingGst);
+        Assert.Equal(expectedTotalGstAmount, retrievedOrder.TotalGstAmount);
     }
 
     [Fact]
@@ -679,8 +680,8 @@ public class OrderApiTests : IAsyncLifetime
 
         var orderCommand = OrderBuilder.Default()
             .WithCustomerId(customer.Id)
-            .WithItem(product.Id, 1, 10.00m)       // Valid product
-            .WithItem(999999, 1, 5.00m)              // Non-existent product
+            .WithItem(product.Id, 1)       // Valid product
+            .WithItem(999999, 1)              // Non-existent product
             .Build();
 
         // Act - This should fail on the second item
@@ -725,6 +726,4 @@ public class OrderApiTests : IAsyncLifetime
         Assert.True(retrievedOrder.LastUpdated <= endTime);
     }
 }
-
-
 

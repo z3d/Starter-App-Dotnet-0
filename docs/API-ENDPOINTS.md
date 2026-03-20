@@ -69,8 +69,7 @@ Content-Type: application/json
   "items": [
     {
       "productId": 1,
-      "quantity": 2,
-      "unitPriceExcludingGst": 29.99
+      "quantity": 2
     }
   ]
 }

@@ -24,17 +24,19 @@ public class CreateOrderCommandValidator : IValidator<CreateOrderCommand>
 
             if (item.Quantity <= 0)
                 yield return new ValidationError($"Items[{i}].Quantity", "Quantity must be a positive integer");
+        }
 
-            if (item.UnitPriceExcludingGst < 0)
-                yield return new ValidationError($"Items[{i}].UnitPriceExcludingGst", "UnitPriceExcludingGst cannot be negative");
+        var duplicateProductIds = request.Items
+            .GroupBy(item => item.ProductId)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToList();
 
-            if (string.IsNullOrWhiteSpace(item.Currency))
-                yield return new ValidationError($"Items[{i}].Currency", "Currency is required");
-            else if (item.Currency.Length != 3)
-                yield return new ValidationError($"Items[{i}].Currency", "Currency must be a 3-letter ISO code");
-
-            if (item.GstRate < 0 || item.GstRate > 1.0m)
-                yield return new ValidationError($"Items[{i}].GstRate", "GST rate must be between 0 and 1 (e.g., 0.10 for 10%)");
+        if (duplicateProductIds.Count > 0)
+        {
+            yield return new ValidationError(
+                nameof(request.Items),
+                $"Each product may only appear once per order. Duplicate product IDs: {string.Join(", ", duplicateProductIds)}");
         }
     }
 }

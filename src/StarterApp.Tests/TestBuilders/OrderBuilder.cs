@@ -13,15 +13,12 @@ public class OrderBuilder
         return this;
     }
 
-    public OrderBuilder WithItem(int productId, int quantity, decimal unitPriceExcludingGst, string currency = "USD", decimal gstRate = 0.10m)
+    public OrderBuilder WithItem(int productId, int quantity)
     {
         _items.Add(new CreateOrderItemCommand
         {
             ProductId = productId,
-            Quantity = quantity,
-            UnitPriceExcludingGst = unitPriceExcludingGst,
-            Currency = currency,
-            GstRate = gstRate
+            Quantity = quantity
         });
         return this;
     }
@@ -38,16 +35,15 @@ public class OrderBuilder
     public static CreateOrderCommand SimpleOrder(int customerId = 1, int productId = 1) =>
         new OrderBuilder()
             .WithCustomerId(customerId)
-            .WithItem(productId, 2, 19.99m)
+            .WithItem(productId, 2)
             .Build();
 
     public static CreateOrderCommand MultipleItemsOrder(int customerId = 1, int productId1 = 1, int productId2 = 2) =>
         new OrderBuilder()
             .WithCustomerId(customerId)
-            .WithItem(productId1, 1, 10.00m)
-            .WithItem(productId2, 3, 25.00m)
+            .WithItem(productId1, 1)
+            .WithItem(productId2, 3)
             .Build();
 }
-
 
 
