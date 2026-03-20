@@ -1,5 +1,3 @@
-using StarterApp.Api.Infrastructure.Validation;
-
 namespace StarterApp.Api.Infrastructure.Mediator;
 
 public class Mediator : IMediator

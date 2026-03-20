@@ -1,5 +1,3 @@
-using StarterApp.Api.Infrastructure.Validation;
-
 namespace StarterApp.Api.Application.Validators;
 
 public class CreateProductCommandValidator : IValidator<CreateProductCommand>

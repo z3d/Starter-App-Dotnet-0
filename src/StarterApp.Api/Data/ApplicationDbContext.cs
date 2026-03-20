@@ -1,6 +1,6 @@
+using Microsoft.EntityFrameworkCore.Storage;
 using StarterApp.Api.Infrastructure.Outbox;
 using StarterApp.Domain.Events;
-using Microsoft.EntityFrameworkCore.Storage;
 
 namespace StarterApp.Api.Data;
 
