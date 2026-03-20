@@ -8,7 +8,9 @@ public sealed class OrderCreatedDomainEvent : IDomainEvent
     {
         ArgumentNullException.ThrowIfNull(order);
 
-        Order = order;
+        OrderId = order.Id;
+        CustomerId = order.CustomerId;
+        Status = order.Status.ToString();
         LineItemCount = order.Items.Count;
         TotalQuantity = order.Items.Sum(item => item.Quantity);
         TotalExcludingGst = order.GetTotalExcludingGst().Amount;
@@ -18,7 +20,9 @@ public sealed class OrderCreatedDomainEvent : IDomainEvent
         OccurredOnUtc = DateTime.UtcNow;
     }
 
-    public Order Order { get; }
+    public int OrderId { get; }
+    public int CustomerId { get; }
+    public string Status { get; }
     public int LineItemCount { get; }
     public int TotalQuantity { get; }
     public decimal TotalExcludingGst { get; }

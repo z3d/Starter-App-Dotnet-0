@@ -8,14 +8,18 @@ public sealed class OrderStatusChangedDomainEvent : IDomainEvent
     {
         ArgumentNullException.ThrowIfNull(order);
 
-        Order = order;
+        OrderId = order.Id;
+        CustomerId = order.CustomerId;
         PreviousStatus = previousStatus.ToString();
         NewStatus = newStatus.ToString();
+        LastUpdated = order.LastUpdated;
         OccurredOnUtc = DateTime.UtcNow;
     }
 
-    public Order Order { get; }
+    public int OrderId { get; }
+    public int CustomerId { get; }
     public string PreviousStatus { get; }
     public string NewStatus { get; }
+    public DateTime LastUpdated { get; }
     public DateTime OccurredOnUtc { get; }
 }

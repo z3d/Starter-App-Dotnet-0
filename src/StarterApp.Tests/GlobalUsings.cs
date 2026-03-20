@@ -14,12 +14,12 @@ global using StarterApp.Api.Application.Commands;
 global using StarterApp.Api.Application.DTOs;
 global using StarterApp.Api.Application.ReadModels;
 // Domain references
+global using StarterApp.Domain.Abstractions;
 global using StarterApp.Domain.Entities;
 global using StarterApp.Domain.Enums;
 global using StarterApp.Domain.ValueObjects;
 global using System;
 global using System.Collections.Generic;
-global using System.ComponentModel.DataAnnotations;
 global using System.Data.SqlClient;
 global using System.Linq;
 global using System.Net;

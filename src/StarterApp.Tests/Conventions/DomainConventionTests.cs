@@ -113,6 +113,38 @@ public class DomainConventionTests : ConventionTestBase
             .WithFailureAssertion(Assert.Fail);
     }
 
+    // === Domain Events ===
+
+    [Fact]
+    public void DomainEvents_MustNotHoldEntityReferences()
+    {
+        var domainEventTypes = DomainAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract &&
+                   t.GetInterfaces().Any(i => i == typeof(IDomainEvent)));
+
+        Assert.NotEmpty(domainEventTypes);
+
+        var entityTypes = DomainAssembly.GetTypes()
+            .Where(t => t.Namespace != null && t.Namespace.Contains("Entities") &&
+                   t.IsClass && !t.IsAbstract)
+            .ToHashSet();
+
+        var failures = new List<string>();
+        foreach (var eventType in domainEventTypes)
+        {
+            var entityProperties = eventType.GetProperties()
+                .Where(p => entityTypes.Contains(p.PropertyType))
+                .ToList();
+
+            foreach (var prop in entityProperties)
+                failures.Add($"{eventType.Name}.{prop.Name} holds a reference to entity {prop.PropertyType.Name}. " +
+                             "Domain events must carry flat data for safe outbox serialization.");
+        }
+
+        Assert.True(failures.Count == 0,
+            $"Domain events must not hold entity references:\n{string.Join("\n", failures)}");
+    }
+
     // === Custom Convention Specifications ===
 
     private class MustOverrideEqualsAndGetHashCodeConvention : ConventionSpecification

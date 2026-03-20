@@ -118,9 +118,7 @@ Good adoption of modern .NET:
 
 These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
 
-| # | Severity | Finding | Files |
-|---|----------|---------|-------|
-| 20 | Low | **Closed switch in `OutboxMessage.Create`.** Only supports `OrderCreatedDomainEvent` and `OrderStatusChangedDomainEvent`. New event types throw `NotSupportedException` at runtime with no convention test to catch the miss. | `OutboxMessage.cs` |
+No open findings. All identified issues have been resolved.
 
 #### Recently resolved (commit 614f069)
 
@@ -150,6 +148,7 @@ These are unresolved issues identified across multiple agent review sessions. Wh
 | DB constraints surface as 500s | `DbUpdateExceptionExtensions`, domain max-length guards, validator mirrors | 614f069 |
 | TestFixture hides base disposal | Added `Client?.Dispose()` and `base.Dispose()` | 614f069 |
 | PropertiesTest false positives | Tests now use actual `IValidator<T>` implementations | 614f069 |
+| Closed switch in outbox serialization | Generic serialization; events flattened; convention test prevents entity references in events | (this commit) |
 
 ---
 
@@ -279,7 +278,7 @@ A well-engineered starter template that gets the hard things right: architecture
 
 Issues #1–#14 have been resolved. Recent hardening (commits 05d2996–898424c) addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, the outbox persists events transactionally, rate limiting is enforced globally, and mixed-currency orders are rejected at the domain level.
 
-One low-severity finding remains open (#20 — closed switch in outbox serialization). All high and medium findings (#16–#19, #21) were resolved in commit 614f069, which hardened validation, constraint handling, test disposal, and test correctness.
+All findings (#16–#21) have been resolved. The codebase has no known open issues from the multi-agent review sessions.
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 
