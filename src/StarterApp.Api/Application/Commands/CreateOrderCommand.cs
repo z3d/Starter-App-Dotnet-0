@@ -57,8 +57,17 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         // Single save — EF Core persists order + items atomically and sets OrderId via FK
         _dbContext.Orders.Add(order);
         await _dbContext.SaveChangesAsync(cancellationToken);
-        if (transaction != null)
-            await transaction.CommitAsync(cancellationToken);
+
+        try
+        {
+            if (transaction != null)
+                await transaction.CommitAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Transaction commit failed after successful save for customer {CustomerId}. Data may be inconsistent.", command.CustomerId);
+            throw;
+        }
 
         Log.Information("Created order with ID: {OrderId}", order.Id);
         return OrderMapper.ToDto(order);
@@ -117,9 +126,9 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         if (duplicateProductIds.Count == 0)
             return;
 
-        throw new StarterApp.Api.Infrastructure.Validation.ValidationException(
+        throw new ValidationException(
         [
-            new StarterApp.Api.Infrastructure.Validation.ValidationError(
+            new ValidationError(
                 nameof(command.Items),
                 $"Each product may only appear once per order. Duplicate product IDs: {string.Join(", ", duplicateProductIds)}")
         ]);

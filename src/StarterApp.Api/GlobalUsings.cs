@@ -18,6 +18,7 @@ global using StarterApp.Api.Application.ReadModels;
 global using StarterApp.Api.Data;
 global using StarterApp.Api.Infrastructure;
 global using StarterApp.Api.Infrastructure.Mediator;
+global using StarterApp.Api.Infrastructure.Validation;
 global using StarterApp.Domain.Abstractions;
 // Domain references
 global using StarterApp.Domain.Entities;
