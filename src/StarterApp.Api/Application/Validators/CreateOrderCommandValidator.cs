@@ -2,6 +2,7 @@ namespace StarterApp.Api.Application.Validators;
 
 public class CreateOrderCommandValidator : IValidator<CreateOrderCommand>
 {
+    private const int MaxItemsPerOrder = 50;
     public IEnumerable<ValidationError> Validate(CreateOrderCommand request)
     {
         if (request.CustomerId <= 0)
@@ -10,6 +11,12 @@ public class CreateOrderCommandValidator : IValidator<CreateOrderCommand>
         if (request.Items == null || request.Items.Count == 0)
         {
             yield return new ValidationError(nameof(request.Items), "Order must contain at least one item");
+            yield break;
+        }
+
+        if (request.Items.Count > MaxItemsPerOrder)
+        {
+            yield return new ValidationError(nameof(request.Items), $"Order cannot contain more than {MaxItemsPerOrder} items");
             yield break;
         }
 

@@ -50,7 +50,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
                 product.Name,
                 itemCommand.Quantity,
                 product.Price,
-                OrderItem.DefaultGstRate
+                OrderItem.DefaultGstRate // Uniform rate — extend to per-product/per-region if jurisdictional GST is needed
             );
         }
 
@@ -77,6 +77,17 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         CreateOrderItemCommand itemCommand,
         CancellationToken cancellationToken)
     {
+        // Load product first to verify existence and get catalog details (name, price).
+        // AsNoTracking because ExecuteUpdateAsync below bypasses the change tracker —
+        // a tracked entity would hold a stale Stock snapshot after the direct SQL update.
+        var product = await _dbContext.Products
+            .AsNoTracking()
+            .SingleOrDefaultAsync(p => p.Id == itemCommand.ProductId, cancellationToken);
+
+        if (product == null)
+            throw new KeyNotFoundException($"Product with ID {itemCommand.ProductId} was not found");
+
+        // Atomic stock reservation — WHERE Stock >= @qty prevents concurrent overselling
         var updatedRows = await _dbContext.Products
             .Where(p => p.Id == itemCommand.ProductId && p.Stock >= itemCommand.Quantity)
             .ExecuteUpdateAsync(
@@ -84,13 +95,6 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
                     .SetProperty(p => p.Stock, p => p.Stock - itemCommand.Quantity)
                     .SetProperty(p => p.LastUpdated, _ => DateTime.UtcNow),
                 cancellationToken);
-
-        var product = await _dbContext.Products
-            .AsNoTracking()
-            .SingleOrDefaultAsync(p => p.Id == itemCommand.ProductId, cancellationToken);
-
-        if (product == null)
-            throw new KeyNotFoundException($"Product with ID {itemCommand.ProductId} was not found");
 
         if (updatedRows == 0)
             throw new InvalidOperationException(
