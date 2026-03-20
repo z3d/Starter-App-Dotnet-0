@@ -30,9 +30,18 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
         }
 
         var email = Email.Create(command.Email);
+        await EnsureEmailIsUniqueAsync(email.Value, command.Id, cancellationToken);
+
         customer.UpdateDetails(command.Name, email);
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueConstraintViolation("IX_Customers_Email"))
+        {
+            throw new InvalidOperationException($"A customer with email '{email.Value}' already exists", ex);
+        }
 
         Log.Information("Updated customer with ID: {CustomerId}", customer.Id);
 
@@ -46,7 +55,16 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
             IsActive = customer.IsActive
         };
     }
-}
 
+    private async Task EnsureEmailIsUniqueAsync(string email, int customerId, CancellationToken cancellationToken)
+    {
+        var emailExists = await _dbContext.Customers
+            .AsNoTracking()
+            .AnyAsync(customer => customer.Id != customerId && customer.Email.Value == email, cancellationToken);
+
+        if (emailExists)
+            throw new InvalidOperationException($"A customer with email '{email}' already exists");
+    }
+}
 
 

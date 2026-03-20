@@ -58,6 +58,17 @@ public class CustomerTests
     }
 
     [Fact]
+    public void Create_WithNameExceedingMaxLength_ShouldThrowArgumentException()
+    {
+        var email = Email.Create("test@example.com");
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            new Customer(new string('c', Customer.MaxNameLength + 1), email));
+
+        Assert.Contains($"Customer name cannot exceed {Customer.MaxNameLength} characters", exception.Message);
+    }
+
+    [Fact]
     public void UpdateDetails_WithValidParameters_ShouldUpdateCustomer()
     {
         // Arrange
@@ -124,6 +135,5 @@ public class CustomerTests
     }
 
 }
-
 
 

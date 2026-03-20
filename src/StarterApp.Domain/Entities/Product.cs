@@ -2,6 +2,9 @@ namespace StarterApp.Domain.Entities;
 
 public class Product
 {
+    public const int MaxNameLength = 100;
+    public const int MaxDescriptionLength = 500;
+
     // Private setters to enforce immutability and encapsulation
     public int Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
@@ -20,13 +23,14 @@ public class Product
     }
 
     // Public constructor (replacing the factory method)
-    public Product(string name, string description, Money price, int stock)
+    public Product(string name, string? description, Money price, int stock)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-
         ArgumentNullException.ThrowIfNull(price);
-
         ArgumentOutOfRangeException.ThrowIfNegative(stock);
+
+        ValidateName(name);
+        ValidateDescription(description);
 
         Name = name;
         Description = description ?? string.Empty;
@@ -36,10 +40,13 @@ public class Product
     }
 
     // Domain methods
-    public void UpdateDetails(string name, string description, Money price)
+    public void UpdateDetails(string name, string? description, Money price)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(price);
+
+        ValidateName(name);
+        ValidateDescription(description);
 
         Name = name;
         Description = description ?? string.Empty;
@@ -56,7 +63,18 @@ public class Product
         LastUpdated = DateTime.UtcNow;
     }
 
-}
+    private static void ValidateName(string name)
+    {
+        if (name.Length > MaxNameLength)
+            throw new ArgumentException($"Product name cannot exceed {MaxNameLength} characters", nameof(name));
+    }
 
+    private static void ValidateDescription(string? description)
+    {
+        if (description?.Length > MaxDescriptionLength)
+            throw new ArgumentException($"Product description cannot exceed {MaxDescriptionLength} characters", nameof(description));
+    }
+
+}
 
 

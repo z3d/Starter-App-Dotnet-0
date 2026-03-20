@@ -70,6 +70,17 @@ public class ProductTests
     }
 
     [Fact]
+    public void Create_WithNameExceedingMaxLength_ShouldThrowArgumentException()
+    {
+        var exception = Assert.Throws<ArgumentException>(() =>
+            ProductBuilder.AValidProduct()
+                .WithName(new string('p', Product.MaxNameLength + 1))
+                .Build());
+
+        Assert.Contains($"Product name cannot exceed {Product.MaxNameLength} characters", exception.Message);
+    }
+
+    [Fact]
     public void UpdateDetails_WithValidInputs_ShouldUpdateProduct()
     {
         // Arrange
@@ -117,6 +128,17 @@ public class ProductTests
     }
 
     [Fact]
+    public void UpdateDetails_WithDescriptionExceedingMaxLength_ShouldThrowArgumentException()
+    {
+        var product = ProductBuilder.AValidProduct().Build();
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            product.UpdateDetails("Name", new string('d', Product.MaxDescriptionLength + 1), Money.Create(10.00m)));
+
+        Assert.Contains($"Product description cannot exceed {Product.MaxDescriptionLength} characters", exception.Message);
+    }
+
+    [Fact]
     public void UpdateStock_WithValidQuantity_ShouldUpdateStock()
     {
         // Arrange
@@ -153,6 +175,5 @@ public class ProductTests
         Assert.Contains("Cannot reduce stock below zero", exception.Message);
     }
 }
-
 
 

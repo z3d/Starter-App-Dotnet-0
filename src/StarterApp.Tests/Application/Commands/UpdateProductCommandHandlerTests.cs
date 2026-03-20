@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StarterApp.Api.Application.Validators;
 using StarterApp.Api.Data;
 
 namespace StarterApp.Tests.Application.Commands;
@@ -6,7 +7,7 @@ namespace StarterApp.Tests.Application.Commands;
 public class UpdateProductCommandHandlerTests
 {
     [Fact]
-    public void UpdateProductCommand_WithValidData_ShouldPassValidation()
+    public void UpdateProductCommandValidator_WithValidData_ShouldPassValidation()
     {
         // Arrange
         var command = new UpdateProductCommand
@@ -19,15 +20,30 @@ public class UpdateProductCommandHandlerTests
             Stock = 50
         };
 
-        var validationContext = new ValidationContext(command);
-        List<ValidationResult> validationResults = [];
+        var validator = new UpdateProductCommandValidator();
 
-        // Act
-        var isValid = Validator.TryValidateObject(command, validationContext, validationResults, true);
+        var errors = validator.Validate(command).ToList();
 
-        // Assert
-        Assert.True(isValid);
-        Assert.Empty(validationResults);
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void UpdateProductCommandValidator_WithMissingPriceAndStock_ShouldReturnValidationErrors()
+    {
+        var command = new UpdateProductCommand
+        {
+            Id = 1,
+            Name = "Updated Product",
+            Description = "Updated Description",
+            Currency = "USD"
+        };
+
+        var validator = new UpdateProductCommandValidator();
+
+        var errors = validator.Validate(command).ToList();
+
+        Assert.Contains(errors, error => error.PropertyName == nameof(command.Price));
+        Assert.Contains(errors, error => error.PropertyName == nameof(command.Stock));
     }
 
     [Fact]
@@ -48,9 +64,9 @@ public class UpdateProductCommandHandlerTests
         Assert.Equal(123, command.Id);
         Assert.Equal("Updated Product", command.Name);
         Assert.Equal("Updated Description", command.Description);
-        Assert.Equal(25.99m, command.Price);
+        Assert.Equal(25.99m, command.Price!.Value);
         Assert.Equal("EUR", command.Currency);
-        Assert.Equal(75, command.Stock);
+        Assert.Equal(75, command.Stock!.Value);
     }
 
     [Fact]
@@ -88,18 +104,18 @@ public class UpdateProductCommandHandlerTests
         Assert.Equal(command.Id, result.Id);
         Assert.Equal(command.Name, result.Name);
         Assert.Equal(command.Description, result.Description);
-        Assert.Equal(command.Price, result.Price);
+        Assert.Equal(command.Price!.Value, result.Price);
         Assert.Equal(command.Currency, result.Currency);
-        Assert.Equal(command.Stock, result.Stock);
+        Assert.Equal(command.Stock!.Value, result.Stock);
 
         // Verify the product was actually updated in the database
         var updatedProduct = await context.Products.FindAsync(command.Id);
         Assert.NotNull(updatedProduct);
         Assert.Equal(command.Name, updatedProduct.Name);
         Assert.Equal(command.Description, updatedProduct.Description);
-        Assert.Equal(command.Price, updatedProduct.Price.Amount);
+        Assert.Equal(command.Price!.Value, updatedProduct.Price.Amount);
         Assert.Equal(command.Currency, updatedProduct.Price.Currency);
-        Assert.Equal(command.Stock, updatedProduct.Stock);
+        Assert.Equal(command.Stock!.Value, updatedProduct.Stock);
     }
 
     [Fact]

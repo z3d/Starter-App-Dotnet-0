@@ -279,6 +279,8 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
             // Clean up environment variable
             Environment.SetEnvironmentVariable("ConnectionStrings__database", null);
 
+            Client?.Dispose();
+            base.Dispose();
             await _dbFixture.DisposeAsync();
             Log.Information("ApiTestFixture disposed");
         }
@@ -309,6 +311,5 @@ public class IntegrationTestCollection : ICollectionFixture<ApiTestFixture>
     // This class has no code, and is never created. Its purpose is to be the place
     // to apply [CollectionDefinition] and all the ICollectionFixture<> interfaces.
 }
-
 
 

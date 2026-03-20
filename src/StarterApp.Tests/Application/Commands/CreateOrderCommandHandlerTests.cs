@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StarterApp.Api.Application.Validators;
 using StarterApp.Api.Data;
 using System.Text.Json;
 
@@ -7,7 +8,7 @@ namespace StarterApp.Tests.Application.Commands;
 public class CreateOrderCommandHandlerTests
 {
     [Fact]
-    public void CreateOrderCommand_WithValidData_ShouldPassValidation()
+    public void CreateOrderCommandValidator_WithValidData_ShouldPassValidation()
     {
         // Arrange
         var command = new CreateOrderCommand
@@ -23,15 +24,11 @@ public class CreateOrderCommandHandlerTests
             }
         };
 
-        var validationContext = new ValidationContext(command);
-        List<ValidationResult> validationResults = [];
+        var validator = new CreateOrderCommandValidator();
 
-        // Act
-        var isValid = Validator.TryValidateObject(command, validationContext, validationResults, true);
+        var errors = validator.Validate(command).ToList();
 
-        // Assert
-        Assert.True(isValid);
-        Assert.Empty(validationResults);
+        Assert.Empty(errors);
     }
 
     [Fact]

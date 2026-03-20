@@ -28,6 +28,8 @@ public static class WebApplicationExtensions
             StatusCodeSelector = ex => ex switch
             {
                 OperationCanceledException => 499,
+                DbUpdateException dbUpdateException when dbUpdateException.IsUniqueConstraintViolation() => StatusCodes.Status409Conflict,
+                DbUpdateException dbUpdateException when dbUpdateException.IsStringTruncationViolation() => StatusCodes.Status400BadRequest,
                 ValidationException => StatusCodes.Status400BadRequest,
                 ArgumentNullException => StatusCodes.Status400BadRequest,
                 ArgumentOutOfRangeException => StatusCodes.Status400BadRequest,

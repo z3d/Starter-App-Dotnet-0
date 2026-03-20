@@ -6,6 +6,11 @@ public class CreateProductCommandValidator : IValidator<CreateProductCommand>
     {
         if (string.IsNullOrWhiteSpace(request.Name))
             yield return new ValidationError(nameof(request.Name), "Name is required");
+        else if (request.Name.Length > Product.MaxNameLength)
+            yield return new ValidationError(nameof(request.Name), $"Name must not exceed {Product.MaxNameLength} characters");
+
+        if (request.Description?.Length > Product.MaxDescriptionLength)
+            yield return new ValidationError(nameof(request.Description), $"Description must not exceed {Product.MaxDescriptionLength} characters");
 
         if (request.Price < 0)
             yield return new ValidationError(nameof(request.Price), "Price cannot be negative");

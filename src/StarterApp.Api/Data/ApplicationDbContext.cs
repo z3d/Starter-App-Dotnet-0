@@ -55,6 +55,15 @@ public class ApplicationDbContext : DbContext
                     .HasMaxLength(3);
             });
 
+        modelBuilder.Entity<Product>()
+            .Property(p => p.Name)
+            .HasMaxLength(Product.MaxNameLength)
+            .IsRequired();
+
+        modelBuilder.Entity<Product>()
+            .Property(p => p.Description)
+            .HasMaxLength(Product.MaxDescriptionLength);
+
         // Configure Email value object for Customer
         modelBuilder.Entity<Customer>()
             .OwnsOne(c => c.Email, emailBuilder =>
@@ -63,6 +72,11 @@ public class ApplicationDbContext : DbContext
                     .HasColumnName("Email")
                     .HasMaxLength(320);
             });
+
+        modelBuilder.Entity<Customer>()
+            .Property(c => c.Name)
+            .HasMaxLength(Customer.MaxNameLength)
+            .IsRequired();
 
         // Configure Order entity
         modelBuilder.Entity<Order>(orderBuilder =>
@@ -226,4 +240,3 @@ public class ApplicationDbContext : DbContext
             order.RecordCreation();
     }
 }
-

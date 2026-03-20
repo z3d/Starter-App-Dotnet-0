@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StarterApp.Api.Application.Validators;
 using StarterApp.Api.Data;
 
 namespace StarterApp.Tests.Application.Commands;
@@ -11,7 +12,7 @@ public class UpdateCustomerCommandHandlerTests
             .Options;
 
     [Fact]
-    public void UpdateCustomerCommand_WithValidData_ShouldPassValidation()
+    public void UpdateCustomerCommandValidator_WithValidData_ShouldPassValidation()
     {
         // Arrange
         var command = new UpdateCustomerCommand
@@ -21,15 +22,11 @@ public class UpdateCustomerCommandHandlerTests
             Email = "updated@example.com"
         };
 
-        var validationContext = new ValidationContext(command);
-        List<ValidationResult> validationResults = [];
+        var validator = new UpdateCustomerCommandValidator();
 
-        // Act
-        var isValid = Validator.TryValidateObject(command, validationContext, validationResults, true);
+        var errors = validator.Validate(command).ToList();
 
-        // Assert
-        Assert.True(isValid);
-        Assert.Empty(validationResults);
+        Assert.Empty(errors);
     }
 
     [Fact]

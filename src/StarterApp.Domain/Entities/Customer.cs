@@ -2,6 +2,8 @@ namespace StarterApp.Domain.Entities;
 
 public class Customer
 {
+    public const int MaxNameLength = 100;
+
     public int Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public Email Email { get; private set; } = null!;
@@ -20,6 +22,8 @@ public class Customer
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(email);
 
+        ValidateName(name);
+
         Name = name;
         Email = email;
         DateCreated = DateTime.UtcNow;
@@ -30,6 +34,8 @@ public class Customer
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(email);
+
+        ValidateName(name);
 
         Name = name;
         Email = email;
@@ -44,7 +50,12 @@ public class Customer
     {
         IsActive = false;
     }
-}
 
+    private static void ValidateName(string name)
+    {
+        if (name.Length > MaxNameLength)
+            throw new ArgumentException($"Customer name cannot exceed {MaxNameLength} characters", nameof(name));
+    }
+}
 
 

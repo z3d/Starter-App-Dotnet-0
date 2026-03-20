@@ -6,6 +6,8 @@ public class CreateCustomerCommandValidator : IValidator<CreateCustomerCommand>
     {
         if (string.IsNullOrWhiteSpace(request.Name))
             yield return new ValidationError(nameof(request.Name), "Name is required");
+        else if (request.Name.Length > Customer.MaxNameLength)
+            yield return new ValidationError(nameof(request.Name), $"Name must not exceed {Customer.MaxNameLength} characters");
 
         if (string.IsNullOrWhiteSpace(request.Email))
             yield return new ValidationError(nameof(request.Email), "Email is required");

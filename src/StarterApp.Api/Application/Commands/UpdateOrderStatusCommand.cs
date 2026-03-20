@@ -19,7 +19,7 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
     {
         Log.Information("Handling UpdateOrderStatusCommand to return OrderDto for order {OrderId}", command.OrderId);
 
-        var status = Enum.Parse<OrderStatus>(command.Status);
+        var status = Enum.Parse<OrderStatus>(command.Status, ignoreCase: true);
 
         var order = await _dbContext.Orders.Include(o => o.Items)
             .FirstOrDefaultAsync(o => o.Id == command.OrderId, cancellationToken);

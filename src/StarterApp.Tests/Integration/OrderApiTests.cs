@@ -538,6 +538,32 @@ public class OrderApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateOrderStatus_WithLowercaseStatus_ShouldSucceed()
+    {
+        var (customer, product) = await CreateTestData();
+
+        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
+        createResponse.EnsureSuccessStatusCode();
+        var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
+        Assert.NotNull(createdOrder);
+
+        var response = await _fixture.Client.PutAsJsonAsync(
+            $"/api/v1/orders/{createdOrder.Id}/status",
+            new UpdateOrderStatusCommand
+            {
+                OrderId = createdOrder.Id,
+                Status = "confirmed"
+            });
+
+        response.EnsureSuccessStatusCode();
+
+        var updatedOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
+        Assert.NotNull(updatedOrder);
+        Assert.Equal(OrderStatus.Confirmed.ToString(), updatedOrder.Status);
+    }
+
+    [Fact]
     public async Task UpdateOrderStatus_WithInvalidTransition_ShouldReturnConflict()
     {
         // Arrange - Create test data and order, then update to Delivered
@@ -726,4 +752,3 @@ public class OrderApiTests : IAsyncLifetime
         Assert.True(retrievedOrder.LastUpdated <= endTime);
     }
 }
-

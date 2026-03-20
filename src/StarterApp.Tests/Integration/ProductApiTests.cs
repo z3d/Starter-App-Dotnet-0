@@ -168,7 +168,8 @@ public class ProductApiTests : IAsyncLifetime
             Name = "Updated Product Name",
             Description = "Updated description",
             Price = 49.99m,
-            Currency = "USD"
+            Currency = "USD",
+            Stock = 50
         };
 
         // Act
@@ -185,7 +186,48 @@ public class ProductApiTests : IAsyncLifetime
         Assert.NotNull(updatedProduct);
         Assert.Equal(updateCommand.Name, updatedProduct.Name);
         Assert.Equal(updateCommand.Description, updatedProduct.Description);
-        Assert.Equal(updateCommand.Price, updatedProduct.PriceAmount);
+        Assert.Equal(updateCommand.Price!.Value, updatedProduct.PriceAmount);
+        Assert.Equal(updateCommand.Stock!.Value, updatedProduct.Stock);
+    }
+
+    [Fact]
+    public async Task UpdateProduct_WithMissingRequiredFields_ShouldReturnBadRequestAndPreserveExistingValues()
+    {
+        var newProduct = new CreateProductCommand
+        {
+            Name = "Product to Preserve",
+            Description = "Original description",
+            Price = 39.99m,
+            Currency = "USD",
+            Stock = 75
+        };
+
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/products", newProduct);
+        createResponse.EnsureSuccessStatusCode();
+        var createdProduct = await createResponse.Content.ReadFromJsonAsync<ProductDto>();
+        Assert.NotNull(createdProduct);
+
+        var response = await _fixture.Client.PutAsJsonAsync(
+            $"/api/v1/products/{createdProduct.Id}",
+            new
+            {
+                id = createdProduct.Id,
+                name = "Updated Product Name",
+                description = "Updated description",
+                currency = "USD"
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var getResponse = await _fixture.Client.GetAsync($"/api/v1/products/{createdProduct.Id}");
+        getResponse.EnsureSuccessStatusCode();
+        var persistedProduct = await getResponse.Content.ReadFromJsonAsync<ProductReadModel>();
+
+        Assert.NotNull(persistedProduct);
+        Assert.Equal(newProduct.Name, persistedProduct.Name);
+        Assert.Equal(newProduct.Description, persistedProduct.Description);
+        Assert.Equal(newProduct.Price, persistedProduct.PriceAmount);
+        Assert.Equal(newProduct.Stock, persistedProduct.Stock);
     }
 
     [Fact]
@@ -217,6 +259,5 @@ public class ProductApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
     }
 }
-
 
 

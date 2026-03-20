@@ -89,6 +89,28 @@ public class ProblemDetailsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CreateCustomer_WithDuplicateEmail_ShouldReturnConflictProblemDetails()
+    {
+        var customer = new CreateCustomerCommand
+        {
+            Name = "John Doe",
+            Email = "john.doe@example.com"
+        };
+
+        var firstResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", customer);
+        firstResponse.EnsureSuccessStatusCode();
+
+        var duplicateResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", customer);
+
+        Assert.Equal(HttpStatusCode.Conflict, duplicateResponse.StatusCode);
+
+        var problemDetails = await duplicateResponse.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problemDetails);
+        Assert.Equal(409, problemDetails.Status);
+        Assert.Equal("Conflict", problemDetails.Title);
+    }
+
+    [Fact]
     public async Task CreateProduct_WithNegativePrice_ShouldReturnProblemDetails()
     {
         // Arrange
@@ -142,6 +164,47 @@ public class ProblemDetailsTests : IAsyncLifetime
         Assert.NotNull(problemDetails.Type);
 
         _output.WriteLine($"Problem Details response: {JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { WriteIndented = true })}");
+    }
+
+    [Fact]
+    public async Task CreateCustomer_WithNameExceedingDatabaseLimit_ShouldReturnProblemDetails()
+    {
+        var invalidCustomer = new CreateCustomerCommand
+        {
+            Name = new string('a', Customer.MaxNameLength + 1),
+            Email = "john.doe@example.com"
+        };
+
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", invalidCustomer);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problemDetails);
+        Assert.Equal(400, problemDetails.Status);
+        Assert.Equal("Bad Request", problemDetails.Title);
+    }
+
+    [Fact]
+    public async Task CreateProduct_WithDescriptionExceedingDatabaseLimit_ShouldReturnProblemDetails()
+    {
+        var invalidProduct = new CreateProductCommand
+        {
+            Name = "Test Product",
+            Description = new string('d', Product.MaxDescriptionLength + 1),
+            Price = 10.99m,
+            Currency = "USD",
+            Stock = 100
+        };
+
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/products", invalidProduct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problemDetails);
+        Assert.Equal(400, problemDetails.Status);
+        Assert.Equal("Bad Request", problemDetails.Title);
     }
 
     [Fact]
@@ -241,6 +304,5 @@ public class ProblemDetailsTests : IAsyncLifetime
         _output.WriteLine($"Problem Details response: {JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { WriteIndented = true })}");
     }
 }
-
 
 

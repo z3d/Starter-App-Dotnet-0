@@ -3,11 +3,11 @@ namespace StarterApp.Api.Application.Commands;
 public class UpdateProductCommand : ICommand, IRequest<ProductDto?>
 {
     public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public decimal Price { get; set; }
-    public string Currency { get; set; } = "USD";
-    public int Stock { get; set; }
+    public string? Name { get; set; }
+    public string? Description { get; set; }
+    public decimal? Price { get; set; }
+    public string? Currency { get; set; }
+    public int? Stock { get; set; }
 }
 
 public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand, ProductDto?>
@@ -32,11 +32,11 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
             throw new KeyNotFoundException($"Product with ID {command.Id} not found");
         }
 
-        var price = Money.Create(command.Price, command.Currency);
-        product.UpdateDetails(command.Name, command.Description, price);
+        var price = Money.Create(command.Price!.Value, command.Currency!);
+        product.UpdateDetails(command.Name!, command.Description, price);
 
         // Update stock separately
-        var stockDifference = command.Stock - product.Stock;
+        var stockDifference = command.Stock!.Value - product.Stock;
         if (stockDifference != 0)
         {
             product.UpdateStock(stockDifference);
@@ -59,6 +59,5 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         };
     }
 }
-
 
 

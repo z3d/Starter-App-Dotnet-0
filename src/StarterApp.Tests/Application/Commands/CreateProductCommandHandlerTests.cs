@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StarterApp.Api.Application.Validators;
 using StarterApp.Api.Data;
 
 namespace StarterApp.Tests.Application.Commands;
@@ -6,7 +7,7 @@ namespace StarterApp.Tests.Application.Commands;
 public class CreateProductCommandHandlerTests
 {
     [Fact]
-    public void CreateProductCommand_WithValidData_ShouldPassValidation()
+    public void CreateProductCommandValidator_WithValidData_ShouldPassValidation()
     {
         // Arrange
         var command = new CreateProductCommand
@@ -18,15 +19,11 @@ public class CreateProductCommandHandlerTests
             Stock = 100
         };
 
-        var validationContext = new ValidationContext(command);
-        List<ValidationResult> validationResults = [];
+        var validator = new CreateProductCommandValidator();
 
-        // Act
-        var isValid = Validator.TryValidateObject(command, validationContext, validationResults, true);
+        var errors = validator.Validate(command).ToList();
 
-        // Assert
-        Assert.True(isValid);
-        Assert.Empty(validationResults);
+        Assert.Empty(errors);
     }
 
     [Fact]
