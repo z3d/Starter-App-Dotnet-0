@@ -32,6 +32,30 @@ public class CreateOrderCommandHandlerTests
     }
 
     [Fact]
+    public void CreateOrderCommandValidator_WithMoreThanMaxItems_ShouldFailValidation()
+    {
+        var command = new CreateOrderCommand
+        {
+            CustomerId = 1,
+            Items = Enumerable.Range(1, 51)
+                .Select(productId => new CreateOrderItemCommand
+                {
+                    ProductId = productId,
+                    Quantity = 1
+                })
+                .ToList()
+        };
+
+        var validator = new CreateOrderCommandValidator();
+
+        var errors = validator.Validate(command).ToList();
+
+        var error = Assert.Single(errors);
+        Assert.Equal(nameof(command.Items), error.PropertyName);
+        Assert.Contains("more than 50 items", error.ErrorMessage);
+    }
+
+    [Fact]
     public void CreateOrderCommand_PropertiesTest()
     {
         // Arrange

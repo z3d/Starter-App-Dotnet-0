@@ -112,6 +112,22 @@ public class ApiConventionTests : ConventionTestBase
             .WithFailureAssertion(Assert.Fail);
     }
 
+    // === DateTimeOffset Enforcement ===
+
+    [Fact]
+    public void ApiTypes_MustUseDateTimeOffsetNotDateTime()
+    {
+        var apiTypes = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t) &&
+                   (t.Name.EndsWith("Dto") || t.Name.EndsWith("ReadModel") ||
+                    t.Name.EndsWith("Command") || t.Name.EndsWith("Query") ||
+                    t.Name == "OutboxMessage"));
+
+        apiTypes
+            .MustConformTo(new MustNotUseDateTimePropertiesConvention())
+            .WithFailureAssertion(Assert.Fail);
+    }
+
     // === Domain Layer Isolation ===
 
     [Fact]
@@ -126,6 +142,23 @@ public class ApiConventionTests : ConventionTestBase
     }
 
     // === Custom Convention Specifications ===
+
+    private class MustNotUseDateTimePropertiesConvention : ConventionSpecification
+    {
+        protected override string FailureMessage => "must use DateTimeOffset instead of DateTime for all timestamp properties";
+
+        public override ConventionResult IsSatisfiedBy(Type type)
+        {
+            var dateTimeProperties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.PropertyType == typeof(DateTime) || p.PropertyType == typeof(DateTime?))
+                .ToList();
+
+            return dateTimeProperties.Count == 0
+                ? ConventionResult.Satisfied(type.FullName!)
+                : ConventionResult.NotSatisfied(type.FullName!,
+                    $"{type.Name} uses DateTime on: {string.Join(", ", dateTimeProperties.Select(p => p.Name))}. Use DateTimeOffset instead.");
+        }
+    }
 
     private class MustNotHaveInstanceMethodsConvention : ConventionSpecification
     {

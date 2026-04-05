@@ -4,13 +4,13 @@ public class OrderReadModel
 {
     public int Id { get; set; }
     public int CustomerId { get; set; }
-    public DateTime OrderDate { get; set; }
+    public DateTimeOffset OrderDate { get; set; }
     public string Status { get; set; } = string.Empty;
     public decimal TotalExcludingGst { get; set; }
     public decimal TotalIncludingGst { get; set; }
     public decimal TotalGstAmount { get; set; }
     public string Currency { get; set; } = "USD";
-    public DateTime LastUpdated { get; set; }
+    public DateTimeOffset LastUpdated { get; set; }
 }
 
 public class OrderItemReadModel

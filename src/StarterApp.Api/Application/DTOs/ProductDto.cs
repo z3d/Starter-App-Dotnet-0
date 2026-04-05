@@ -8,7 +8,7 @@ public class ProductDto
     public decimal Price { get; set; }
     public string Currency { get; set; } = "USD";
     public int Stock { get; set; }
-    public DateTime LastUpdated { get; set; }
+    public DateTimeOffset LastUpdated { get; set; }
 }
 
 

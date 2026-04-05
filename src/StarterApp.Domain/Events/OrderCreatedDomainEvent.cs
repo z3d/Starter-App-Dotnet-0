@@ -17,7 +17,7 @@ public sealed class OrderCreatedDomainEvent : IDomainEvent
         TotalIncludingGst = order.GetTotalIncludingGst().Amount;
         TotalGstAmount = order.GetTotalGstAmount().Amount;
         Currency = order.Items.FirstOrDefault()?.UnitPriceExcludingGst.Currency ?? "USD";
-        OccurredOnUtc = DateTime.UtcNow;
+        OccurredOnUtc = DateTimeOffset.UtcNow;
     }
 
     public int OrderId { get; }
@@ -29,5 +29,5 @@ public sealed class OrderCreatedDomainEvent : IDomainEvent
     public decimal TotalIncludingGst { get; }
     public decimal TotalGstAmount { get; }
     public string Currency { get; }
-    public DateTime OccurredOnUtc { get; }
+    public DateTimeOffset OccurredOnUtc { get; }
 }

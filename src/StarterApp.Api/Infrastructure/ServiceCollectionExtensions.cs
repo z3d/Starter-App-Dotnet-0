@@ -1,5 +1,7 @@
+using Azure.Messaging.ServiceBus;
 using Scalar.AspNetCore;
 using StarterApp.Api.Infrastructure.HealthChecks;
+using StarterApp.Api.Infrastructure.Outbox;
 
 namespace StarterApp.Api.Infrastructure;
 
@@ -86,6 +88,25 @@ public static class ServiceCollectionExtensions
     {
         services.AddHealthChecks()
             .AddCheck<DatabaseReadinessHealthCheck>("database", tags: ["ready"]);
+
+        return services;
+    }
+
+    public static IServiceCollection AddServiceBusPublisher(this IServiceCollection services, IConfiguration configuration)
+    {
+        var connectionString = configuration.GetConnectionString("servicebus");
+        if (string.IsNullOrEmpty(connectionString))
+            return services;
+
+        services.Configure<OutboxProcessorOptions>(configuration.GetSection("OutboxProcessor"));
+
+        var options = new OutboxProcessorOptions();
+        configuration.GetSection("OutboxProcessor").Bind(options);
+
+        var client = new ServiceBusClient(connectionString);
+        services.AddSingleton(client);
+        services.AddSingleton(client.CreateSender(options.TopicName));
+        services.AddHostedService<OutboxProcessor>();
 
         return services;
     }

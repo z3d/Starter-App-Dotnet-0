@@ -20,6 +20,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Docker
       - ConnectionStrings__database=Server=db;Database=StarterApp;User Id=sa;Password=Your_password123;TrustServerCertificate=True;
+      - ConnectionStrings__servicebus=Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
       - SEQ_URL=http://seq:5341
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
@@ -33,6 +34,23 @@ services:
       db:
         condition: service_healthy
       seq:
+        condition: service_started
+      servicebus-emulator:
+        condition: service_started
+    networks:
+      - backend-network
+    restart: unless-stopped
+
+  functions:
+    build:
+      context: .
+      dockerfile: src/StarterApp.Functions/Dockerfile
+    environment:
+      - AzureWebJobsStorage=UseDevelopmentStorage=true
+      - FUNCTIONS_WORKER_RUNTIME=dotnet-isolated
+      - servicebus=Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
+    depends_on:
+      servicebus-emulator:
         condition: service_started
     networks:
       - backend-network
@@ -57,6 +75,36 @@ services:
     networks:
       - backend-network
     restart: unless-stopped
+
+  sqledge:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Your_password123
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "Your_password123" -Q "SELECT 1" -b
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - backend-network
+
+  servicebus-emulator:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Your_password123
+      - SQL_SERVER=sqledge
+    volumes:
+      - ./config/servicebus-emulator.json:/ServiceBus_Emulator/ConfigFiles/Config.json
+    ports:
+      - "5672:5672"
+    depends_on:
+      sqledge:
+        condition: service_healthy
+    networks:
+      - backend-network
 
   seq:
     image: datalust/seq:latest

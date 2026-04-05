@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.AppHost" Version="13.1.2" />
+    <PackageReference Include="Aspire.Hosting.Azure.ServiceBus" Version="13.1.2" />
     <PackageReference Include="Aspire.Hosting.DevTunnels" Version="13.1.2" />
     <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.1.2" />
     <PackageReference Include="Aspire.Hosting.Seq" Version="13.1.2" />
@@ -14,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\StarterApp.Api\StarterApp.Api.csproj" />
     <ProjectReference Include="..\StarterApp.DbMigrator\StarterApp.DbMigrator.csproj" />
+    <ProjectReference Include="..\StarterApp.Functions\StarterApp.Functions.csproj" />
   </ItemGroup>
 
 </Project>

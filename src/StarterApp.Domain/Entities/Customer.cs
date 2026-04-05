@@ -7,13 +7,13 @@ public class Customer
     public int Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public Email Email { get; private set; } = null!;
-    public DateTime DateCreated { get; private set; }
+    public DateTimeOffset DateCreated { get; private set; }
     public bool IsActive { get; private set; }
 
     protected Customer()
     {
         Name = string.Empty;
-        DateCreated = DateTime.UtcNow;
+        DateCreated = DateTimeOffset.UtcNow;
         IsActive = true;
     }
 
@@ -26,7 +26,7 @@ public class Customer
 
         Name = name;
         Email = email;
-        DateCreated = DateTime.UtcNow;
+        DateCreated = DateTimeOffset.UtcNow;
         IsActive = true;
     }
 

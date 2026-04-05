@@ -13,13 +13,13 @@ public sealed class OrderStatusChangedDomainEvent : IDomainEvent
         PreviousStatus = previousStatus.ToString();
         NewStatus = newStatus.ToString();
         LastUpdated = order.LastUpdated;
-        OccurredOnUtc = DateTime.UtcNow;
+        OccurredOnUtc = DateTimeOffset.UtcNow;
     }
 
     public int OrderId { get; }
     public int CustomerId { get; }
     public string PreviousStatus { get; }
     public string NewStatus { get; }
-    public DateTime LastUpdated { get; }
-    public DateTime OccurredOnUtc { get; }
+    public DateTimeOffset LastUpdated { get; }
+    public DateTimeOffset OccurredOnUtc { get; }
 }

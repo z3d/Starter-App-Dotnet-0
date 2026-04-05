@@ -32,6 +32,7 @@ builder.Services.AddMediator(Assembly.GetExecutingAssembly());
 builder.Services.AddApiCors(builder.Configuration, builder.Environment);
 builder.Services.AddApiRateLimiting();
 builder.Services.AddApiHealthChecks();
+builder.Services.AddServiceBusPublisher(builder.Configuration);
 
 var app = builder.Build();
 

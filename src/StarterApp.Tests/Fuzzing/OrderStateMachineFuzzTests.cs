@@ -67,7 +67,7 @@ public class OrderStateMachineFuzzTests
             pair =>
             {
                 var (current, target) = pair;
-                var order = Order.Reconstitute(1, 1, DateTime.UtcNow, current, DateTime.UtcNow, []);
+                var order = Order.Reconstitute(1, 1, DateTimeOffset.UtcNow, current, DateTimeOffset.UtcNow, []);
                 try
                 { order.UpdateStatus(target); return false; }
                 catch (InvalidOperationException) { return true; }
@@ -82,8 +82,8 @@ public class OrderStateMachineFuzzTests
         return Prop.ForAll(ids, ids, statuses,
             (id, customerId, status) =>
             {
-                var orderDate = DateTime.UtcNow.AddDays(-1);
-                var lastUpdated = DateTime.UtcNow;
+                var orderDate = DateTimeOffset.UtcNow.AddDays(-1);
+                var lastUpdated = DateTimeOffset.UtcNow;
                 var items = new List<OrderItem>
                 {
                     new(id, 1, "Fuzz Product", 1, Money.Create(10m, "USD"))

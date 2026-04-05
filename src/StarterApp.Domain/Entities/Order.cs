@@ -8,20 +8,20 @@ public class Order : AggregateRoot
 
     public int Id { get; private set; }
     public int CustomerId { get; private set; }
-    public DateTime OrderDate { get; private set; }
+    public DateTimeOffset OrderDate { get; private set; }
     public OrderStatus Status { get; private set; }
     public IReadOnlyList<OrderItem> Items
     {
         get => _items.AsReadOnly();
         private set { } // Required by EF Core property detection; data loaded via _items backing field (see ApplicationDbContext HasMany config with PropertyAccessMode.Field)
     }
-    public DateTime LastUpdated { get; private set; }
+    public DateTimeOffset LastUpdated { get; private set; }
 
     protected Order()
     {
-        OrderDate = DateTime.UtcNow;
+        OrderDate = DateTimeOffset.UtcNow;
         Status = OrderStatus.Pending;
-        LastUpdated = DateTime.UtcNow;
+        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     public Order(int customerId)
@@ -29,9 +29,9 @@ public class Order : AggregateRoot
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(customerId);
 
         CustomerId = customerId;
-        OrderDate = DateTime.UtcNow;
+        OrderDate = DateTimeOffset.UtcNow;
         Status = OrderStatus.Pending;
-        LastUpdated = DateTime.UtcNow;
+        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     public void AddItem(OrderItem item)
@@ -52,7 +52,7 @@ public class Order : AggregateRoot
         }
 
         _items.Add(item);
-        LastUpdated = DateTime.UtcNow;
+        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     /// <summary>
@@ -74,7 +74,7 @@ public class Order : AggregateRoot
 
         var item = new OrderItem(productId, productName, quantity, unitPrice, gstRate);
         _items.Add(item);
-        LastUpdated = DateTime.UtcNow;
+        LastUpdated = DateTimeOffset.UtcNow;
         return item;
     }
 
@@ -89,7 +89,7 @@ public class Order : AggregateRoot
         if (item != null)
         {
             _items.Remove(item);
-            LastUpdated = DateTime.UtcNow;
+            LastUpdated = DateTimeOffset.UtcNow;
         }
     }
 
@@ -100,7 +100,7 @@ public class Order : AggregateRoot
 
         var previousStatus = Status;
         Status = newStatus;
-        LastUpdated = DateTime.UtcNow;
+        LastUpdated = DateTimeOffset.UtcNow;
         RaiseDomainEvent(new OrderStatusChangedDomainEvent(this, previousStatus, newStatus));
     }
 
@@ -179,7 +179,7 @@ public class Order : AggregateRoot
         };
     }
 
-    internal static Order Reconstitute(int id, int customerId, DateTime orderDate, OrderStatus status, DateTime lastUpdated, List<OrderItem> items)
+    internal static Order Reconstitute(int id, int customerId, DateTimeOffset orderDate, OrderStatus status, DateTimeOffset lastUpdated, List<OrderItem> items)
     {
         var order = new Order
         {

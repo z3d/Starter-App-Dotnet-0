@@ -17,8 +17,8 @@ public class CustomerTests
         Assert.Equal(name, customer.Name);
         Assert.Equal(email, customer.Email);
         Assert.True(customer.IsActive);
-        Assert.True(customer.DateCreated <= DateTime.UtcNow);
-        Assert.True(customer.DateCreated > DateTime.UtcNow.AddMinutes(-1));
+        Assert.True(customer.DateCreated <= DateTimeOffset.UtcNow);
+        Assert.True(customer.DateCreated > DateTimeOffset.UtcNow.AddMinutes(-1));
     }
 
     [Theory]

@@ -460,6 +460,36 @@ public class OrderApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CreateOrder_WithMoreThanMaxItems_ShouldReturnBadRequest()
+    {
+        var customerCommand = CustomerBuilder.SimpleCustomer();
+        var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", customerCommand);
+        customerResponse.EnsureSuccessStatusCode();
+        var customer = await customerResponse.Content.ReadFromJsonAsync<CustomerDto>();
+        Assert.NotNull(customer);
+
+        var orderCommand = new CreateOrderCommand
+        {
+            CustomerId = customer.Id,
+            Items = Enumerable.Range(1, 51)
+                .Select(productId => new CreateOrderItemCommand
+                {
+                    ProductId = productId,
+                    Quantity = 1
+                })
+                .ToList()
+        };
+
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problemDetails);
+        Assert.Equal(400, problemDetails.Status);
+        Assert.Equal("Bad Request", problemDetails.Title);
+    }
+
+    [Fact]
     public async Task CreateOrder_WithNegativeQuantity_ShouldReturnBadRequest()
     {
         // Arrange - Create test data
@@ -727,7 +757,7 @@ public class OrderApiTests : IAsyncLifetime
     {
         // Arrange - Create test data
         var (customer, product) = await CreateTestData();
-        var startTime = DateTime.UtcNow;
+        var startTime = DateTimeOffset.UtcNow;
 
         // Create order
         var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
@@ -736,7 +766,7 @@ public class OrderApiTests : IAsyncLifetime
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
 
-        var endTime = DateTime.UtcNow;
+        var endTime = DateTimeOffset.UtcNow;
 
         // Act
         var response = await _fixture.Client.GetAsync($"/api/v1/orders/{createdOrder.Id}");

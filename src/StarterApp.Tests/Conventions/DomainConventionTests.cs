@@ -98,10 +98,8 @@ public class DomainConventionTests : ConventionTestBase
     }
 
     // === DateTime Safety ===
-    // Domain entities are excluded — they use DateTime.UtcNow for timestamps in constructors
-    // and mutation methods, which is acceptable for domain-level auditing. This test enforces
-    // that API-layer code (handlers, validators, endpoints) does not resolve time directly,
-    // ensuring testability of application logic.
+    // Domain entities use DateTimeOffset.UtcNow for timestamps. API-layer code must not resolve
+    // time directly, ensuring testability of application logic.
 
     [Fact]
     public void ApiTypes_MustNotResolveCurrentTimeViaDateTime()
@@ -110,6 +108,19 @@ public class DomainConventionTests : ConventionTestBase
             .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
         types
             .MustConformTo(Convention.MustNotResolveCurrentTimeViaDateTime)
+            .WithFailureAssertion(Assert.Fail);
+    }
+
+    // === DateTimeOffset Enforcement ===
+
+    [Fact]
+    public void DomainTypes_MustUseDateTimeOffsetNotDateTime()
+    {
+        var domainTypes = DomainAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
+
+        domainTypes
+            .MustConformTo(new MustNotUseDateTimePropertiesConvention())
             .WithFailureAssertion(Assert.Fail);
     }
 
@@ -146,6 +157,23 @@ public class DomainConventionTests : ConventionTestBase
     }
 
     // === Custom Convention Specifications ===
+
+    private class MustNotUseDateTimePropertiesConvention : ConventionSpecification
+    {
+        protected override string FailureMessage => "must use DateTimeOffset instead of DateTime for all timestamp properties";
+
+        public override ConventionResult IsSatisfiedBy(Type type)
+        {
+            var dateTimeProperties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.PropertyType == typeof(DateTime) || p.PropertyType == typeof(DateTime?))
+                .ToList();
+
+            return dateTimeProperties.Count == 0
+                ? ConventionResult.Satisfied(type.FullName!)
+                : ConventionResult.NotSatisfied(type.FullName!,
+                    $"{type.Name} uses DateTime on: {string.Join(", ", dateTimeProperties.Select(p => p.Name))}. Use DateTimeOffset instead.");
+        }
+    }
 
     private class MustOverrideEqualsAndGetHashCodeConvention : ConventionSpecification
     {

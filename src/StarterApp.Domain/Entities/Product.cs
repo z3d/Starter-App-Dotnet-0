@@ -11,7 +11,7 @@ public class Product
     public string Description { get; private set; } = string.Empty;
     public Money Price { get; private set; } = null!;
     public int Stock { get; private set; }
-    public DateTime LastUpdated { get; private set; }
+    public DateTimeOffset LastUpdated { get; private set; }
 
     // Protected constructor for EF Core
     protected Product()
@@ -19,7 +19,7 @@ public class Product
         // Initialize default values to satisfy non-nullable warnings
         Name = string.Empty;
         Description = string.Empty;
-        LastUpdated = DateTime.UtcNow;
+        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     // Public constructor (replacing the factory method)
@@ -36,7 +36,7 @@ public class Product
         Description = description ?? string.Empty;
         Price = price;
         Stock = stock;
-        LastUpdated = DateTime.UtcNow;
+        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     // Domain methods
@@ -51,7 +51,7 @@ public class Product
         Name = name;
         Description = description ?? string.Empty;
         Price = price;
-        LastUpdated = DateTime.UtcNow;
+        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     public void UpdateStock(int quantity)
@@ -60,7 +60,7 @@ public class Product
             throw new InvalidOperationException("Cannot reduce stock below zero");
 
         Stock += quantity;
-        LastUpdated = DateTime.UtcNow;
+        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     private static void ValidateName(string name)

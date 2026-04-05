@@ -93,7 +93,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(p => p.Stock, p => p.Stock - itemCommand.Quantity)
-                    .SetProperty(p => p.LastUpdated, _ => DateTime.UtcNow),
+                    .SetProperty(p => p.LastUpdated, _ => DateTimeOffset.UtcNow),
                 cancellationToken);
 
         if (updatedRows == 0)

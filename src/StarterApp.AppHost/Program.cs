@@ -10,6 +10,10 @@ var sql = builder.AddSqlServer("sql")
 
 var db = sql.AddDatabase("database");
 
+// Add Azure Service Bus emulator for domain event messaging
+var serviceBus = builder.AddAzureServiceBus("servicebus")
+                        .RunAsEmulator(emulator => emulator.WithConfigurationFile("../../config/servicebus-emulator.json"));
+
 // Add the database migrator as a separate service (must complete before API starts)
 var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
        .WithReference(db)
@@ -17,13 +21,20 @@ var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
        .WaitFor(db)
        .WaitFor(seq);
 
-// Add the API project with reference to the database
+// Add the API project with reference to the database and Service Bus
 var api = builder.AddProject<Projects.StarterApp_Api>("api")
        .WithReference(db)
+       .WithReference(serviceBus)
        .WithEnvironment("SEQ_URL", seq.GetEndpoint("http"))
        .WaitFor(db)
        .WaitFor(seq)
+       .WaitFor(serviceBus)
        .WaitForCompletion(migrator);
+
+// Add Azure Functions project for Service Bus subscribers
+builder.AddProject<Projects.StarterApp_Functions>("functions")
+       .WithReference(serviceBus)
+       .WaitFor(serviceBus);
 
 // Dev Tunnel: expose the API to the internet for webhook/mobile testing
 // Enable with: dotnet run -- --devtunnel  OR  set ENABLE_DEV_TUNNEL=true

@@ -1,0 +1,65 @@
+{
+  "UserConfig": {
+    "Namespaces": [
+      {
+        "Name": "StarterAppNamespace",
+        "Topics": [
+          {
+            "Name": "domain-events",
+            "Properties": {
+              "DefaultMessageTimeToLive": "PT1H",
+              "MaxSizeInMegabytes": 1024
+            },
+            "Subscriptions": [
+              {
+                "Name": "email-notifications",
+                "Properties": {
+                  "DefaultMessageTimeToLive": "PT1H",
+                  "LockDuration": "PT30S",
+                  "MaxDeliveryCount": 5
+                },
+                "Rules": [
+                  {
+                    "Name": "OrderCreatedFilter",
+                    "Properties": {
+                      "FilterType": "Correlation",
+                      "CorrelationFilter": {
+                        "ApplicationProperties": {
+                          "EventType": "OrderCreatedDomainEvent"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "Name": "inventory-reservation",
+                "Properties": {
+                  "DefaultMessageTimeToLive": "PT1H",
+                  "LockDuration": "PT30S",
+                  "MaxDeliveryCount": 5
+                },
+                "Rules": [
+                  {
+                    "Name": "OrderCreatedFilter",
+                    "Properties": {
+                      "FilterType": "Correlation",
+                      "CorrelationFilter": {
+                        "ApplicationProperties": {
+                          "EventType": "OrderCreatedDomainEvent"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "Logging": {
+      "Type": "File"
+    }
+  }
+}

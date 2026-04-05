@@ -15,8 +15,8 @@ public class OrderTests
         Assert.Equal(customerId, order.CustomerId);
         Assert.Equal(OrderStatus.Pending, order.Status);
         Assert.Empty(order.Items);
-        Assert.True(order.OrderDate <= DateTime.UtcNow);
-        Assert.True(order.LastUpdated <= DateTime.UtcNow);
+        Assert.True(order.OrderDate <= DateTimeOffset.UtcNow);
+        Assert.True(order.LastUpdated <= DateTimeOffset.UtcNow);
     }
 
     [Theory]
@@ -173,7 +173,7 @@ public class OrderTests
         if (currentStatus != OrderStatus.Pending)
         {
             // Reconstitute the order in the desired state
-            order = Order.Reconstitute(1, 1, DateTime.UtcNow, currentStatus, DateTime.UtcNow, []);
+            order = Order.Reconstitute(1, 1, DateTimeOffset.UtcNow, currentStatus, DateTimeOffset.UtcNow, []);
         }
 
         // Act & Assert
@@ -233,7 +233,7 @@ public class OrderTests
     public void Cancel_FromDeliveredStatus_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var order = Order.Reconstitute(1, 1, DateTime.UtcNow, OrderStatus.Delivered, DateTime.UtcNow, []);
+        var order = Order.Reconstitute(1, 1, DateTimeOffset.UtcNow, OrderStatus.Delivered, DateTimeOffset.UtcNow, []);
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() => order.Cancel());
@@ -311,8 +311,8 @@ public class OrderTests
     public void Reconstitute_ShouldSetAllPropertiesCorrectly()
     {
         // Arrange
-        var orderDate = DateTime.UtcNow.AddDays(-1);
-        var lastUpdated = DateTime.UtcNow;
+        var orderDate = DateTimeOffset.UtcNow.AddDays(-1);
+        var lastUpdated = DateTimeOffset.UtcNow;
         var money = Money.Create(10.00m, "USD");
         var items = new List<OrderItem>
         {

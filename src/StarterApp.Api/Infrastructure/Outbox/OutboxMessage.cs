@@ -11,14 +11,25 @@ public class OutboxMessage
     };
 
     public Guid Id { get; private set; }
-    public DateTime OccurredOnUtc { get; private set; }
+    public DateTimeOffset OccurredOnUtc { get; private set; }
     public string Type { get; private set; } = string.Empty;
     public string Payload { get; private set; } = string.Empty;
-    public DateTime? ProcessedOnUtc { get; private set; }
+    public DateTimeOffset? ProcessedOnUtc { get; private set; }
     public string? Error { get; private set; }
 
     private OutboxMessage()
     {
+    }
+
+    public void MarkAsProcessed(DateTimeOffset processedOnUtc)
+    {
+        ProcessedOnUtc = processedOnUtc;
+    }
+
+    public void MarkAsError(string error)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(error);
+        Error = error;
     }
 
     public static OutboxMessage Create(IDomainEvent domainEvent)
