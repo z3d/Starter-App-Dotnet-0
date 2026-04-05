@@ -8,7 +8,9 @@
             "Name": "domain-events",
             "Properties": {
               "DefaultMessageTimeToLive": "PT1H",
-              "MaxSizeInMegabytes": 1024
+              "MaxSizeInMegabytes": 1024,
+              "RequiresDuplicateDetection": true,
+              "DuplicateDetectionHistoryTimeWindow": "PT10M"
             },
             "Subscriptions": [
               {

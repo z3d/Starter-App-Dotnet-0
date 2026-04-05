@@ -155,11 +155,12 @@ public class ApplicationDbContext : DbContext
         bool sync,
         CancellationToken cancellationToken)
     {
-        RecordCreationEventsForNewOrders();
-
-        var aggregatesWithEvents = ChangeTracker.Entries<AggregateRoot>()
-            .Where(entry => entry.Entity.DomainEvents.Count > 0)
+        // Capture new orders while they are still in Added state (before SaveChanges flips them to Unchanged).
+        // We cannot call RecordCreation() yet because IDENTITY values are not assigned until after SaveChanges.
+        var newOrdersPendingEvent = ChangeTracker.Entries<Order>()
+            .Where(entry => entry.State == EntityState.Added)
             .Select(entry => entry.Entity)
+            .Where(order => order.DomainEvents.OfType<OrderCreatedDomainEvent>().Any() == false)
             .ToList();
 
         var shouldManageTransaction = Database.IsRelational() && Database.CurrentTransaction == null;
@@ -177,6 +178,15 @@ public class ApplicationDbContext : DbContext
             var rowsAffected = sync
                 ? base.SaveChanges(acceptAllChangesOnSuccess)
                 : await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+
+            // Record creation events AFTER SaveChanges so Order.Id reflects the database-assigned identity.
+            foreach (var order in newOrdersPendingEvent)
+                order.RecordCreation();
+
+            var aggregatesWithEvents = ChangeTracker.Entries<AggregateRoot>()
+                .Where(entry => entry.Entity.DomainEvents.Count > 0)
+                .Select(entry => entry.Entity)
+                .ToList();
 
             if (aggregatesWithEvents.Count > 0)
             {
@@ -231,16 +241,5 @@ public class ApplicationDbContext : DbContext
                     await transaction.DisposeAsync();
             }
         }
-    }
-
-    private void RecordCreationEventsForNewOrders()
-    {
-        var newOrders = ChangeTracker.Entries<Order>()
-            .Where(entry => entry.State == EntityState.Added)
-            .Select(entry => entry.Entity)
-            .Where(order => order.DomainEvents.OfType<OrderCreatedDomainEvent>().Any() == false);
-
-        foreach (var order in newOrders)
-            order.RecordCreation();
     }
 }

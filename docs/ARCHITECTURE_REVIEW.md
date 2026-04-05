@@ -87,7 +87,7 @@ The mediator at `Infrastructure/Mediator/Mediator.cs` is well-designed:
 - **Health checks** at `/health`, `/health/ready`, `/health/live`, and `/alive`
 - **Password masking** in log output — implemented consistently across `Program.cs`, `DatabaseMigrationEngine`, and `DbMigrator`
 - **Dedicated `DbMigrator` service** for migrations across all deployment modes (Aspire, Docker Compose, standalone)
-- **Outbox → Service Bus pipeline** — domain events captured durably in `OutboxMessages` during `SaveChangesAsync`, published to Azure Service Bus by `OutboxProcessor` BackgroundService, consumed by Azure Functions via topic subscriptions with correlation filters
+- **Outbox → Service Bus pipeline** — domain events captured durably in `OutboxMessages` during `SaveChangesAsync` (post-persist, so IDENTITY values are correct), published to Azure Service Bus by `OutboxProcessor` BackgroundService with row-level locking (`UPDLOCK, READPAST, ROWLOCK`) to prevent duplicate publishing across replicas. Service Bus topic has duplicate detection enabled (10-minute window). Consumed by Azure Functions via topic subscriptions with correlation filters. Convention test enforces subscription filter ↔ domain event name sync.
 - **Explicit constraint naming** — all database constraints named via convention (`PK_`, `FK_`, `DF_`, `CK_`, `IX_`), enforced by convention test from script 0012 onward
 
 ### Build Quality
@@ -119,7 +119,16 @@ Good adoption of modern .NET:
 
 These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
 
-No open findings. All 6 Service Bus findings (#22–#27) have been resolved.
+No open findings. All findings have been resolved.
+
+#### Recently resolved (outbox correctness + eventing contract)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~28~~ | OrderCreatedDomainEvent captures pre-persist OrderId (always 0) | Record creation events AFTER first SaveChanges when IDENTITY values are assigned |
+| ~~29~~ | Outbox rows can be published more than once (no locking, no dedup) | Row-level locking (UPDLOCK, READPAST, ROWLOCK) + transaction in OutboxProcessor; duplicate detection enabled on Service Bus topic |
+| ~~30~~ | Event routing coupled to CLR type names — rename breaks routing silently | Convention test validates subscription filter EventType values against actual IDomainEvent class names |
+| ~~31~~ | Aspire integration test doesn't verify eventing path | Renamed to honest scope; added stock decrement verification; set explicit HttpClient timeout |
 
 #### Recently resolved (Service Bus hardening)
 
@@ -275,7 +284,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 |----------|-------|---------------|
 | Domain unit tests | 6 | Entity creation, validation, state transitions, value object behavior |
 | Property-based (FsCheck) | 5 | Money arithmetic invariants, order state machine, GST calculations, email validation |
-| Convention tests | 6 classes | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping, Dapper SQL quality, DateTimeOffset enforcement, constraint naming enforcement |
+| Convention tests | 6 classes | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping, Dapper SQL quality, DateTimeOffset enforcement, constraint naming enforcement, event routing contract validation |
 | Application tests | 9 | All command handlers tested with in-memory DbContext |
 | Infrastructure tests | 2 | OutboxMessage mutation tests, OutboxProcessor batch processing with Moq ServiceBusSender |
 | Integration tests | 4+ | Full API endpoint testing with Testcontainers SQL Server, DbUp migrations, ProblemDetails responses |
@@ -290,7 +299,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention via IL inspection), proper CQRS separation with zero violations, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-Issues #1–#14, #16–#21, and #22–#27 have all been resolved. Recent hardening addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, the outbox persists events transactionally, rate limiting is enforced globally, and mixed-currency orders are rejected at the domain level. The Service Bus integration was hardened with proper resource disposal, retry logic for transient failures, validated configuration, and optimized database indexing.
+Issues #1–#14, #16–#21, #22–#27, and #28–#31 have all been resolved. Recent hardening addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, the outbox persists events transactionally, rate limiting is enforced globally, and mixed-currency orders are rejected at the domain level. The Service Bus integration was hardened with proper resource disposal, retry logic for transient failures, validated configuration, and optimized database indexing. The outbox processor now uses row-level locking to prevent duplicate publishing across replicas, domain events capture post-persist identity values, and a convention test enforces that Service Bus subscription filters stay in sync with domain event class names.
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 

@@ -175,6 +175,75 @@ public class DomainConventionTests : ConventionTestBase
         }
     }
 
+    // === Event Routing Contract ===
+
+    [Fact]
+    public void ServiceBusSubscriptionFilters_MustReferenceExistingDomainEvents()
+    {
+        // Every EventType string in the Service Bus subscription correlation filters must
+        // correspond to an actual IDomainEvent class name. This catches silent routing
+        // breakage when a domain event class is renamed.
+        var domainEventNames = DomainAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract &&
+                   t.GetInterfaces().Any(i => i == typeof(IDomainEvent)))
+            .Select(t => t.Name)
+            .ToHashSet();
+
+        var configPath = ResolveServiceBusConfigPath();
+        if (configPath == null)
+            return;
+
+        var json = System.Text.Json.JsonDocument.Parse(File.ReadAllText(configPath));
+        var orphanedFilters = new List<string>();
+
+        foreach (var ns in json.RootElement.GetProperty("UserConfig").GetProperty("Namespaces").EnumerateArray())
+        {
+            foreach (var topic in ns.GetProperty("Topics").EnumerateArray())
+            {
+                foreach (var subscription in topic.GetProperty("Subscriptions").EnumerateArray())
+                {
+                    var subscriptionName = subscription.GetProperty("Name").GetString()!;
+                    foreach (var rule in subscription.GetProperty("Rules").EnumerateArray())
+                    {
+                        if (!rule.GetProperty("Properties").TryGetProperty("CorrelationFilter", out var filter))
+                            continue;
+                        if (!filter.TryGetProperty("ApplicationProperties", out var props))
+                            continue;
+                        if (!props.TryGetProperty("EventType", out var eventType))
+                            continue;
+
+                        var typeName = eventType.GetString()!;
+                        if (!domainEventNames.Contains(typeName))
+                            orphanedFilters.Add($"  Subscription '{subscriptionName}' filters on EventType '{typeName}' but no IDomainEvent class with that name exists");
+                    }
+                }
+            }
+        }
+
+        Assert.True(orphanedFilters.Count == 0,
+            "Service Bus subscription filters reference non-existent domain event types. " +
+            "If you renamed a domain event class, update config/servicebus-emulator.json to match:\n" +
+            string.Join("\n", orphanedFilters));
+    }
+
+    private static string? ResolveServiceBusConfigPath()
+    {
+        var path = Path.Combine(
+            Path.GetDirectoryName(typeof(Product).Assembly.Location)!,
+            "..", "..", "..", "..", "..", "config", "servicebus-emulator.json");
+
+        if (!File.Exists(path))
+        {
+            path = Path.GetFullPath(Path.Combine(
+                Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
+                "..", "..", "..", "..", "..", "..", "config", "servicebus-emulator.json"));
+        }
+
+        return File.Exists(path) ? path : null;
+    }
+
+    // === Custom Convention Specifications ===
+
     private class MustOverrideEqualsAndGetHashCodeConvention : ConventionSpecification
     {
         protected override string FailureMessage => "must override Equals(object) and GetHashCode()";

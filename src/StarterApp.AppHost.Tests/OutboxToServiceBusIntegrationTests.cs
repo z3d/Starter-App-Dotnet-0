@@ -27,7 +27,7 @@ public class OutboxToServiceBusIntegrationTests
     }
 
     [Fact]
-    public async Task CreateOrder_ShouldPublishToOutbox_AndBeProcessed()
+    public async Task CreateOrder_ShouldSucceedEndToEnd()
     {
         // Arrange
         var appHost = await DistributedApplicationTestingBuilder
@@ -36,6 +36,7 @@ public class OutboxToServiceBusIntegrationTests
         await app.StartAsync();
 
         var httpClient = app.CreateHttpClient("api");
+        httpClient.Timeout = TimeSpan.FromSeconds(30);
 
         // Create a customer
         var customerResponse = await httpClient.PostAsJsonAsync("/api/v1/customers", new
@@ -71,12 +72,17 @@ public class OutboxToServiceBusIntegrationTests
         var orderId = order.GetProperty("id").GetInt32();
         Assert.True(orderId > 0);
 
-        // Assert — wait for outbox processing (processor polls every 5s by default)
-        // Verify the order exists and was created successfully
+        // Assert — verify the order persisted correctly
         var getResponse = await httpClient.GetAsync($"/api/v1/orders/{orderId}");
         getResponse.EnsureSuccessStatusCode();
         var fetchedOrder = await getResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         Assert.Equal("Pending", fetchedOrder.GetProperty("status").GetString());
+
+        // Verify stock was decremented
+        var getProductResponse = await httpClient.GetAsync($"/api/v1/products/{productId}");
+        getProductResponse.EnsureSuccessStatusCode();
+        var fetchedProduct = await getProductResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        Assert.Equal(48, fetchedProduct.GetProperty("stock").GetInt32());
     }
 
     [Fact]
