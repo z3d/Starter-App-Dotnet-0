@@ -16,7 +16,9 @@ var redis = builder.AddRedis("redis")
 
 // Add Azure Service Bus emulator for domain event messaging
 var serviceBus = builder.AddAzureServiceBus("servicebus")
-                        .RunAsEmulator(emulator => emulator.WithConfigurationFile("../../config/servicebus-emulator.json"));
+                        .RunAsEmulator(emulator => emulator
+                            .WithConfigurationFile("../../config/servicebus-emulator.json")
+                            .WithLifetime(ContainerLifetime.Persistent));
 
 // Add the database migrator as a separate service (must complete before API starts)
 var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")

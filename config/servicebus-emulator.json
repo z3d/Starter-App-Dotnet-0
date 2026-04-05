@@ -2,7 +2,7 @@
   "UserConfig": {
     "Namespaces": [
       {
-        "Name": "StarterAppNamespace",
+        "Name": "sbemulatorns",
         "Topics": [
           {
             "Name": "domain-events",
@@ -10,7 +10,7 @@
               "DefaultMessageTimeToLive": "PT1H",
               "MaxSizeInMegabytes": 1024,
               "RequiresDuplicateDetection": true,
-              "DuplicateDetectionHistoryTimeWindow": "PT10M"
+              "DuplicateDetectionHistoryTimeWindow": "PT5M"
             },
             "Subscriptions": [
               {
