@@ -95,38 +95,121 @@ public class PersistenceConventionTests : ConventionTestBase
     [Fact]
     public void DbMigratorAssembly_MustHaveEmbeddedScriptsWithNumberedPrefix()
     {
-        // DbMigrator embeds SQL scripts as resources. Verify the assembly
-        // follows the convention by checking the migrator type itself.
-        var dbMigratorTypes = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => a.GetName().Name == "StarterApp.DbMigrator")
-            .SelectMany(a => a.GetTypes())
-            .Where(t => t.IsClass && !t.IsAbstract)
+        var scriptsDir = ResolveScriptsDirectory();
+        if (scriptsDir == null)
+            return;
+
+        var badScripts = Directory.GetFiles(scriptsDir, "*.sql")
+            .Select(Path.GetFileName)
+            .Where(f => f != null && !System.Text.RegularExpressions.Regex.IsMatch(f, @"^\d{4}_"))
             .ToList();
 
-        // If the migrator isn't loaded, fall back to file system check
-        if (dbMigratorTypes.Count == 0)
+        Assert.Empty(badScripts);
+    }
+
+    [Fact]
+    public void MigrationScripts_MustNameAllConstraintsExplicitly()
+    {
+        // Scripts 0001–0011 predate this rule. Enforce from 0012 onward.
+        const int firstEnforcedScript = 12;
+
+        var scriptsDir = ResolveScriptsDirectory();
+        if (scriptsDir == null)
+            return;
+
+        var violations = new List<string>();
+
+        foreach (var file in Directory.GetFiles(scriptsDir, "*.sql").OrderBy(f => f))
         {
-            var scriptsDir = Path.Combine(
-                Path.GetDirectoryName(typeof(ApplicationDbContext).Assembly.Location)!,
-                "..", "..", "..", "..", "StarterApp.DbMigrator", "Scripts");
+            var fileName = Path.GetFileName(file);
+            if (!int.TryParse(fileName.AsSpan(0, 4), out var scriptNumber) || scriptNumber < firstEnforcedScript)
+                continue;
 
-            if (!Directory.Exists(scriptsDir))
+            var sql = File.ReadAllText(file);
+            CheckForAnonymousConstraints(fileName, sql, violations);
+        }
+
+        Assert.True(violations.Count == 0,
+            $"Migration scripts must name all constraints explicitly (PK_Table, DF_Table_Column, CK_Table_Desc, FK_Table_Column):\n" +
+            string.Join("\n", violations));
+    }
+
+    private static void CheckForAnonymousConstraints(string fileName, string sql, List<string> violations)
+    {
+        // Strip SQL comments (-- line comments and /* block comments */)
+        var stripped = System.Text.RegularExpressions.Regex.Replace(sql, @"--[^\r\n]*", "");
+        stripped = System.Text.RegularExpressions.Regex.Replace(stripped, @"/\*[\s\S]*?\*/", "");
+
+        // Anonymous inline PRIMARY KEY (not preceded by CONSTRAINT keyword)
+        if (System.Text.RegularExpressions.Regex.IsMatch(stripped,
+            @"(?<!\bCONSTRAINT\s+\w+\s+)PRIMARY\s+KEY",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+        {
+            violations.Add($"  {fileName}: anonymous PRIMARY KEY — use CONSTRAINT PK_TableName PRIMARY KEY");
+        }
+
+        // Anonymous inline DEFAULT in CREATE TABLE (column definition with DEFAULT but no CONSTRAINT keyword)
+        // Matches: ColumnName TYPE ... DEFAULT value  (without preceding CONSTRAINT)
+        if (System.Text.RegularExpressions.Regex.IsMatch(stripped,
+            @"(?<!\bCONSTRAINT\s+\w+\s+)DEFAULT\s+",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+        {
+            // Exclude dynamic SQL patterns that DROP old defaults (legitimate use)
+            var defaultMatches = System.Text.RegularExpressions.Regex.Matches(stripped,
+                @"(?<!\bCONSTRAINT\s+\w+\s+)DEFAULT\s+",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            foreach (System.Text.RegularExpressions.Match match in defaultMatches)
             {
-                scriptsDir = Path.GetFullPath(Path.Combine(
-                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
-                    "..", "..", "..", "..", "..", "StarterApp.DbMigrator", "Scripts"));
-            }
+                // Allow ADD CONSTRAINT DF_xxx DEFAULT (the CONSTRAINT keyword comes before the name, not before DEFAULT)
+                // Check the broader context: look back for CONSTRAINT keyword
+                var preceding = stripped[..match.Index];
+                var lastConstraint = preceding.LastIndexOf("CONSTRAINT", StringComparison.OrdinalIgnoreCase);
+                if (lastConstraint >= 0)
+                {
+                    // Check there's a name between CONSTRAINT and DEFAULT with no semicolon/comma breaking the statement
+                    var between = preceding[lastConstraint..];
+                    if (!between.Contains(';') && !between.Contains(',') &&
+                        System.Text.RegularExpressions.Regex.IsMatch(between, @"CONSTRAINT\s+\w+", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                        continue;
+                }
 
-            if (Directory.Exists(scriptsDir))
-            {
-                var badScripts = Directory.GetFiles(scriptsDir, "*.sql")
-                    .Select(Path.GetFileName)
-                    .Where(f => f != null && !System.Text.RegularExpressions.Regex.IsMatch(f, @"^\d{4}_"))
-                    .ToList();
-
-                Assert.Empty(badScripts);
+                violations.Add($"  {fileName}: anonymous DEFAULT — use CONSTRAINT DF_Table_Column DEFAULT or ADD CONSTRAINT DF_Table_Column DEFAULT");
+                break;
             }
         }
+
+        // Anonymous inline CHECK (not preceded by CONSTRAINT keyword)
+        if (System.Text.RegularExpressions.Regex.IsMatch(stripped,
+            @"(?<!\bCONSTRAINT\s+\w+\s+)CHECK\s*\(",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+        {
+            violations.Add($"  {fileName}: anonymous CHECK — use CONSTRAINT CK_Table_Description CHECK (...)");
+        }
+
+        // Anonymous FOREIGN KEY (not preceded by CONSTRAINT keyword)
+        if (System.Text.RegularExpressions.Regex.IsMatch(stripped,
+            @"(?<!\bCONSTRAINT\s+\w+\s+)FOREIGN\s+KEY",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+        {
+            violations.Add($"  {fileName}: anonymous FOREIGN KEY — use CONSTRAINT FK_Table_Column FOREIGN KEY");
+        }
+    }
+
+    private static string? ResolveScriptsDirectory()
+    {
+        var scriptsDir = Path.Combine(
+            Path.GetDirectoryName(typeof(ApplicationDbContext).Assembly.Location)!,
+            "..", "..", "..", "..", "StarterApp.DbMigrator", "Scripts");
+
+        if (!Directory.Exists(scriptsDir))
+        {
+            scriptsDir = Path.GetFullPath(Path.Combine(
+                Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
+                "..", "..", "..", "..", "..", "StarterApp.DbMigrator", "Scripts"));
+        }
+
+        return Directory.Exists(scriptsDir) ? scriptsDir : null;
     }
 
     // === Custom Convention Specifications ===

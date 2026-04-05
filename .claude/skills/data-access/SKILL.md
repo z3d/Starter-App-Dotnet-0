@@ -49,6 +49,23 @@ This lets the aggregate root own the collection privately (`_items` backing fiel
 - Automatic execution on startup with error handling
 - Separate migration service for clean separation
 
+**Constraint Naming Convention** (enforced by convention test from script 0012 onward):
+
+Every constraint must be explicitly named. Anonymous/system-generated names require dynamic SQL to discover and drop, which is fragile and non-deterministic.
+
+| Prefix | Type | Example |
+|--------|------|---------|
+| `PK_` | Primary Key | `CONSTRAINT PK_Orders PRIMARY KEY (Id)` |
+| `FK_` | Foreign Key | `CONSTRAINT FK_Orders_CustomerId FOREIGN KEY (CustomerId) REFERENCES Customers(Id)` |
+| `DF_` | Default | `CONSTRAINT DF_Orders_Status DEFAULT 'Pending'` |
+| `CK_` | Check | `CONSTRAINT CK_Products_Stock_NonNegative CHECK (Stock >= 0)` |
+| `IX_` | Index | `CREATE INDEX IX_Orders_OrderDate ON Orders (OrderDate DESC)` |
+
+In `ALTER TABLE ... ADD` statements, use the `ADD CONSTRAINT` form:
+```sql
+ALTER TABLE Orders ADD CONSTRAINT DF_Orders_OrderDate DEFAULT SYSDATETIMEOFFSET() FOR OrderDate;
+```
+
 ## Connection String Resolution
 
 Priority order: `database` → `DockerLearning` → `sqlserver` → `DefaultConnection`

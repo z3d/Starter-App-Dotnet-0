@@ -141,6 +141,7 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - **Docker Compose:** `migrator` service runs before the API (`condition: service_completed_successfully`)
 - **Standalone dev:** Run `dotnet run --project src/StarterApp.DbMigrator` before starting the API
 - **Integration tests:** `TestFixture.RunDbUpMigrations()` runs migrations independently
+- **Constraint naming**: Every constraint must have an explicit name — no anonymous/system-generated names. Convention: `PK_Table`, `FK_Table_Column`, `DF_Table_Column`, `CK_Table_Description`, `IX_Table_Column`. This makes future migrations deterministic (`DROP CONSTRAINT PK_Orders`) instead of requiring dynamic SQL lookups against `sys.default_constraints`. Enforced by convention test from script 0012 onward.
 
 **Testing**: xUnit + FsCheck property-based testing + Best.Conventional architectural conventions across 6 test classes (including `DapperConventionTests` for SELECT * prevention via IL inspection). Convention tests use built-in conventions where possible, custom `ConventionSpecification` for structural checks. See `.claude/skills/testing-strategy/SKILL.md`.
 
