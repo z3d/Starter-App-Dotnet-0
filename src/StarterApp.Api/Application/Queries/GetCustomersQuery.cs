@@ -1,9 +1,11 @@
 namespace StarterApp.Api.Application.Queries;
 
-public class GetCustomersQuery : IQuery<IEnumerable<CustomerReadModel>>, IRequest<IEnumerable<CustomerReadModel>>
+public class GetCustomersQuery : IQuery<IEnumerable<CustomerReadModel>>, IRequest<IEnumerable<CustomerReadModel>>, ICacheable
 {
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 50;
+    public string CacheKey => $"Customers:All:Page:{Page}:Size:{PageSize}";
+    public TimeSpan CacheDuration => TimeSpan.FromMinutes(5);
 }
 
 public class GetCustomersQueryHandler : IRequestHandler<GetCustomersQuery, IEnumerable<CustomerReadModel>>

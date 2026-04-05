@@ -20,6 +20,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Docker
       - ConnectionStrings__database=Server=db;Database=StarterApp;User Id=sa;Password=Your_password123;TrustServerCertificate=True;
+      - ConnectionStrings__redis=redis:6379
       - ConnectionStrings__servicebus=Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
       - SEQ_URL=http://seq:5341
     healthcheck:
@@ -35,8 +36,25 @@ services:
         condition: service_healthy
       seq:
         condition: service_started
+      redis:
+        condition: service_healthy
       servicebus-emulator:
         condition: service_started
+    networks:
+      - backend-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - backend-network
     restart: unless-stopped
@@ -125,6 +143,8 @@ networks:
 
 volumes:
   sqldata:
+    driver: local
+  redis-data:
     driver: local
   seq-data:
     driver: local

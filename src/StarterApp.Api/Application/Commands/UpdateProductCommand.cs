@@ -13,10 +13,12 @@ public class UpdateProductCommand : ICommand, IRequest<ProductDto?>
 public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand, ProductDto?>
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly ICacheInvalidator _cacheInvalidator;
 
-    public UpdateProductCommandHandler(ApplicationDbContext dbContext)
+    public UpdateProductCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator)
     {
         _dbContext = dbContext;
+        _cacheInvalidator = cacheInvalidator;
     }
 
     public async Task<ProductDto?> HandleAsync(UpdateProductCommand command, CancellationToken cancellationToken)
@@ -43,6 +45,7 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _cacheInvalidator.InvalidateProductAsync(product.Id, cancellationToken);
 
         Log.Information("Updated product with ID: {ProductId}", product.Id);
 

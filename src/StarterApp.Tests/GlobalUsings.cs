@@ -13,6 +13,7 @@ global using StarterApp.Api.Application;
 global using StarterApp.Api.Application.Commands;
 global using StarterApp.Api.Application.DTOs;
 global using StarterApp.Api.Application.ReadModels;
+global using StarterApp.Api.Infrastructure.Caching;
 // Domain references
 global using StarterApp.Domain.Abstractions;
 global using StarterApp.Domain.Entities;

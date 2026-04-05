@@ -1,8 +1,10 @@
 namespace StarterApp.Api.Application.Queries;
 
-public class GetProductByIdQuery : IQuery<ProductReadModel?>, IRequest<ProductReadModel?>
+public class GetProductByIdQuery : IQuery<ProductReadModel?>, IRequest<ProductReadModel?>, ICacheable
 {
     public int Id { get; }
+    public string CacheKey => $"Product:{Id}";
+    public TimeSpan CacheDuration => TimeSpan.FromMinutes(10);
 
     public GetProductByIdQuery(int id)
     {

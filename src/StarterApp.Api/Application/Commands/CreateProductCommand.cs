@@ -12,10 +12,12 @@ public class CreateProductCommand : ICommand, IRequest<ProductDto>
 public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand, ProductDto>
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly ICacheInvalidator _cacheInvalidator;
 
-    public CreateProductCommandHandler(ApplicationDbContext dbContext)
+    public CreateProductCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator)
     {
         _dbContext = dbContext;
+        _cacheInvalidator = cacheInvalidator;
     }
 
     public async Task<ProductDto> HandleAsync(
@@ -30,6 +32,7 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
 
         _dbContext.Products.Add(product);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _cacheInvalidator.InvalidateProductAsync(product.Id, cancellationToken);
 
         Log.Information("Created new product with ID: {ProductId}", product.Id);
 

@@ -5,6 +5,8 @@ public static class MediatorServiceExtensions
     public static IServiceCollection AddMediator(this IServiceCollection services, params Assembly[] assemblies)
     {
         services.AddScoped<IMediator, Mediator>();
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
+        services.AddScoped<ICacheInvalidator, CacheInvalidator>();
 
         foreach (var assembly in assemblies)
         {

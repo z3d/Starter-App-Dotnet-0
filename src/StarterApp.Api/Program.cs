@@ -24,6 +24,11 @@ builder.Host.UseSerilog((context, services, configuration) =>
 var connectionString = builder.Configuration.GetConnectionString("database")
     ?? throw new InvalidOperationException("Connection string 'database' not found. Ensure Aspire is configured correctly.");
 
+if (!string.IsNullOrEmpty(builder.Configuration.GetConnectionString("redis")))
+    builder.AddRedisDistributedCache("redis");
+else
+    builder.Services.AddDistributedMemoryCache();
+
 builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddApiOpenApi();

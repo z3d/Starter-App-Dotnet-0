@@ -57,7 +57,7 @@ public class UpdateCustomerCommandHandlerTests
         context.Customers.Add(customer);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateCustomerCommandHandler(context);
+        var handler = new UpdateCustomerCommandHandler(context, NullCacheInvalidator.Instance);
         var command = new UpdateCustomerCommand
         {
             Id = customer.Id,
@@ -89,7 +89,7 @@ public class UpdateCustomerCommandHandlerTests
         var options = CreateInMemoryOptions();
         await using var context = new ApplicationDbContext(options);
 
-        var handler = new UpdateCustomerCommandHandler(context);
+        var handler = new UpdateCustomerCommandHandler(context, NullCacheInvalidator.Instance);
         var command = new UpdateCustomerCommand
         {
             Id = 99999,

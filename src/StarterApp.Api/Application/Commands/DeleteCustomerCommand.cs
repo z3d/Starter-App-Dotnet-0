@@ -8,10 +8,12 @@ public class DeleteCustomerCommand : ICommand, IRequest
 public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerCommand>
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly ICacheInvalidator _cacheInvalidator;
 
-    public DeleteCustomerCommandHandler(ApplicationDbContext dbContext)
+    public DeleteCustomerCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator)
     {
         _dbContext = dbContext;
+        _cacheInvalidator = cacheInvalidator;
     }
 
     public async Task HandleAsync(DeleteCustomerCommand command, CancellationToken cancellationToken)
@@ -36,6 +38,7 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
 
         _dbContext.Customers.Remove(customer);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _cacheInvalidator.InvalidateCustomerAsync(command.Id, cancellationToken);
 
         Log.Information("Deleted customer with ID: {CustomerId}", command.Id);
     }

@@ -22,6 +22,7 @@ The project enforces architectural rules through convention tests across 6 test 
 | `ApiConventionTests` | Endpoints don't access DB directly; validators are pure; DTOs have no instance methods; mappers are static; handlers don't dispatch to other handlers; domain doesn't reference API |
 | `PersistenceConventionTests` | Every entity has a `DbSet`; value objects use `OwnsOne` not `DbSet`; enum properties configured; no static mutable state on `DbContext`; collection properties have private setters; migration scripts follow numbered prefix |
 | `DapperConventionTests` | Query handlers must not use `SELECT *` in SQL (IL inspection of compiled string literals) |
+| `CachingConventionTests` | ICacheable queries must have non-empty cache keys, positive durations, and deterministic keys |
 
 These tests catch entire categories of mistakes at compile time rather than in production.
 

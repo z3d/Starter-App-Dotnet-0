@@ -10,6 +10,10 @@ var sql = builder.AddSqlServer("sql")
 
 var db = sql.AddDatabase("database");
 
+// Add Redis for distributed caching
+var redis = builder.AddRedis("redis")
+                   .WithLifetime(ContainerLifetime.Persistent);
+
 // Add Azure Service Bus emulator for domain event messaging
 var serviceBus = builder.AddAzureServiceBus("servicebus")
                         .RunAsEmulator(emulator => emulator.WithConfigurationFile("../../config/servicebus-emulator.json"));
@@ -24,9 +28,11 @@ var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
 // Add the API project with reference to the database and Service Bus
 var api = builder.AddProject<Projects.StarterApp_Api>("api")
        .WithReference(db)
+       .WithReference(redis)
        .WithReference(serviceBus)
        .WithEnvironment("SEQ_URL", seq.GetEndpoint("http"))
        .WaitFor(db)
+       .WaitFor(redis)
        .WaitFor(seq)
        .WaitFor(serviceBus)
        .WaitForCompletion(migrator);

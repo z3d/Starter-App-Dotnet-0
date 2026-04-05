@@ -31,7 +31,7 @@ public class DeleteCustomerCommandHandlerTests
         context.Customers.Add(customer);
         await context.SaveChangesAsync();
 
-        var handler = new DeleteCustomerCommandHandler(context);
+        var handler = new DeleteCustomerCommandHandler(context, NullCacheInvalidator.Instance);
         var command = new DeleteCustomerCommand { Id = customer.Id };
 
         // Act
@@ -49,7 +49,7 @@ public class DeleteCustomerCommandHandlerTests
         var options = CreateInMemoryOptions();
         await using var context = new ApplicationDbContext(options);
 
-        var handler = new DeleteCustomerCommandHandler(context);
+        var handler = new DeleteCustomerCommandHandler(context, NullCacheInvalidator.Instance);
         var command = new DeleteCustomerCommand { Id = 999 };
 
         // Act & Assert
@@ -78,7 +78,7 @@ public class DeleteCustomerCommandHandlerTests
             Items = [new() { ProductId = product.Id, Quantity = 1 }]
         }, CancellationToken.None);
 
-        var handler = new DeleteCustomerCommandHandler(context);
+        var handler = new DeleteCustomerCommandHandler(context, NullCacheInvalidator.Instance);
         var command = new DeleteCustomerCommand { Id = customer.Id };
 
         // Act & Assert

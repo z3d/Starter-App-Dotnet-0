@@ -9,10 +9,12 @@ public class CreateCustomerCommand : ICommand, IRequest<CustomerDto>
 public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerCommand, CustomerDto>
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly ICacheInvalidator _cacheInvalidator;
 
-    public CreateCustomerCommandHandler(ApplicationDbContext dbContext)
+    public CreateCustomerCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator)
     {
         _dbContext = dbContext;
+        _cacheInvalidator = cacheInvalidator;
     }
 
     public async Task<CustomerDto> HandleAsync(CreateCustomerCommand command, CancellationToken cancellationToken)
@@ -36,6 +38,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             throw new InvalidOperationException($"A customer with email '{email.Value}' already exists", ex);
         }
 
+        await _cacheInvalidator.InvalidateCustomerAsync(customer.Id, cancellationToken);
         Log.Information("Created new customer with ID: {CustomerId}", customer.Id);
 
         // Map to DTO and return

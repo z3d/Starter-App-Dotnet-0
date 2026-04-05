@@ -29,8 +29,23 @@ public class Mediator : IMediator
             throw new InvalidOperationException($"HandleAsync method not found on {handlerType.Name}");
         }
 
-        var result = await (Task<TResponse>)method.Invoke(handler, new object[] { request, cancellationToken })!;
-        return result;
+        // Build the innermost delegate (the actual handler)
+        RequestHandlerDelegate<TResponse> handlerDelegate = () =>
+            (Task<TResponse>)method.Invoke(handler, new object[] { request, cancellationToken })!;
+
+        // Wrap with pipeline behaviors (e.g., caching)
+        var behaviorType = typeof(IPipelineBehavior<,>).MakeGenericType(requestType, responseType);
+        var behaviors = _serviceProvider.GetServices(behaviorType).ToList();
+
+        foreach (var behavior in behaviors.AsEnumerable().Reverse())
+        {
+            var currentNext = handlerDelegate;
+            var behaviorMethod = behaviorType.GetMethod(nameof(IPipelineBehavior<IRequest<TResponse>, TResponse>.HandleAsync));
+            handlerDelegate = () =>
+                (Task<TResponse>)behaviorMethod!.Invoke(behavior, new object[] { request, currentNext, cancellationToken })!;
+        }
+
+        return await handlerDelegate();
     }
 
     public async Task SendAsync(IRequest request, CancellationToken cancellationToken = default)

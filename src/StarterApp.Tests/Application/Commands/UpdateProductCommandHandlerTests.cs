@@ -84,7 +84,7 @@ public class UpdateProductCommandHandlerTests
         context.Products.Add(originalProduct);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateProductCommandHandler(context);
+        var handler = new UpdateProductCommandHandler(context, NullCacheInvalidator.Instance);
 
         var command = new UpdateProductCommand
         {
@@ -127,7 +127,7 @@ public class UpdateProductCommandHandlerTests
             .Options;
 
         await using var context = new ApplicationDbContext(options);
-        var handler = new UpdateProductCommandHandler(context);
+        var handler = new UpdateProductCommandHandler(context, NullCacheInvalidator.Instance);
 
         var command = new UpdateProductCommand
         {

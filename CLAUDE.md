@@ -70,6 +70,15 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - Queries → Dapper (IDbConnection) → return ReadModels
 - Never mix: no DTOs from queries, no ReadModels from commands
 - Custom mediator (not MediatR) with auto-registration via `builder.Services.AddMediator()`
+- Pipeline behaviors wrap handler invocation (currently: `CachingBehavior` for `ICacheable` queries)
+
+**Distributed Caching**
+- Redis via Aspire `AddRedis` / `AddRedisDistributedCache("redis")` — falls back to in-memory cache when Redis connection string is absent (tests, standalone dev)
+- Queries opt in by implementing `ICacheable` (provides `CacheKey` and `CacheDuration`)
+- `CachingBehavior` in the mediator pipeline checks cache before handler, stores on miss, skips null results
+- Command handlers invalidate specific entity keys via `ICacheInvalidator` after `SaveChangesAsync`
+- List query caches expire via TTL (no pattern-based invalidation needed for starter scope)
+- Convention tests enforce: non-empty cache keys, positive durations, deterministic keys
 
 **Authentication**
 - This API assumes it runs behind an API gateway that handles auth — do not add authentication middleware to the API itself

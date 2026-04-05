@@ -2,6 +2,20 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
+      "Aspire.StackExchange.Redis.DistributedCaching": {
+        "type": "Direct",
+        "requested": "[13.1.2, )",
+        "resolved": "13.1.2",
+        "contentHash": "zT3rV/HqBbB0Ybkt7CCU1k7PKwpQlT3H0B9K3OTNgVXyRYXH3JaBUtawSqvK9J7jvGm2ql1V13ALvYveU6BStQ==",
+        "dependencies": {
+          "AspNetCore.HealthChecks.Redis": "9.0.0",
+          "Aspire.StackExchange.Redis": "13.1.2",
+          "Microsoft.Extensions.Caching.StackExchangeRedis": "10.0.1",
+          "Microsoft.Extensions.DependencyInjection.AutoActivation": "10.1.0",
+          "OpenTelemetry.Extensions.Hosting": "1.14.0",
+          "StackExchange.Redis": "2.9.32"
+        }
+      },
       "Azure.Messaging.ServiceBus": {
         "type": "Direct",
         "requested": "[7.20.1, )",
@@ -97,6 +111,25 @@
         "dependencies": {
           "Serilog": "4.0.0",
           "Serilog.Sinks.File": "5.0.0"
+        }
+      },
+      "Aspire.StackExchange.Redis": {
+        "type": "Transitive",
+        "resolved": "13.1.2",
+        "contentHash": "zFM5TRuz44cjU/epvHjv+F+QLQSXTnq/IQvUC3b55/rXdSCbeDRJ8UBl95LstudRlHr+DrqvHcv1TbotmLQusg==",
+        "dependencies": {
+          "AspNetCore.HealthChecks.Redis": "9.0.0",
+          "Microsoft.Extensions.DependencyInjection.AutoActivation": "10.1.0",
+          "OpenTelemetry.Extensions.Hosting": "1.14.0",
+          "StackExchange.Redis": "2.9.32"
+        }
+      },
+      "AspNetCore.HealthChecks.Redis": {
+        "type": "Transitive",
+        "resolved": "9.0.0",
+        "contentHash": "yNH0h8GLRbAf+PU5HNVLZ5hNeyq9mDVmRKO9xuZsme/znUYoBJlQvI0gq45gaZNlLncCHkMhR4o90MuT+gxxPw==",
+        "dependencies": {
+          "StackExchange.Redis": "2.7.4"
         }
       },
       "Azure.Core": {
@@ -212,6 +245,14 @@
         "type": "Transitive",
         "resolved": "10.3.0",
         "contentHash": "Oh/FQJrTZqiqZuFktqDCwLFgxIUnNATZx46AwUTf5A/+FmK/TzPf/iwSqMK85QlioLD9ehOxWe0NBfsCSkp5pw=="
+      },
+      "Microsoft.Extensions.Caching.StackExchangeRedis": {
+        "type": "Transitive",
+        "resolved": "10.0.1",
+        "contentHash": "M7+349/EtaszydCxz/vtj4fUgbwE6NfDAfh98+oeWHPdBthgWKDCdnFV92p9UtyFN8Ln0e0w1ZzJvvbNzpMtaQ==",
+        "dependencies": {
+          "StackExchange.Redis": "2.7.27"
+        }
       },
       "Microsoft.Extensions.Compliance.Abstractions": {
         "type": "Transitive",
@@ -367,23 +408,23 @@
       },
       "OpenTelemetry": {
         "type": "Transitive",
-        "resolved": "1.12.0",
-        "contentHash": "aIEu2O3xFOdwIVH0AJsIHPIMH1YuX18nzu7BHyaDNQ6NWSk4Zyrs9Pp6y8SATuSbvdtmvue4mj/QZ3838srbwA==",
+        "resolved": "1.14.0",
+        "contentHash": "aiPBAr1+0dPDItH++MQQr5UgMf4xiybruzNlAoYYMYN3UUk+mGRcoKuZy4Z4rhhWUZIpK2Xhe7wUUXSTM32duQ==",
         "dependencies": {
-          "OpenTelemetry.Api.ProviderBuilderExtensions": "1.12.0"
+          "OpenTelemetry.Api.ProviderBuilderExtensions": "1.14.0"
         }
       },
       "OpenTelemetry.Api": {
         "type": "Transitive",
-        "resolved": "1.12.0",
-        "contentHash": "Xt0qldi+iE2szGrM3jAqzEMEJd48YBtqI6mge0+ArXTZg3aTpRmyhL6CKKl3bLioaFSSVbBpEbPin8u6Z46Yrw=="
+        "resolved": "1.14.0",
+        "contentHash": "foHci6viUw1f3gUB8qzz3Rk02xZIWMo299X0rxK0MoOWok/3dUVru+KKdY7WIoSHwRGpxGKkmAz9jIk2RFNbsQ=="
       },
       "OpenTelemetry.Api.ProviderBuilderExtensions": {
         "type": "Transitive",
-        "resolved": "1.12.0",
-        "contentHash": "t6Vk1143BfiisCWYbRcyzkAuN6Aq5RkYtfOSMoqCIRMvtN9p1e1xzc0nWQ+fccNGOVgHn3aMK5xFn2+iWMcr8A==",
+        "resolved": "1.14.0",
+        "contentHash": "i/lxOM92v+zU5I0rGl5tXAGz6EJtxk2MvzZ0VN6F6L5pMqT6s6RCXnGWXg6fW+vtZJsllBlQaf/VLPTzgefJpg==",
         "dependencies": {
-          "OpenTelemetry.Api": "1.12.0"
+          "OpenTelemetry.Api": "1.14.0"
         }
       },
       "OpenTelemetry.Exporter.OpenTelemetryProtocol": {
@@ -396,10 +437,10 @@
       },
       "OpenTelemetry.Extensions.Hosting": {
         "type": "Transitive",
-        "resolved": "1.12.0",
-        "contentHash": "6/8O6rsJRwslg5/Fm3bscBelw4Yh9T9CN24p7cAsuEFkrmmeSO9gkYUCK02Qi+CmPM2KHYTLjKi0lJaCsDMWQA==",
+        "resolved": "1.14.0",
+        "contentHash": "ZAxkCIa3Q3YWZ1sGrolXfkhPqn2PFSz2Cel74em/fATZgY5ixlw6MQp2icmqKCz4C7M1W2G0b92K3rX8mOtFRg==",
         "dependencies": {
-          "OpenTelemetry": "1.12.0"
+          "OpenTelemetry": "1.14.0"
         }
       },
       "OpenTelemetry.Instrumentation.AspNetCore": {
@@ -425,6 +466,11 @@
         "dependencies": {
           "OpenTelemetry.Api": "[1.12.0, 2.0.0)"
         }
+      },
+      "Pipelines.Sockets.Unofficial": {
+        "type": "Transitive",
+        "resolved": "2.2.8",
+        "contentHash": "zG2FApP5zxSx6OcdJQLbZDk2AVlN2BNQD6MorwIfV6gVj0RRxWPEp2LXAxqDGZqeNV1Zp0BNPcNaey/GXmTdvQ=="
       },
       "Polly.Core": {
         "type": "Transitive",
@@ -508,6 +554,14 @@
         "contentHash": "fKL7mXv7qaiNBUC71ssvn/dU0k9t0o45+qm2XgKAlSt19xF+ijjxyA3R6HmCgfKEKwfcfkwWjayuQtRueZFkYw==",
         "dependencies": {
           "Serilog": "4.2.0"
+        }
+      },
+      "StackExchange.Redis": {
+        "type": "Transitive",
+        "resolved": "2.9.32",
+        "contentHash": "j5Rjbf7gWz5izrn0UWQy9RlQY4cQDPkwJfVqATnVsOa/+zzJrps12LOgacMsDl/Vit2f01cDiDkG/Rst8v2iGw==",
+        "dependencies": {
+          "Pipelines.Sockets.Unofficial": "2.2.8"
         }
       },
       "System.ClientModel": {

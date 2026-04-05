@@ -13,10 +13,12 @@ public class DeleteProductCommand : ICommand, IRequest
 public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand>
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly ICacheInvalidator _cacheInvalidator;
 
-    public DeleteProductCommandHandler(ApplicationDbContext dbContext)
+    public DeleteProductCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator)
     {
         _dbContext = dbContext;
+        _cacheInvalidator = cacheInvalidator;
     }
 
     public async Task HandleAsync(DeleteProductCommand command, CancellationToken cancellationToken)
@@ -39,6 +41,7 @@ public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand>
 
         _dbContext.Products.Remove(product);
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _cacheInvalidator.InvalidateProductAsync(command.Id, cancellationToken);
 
         Log.Information("Deleted product with ID: {ProductId}", command.Id);
     }
