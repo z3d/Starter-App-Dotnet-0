@@ -40,6 +40,7 @@ docker-compose up --build
    - Domain-driven design with value objects
    - CQRS pattern with mediator
    - Entity Framework Core for commands, Dapper for queries
+   - Distributed caching with Redis (mediator pipeline behavior)
 
 2. **Database Management**
    - SQL Server with Entity Framework Core
@@ -157,13 +158,14 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 - **Clean Architecture**: Separation of concerns with Domain, Application, and Infrastructure layers
 - **Modern .NET Patterns**: Uses C# 13/.NET 10 features like collection expressions, guard clauses, and using declarations
 - **Health Checks**: Built-in health monitoring for all services
+- **Distributed Caching**: Redis-backed query caching via mediator pipeline behavior with automatic cache invalidation on writes
 - **Outbox Pattern**: Domain events are captured durably and published to Azure Service Bus via BackgroundService
 - **Azure Functions**: Service Bus subscribers for email notifications and inventory reservation
 - **Observability**: Distributed tracing, metrics, and structured logging
 - **Configuration Management**: Environment-specific settings with .NET configuration
 - **Database Migrations**: Automated schema updates with DbUp
 - **Container Orchestration**: Both Docker Compose and .NET Aspire support
-- **Comprehensive Testing**: Unit tests and integration tests with Testcontainers
+- **Comprehensive Testing**: Unit, convention (7 classes), integration, property-based (FsCheck), and Aspire end-to-end tests
 
 ## � Documentation
 
