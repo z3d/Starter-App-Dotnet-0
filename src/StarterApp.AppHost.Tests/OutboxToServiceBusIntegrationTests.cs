@@ -157,22 +157,27 @@ public class OutboxToServiceBusIntegrationTests
             Items = new[] { new { ProductId = productId, Quantity = 1 } }
         });
         orderResponse.EnsureSuccessStatusCode();
+        var order = await orderResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var orderId = order.GetProperty("id").GetInt32();
+        Assert.True(orderId > 0);
 
-        // Assert — query OutboxMessages directly via SQL
+        // Assert — query OutboxMessages directly via SQL, correlated to this specific order
         var connectionString = await app.GetConnectionStringAsync("database");
         Assert.NotNull(connectionString);
 
-        // Poll until the outbox message is created AND processed
+        // Poll until the outbox message for THIS order is created AND processed
         var (outboxRowFound, processedOnUtc) = await PollForOutboxMessageAsync(
-            connectionString, "order.created.v1", maxAttempts: 30, delayMs: 2000);
+            connectionString, "order.created.v1", orderId, maxAttempts: 30, delayMs: 2000);
 
-        Assert.True(outboxRowFound, "OutboxMessages should contain a row with Type = 'order.created.v1'");
-        Assert.NotNull(processedOnUtc); // Proves the OutboxProcessor published to Service Bus
+        Assert.True(outboxRowFound,
+            $"OutboxMessages should contain a row with Type = 'order.created.v1' and OrderId = {orderId} in Payload");
+        Assert.NotNull(processedOnUtc); // Proves the OutboxProcessor published this specific event to Service Bus
     }
 
     private static async Task<(bool Found, string? ProcessedOnUtc)> PollForOutboxMessageAsync(
         string connectionString,
         string expectedType,
+        int expectedOrderId,
         int maxAttempts,
         int delayMs)
     {
@@ -180,27 +185,10 @@ public class OutboxToServiceBusIntegrationTests
         {
             try
             {
-                await using var connection = new SqlConnection(connectionString);
-                await connection.OpenAsync();
-
-                await using var command = connection.CreateCommand();
-                command.CommandText = """
-                    SELECT TOP 1 Type, ProcessedOnUtc
-                    FROM OutboxMessages
-                    WHERE Type = @Type
-                    ORDER BY OccurredOnUtc DESC
-                    """;
-                command.Parameters.AddWithValue("@Type", expectedType);
-
-                await using var reader = await command.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    var processedOnUtc = reader.IsDBNull(1) ? null : reader.GetDateTimeOffset(1).ToString("O");
-                    if (processedOnUtc != null)
-                        return (true, processedOnUtc);
-
-                    // Row exists but not yet processed — keep polling
-                }
+                var result = await QueryOutboxForOrderAsync(connectionString, expectedType, expectedOrderId);
+                if (result.Found && result.ProcessedOnUtc != null)
+                    return result;
+                // Row exists but not yet processed, or not yet created — keep polling
             }
             catch (Exception) when (attempt < maxAttempts)
             {
@@ -210,24 +198,45 @@ public class OutboxToServiceBusIntegrationTests
             await Task.Delay(delayMs);
         }
 
-        // One final check to distinguish "no row" from "row but not processed"
+        // Final check to distinguish "no row" from "row but not processed"
         try
         {
-            await using var connection = new SqlConnection(connectionString);
-            await connection.OpenAsync();
-            await using var command = connection.CreateCommand();
-            command.CommandText = "SELECT TOP 1 Type, ProcessedOnUtc FROM OutboxMessages WHERE Type = @Type";
-            command.Parameters.AddWithValue("@Type", expectedType);
-            await using var reader = await command.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+            return await QueryOutboxForOrderAsync(connectionString, expectedType, expectedOrderId);
+        }
+        catch
+        {
+            return (false, null);
+        }
+    }
+
+    private static async Task<(bool Found, string? ProcessedOnUtc)> QueryOutboxForOrderAsync(
+        string connectionString,
+        string expectedType,
+        int expectedOrderId)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT Type, ProcessedOnUtc, Payload
+            FROM OutboxMessages
+            WHERE Type = @Type
+            ORDER BY OccurredOnUtc DESC
+            """;
+        command.Parameters.AddWithValue("@Type", expectedType);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var payload = reader.GetString(2);
+            using var doc = JsonDocument.Parse(payload);
+            if (doc.RootElement.TryGetProperty("OrderId", out var orderIdProp) &&
+                orderIdProp.GetInt32() == expectedOrderId)
             {
                 var processedOnUtc = reader.IsDBNull(1) ? null : reader.GetDateTimeOffset(1).ToString("O");
                 return (true, processedOnUtc);
             }
-        }
-        catch
-        {
-            // Ignore final check errors
         }
 
         return (false, null);
