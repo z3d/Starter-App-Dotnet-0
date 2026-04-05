@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore.Storage;
 using StarterApp.Api.Infrastructure.Outbox;
-using StarterApp.Domain.Events;
 
 namespace StarterApp.Api.Data;
 
@@ -155,12 +154,11 @@ public class ApplicationDbContext : DbContext
         bool sync,
         CancellationToken cancellationToken)
     {
-        // Capture new orders while they are still in Added state (before SaveChanges flips them to Unchanged).
-        // We cannot call RecordCreation() yet because IDENTITY values are not assigned until after SaveChanges.
-        var newOrdersPendingEvent = ChangeTracker.Entries<Order>()
+        // Capture new aggregates while they are still in Added state (before SaveChanges flips them to Unchanged).
+        // RecordCreation() must wait until after SaveChanges so IDENTITY values are assigned.
+        var newAggregates = ChangeTracker.Entries<AggregateRoot>()
             .Where(entry => entry.State == EntityState.Added)
             .Select(entry => entry.Entity)
-            .Where(order => order.DomainEvents.OfType<OrderCreatedDomainEvent>().Any() == false)
             .ToList();
 
         var shouldManageTransaction = Database.IsRelational() && Database.CurrentTransaction == null;
@@ -179,9 +177,10 @@ public class ApplicationDbContext : DbContext
                 ? base.SaveChanges(acceptAllChangesOnSuccess)
                 : await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
 
-            // Record creation events AFTER SaveChanges so Order.Id reflects the database-assigned identity.
-            foreach (var order in newOrdersPendingEvent)
-                order.RecordCreation();
+            // Record creation events AFTER SaveChanges so database-assigned IDENTITY values are populated.
+            // Any AggregateRoot subclass can override RecordCreation() to raise creation events safely.
+            foreach (var aggregate in newAggregates)
+                aggregate.RecordCreation();
 
             var aggregatesWithEvents = ChangeTracker.Entries<AggregateRoot>()
                 .Where(entry => entry.Entity.DomainEvents.Count > 0)

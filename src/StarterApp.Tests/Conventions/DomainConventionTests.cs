@@ -175,6 +175,72 @@ public class DomainConventionTests : ConventionTestBase
         }
     }
 
+    // === Aggregate Construction Safety ===
+
+    [Fact]
+    public void AggregateConstructors_MustNotCallRaiseDomainEvent()
+    {
+        // Domain events raised in constructors capture pre-persist identity values (e.g. Id=0
+        // for IDENTITY columns). Creation events must be raised via the RecordCreation() override
+        // which the DbContext calls AFTER SaveChanges assigns database keys.
+        var aggregateTypes = DomainAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(AggregateRoot)));
+
+        var failures = new List<string>();
+
+        foreach (var type in aggregateTypes)
+        {
+            var constructors = type.GetConstructors(
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+            foreach (var ctor in constructors)
+            {
+                var body = ctor.GetMethodBody();
+                if (body == null)
+                    continue;
+
+                var il = body.GetILAsByteArray();
+                if (il == null)
+                    continue;
+
+                // Scan IL for a call/callvirt to RaiseDomainEvent
+                if (ContainsCallToMethod(il, ctor.Module, "RaiseDomainEvent"))
+                    failures.Add($"{type.Name} constructor calls RaiseDomainEvent. " +
+                                 "Override RecordCreation() instead — the DbContext calls it after SaveChanges when IDENTITY values are assigned.");
+            }
+        }
+
+        Assert.True(failures.Count == 0,
+            "Aggregate constructors must not raise domain events (pre-persist keys would be captured):\n" +
+            string.Join("\n", failures));
+    }
+
+    private static bool ContainsCallToMethod(byte[] il, Module module, string methodName)
+    {
+        // IL opcodes: call = 0x28, callvirt = 0x6F — both followed by a 4-byte metadata token
+        for (var i = 0; i < il.Length; i++)
+        {
+            if (il[i] is not (0x28 or 0x6F) || i + 4 >= il.Length)
+                continue;
+
+            var token = BitConverter.ToInt32(il, i + 1);
+            try
+            {
+                var member = module.ResolveMember(token);
+                if (member is MethodInfo method && method.Name == methodName)
+                    return true;
+            }
+            catch (Exception)
+            {
+                // Token may not resolve (e.g. generic instantiation) — skip safely
+            }
+
+            i += 4; // skip the 4-byte token
+        }
+
+        return false;
+    }
+
     // === Event Routing Contract ===
 
     [Fact]

@@ -14,4 +14,13 @@ public abstract class AggregateRoot
     }
 
     internal void ClearDomainEvents() => _domainEvents.Clear();
+
+    /// <summary>
+    /// Called by the DbContext AFTER the first SaveChanges, when database-assigned
+    /// identity values (IDENTITY columns) are populated. Override to raise creation
+    /// events that need the final entity key. Default is no-op.
+    /// </summary>
+    internal virtual void RecordCreation()
+    {
+    }
 }

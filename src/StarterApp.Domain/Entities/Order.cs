@@ -150,7 +150,7 @@ public class Order : AggregateRoot
         return Money.Create(totalGst, firstCurrency);
     }
 
-    internal void RecordCreation()
+    internal override void RecordCreation()
     {
         RaiseDomainEvent(new OrderCreatedDomainEvent(this));
     }
