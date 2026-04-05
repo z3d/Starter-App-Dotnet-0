@@ -77,7 +77,7 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - Queries opt in by implementing `ICacheable` (provides `CacheKey` and `CacheDuration`)
 - `CachingBehavior` in the mediator pipeline checks cache before handler, stores on miss, skips null results
 - Command handlers invalidate specific entity keys via `ICacheInvalidator` after `SaveChangesAsync`
-- List query caches expire via TTL (no pattern-based invalidation needed for starter scope)
+- Only by-id queries are cached — list/collection queries are NOT cached because `IDistributedCache` has no pattern-based deletion, and stale list pages after writes are user-visible bugs. If list caching is needed later, use a versioned namespace approach.
 - Convention tests enforce: non-empty cache keys, positive durations, deterministic keys
 
 **Authentication**

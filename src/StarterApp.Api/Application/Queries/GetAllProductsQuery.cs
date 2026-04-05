@@ -1,11 +1,9 @@
 namespace StarterApp.Api.Application.Queries;
 
-public class GetAllProductsQuery : IQuery<IEnumerable<ProductReadModel>>, IRequest<IEnumerable<ProductReadModel>>, ICacheable
+public class GetAllProductsQuery : IQuery<IEnumerable<ProductReadModel>>, IRequest<IEnumerable<ProductReadModel>>
 {
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 50;
-    public string CacheKey => $"Products:All:Page:{Page}:Size:{PageSize}";
-    public TimeSpan CacheDuration => TimeSpan.FromMinutes(5);
 }
 
 public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, IEnumerable<ProductReadModel>>
