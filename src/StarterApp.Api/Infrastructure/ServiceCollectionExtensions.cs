@@ -98,14 +98,17 @@ public static class ServiceCollectionExtensions
         if (string.IsNullOrEmpty(connectionString))
             return services;
 
-        services.Configure<OutboxProcessorOptions>(configuration.GetSection("OutboxProcessor"));
+        services.AddOptions<OutboxProcessorOptions>()
+            .Bind(configuration.GetSection("OutboxProcessor"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         var options = new OutboxProcessorOptions();
         configuration.GetSection("OutboxProcessor").Bind(options);
 
-        var client = new ServiceBusClient(connectionString);
-        services.AddSingleton(client);
-        services.AddSingleton(client.CreateSender(options.TopicName));
+        services.AddSingleton(_ => new ServiceBusClient(connectionString));
+        services.AddSingleton(provider =>
+            provider.GetRequiredService<ServiceBusClient>().CreateSender(options.TopicName));
         services.AddHostedService<OutboxProcessor>();
 
         return services;

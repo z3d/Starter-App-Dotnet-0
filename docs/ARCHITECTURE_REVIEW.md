@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 8.5/10** (down from 9/10 — new Service Bus integration has 6 open findings, 2 HIGH)
+**Score: 9/10** (findings #22–#27 resolved — Service Bus integration hardened)
 
 ---
 
@@ -119,16 +119,18 @@ Good adoption of modern .NET:
 
 These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
 
-The following issues were identified during the Service Bus / outbox processor review.
+No open findings. All 6 Service Bus findings (#22–#27) have been resolved.
 
-| # | Finding | Severity | Location |
-|---|---------|----------|----------|
-| 22 | ServiceBusClient registered as singleton but never disposed on shutdown — leaks AMQP connections | HIGH | `ServiceCollectionExtensions.cs:106-108` |
-| 23 | No retry logic for transient Service Bus failures — single failure permanently marks message as errored, requires manual intervention | HIGH | `OutboxProcessor.cs` |
-| 24 | Outbox query index missing `Error` column — query filters `WHERE ProcessedOnUtc IS NULL AND Error IS NULL` but index is only `{ProcessedOnUtc, OccurredOnUtc}` | MEDIUM | `ApplicationDbContext.cs:145` |
-| 25 | `OutboxProcessorOptions` has no validation — `BatchSize=0` causes empty polls, `PollingIntervalSeconds=0` causes tight CPU loop | MEDIUM | `OutboxProcessorOptions.cs` |
-| 26 | Functions `host.json` missing Service Bus trigger config — no `maxConcurrentCalls`, no `autoCompleteMessages` setting, no retry policy | MEDIUM | `Functions/host.json` |
-| 27 | Functions are stubs with no error handling or message deserialization — acceptable as scaffolding but should be noted | LOW | `OrderConfirmationEmailFunction.cs`, `InventoryReservationFunction.cs` |
+#### Recently resolved (Service Bus hardening)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~22~~ | ServiceBusClient leaks AMQP connections | Factory-based DI registration — container owns disposal |
+| ~~23~~ | No retry logic for transient failures | `IncrementRetry()` + `MaxRetries` — messages retry before permanent error |
+| ~~24~~ | Outbox index missing Error column | Filtered index `WHERE ProcessedOnUtc IS NULL AND Error IS NULL` (Error is NVARCHAR(MAX), can't be key) |
+| ~~25~~ | OutboxProcessorOptions has no validation | DataAnnotations with `ValidateOnStart()` |
+| ~~26~~ | Functions host.json missing Service Bus config | Added `maxConcurrentCalls`, `autoCompleteMessages`, `maxAutoLockRenewalDuration` |
+| ~~27~~ | Functions stubs have no error handling | Added try-catch with structured error logging and re-throw |
 
 #### Recently resolved (commit 614f069)
 
@@ -288,9 +290,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention via IL inspection), proper CQRS separation with zero violations, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-Issues #1–#14 and #16–#21 have been resolved. Recent hardening (commits 05d2996–898424c, 614f069) addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, the outbox persists events transactionally, rate limiting is enforced globally, and mixed-currency orders are rejected at the domain level.
-
-The new Service Bus integration (commits 1ef57ff–a8995fd) introduces 6 open findings (#22–#27). The two HIGH-severity items are: ServiceBusClient resource disposal and missing retry logic for transient failures. Both are production-readiness concerns — the current implementation works correctly for the happy path but lacks resilience for extended outages.
+Issues #1–#14, #16–#21, and #22–#27 have all been resolved. Recent hardening addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, the outbox persists events transactionally, rate limiting is enforced globally, and mixed-currency orders are rejected at the domain level. The Service Bus integration was hardened with proper resource disposal, retry logic for transient failures, validated configuration, and optimized database indexing.
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 

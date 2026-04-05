@@ -77,8 +77,19 @@ public class OutboxProcessor : BackgroundService
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                message.MarkAsError(ex.Message);
-                _logger.LogError(ex, "Failed to publish outbox message {MessageId} ({Type})", message.Id, message.Type);
+                message.IncrementRetry();
+
+                if (message.RetryCount >= _options.MaxRetries)
+                {
+                    message.MarkAsError(ex.Message);
+                    _logger.LogError(ex, "Outbox message {MessageId} ({Type}) permanently failed after {RetryCount} attempts",
+                        message.Id, message.Type, message.RetryCount);
+                }
+                else
+                {
+                    _logger.LogWarning(ex, "Outbox message {MessageId} ({Type}) failed, will retry (attempt {RetryCount}/{MaxRetries})",
+                        message.Id, message.Type, message.RetryCount, _options.MaxRetries);
+                }
             }
         }
 

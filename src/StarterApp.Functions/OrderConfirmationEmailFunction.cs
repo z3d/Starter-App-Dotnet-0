@@ -18,11 +18,26 @@ public class OrderConfirmationEmailFunction
         [ServiceBusTrigger("domain-events", "email-notifications", Connection = "servicebus")]
         ServiceBusReceivedMessage message)
     {
-        _logger.LogInformation(
-            "Order confirmation email triggered. MessageId: {MessageId}, Subject: {Subject}, Body: {Body}",
-            message.MessageId,
-            message.Subject,
-            message.Body.ToString());
+        try
+        {
+            var body = message.Body.ToString();
+
+            _logger.LogInformation(
+                "Order confirmation email triggered. MessageId: {MessageId}, Subject: {Subject}, Body: {Body}",
+                message.MessageId,
+                message.Subject,
+                body);
+
+            // TODO: Deserialize payload and send confirmation email
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to process email notification. MessageId: {MessageId}, Subject: {Subject}",
+                message.MessageId,
+                message.Subject);
+            throw;
+        }
 
         return Task.CompletedTask;
     }

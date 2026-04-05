@@ -57,6 +57,21 @@ public class OutboxMessageTests
         Assert.Throws<ArgumentException>(() => message.MarkAsError("   "));
     }
 
+    [Fact]
+    public void IncrementRetry_ShouldIncrementRetryCount()
+    {
+        var domainEvent = new InventoryReservedDomainEvent(1, 1, null, DateTimeOffset.UtcNow);
+        var message = OutboxMessage.Create(domainEvent);
+
+        Assert.Equal(0, message.RetryCount);
+
+        message.IncrementRetry();
+        Assert.Equal(1, message.RetryCount);
+
+        message.IncrementRetry();
+        Assert.Equal(2, message.RetryCount);
+    }
+
     private sealed record InventoryReservedDomainEvent(
         int ProductId,
         int Quantity,

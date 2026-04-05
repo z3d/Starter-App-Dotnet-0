@@ -85,7 +85,7 @@ public class OutboxProcessorTests
     }
 
     [Fact]
-    public async Task ProcessBatch_WhenPublishFails_ShouldMarkMessageAsErrored()
+    public async Task ProcessBatch_WhenPublishFails_ShouldRetryBeforePermanentError()
     {
         // Arrange
         var dbName = Guid.NewGuid().ToString();
@@ -99,13 +99,55 @@ public class OutboxProcessorTests
         senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ServiceBusException("Connection refused", ServiceBusFailureReason.ServiceCommunicationProblem));
 
-        var processor = CreateProcessor(dbName, senderMock.Object);
+        var processor = CreateProcessor(dbName, senderMock.Object, maxRetries: 3);
+
+        // Act — first failure should increment RetryCount but not set Error
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await RunSingleBatchAsync(processor, cts.Token);
+
+        await using (var verifyContext = CreateDbContext(dbName))
+        {
+            var message = await verifyContext.OutboxMessages.FirstAsync();
+            Assert.Equal(1, message.RetryCount);
+            Assert.Null(message.Error);
+            Assert.Null(message.ProcessedOnUtc);
+        }
+
+        // Act — exhaust remaining retries to reach permanent error
+        await RunSingleBatchAsync(processor, cts.Token);
+        await RunSingleBatchAsync(processor, cts.Token);
+
+        // Assert — after 3 failures, message should be permanently errored
+        await using var finalContext = CreateDbContext(dbName);
+        var errored = await finalContext.OutboxMessages.FirstAsync();
+        Assert.Equal(3, errored.RetryCount);
+        Assert.NotNull(errored.Error);
+        Assert.Contains("Connection refused", errored.Error);
+        Assert.Null(errored.ProcessedOnUtc);
+    }
+
+    [Fact]
+    public async Task ProcessBatch_WhenPublishFails_WithMaxRetriesOne_ShouldErrorImmediately()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            setupContext.OutboxMessages.Add(CreateTestMessage());
+            await setupContext.SaveChangesAsync();
+        }
+
+        var senderMock = new Mock<ServiceBusSender>();
+        senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ServiceBusException("Connection refused", ServiceBusFailureReason.ServiceCommunicationProblem));
+
+        var processor = CreateProcessor(dbName, senderMock.Object, maxRetries: 1);
 
         // Act
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         await RunSingleBatchAsync(processor, cts.Token);
 
-        // Assert
+        // Assert — with maxRetries=1, a single failure should permanently error
         await using var verifyContext = CreateDbContext(dbName);
         var errored = await verifyContext.OutboxMessages.FirstAsync();
         Assert.NotNull(errored.Error);
@@ -183,7 +225,7 @@ public class OutboxProcessorTests
         senderMock.Verify(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    private static OutboxProcessor CreateProcessor(string databaseName, ServiceBusSender sender, int batchSize = 20)
+    private static OutboxProcessor CreateProcessor(string databaseName, ServiceBusSender sender, int batchSize = 20, int maxRetries = 3)
     {
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddScoped(_ => CreateDbContext(databaseName));
@@ -193,6 +235,7 @@ public class OutboxProcessorTests
         {
             PollingIntervalSeconds = 1,
             BatchSize = batchSize,
+            MaxRetries = maxRetries,
             TopicName = "domain-events"
         });
 

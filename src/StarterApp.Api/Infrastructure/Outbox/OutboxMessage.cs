@@ -15,6 +15,7 @@ public class OutboxMessage
     public string Type { get; private set; } = string.Empty;
     public string Payload { get; private set; } = string.Empty;
     public DateTimeOffset? ProcessedOnUtc { get; private set; }
+    public int RetryCount { get; private set; }
     public string? Error { get; private set; }
 
     private OutboxMessage()
@@ -24,6 +25,11 @@ public class OutboxMessage
     public void MarkAsProcessed(DateTimeOffset processedOnUtc)
     {
         ProcessedOnUtc = processedOnUtc;
+    }
+
+    public void IncrementRetry()
+    {
+        RetryCount++;
     }
 
     public void MarkAsError(string error)

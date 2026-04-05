@@ -140,9 +140,13 @@ public class ApplicationDbContext : DbContext
             outboxBuilder.Property(message => message.Payload)
                 .IsRequired();
 
+            outboxBuilder.Property(message => message.RetryCount)
+                .HasDefaultValue(0);
+
             outboxBuilder.Property(message => message.Error);
 
-            outboxBuilder.HasIndex(message => new { message.ProcessedOnUtc, message.OccurredOnUtc });
+            outboxBuilder.HasIndex(message => message.OccurredOnUtc)
+                .HasFilter("[ProcessedOnUtc] IS NULL AND [Error] IS NULL");
         });
     }
 
