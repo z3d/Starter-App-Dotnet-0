@@ -4,6 +4,8 @@ namespace StarterApp.Domain.Events;
 
 public sealed class OrderCreatedDomainEvent : IDomainEvent
 {
+    public const string Contract = "order.created.v1";
+
     public OrderCreatedDomainEvent(Order order)
     {
         ArgumentNullException.ThrowIfNull(order);
@@ -20,6 +22,7 @@ public sealed class OrderCreatedDomainEvent : IDomainEvent
         OccurredOnUtc = DateTimeOffset.UtcNow;
     }
 
+    public string EventType => Contract;
     public int OrderId { get; }
     public int CustomerId { get; }
     public string Status { get; }

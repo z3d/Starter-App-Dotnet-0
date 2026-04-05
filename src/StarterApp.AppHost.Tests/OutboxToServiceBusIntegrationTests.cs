@@ -11,18 +11,20 @@ public class OutboxToServiceBusIntegrationTests
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     [Fact]
-    public async Task AppHost_ShouldStartAllResources()
+    public async Task AppHost_ShouldEventuallyExposeHealthyApi()
     {
-        // Arrange & Act
+        // Arrange
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.StarterApp_AppHost>();
         await using var app = await appHost.BuildAsync();
         await app.StartAsync();
 
-        // Assert — verify the API resource is reachable
         var httpClient = app.CreateHttpClient("api");
-        var response = await httpClient.GetAsync("/health/live");
 
+        // Act — poll with retries instead of a single GET, since resources may still be starting
+        var response = await PollForHealthyAsync(httpClient, "/health/live");
+
+        // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -36,7 +38,9 @@ public class OutboxToServiceBusIntegrationTests
         await app.StartAsync();
 
         var httpClient = app.CreateHttpClient("api");
-        httpClient.Timeout = TimeSpan.FromSeconds(30);
+
+        // Wait for API to be ready
+        await PollForHealthyAsync(httpClient, "/health/ready");
 
         // Create a customer
         var customerResponse = await httpClient.PostAsJsonAsync("/api/v1/customers", new
@@ -96,6 +100,9 @@ public class OutboxToServiceBusIntegrationTests
 
         var httpClient = app.CreateHttpClient("api");
 
+        // Wait for full readiness before checking all endpoints
+        await PollForHealthyAsync(httpClient, "/health/ready");
+
         // Act & Assert — all health endpoints should respond
         var liveResponse = await httpClient.GetAsync("/health/live");
         Assert.Equal(HttpStatusCode.OK, liveResponse.StatusCode);
@@ -105,5 +112,34 @@ public class OutboxToServiceBusIntegrationTests
 
         var readyResponse = await httpClient.GetAsync("/health/ready");
         Assert.Equal(HttpStatusCode.OK, readyResponse.StatusCode);
+    }
+
+    private static async Task<HttpResponseMessage> PollForHealthyAsync(
+        HttpClient client,
+        string endpoint,
+        int maxAttempts = 30,
+        int delayMs = 2000)
+    {
+        HttpResponseMessage? lastResponse = null;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                lastResponse = await client.GetAsync(endpoint, cts.Token);
+                if (lastResponse.IsSuccessStatusCode)
+                    return lastResponse;
+            }
+            catch (Exception) when (attempt < maxAttempts)
+            {
+                // Connection refused, timeout, etc. — retry
+            }
+
+            await Task.Delay(delayMs);
+        }
+
+        return lastResponse ?? throw new TimeoutException(
+            $"Health endpoint {endpoint} did not become healthy after {maxAttempts} attempts");
     }
 }

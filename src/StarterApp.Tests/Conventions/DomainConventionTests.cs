@@ -241,18 +241,81 @@ public class DomainConventionTests : ConventionTestBase
         return false;
     }
 
-    // === Event Routing Contract ===
+    // === Event Contract ===
 
     [Fact]
-    public void ServiceBusSubscriptionFilters_MustReferenceExistingDomainEvents()
+    public void DomainEvents_MustExposeStableEventTypeContract()
     {
-        // Every EventType string in the Service Bus subscription correlation filters must
-        // correspond to an actual IDomainEvent class name. This catches silent routing
-        // breakage when a domain event class is renamed.
-        var domainEventNames = DomainAssembly.GetTypes()
+        // Every IDomainEvent must expose a non-empty EventType property that is independent
+        // of the CLR type name. This ensures outbox messages and Service Bus routing use
+        // stable, versioned contract strings.
+        var domainEventTypes = DomainAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.GetInterfaces().Any(i => i == typeof(IDomainEvent)))
-            .Select(t => t.Name)
+            .ToList();
+
+        Assert.NotEmpty(domainEventTypes);
+
+        var failures = new List<string>();
+        foreach (var type in domainEventTypes)
+        {
+            var instance = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type) as IDomainEvent;
+            var eventType = instance?.EventType;
+
+            if (string.IsNullOrWhiteSpace(eventType))
+                failures.Add($"{type.Name} has a null/empty EventType. Add a const Contract and implement EventType => Contract.");
+            else if (eventType == type.Name)
+                failures.Add($"{type.Name}.EventType returns the CLR type name '{eventType}'. Use a stable versioned string (e.g. 'order.created.v1').");
+        }
+
+        Assert.True(failures.Count == 0,
+            "All domain events must expose a stable, versioned EventType contract:\n" +
+            string.Join("\n", failures));
+    }
+
+    [Fact]
+    public void DomainEvents_MustHaveUniqueEventTypeContracts()
+    {
+        var domainEventTypes = DomainAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract &&
+                   t.GetInterfaces().Any(i => i == typeof(IDomainEvent)))
+            .ToList();
+
+        var contractsByName = new Dictionary<string, List<string>>();
+        foreach (var type in domainEventTypes)
+        {
+            var instance = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type) as IDomainEvent;
+            var eventType = instance?.EventType;
+            if (string.IsNullOrWhiteSpace(eventType))
+                continue;
+
+            if (!contractsByName.TryGetValue(eventType, out var types))
+            {
+                types = [];
+                contractsByName[eventType] = types;
+            }
+            types.Add(type.Name);
+        }
+
+        var duplicates = contractsByName
+            .Where(kvp => kvp.Value.Count > 1)
+            .Select(kvp => $"  Contract '{kvp.Key}' is used by: {string.Join(", ", kvp.Value)}")
+            .ToList();
+
+        Assert.True(duplicates.Count == 0,
+            "Domain event contracts must be unique:\n" + string.Join("\n", duplicates));
+    }
+
+    [Fact]
+    public void ServiceBusSubscriptionFilters_MustReferenceValidEventContracts()
+    {
+        // Every EventType string in Service Bus subscription filters must match an actual
+        // domain event's stable contract. Catches config drift after contract changes.
+        var domainEventContracts = DomainAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract &&
+                   t.GetInterfaces().Any(i => i == typeof(IDomainEvent)))
+            .Select(t => (System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(t) as IDomainEvent)?.EventType)
+            .Where(e => !string.IsNullOrWhiteSpace(e))
             .ToHashSet();
 
         var configPath = ResolveServiceBusConfigPath();
@@ -278,17 +341,17 @@ public class DomainConventionTests : ConventionTestBase
                         if (!props.TryGetProperty("EventType", out var eventType))
                             continue;
 
-                        var typeName = eventType.GetString()!;
-                        if (!domainEventNames.Contains(typeName))
-                            orphanedFilters.Add($"  Subscription '{subscriptionName}' filters on EventType '{typeName}' but no IDomainEvent class with that name exists");
+                        var contract = eventType.GetString()!;
+                        if (!domainEventContracts.Contains(contract))
+                            orphanedFilters.Add($"  Subscription '{subscriptionName}' filters on '{contract}' but no IDomainEvent exposes that contract");
                     }
                 }
             }
         }
 
         Assert.True(orphanedFilters.Count == 0,
-            "Service Bus subscription filters reference non-existent domain event types. " +
-            "If you renamed a domain event class, update config/servicebus-emulator.json to match:\n" +
+            "Service Bus subscription filters reference non-existent event contracts. " +
+            "Update config/servicebus-emulator.json to match domain event Contract constants:\n" +
             string.Join("\n", orphanedFilters));
     }
 

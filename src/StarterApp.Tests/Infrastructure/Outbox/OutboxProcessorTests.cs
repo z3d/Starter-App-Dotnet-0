@@ -79,8 +79,8 @@ public class OutboxProcessorTests
 
         // Assert — Type is the runtime type name set by OutboxMessage.Create
         Assert.NotNull(capturedMessage);
-        Assert.Equal(nameof(TestDomainEvent), capturedMessage.ApplicationProperties["EventType"]);
-        Assert.Equal(nameof(TestDomainEvent), capturedMessage.Subject);
+        Assert.Equal("test.event.v1", capturedMessage.ApplicationProperties["EventType"]);
+        Assert.Equal("test.event.v1", capturedMessage.Subject);
         Assert.Equal("application/json", capturedMessage.ContentType);
     }
 
@@ -255,5 +255,8 @@ public class OutboxProcessorTests
         await task;
     }
 
-    private sealed record TestDomainEvent(string Type, string Data, DateTimeOffset OccurredOnUtc) : IDomainEvent;
+    private sealed record TestDomainEvent(string Type, string Data, DateTimeOffset OccurredOnUtc) : IDomainEvent
+    {
+        public string EventType => "test.event.v1";
+    }
 }

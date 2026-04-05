@@ -316,7 +316,7 @@ public class CreateOrderCommandHandlerTests
 
         // Assert
         var outboxMessage = await context.OutboxMessages.SingleAsync();
-        Assert.Equal("OrderCreatedDomainEvent", outboxMessage.Type);
+        Assert.Equal(OrderCreatedDomainEvent.Contract, outboxMessage.Type);
 
         using var payload = JsonDocument.Parse(outboxMessage.Payload);
         Assert.Equal(result.Id, payload.RootElement.GetProperty("OrderId").GetInt32());

@@ -27,7 +27,7 @@
                       "FilterType": "Correlation",
                       "CorrelationFilter": {
                         "ApplicationProperties": {
-                          "EventType": "OrderCreatedDomainEvent"
+                          "EventType": "order.created.v1"
                         }
                       }
                     }
@@ -48,7 +48,7 @@
                       "FilterType": "Correlation",
                       "CorrelationFilter": {
                         "ApplicationProperties": {
-                          "EventType": "OrderCreatedDomainEvent"
+                          "EventType": "order.created.v1"
                         }
                       }
                     }

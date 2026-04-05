@@ -6,14 +6,14 @@ namespace StarterApp.Tests.Infrastructure.Outbox;
 public class OutboxMessageTests
 {
     [Fact]
-    public void Create_WithArbitraryDomainEvent_ShouldUseRuntimeTypeAndSerializePayload()
+    public void Create_WithArbitraryDomainEvent_ShouldUseStableContractAndSerializePayload()
     {
         var occurredOnUtc = new DateTimeOffset(2026, 03, 21, 04, 05, 06, TimeSpan.Zero);
         var domainEvent = new InventoryReservedDomainEvent(42, 3, null, occurredOnUtc);
 
         var outboxMessage = OutboxMessage.Create(domainEvent);
 
-        Assert.Equal(nameof(InventoryReservedDomainEvent), outboxMessage.Type);
+        Assert.Equal("inventory.reserved.v1", outboxMessage.Type);
         Assert.Equal(occurredOnUtc, outboxMessage.OccurredOnUtc);
 
         using var payload = JsonDocument.Parse(outboxMessage.Payload);
@@ -76,5 +76,8 @@ public class OutboxMessageTests
         int ProductId,
         int Quantity,
         string? Note,
-        DateTimeOffset OccurredOnUtc) : IDomainEvent;
+        DateTimeOffset OccurredOnUtc) : IDomainEvent
+    {
+        public string EventType => "inventory.reserved.v1";
+    }
 }

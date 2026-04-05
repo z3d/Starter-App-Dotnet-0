@@ -4,6 +4,8 @@ namespace StarterApp.Domain.Events;
 
 public sealed class OrderStatusChangedDomainEvent : IDomainEvent
 {
+    public const string Contract = "order.status-changed.v1";
+
     public OrderStatusChangedDomainEvent(Order order, OrderStatus previousStatus, OrderStatus newStatus)
     {
         ArgumentNullException.ThrowIfNull(order);
@@ -16,6 +18,7 @@ public sealed class OrderStatusChangedDomainEvent : IDomainEvent
         OccurredOnUtc = DateTimeOffset.UtcNow;
     }
 
+    public string EventType => Contract;
     public int OrderId { get; }
     public int CustomerId { get; }
     public string PreviousStatus { get; }

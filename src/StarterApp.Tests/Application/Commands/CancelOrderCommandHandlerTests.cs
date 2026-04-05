@@ -117,7 +117,7 @@ public class CancelOrderCommandHandlerTests
 
         // Assert
         var statusChangedMessage = await context.OutboxMessages
-            .Where(message => message.Type == "OrderStatusChangedDomainEvent")
+            .Where(message => message.Type == OrderStatusChangedDomainEvent.Contract)
             .SingleAsync();
 
         using var payload = JsonDocument.Parse(statusChangedMessage.Payload);

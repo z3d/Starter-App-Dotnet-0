@@ -61,9 +61,9 @@ public class UpdateOrderStatusCommandHandlerTests
 
         // Assert
         var outboxMessage = await context.OutboxMessages
-            .Where(message => message.Type == "OrderStatusChangedDomainEvent")
+            .Where(message => message.Type == OrderStatusChangedDomainEvent.Contract)
             .SingleAsync();
-        Assert.Equal("OrderStatusChangedDomainEvent", outboxMessage.Type);
+        Assert.Equal(OrderStatusChangedDomainEvent.Contract, outboxMessage.Type);
 
         using var payload = JsonDocument.Parse(outboxMessage.Payload);
         Assert.Equal(order.Id, payload.RootElement.GetProperty("OrderId").GetInt32());
@@ -91,7 +91,7 @@ public class UpdateOrderStatusCommandHandlerTests
 
         // Assert
         var outboxMessage = await context.OutboxMessages
-            .Where(message => message.Type == "OrderCreatedDomainEvent")
+            .Where(message => message.Type == OrderCreatedDomainEvent.Contract)
             .SingleAsync();
 
         using var payload = JsonDocument.Parse(outboxMessage.Payload);

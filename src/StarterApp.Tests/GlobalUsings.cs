@@ -17,6 +17,7 @@ global using StarterApp.Api.Application.ReadModels;
 global using StarterApp.Domain.Abstractions;
 global using StarterApp.Domain.Entities;
 global using StarterApp.Domain.Enums;
+global using StarterApp.Domain.Events;
 global using StarterApp.Domain.ValueObjects;
 global using System;
 global using System.Collections.Generic;

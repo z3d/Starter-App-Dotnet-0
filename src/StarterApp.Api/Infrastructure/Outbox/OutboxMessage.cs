@@ -46,7 +46,7 @@ public class OutboxMessage
         {
             Id = Guid.NewGuid(),
             OccurredOnUtc = domainEvent.OccurredOnUtc,
-            Type = domainEvent.GetType().Name,
+            Type = domainEvent.EventType,
             Payload = JsonSerializer.Serialize(domainEvent, domainEvent.GetType(), SerializerOptions)
         };
     }
