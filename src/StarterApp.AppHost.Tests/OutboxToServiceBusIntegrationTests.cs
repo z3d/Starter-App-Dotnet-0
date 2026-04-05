@@ -1,4 +1,5 @@
 using Aspire.Hosting.Testing;
+using Microsoft.Data.SqlClient;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -112,6 +113,124 @@ public class OutboxToServiceBusIntegrationTests
 
         var readyResponse = await httpClient.GetAsync("/health/ready");
         Assert.Equal(HttpStatusCode.OK, readyResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateOrder_ShouldWriteAndProcessOutboxEvent()
+    {
+        // Arrange
+        var appHost = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.StarterApp_AppHost>();
+        await using var app = await appHost.BuildAsync();
+        await app.StartAsync();
+
+        var httpClient = app.CreateHttpClient("api");
+        await PollForHealthyAsync(httpClient, "/health/ready");
+
+        // Create a customer
+        var customerResponse = await httpClient.PostAsJsonAsync("/api/v1/customers", new
+        {
+            Name = "Outbox Test Customer",
+            Email = $"outbox-{Guid.NewGuid():N}@test.com"
+        });
+        customerResponse.EnsureSuccessStatusCode();
+        var customer = await customerResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var customerId = customer.GetProperty("id").GetInt32();
+
+        // Create a product
+        var productResponse = await httpClient.PostAsJsonAsync("/api/v1/products", new
+        {
+            Name = "Outbox Test Product",
+            Description = "Product for outbox integration test",
+            Price = 10.00m,
+            Currency = "USD",
+            Stock = 100
+        });
+        productResponse.EnsureSuccessStatusCode();
+        var product = await productResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var productId = product.GetProperty("id").GetInt32();
+
+        // Act — create an order (triggers domain event → outbox → Service Bus)
+        var orderResponse = await httpClient.PostAsJsonAsync("/api/v1/orders", new
+        {
+            CustomerId = customerId,
+            Items = new[] { new { ProductId = productId, Quantity = 1 } }
+        });
+        orderResponse.EnsureSuccessStatusCode();
+
+        // Assert — query OutboxMessages directly via SQL
+        var connectionString = await app.GetConnectionStringAsync("database");
+        Assert.NotNull(connectionString);
+
+        // Poll until the outbox message is created AND processed
+        var (outboxRowFound, processedOnUtc) = await PollForOutboxMessageAsync(
+            connectionString, "order.created.v1", maxAttempts: 30, delayMs: 2000);
+
+        Assert.True(outboxRowFound, "OutboxMessages should contain a row with Type = 'order.created.v1'");
+        Assert.NotNull(processedOnUtc); // Proves the OutboxProcessor published to Service Bus
+    }
+
+    private static async Task<(bool Found, string? ProcessedOnUtc)> PollForOutboxMessageAsync(
+        string connectionString,
+        string expectedType,
+        int maxAttempts,
+        int delayMs)
+    {
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                await using var connection = new SqlConnection(connectionString);
+                await connection.OpenAsync();
+
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    SELECT TOP 1 Type, ProcessedOnUtc
+                    FROM OutboxMessages
+                    WHERE Type = @Type
+                    ORDER BY OccurredOnUtc DESC
+                    """;
+                command.Parameters.AddWithValue("@Type", expectedType);
+
+                await using var reader = await command.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    var processedOnUtc = reader.IsDBNull(1) ? null : reader.GetDateTimeOffset(1).ToString("O");
+                    if (processedOnUtc != null)
+                        return (true, processedOnUtc);
+
+                    // Row exists but not yet processed — keep polling
+                }
+            }
+            catch (Exception) when (attempt < maxAttempts)
+            {
+                // Connection not ready yet — retry
+            }
+
+            await Task.Delay(delayMs);
+        }
+
+        // One final check to distinguish "no row" from "row but not processed"
+        try
+        {
+            await using var connection = new SqlConnection(connectionString);
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT TOP 1 Type, ProcessedOnUtc FROM OutboxMessages WHERE Type = @Type";
+            command.Parameters.AddWithValue("@Type", expectedType);
+            await using var reader = await command.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                var processedOnUtc = reader.IsDBNull(1) ? null : reader.GetDateTimeOffset(1).ToString("O");
+                return (true, processedOnUtc);
+            }
+        }
+        catch
+        {
+            // Ignore final check errors
+        }
+
+        return (false, null);
     }
 
     private static async Task<HttpResponseMessage> PollForHealthyAsync(
