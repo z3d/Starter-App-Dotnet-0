@@ -61,6 +61,9 @@ public class Money : IEquatable<Money>
         return HashCode.Combine(Amount, Currency);
     }
 
+    public static bool operator ==(Money? left, Money? right) => Equals(left, right);
+    public static bool operator !=(Money? left, Money? right) => !Equals(left, right);
+
     public override string ToString()
     {
         return $"{Amount} {Currency}";

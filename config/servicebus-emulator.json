@@ -31,6 +31,17 @@
                         }
                       }
                     }
+                  },
+                  {
+                    "Name": "OrderStatusChangedFilter",
+                    "Properties": {
+                      "FilterType": "Correlation",
+                      "CorrelationFilter": {
+                        "ApplicationProperties": {
+                          "EventType": "order.status-changed.v1"
+                        }
+                      }
+                    }
                   }
                 ]
               },

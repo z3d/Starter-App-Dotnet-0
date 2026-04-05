@@ -35,7 +35,8 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
             FROM Products
             WHERE Id = @Id";
 
-        var product = await _connection.QueryFirstOrDefaultAsync<ProductReadModel>(sqlQuery, new { Id = query.Id });
+        var product = await _connection.QueryFirstOrDefaultAsync<ProductReadModel>(
+            new CommandDefinition(sqlQuery, new { Id = query.Id }, cancellationToken: cancellationToken));
 
         return product;
     }

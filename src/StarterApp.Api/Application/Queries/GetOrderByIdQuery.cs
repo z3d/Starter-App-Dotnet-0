@@ -45,12 +45,14 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
             FROM OrderItems
             WHERE OrderId = @Id";
 
-        var order = await _connection.QuerySingleOrDefaultAsync<OrderWithItemsReadModel>(orderSql, new { Id = query.Id });
+        var order = await _connection.QuerySingleOrDefaultAsync<OrderWithItemsReadModel>(
+            new CommandDefinition(orderSql, new { Id = query.Id }, cancellationToken: cancellationToken));
 
         if (order == null)
             return null;
 
-        var items = await _connection.QueryAsync<OrderItemReadModel>(itemsSql, new { Id = query.Id });
+        var items = await _connection.QueryAsync<OrderItemReadModel>(
+            new CommandDefinition(itemsSql, new { Id = query.Id }, cancellationToken: cancellationToken));
         order.Items = items.ToList();
 
         return order;

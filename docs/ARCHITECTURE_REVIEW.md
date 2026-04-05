@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9/10** (findings #22–#27 resolved — Service Bus integration hardened)
+**Score: 9.5/10** (all 35 findings resolved — no active P1/P2/P3 issues)
 
 ---
 
@@ -129,6 +129,15 @@ No open findings. All findings have been resolved.
 | ~~29~~ | Outbox rows can be published more than once (no locking, no dedup) | Row-level locking (UPDLOCK, READPAST, ROWLOCK) + transaction in OutboxProcessor; duplicate detection enabled on Service Bus topic |
 | ~~30~~ | Event routing coupled to CLR type names — rename breaks routing silently | Convention test validates subscription filter EventType values against actual IDomainEvent class names |
 | ~~31~~ | Aspire integration test doesn't verify eventing path | Added `CreateOrder_ShouldWriteAndProcessOutboxEvent` — queries OutboxMessages directly via SQL, asserts row exists with `order.created.v1` type and polls until `ProcessedOnUtc` is non-null (proves outbox processor published to Service Bus) |
+
+#### Recently resolved (P3 hardening)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~32~~ | Dapper query handlers don't pass CancellationToken | All 7 query handlers now use `CommandDefinition` with `cancellationToken` parameter |
+| ~~33~~ | Money and Email value objects lack `operator ==`/`!=` | Added `operator ==` and `operator !=` overloads to both value objects |
+| ~~34~~ | `order.status-changed.v1` published but no subscription matches | Added `OrderStatusChangedFilter` correlation rule to `email-notifications` subscription |
+| ~~35~~ | `Directory.Build.props` NuGetLockFilePath uses backslash | Changed to forward slash for cross-platform compatibility |
 
 #### Recently resolved (Service Bus hardening)
 
