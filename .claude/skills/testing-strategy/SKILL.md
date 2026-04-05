@@ -12,7 +12,8 @@ user-invocable: false
 Tests/
 ├── Domain/              # Entity and value object tests
 ├── Application/         # Command/query handler tests
-├── Integration/         # Full API integration tests
+├── Infrastructure/      # Outbox, processor tests (Moq + InMemory DbContext)
+├── Integration/         # Full API integration tests (Testcontainers)
 ├── Conventions/         # Architectural rule enforcement
 ├── Fuzzing/             # Property-based tests (FsCheck)
 └── TestBuilders/        # Test data builders
@@ -97,17 +98,33 @@ private class MyCustomConvention : ConventionSpecification
 
 ## Integration Testing
 
-**Why WebApplicationFactory + Testcontainers (not Aspire's `DistributedApplicationTestingBuilder`)**:
+### StarterApp.Tests — WebApplicationFactory + Testcontainers
 
-The project uses `WebApplicationFactory<IApiMarker>` with Testcontainers for SQL Server and Respawn for per-test cleanup. Aspire's `DistributedApplicationTestingBuilder` was evaluated and deliberately not adopted because:
+The main test project uses `WebApplicationFactory<IApiMarker>` with Testcontainers for SQL Server and Respawn for per-test cleanup. This is the workhorse for API endpoint testing:
 
-- **Speed**: WebApplicationFactory runs the API in-process — no container orchestration overhead per test run
-- **Test isolation**: Respawn resets the database in milliseconds between tests; Aspire's heavier lifecycle makes fine-grained reset harder
-- **Debugging**: In-process execution allows easy breakpoints; Aspire testing runs out-of-process
-- **Scope**: This is a single-service project — Aspire testing's main advantage is testing inter-service communication across multiple services, which doesn't apply here
-- **AppHost coupling**: Aspire testing depends on the AppHost project, meaning orchestration changes can break tests
+- **Speed**: In-process execution, no container orchestration overhead per test run
+- **Test isolation**: Respawn resets the database in milliseconds between tests
+- **Debugging**: In-process allows easy breakpoints
+- **Scope**: Tests the API in isolation — Service Bus registration is a no-op when the connection string is absent
 
-**Reconsider Aspire testing when**: the project grows to multiple services that need to test real inter-service communication (e.g., API → background worker → message queue).
+### StarterApp.AppHost.Tests — Aspire DistributedApplicationTestingBuilder
+
+A separate test project for end-to-end distributed system testing. Spins up the full AppHost (SQL Server, Service Bus emulator, API, Functions, DbMigrator) using `DistributedApplicationTestingBuilder`:
+
+- **When to use**: Testing cross-service communication (API → outbox → Service Bus → Functions)
+- **Lifecycle**: `DistributedApplicationTestingBuilder` manages all container lifecycle — no manual Docker setup
+- **HttpClient**: Use `app.CreateHttpClient("api")` to get a properly configured client
+- **Speed**: Slow (spins up containers) — tag with `[Trait("Category", "Aspire")]` to exclude from fast CI runs
+- **AppHost coupling**: Tests depend on the AppHost project — orchestration changes can affect tests
+
+```csharp
+var appHost = await DistributedApplicationTestingBuilder
+    .CreateAsync<Projects.StarterApp_AppHost>();
+await using var app = await appHost.BuildAsync();
+await app.StartAsync();
+
+var httpClient = app.CreateHttpClient("api");
+```
 
 ## Smoke Testing (Post-Deployment)
 

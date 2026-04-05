@@ -79,15 +79,16 @@ The mediator at `Infrastructure/Mediator/Mediator.cs` is well-designed:
 
 ### DevOps and Observability
 
-- **Aspire orchestration** — `AppHost/Program.cs` wires up API, SQL Server, Seq, and DbMigrator with proper `WaitFor` dependencies and optional dev tunnel support
+- **Aspire orchestration** — `AppHost/Program.cs` wires up API, SQL Server, Seq, Service Bus emulator, Functions, and DbMigrator with proper `WaitFor` dependencies and optional dev tunnel support
 - **Serilog** structured logging with console, file, Seq, and OpenTelemetry sinks
 - **OpenTelemetry** metrics (ASP.NET Core, HTTP, runtime) and tracing via `ServiceDefaults`
-- **Docker** multi-stage build with docker-compose (API + SQL Server + Seq + dedicated migrator)
+- **Docker** multi-stage build with docker-compose (API + SQL Server + Seq + Service Bus emulator + Functions + dedicated migrator)
 - **CI** pipeline with GitHub Actions (unit tests + integration tests with Testcontainers)
 - **Health checks** at `/health`, `/health/ready`, `/health/live`, and `/alive`
 - **Password masking** in log output — implemented consistently across `Program.cs`, `DatabaseMigrationEngine`, and `DbMigrator`
 - **Dedicated `DbMigrator` service** for migrations across all deployment modes (Aspire, Docker Compose, standalone)
-- **Outbox persistence** — order domain events are captured durably in `OutboxMessages` during `SaveChangesAsync`
+- **Outbox → Service Bus pipeline** — domain events captured durably in `OutboxMessages` during `SaveChangesAsync`, published to Azure Service Bus by `OutboxProcessor` BackgroundService, consumed by Azure Functions via topic subscriptions with correlation filters
+- **Explicit constraint naming** — all database constraints named via convention (`PK_`, `FK_`, `DF_`, `CK_`, `IX_`), enforced by convention test from script 0012 onward
 
 ### Build Quality
 
@@ -231,13 +232,13 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 | Pattern | Impact |
 |---------|--------|
-| Domain events | Implemented for the `Order` aggregate; other aggregates can adopt the same pattern as they gain side effects |
-| Outbox pattern | Implemented for order lifecycle events; still needs a background dispatcher when external integrations are added |
+| ~~Domain events~~ | ~~Implemented for the `Order` aggregate~~ — resolved. Full pipeline: domain events → outbox → `OutboxProcessor` BackgroundService → Azure Service Bus → Azure Functions subscribers |
+| ~~Outbox pattern~~ | ~~Still needs a background dispatcher~~ — resolved. `OutboxProcessor` polls and publishes to Service Bus; Functions consume via topic subscriptions with correlation filters |
 | Caching | No `IDistributedCache` or response caching |
 | ~~`PagedResult<T>`~~ | ~~Endpoints accept `page`/`pageSize` but return raw collections without total count~~ — resolved. Endpoints now fetch `pageSize + 1` rows and set `X-Has-More` response header. Total count is a UI concern; APIs just signal whether more data exists. |
 | API versioning | Routes use `/api/v1/` prefix strings but no formal versioning library |
 
-**Recommendation:** Domain events are the highest-value addition. The custom mediator already has the infrastructure to dispatch them.
+**Recommendation:** Caching (`IDistributedCache` for product catalog) and API versioning are the next opportunities.
 
 ---
 
@@ -263,9 +264,11 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 |----------|-------|---------------|
 | Domain unit tests | 6 | Entity creation, validation, state transitions, value object behavior |
 | Property-based (FsCheck) | 5 | Money arithmetic invariants, order state machine, GST calculations, email validation |
-| Convention tests | 6 classes | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping, Dapper SQL quality |
+| Convention tests | 6 classes | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping, Dapper SQL quality, DateTimeOffset enforcement, constraint naming enforcement |
 | Application tests | 9 | All command handlers tested with in-memory DbContext |
+| Infrastructure tests | 2 | OutboxMessage mutation tests, OutboxProcessor batch processing with Moq ServiceBusSender |
 | Integration tests | 4+ | Full API endpoint testing with Testcontainers SQL Server, DbUp migrations, ProblemDetails responses |
+| Aspire integration tests | 1+ | End-to-end pipeline testing via DistributedApplicationTestingBuilder (API → outbox → Service Bus → Functions) |
 | Test builders | 3 | Fluent builders for Customer, Product, Order |
 
 **Coverage:** Every command handler has targeted tests. All 9 handlers (Create/Update/Delete for Product and Customer, plus CreateOrder, UpdateOrderStatus, CancelOrder) have test classes covering successful operations, not-found exceptions, and domain invariant enforcement.
@@ -282,4 +285,4 @@ All findings (#16–#21) have been resolved. The codebase has no known open issu
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 
-**Best suited for:** Teams starting a new .NET API who want architectural guardrails from day one. Auth is left to the API gateway by design; domain events and outbox are implemented for the Order aggregate.
+**Best suited for:** Teams starting a new .NET API who want architectural guardrails from day one. Auth is left to the API gateway by design; the full event pipeline (domain events → outbox → Service Bus → Azure Functions) is implemented for the Order aggregate.

@@ -26,12 +26,15 @@ Solution Root/
 │   │   │   └── Filters/
 │   │   ├── Application/                # CQRS commands and queries
 │   │   ├── Data/                       # EF Core DbContext
-│   │   └── Infrastructure/             # Cross-cutting concerns
+│   │   └── Infrastructure/             # Cross-cutting concerns (outbox, mediator)
 │   ├── [ProjectName].Domain/           # Domain Layer (Core Business Logic)
+│   ├── [ProjectName].Functions/        # Azure Functions (Service Bus subscribers)
 │   ├── [ProjectName].AppHost/          # Aspire Orchestration Host
+│   ├── [ProjectName].AppHost.Tests/    # Aspire Integration Tests (DistributedApplicationTestingBuilder)
 │   ├── [ProjectName].ServiceDefaults/  # Shared Aspire Service Configuration
 │   ├── [ProjectName].DbMigrator/       # Database Migration Tool
-│   └── [ProjectName].Tests/            # Comprehensive Test Suite
+│   └── [ProjectName].Tests/            # Unit, Convention, Integration, Fuzzing Tests
+├── config/                             # Emulator configuration (Service Bus topology)
 └── docs/                               # Documentation
     └── API-ENDPOINTS.md
 ```
@@ -134,7 +137,7 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 
 **Data Access**: EF Core with `OwnsOne` for value objects, DbUp migrations in DbMigrator project. See `.claude/skills/data-access/SKILL.md`.
 
-**Domain Events / Outbox**: Domain events are raised inside aggregates and persisted to the `OutboxMessages` table by `ApplicationDbContext` during `SaveChangesAsync`. Handlers still call a single save; the DbContext handles durable event capture internally so external publishers can process the outbox asynchronously later.
+**Domain Events / Outbox / Service Bus**: Domain events are raised inside aggregates and persisted to the `OutboxMessages` table by `ApplicationDbContext` during `SaveChangesAsync`. The `OutboxProcessor` BackgroundService polls unprocessed messages and publishes them to Azure Service Bus (topic: `domain-events`) with an `EventType` application property. Azure Functions subscribe via topic subscriptions with correlation filters (`email-notifications`, `inventory-reservation`). The processor marks messages as processed or errored — errored messages are skipped on subsequent polls. Service Bus registration is conditional: no-op when `ConnectionStrings:servicebus` is absent (tests run without Service Bus). The Service Bus emulator runs in Docker for both Aspire (`RunAsEmulator`) and Docker Compose environments. See `config/servicebus-emulator.json` for topology.
 
 **Database Migrations**: Migrations run exclusively via the dedicated `DbMigrator` console app — never embedded in API startup (eliminates race conditions with multiple replicas).
 - **Aspire:** `AppHost` runs `DbMigrator` with `WaitFor` dependency on SQL Server
@@ -143,7 +146,9 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - **Integration tests:** `TestFixture.RunDbUpMigrations()` runs migrations independently
 - **Constraint naming**: Every constraint must have an explicit name — no anonymous/system-generated names. Convention: `PK_Table`, `FK_Table_Column`, `DF_Table_Column`, `CK_Table_Description`, `IX_Table_Column`. This makes future migrations deterministic (`DROP CONSTRAINT PK_Orders`) instead of requiring dynamic SQL lookups against `sys.default_constraints`. Enforced by convention test from script 0012 onward.
 
-**Testing**: xUnit + FsCheck property-based testing + Best.Conventional architectural conventions across 6 test classes (including `DapperConventionTests` for SELECT * prevention via IL inspection). Convention tests use built-in conventions where possible, custom `ConventionSpecification` for structural checks. See `.claude/skills/testing-strategy/SKILL.md`.
+**Testing**: Two test projects:
+- `StarterApp.Tests` — xUnit + FsCheck property-based testing + Best.Conventional conventions across 6 classes (including `DapperConventionTests` for SELECT * prevention via IL inspection, `DateTimeOffset` enforcement, constraint naming enforcement). Uses WebApplicationFactory + Testcontainers for integration tests. See `.claude/skills/testing-strategy/SKILL.md`.
+- `StarterApp.AppHost.Tests` — Aspire integration tests using `DistributedApplicationTestingBuilder`. Spins up the full distributed app (SQL Server, Service Bus emulator, API, Functions) to test the end-to-end pipeline. Tag slow tests with `[Trait("Category", "Aspire")]`. See `.claude/skills/testing-strategy/SKILL.md`.
 
 **API Design**: Minimal APIs with `IEndpointDefinition` pattern, auto-discovery, endpoint filters for route-specific logic. See `.claude/skills/api-design/SKILL.md`.
 

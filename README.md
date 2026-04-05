@@ -56,12 +56,13 @@ docker-compose up --build
    - Service discovery and configuration
    - Built-in observability and telemetry
 
-5. **Reliable Integration Hooks**
-   - Domain events raised inside aggregates
-   - Durable outbox persistence for order lifecycle changes
-   - Ready for asynchronous publishers/workers
+5. **Asynchronous Event Pipeline**
+   - Domain events raised inside aggregates, persisted to outbox atomically
+   - BackgroundService polls outbox and publishes to Azure Service Bus
+   - Azure Functions subscribe via topic subscriptions with correlation filters
+   - Service Bus emulator for local development (Docker + Aspire)
 
-5. **DevOps & Deployment**
+6. **DevOps & Deployment**
    - Azure deployment with Container Apps
    - PowerShell automation scripts
    - Environment-specific configurations
@@ -72,10 +73,14 @@ docker-compose up --build
 starterapp/
 ├── src/
 │   ├── StarterApp.AppHost/          # .NET Aspire orchestration
-│   ├── StarterApp.Api/              # Main Web API
+│   ├── StarterApp.AppHost.Tests/    # Aspire integration tests (DistributedApplicationTestingBuilder)
+│   ├── StarterApp.Api/              # Main Web API (+ outbox processor)
 │   ├── StarterApp.Domain/           # Domain models and interfaces
+│   ├── StarterApp.Functions/        # Azure Functions (Service Bus subscribers)
 │   ├── StarterApp.DbMigrator/       # Database migration console app
-│   └── StarterApp.ServiceDefaults/  # Shared Aspire configuration
+│   ├── StarterApp.ServiceDefaults/  # Shared Aspire configuration
+│   └── StarterApp.Tests/            # Unit, convention, integration, fuzzing tests
+├── config/                         # Emulator configuration (Service Bus topology)
 ├── docs/                           # Step-by-step tutorials
 ├── scripts/                       # Automation scripts
 └── docker-compose.yml             # Docker orchestration
@@ -152,7 +157,8 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 - **Clean Architecture**: Separation of concerns with Domain, Application, and Infrastructure layers
 - **Modern .NET Patterns**: Uses C# 13/.NET 10 features like collection expressions, guard clauses, and using declarations
 - **Health Checks**: Built-in health monitoring for all services
-- **Outbox Pattern**: Domain events are captured durably for reliable downstream processing
+- **Outbox Pattern**: Domain events are captured durably and published to Azure Service Bus via BackgroundService
+- **Azure Functions**: Service Bus subscribers for email notifications and inventory reservation
 - **Observability**: Distributed tracing, metrics, and structured logging
 - **Configuration Management**: Environment-specific settings with .NET configuration
 - **Database Migrations**: Automated schema updates with DbUp

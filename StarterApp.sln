@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarterApp.ServiceDefaults"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarterApp.Functions", "src\StarterApp.Functions\StarterApp.Functions.csproj", "{5448A9A2-0261-4519-8A84-680E48A4B761}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarterApp.AppHost.Tests", "src\StarterApp.AppHost.Tests\StarterApp.AppHost.Tests.csproj", "{3DBAE949-81C9-439A-8375-0D80AB016926}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -113,6 +115,18 @@ Global
 		{5448A9A2-0261-4519-8A84-680E48A4B761}.Release|x64.Build.0 = Release|Any CPU
 		{5448A9A2-0261-4519-8A84-680E48A4B761}.Release|x86.ActiveCfg = Release|Any CPU
 		{5448A9A2-0261-4519-8A84-680E48A4B761}.Release|x86.Build.0 = Release|Any CPU
+		{3DBAE949-81C9-439A-8375-0D80AB016926}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3DBAE949-81C9-439A-8375-0D80AB016926}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3DBAE949-81C9-439A-8375-0D80AB016926}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3DBAE949-81C9-439A-8375-0D80AB016926}.Debug|x64.Build.0 = Debug|Any CPU
+		{3DBAE949-81C9-439A-8375-0D80AB016926}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3DBAE949-81C9-439A-8375-0D80AB016926}.Debug|x86.Build.0 = Debug|Any CPU
+		{3DBAE949-81C9-439A-8375-0D80AB016926}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3DBAE949-81C9-439A-8375-0D80AB016926}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3DBAE949-81C9-439A-8375-0D80AB016926}.Release|x64.ActiveCfg = Release|Any CPU
+		{3DBAE949-81C9-439A-8375-0D80AB016926}.Release|x64.Build.0 = Release|Any CPU
+		{3DBAE949-81C9-439A-8375-0D80AB016926}.Release|x86.ActiveCfg = Release|Any CPU
+		{3DBAE949-81C9-439A-8375-0D80AB016926}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -125,5 +139,6 @@ Global
 		{BC3E6680-77A8-43E8-9A61-4B4369681DBD} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{77BCDFA3-E753-4CFC-9A72-F0CFC1AA8C7A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{5448A9A2-0261-4519-8A84-680E48A4B761} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{3DBAE949-81C9-439A-8375-0D80AB016926} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal
