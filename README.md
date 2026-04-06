@@ -63,10 +63,10 @@ docker-compose up --build
    - Azure Functions subscribe via topic subscriptions with correlation filters
    - Service Bus emulator for local development (Docker + Aspire)
 
-6. **DevOps & Deployment**
-   - Azure deployment with Container Apps
-   - PowerShell automation scripts
-   - Environment-specific configurations
+6. **DevOps & CI**
+   - GitHub Actions CI pipeline (build, unit tests, integration tests)
+   - Environment-specific configurations (Development, Docker)
+   - Smoke test script for validating live deployments
 
 ## 📁 Project Structure
 
@@ -83,7 +83,7 @@ starterapp/
 │   └── StarterApp.Tests/            # Unit, convention, integration, fuzzing tests
 ├── config/                         # Emulator configuration (Service Bus topology)
 ├── docs/                           # Step-by-step tutorials
-├── scripts/                       # Automation scripts
+├── scripts/                       # Smoke test script
 └── docker-compose.yml             # Docker orchestration
 ```
 
@@ -94,8 +94,7 @@ Follow the numbered directories in the `docs/` folder:
 1. **[.NET Setup](docs/01-dotnet-setup/README.md)** - Create the Web API project
 2. **[SQL Server Setup](docs/02-sql-server-setup/README.md)** - Database configuration and migrations
 3. **[Docker Setup](docs/03-docker-setup/README.md)** - Containerization with Docker Compose
-4. **[Azure Deployment](docs/04-azure-deployment/README.md)** - Deploy to Azure Container Apps
-5. **[Aspire Setup](docs/05-aspire-setup/README.md)** - .NET Aspire orchestration
+4. **[Aspire Setup](docs/05-aspire-setup/README.md)** - .NET Aspire orchestration
 
 ## 🧪 Running CI Locally with Act
 
@@ -180,4 +179,4 @@ This project serves as a practical example for learning:
 - Docker containerization strategies
 - Database migration patterns
 - Cloud-native application development
-- DevOps automation with PowerShell
+- CI/CD pipeline design with GitHub Actions

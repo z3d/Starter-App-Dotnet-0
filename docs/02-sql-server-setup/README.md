@@ -89,18 +89,11 @@ cd src\DockerLearning.DbMigrator
 dotnet run
 ```
 
-### Option 3: PowerShell Script
-```powershell
-# From solution root
-.\scripts\Create-Migrations.ps1
-```
-
 ## Testing Database Connection
 
-Use the provided PowerShell script to test connectivity:
-```powershell
-# Test connection with current settings
-.\test-connection.ps1
+Test connectivity using SQL Server Management Studio or `sqlcmd`:
+```bash
+sqlcmd -S localhost -U sa -P "Your_password123" -C -Q "SELECT 1"
 ```
 
 This script will:

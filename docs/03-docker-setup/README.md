@@ -358,7 +358,7 @@ docker inspect dockerlearning-db-1 | grep -A 10 Health
 
 ## Next Step
 
-Continue to **[Step 4: Azure Deployment](../04-azure-deployment/README.md)** to deploy the containerized application to Azure Container Apps.
+Continue to **[Step 5: Aspire Setup](../05-aspire-setup/README.md)** for .NET Aspire orchestration.
 
 if [ "$DB_READY" = "false" ]; then
     echo "ERROR: Timed out waiting for SQL Server to start after ${MAX_RETRIES} attempts."
@@ -449,4 +449,4 @@ RUN chmod +x ./wait-for-db.sh
 ```
 
 ### Next Step
-Proceed to [Step 4: Azure Deployment](../04-azure-deployment/README.md) to deploy your containerized application to Azure.
+Proceed to [Step 5: Aspire Setup](../05-aspire-setup/README.md) for .NET Aspire orchestration.

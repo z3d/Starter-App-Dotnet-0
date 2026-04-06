@@ -100,11 +100,11 @@ services:
       - ACCEPT_EULA=Y
       - MSSQL_SA_PASSWORD=Your_password123
     healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "Your_password123" -Q "SELECT 1" -b
+      test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.create_connection(('localhost',1433),1); s.close()\""]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 45s
     networks:
       - backend-network
 
