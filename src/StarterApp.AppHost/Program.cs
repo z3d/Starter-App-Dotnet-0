@@ -1,10 +1,12 @@
+using Aspire.Hosting.Azure;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Add Seq for centralized logging
 var seq = builder.AddSeq("seq")
                  .WithLifetime(ContainerLifetime.Persistent);
 
-// Add SQL Server with persistent lifetime and masked password for better security
+// Add SQL Server with persistent lifetime
 var sql = builder.AddSqlServer("sql")
                  .WithLifetime(ContainerLifetime.Persistent);
 
@@ -15,10 +17,53 @@ var redis = builder.AddRedis("redis")
                    .WithLifetime(ContainerLifetime.Persistent);
 
 // Add Azure Service Bus emulator for domain event messaging
-var serviceBus = builder.AddAzureServiceBus("servicebus")
-                        .RunAsEmulator(emulator => emulator
-                            .WithConfigurationFile("../../config/servicebus-emulator.json")
-                            .WithLifetime(ContainerLifetime.Persistent));
+// Topology defined via fluent API so Aspire serializes correlation filters correctly
+var serviceBus = builder.AddAzureServiceBus("servicebus");
+
+var domainEventsTopic = serviceBus.AddServiceBusTopic("domain-events");
+
+domainEventsTopic.AddServiceBusSubscription("email-notifications")
+    .WithProperties(sub =>
+    {
+        sub.DefaultMessageTimeToLive = TimeSpan.FromHours(1);
+        sub.LockDuration = TimeSpan.FromSeconds(30);
+        sub.MaxDeliveryCount = 5;
+        sub.Rules.Add(new AzureServiceBusRule("OrderCreatedFilter")
+        {
+            FilterType = AzureServiceBusFilterType.CorrelationFilter,
+            CorrelationFilter = new AzureServiceBusCorrelationFilter
+            {
+                Properties = { ["EventType"] = "order.created.v1" }
+            }
+        });
+        sub.Rules.Add(new AzureServiceBusRule("OrderStatusChangedFilter")
+        {
+            FilterType = AzureServiceBusFilterType.CorrelationFilter,
+            CorrelationFilter = new AzureServiceBusCorrelationFilter
+            {
+                Properties = { ["EventType"] = "order.status-changed.v1" }
+            }
+        });
+    });
+
+domainEventsTopic.AddServiceBusSubscription("inventory-reservation")
+    .WithProperties(sub =>
+    {
+        sub.DefaultMessageTimeToLive = TimeSpan.FromHours(1);
+        sub.LockDuration = TimeSpan.FromSeconds(30);
+        sub.MaxDeliveryCount = 5;
+        sub.Rules.Add(new AzureServiceBusRule("OrderCreatedFilter")
+        {
+            FilterType = AzureServiceBusFilterType.CorrelationFilter,
+            CorrelationFilter = new AzureServiceBusCorrelationFilter
+            {
+                Properties = { ["EventType"] = "order.created.v1" }
+            }
+        });
+    });
+
+serviceBus.RunAsEmulator(emulator => emulator
+    .WithLifetime(ContainerLifetime.Persistent));
 
 // Add the database migrator as a separate service (must complete before API starts)
 var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")

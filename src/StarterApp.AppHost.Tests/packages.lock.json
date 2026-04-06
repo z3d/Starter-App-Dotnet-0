@@ -84,10 +84,10 @@
         "resolved": "2.8.2",
         "contentHash": "vm1tbfXhFmjFMUmS4M0J0ASXz3/U5XvXBa6DOQUL3fEz4Vt6YPhv+ESCarx6M6D+9kJkJYZKCNvJMas1+nVfmQ=="
       },
-      "Aspire.Dashboard.Sdk.osx-arm64": {
+      "Aspire.Dashboard.Sdk.win-x64": {
         "type": "Transitive",
         "resolved": "13.1.2",
-        "contentHash": "AtCqyYuj8Y8Br1XML8YHzQZ1VbiVsxCVas4aK3AbQ3dZExRERcgpCvX4OXZtip2UMMm2ArvnHpx0HX10Z9cbvQ=="
+        "contentHash": "1jE70VKm5FUrD0hHnDL5e2yv3Ag74hdqE9Q7cabWgEZ4kIodwfFJyV6guQzK6psce4+i5EeVbHUC5Z1Yp1adWw=="
       },
       "Aspire.Hosting": {
         "type": "Transitive",
@@ -265,10 +265,10 @@
           "System.IO.Hashing": "9.0.10"
         }
       },
-      "Aspire.Hosting.Orchestration.osx-arm64": {
+      "Aspire.Hosting.Orchestration.win-x64": {
         "type": "Transitive",
         "resolved": "13.1.2",
-        "contentHash": "3uwx5PZc6u84N9TA15Dv+Z2GdKSl+WDae4ZiwNR8oR881DdZGauZcxJfDwr5zNuupw6jrNc2qXs//D7S7zynkA=="
+        "contentHash": "ukJ58yvu06a0Skn3J6+Qz1KcVcN7J8Hg47ObwVBg3iVoIVXGTaqtzj6iM+cQB1kK0QAYYDr+roOWS9g1Bj6XsQ=="
       },
       "Aspire.Hosting.Redis": {
         "type": "Transitive",
@@ -1332,11 +1332,11 @@
       "starterapp.apphost": {
         "type": "Project",
         "dependencies": {
-          "Aspire.Dashboard.Sdk.osx-arm64": "[13.1.2, )",
+          "Aspire.Dashboard.Sdk.win-x64": "[13.1.2, )",
           "Aspire.Hosting.AppHost": "[13.1.2, )",
           "Aspire.Hosting.Azure.ServiceBus": "[13.1.2, )",
           "Aspire.Hosting.DevTunnels": "[13.1.2, )",
-          "Aspire.Hosting.Orchestration.osx-arm64": "[13.1.2, )",
+          "Aspire.Hosting.Orchestration.win-x64": "[13.1.2, )",
           "Aspire.Hosting.Redis": "[13.1.2, )",
           "Aspire.Hosting.Seq": "[13.1.2, )",
           "Aspire.Hosting.SqlServer": "[13.1.2, )"

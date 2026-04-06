@@ -108,6 +108,62 @@ The script tests all CRUD endpoints, validators (email, currency, OrderId), conf
 - Use modern GPG key management: `gpg --dearmor` + `signed-by=` in sources list
 - Microsoft package repo path: `ubuntu/24.04/prod.list`
 
+## Azure Service Bus Emulator in Aspire
+
+The Service Bus emulator is the most fragile part of the Aspire stack. These learnings were hard-won — do NOT repeat these mistakes.
+
+### NEVER use `WithConfigurationFile()` for emulator topology
+
+`WithConfigurationFile("../../config/servicebus-emulator.json")` causes container mount and networking issues — the emulator container may fail to join the Aspire network, leaving it unable to reach its backing SQL Server. **Always use the fluent API instead:**
+
+```csharp
+var serviceBus = builder.AddAzureServiceBus("servicebus");
+
+var topic = serviceBus.AddServiceBusTopic("domain-events");
+
+topic.AddServiceBusSubscription("email-notifications")
+    .WithProperties(sub =>
+    {
+        sub.Rules.Add(new AzureServiceBusRule("MyFilter")
+        {
+            FilterType = AzureServiceBusFilterType.CorrelationFilter,
+            CorrelationFilter = new AzureServiceBusCorrelationFilter
+            {
+                Properties = { ["EventType"] = "order.created.v1" }
+            }
+        });
+    });
+
+serviceBus.RunAsEmulator(emulator => emulator
+    .WithLifetime(ContainerLifetime.Persistent));
+```
+
+The static `config/servicebus-emulator.json` file is retained for Docker Compose only.
+
+### NEVER use `WithConfiguration()` with raw JSON for correlation filters
+
+Aspire's `WithConfiguration(doc => { ... })` serializer maps `CorrelationFilter` using its own schema, which produces empty `Properties: {}` in the emulator JSON — even if you set `ApplicationProperties` correctly in the `JsonObject`. The emulator then rejects the filter with: `"At least one system or user property must be set for a correlation filter."` Use the fluent API above instead.
+
+### Memory pressure with the emulator
+
+The Service Bus emulator runs its own backing SQL Server container (`servicebus-mssql`). On machines with limited Docker memory (e.g. 8 GB default WSL2 on a 16 GB machine), two SQL Server instances plus the emulator can OOM (exit code 139). Symptoms:
+- Emulator starts, creates topics/subscriptions, then dies with `Out of memory`
+- Container shows `Exited (139)` — SIGKILL from OOM killer
+
+If this happens, increase Docker/WSL2 memory via `%USERPROFILE%\.wslconfig`:
+```ini
+[wsl2]
+memory=12GB
+```
+Then `wsl --shutdown` and restart Docker Desktop. On ARM/Apple Silicon the problem is worse due to Rosetta/QEMU overhead (the emulator image is `linux/amd64` only).
+
+### Debugging emulator startup failures
+
+1. Check `docker ps -a` — look for `Created` (never started) or `Exited (139)` (OOM)
+2. Check `docker inspect <container> --format '{{json .NetworkSettings.Networks}}'` — empty `{}` means network wasn't attached
+3. Check `docker logs <container>` — look for `"SQL DB Unhealthy"` (network issue) or `"At least one system or user property"` (filter serialization issue)
+4. If containers are in bad state, remove them and the Aspire network: `docker rm -f <containers>; docker network rm <aspire-network>`
+
 ## Dev Tunnels
 
 Expose your local API to the internet for webhook testing, mobile app development, or sharing with teammates. Uses `Aspire.Hosting.DevTunnels`.
