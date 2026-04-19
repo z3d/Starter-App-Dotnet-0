@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { BASE_URL, JSON_HEADERS } from './config.js';
+import { BASE_URL, ENDPOINTS, jsonParams, tagParams } from './config.js';
 
 const ORDERS_URL = `${BASE_URL}/api/v1/orders`;
 
@@ -8,16 +8,14 @@ export function createOrder(customerId, items) {
   const res = http.post(
     ORDERS_URL,
     JSON.stringify({ customerId, items }),
-    Object.assign({}, JSON_HEADERS, { tags: { endpoint: 'create_order' } }),
+    jsonParams(ENDPOINTS.CREATE_ORDER),
   );
   check(res, { 'create order: status 201': (r) => r.status === 201 });
   return res.status === 201 ? res.json() : null;
 }
 
 export function getOrder(id) {
-  const res = http.get(`${ORDERS_URL}/${id}`, {
-    tags: { endpoint: 'get_order' },
-  });
+  const res = http.get(`${ORDERS_URL}/${id}`, tagParams(ENDPOINTS.GET_ORDER));
   check(res, { 'get order: status 200': (r) => r.status === 200 });
   return res;
 }
@@ -25,7 +23,7 @@ export function getOrder(id) {
 export function getOrdersByCustomer(customerId, page = 1, pageSize = 50) {
   const res = http.get(
     `${ORDERS_URL}/customer/${customerId}?page=${page}&pageSize=${pageSize}`,
-    { tags: { endpoint: 'orders_by_customer' } },
+    tagParams(ENDPOINTS.ORDERS_BY_CUSTOMER),
   );
   check(res, {
     'orders by customer: status 200': (r) => r.status === 200,
@@ -37,7 +35,7 @@ export function getOrdersByCustomer(customerId, page = 1, pageSize = 50) {
 export function getOrdersByStatus(status, page = 1, pageSize = 50) {
   const res = http.get(
     `${ORDERS_URL}/status/${status}?page=${page}&pageSize=${pageSize}`,
-    { tags: { endpoint: 'orders_by_status' } },
+    tagParams(ENDPOINTS.ORDERS_BY_STATUS),
   );
   check(res, {
     'orders by status: status 200': (r) => r.status === 200,
@@ -50,18 +48,18 @@ export function updateOrderStatus(orderId, status) {
   const res = http.put(
     `${ORDERS_URL}/${orderId}/status`,
     JSON.stringify({ orderId, status }),
-    Object.assign({}, JSON_HEADERS, {
-      tags: { endpoint: 'update_order_status' },
-    }),
+    jsonParams(ENDPOINTS.UPDATE_ORDER_STATUS),
   );
   check(res, { 'update order status: status 200': (r) => r.status === 200 });
   return res.status === 200 ? res.json() : null;
 }
 
 export function cancelOrder(orderId) {
-  const res = http.post(`${ORDERS_URL}/${orderId}/cancel`, null, {
-    tags: { endpoint: 'cancel_order' },
-  });
+  const res = http.post(
+    `${ORDERS_URL}/${orderId}/cancel`,
+    null,
+    tagParams(ENDPOINTS.CANCEL_ORDER),
+  );
   check(res, { 'cancel order: status 200': (r) => r.status === 200 });
   return res.status === 200 ? res.json() : null;
 }

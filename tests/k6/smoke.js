@@ -133,7 +133,6 @@ export default function () {
   });
 
   group('Negative Cases', () => {
-    // Tell k6 that 4xx responses are expected (not failures) for this group
     http.setResponseCallback(http.expectedStatuses(400, 404));
 
     const notFoundCustomer = http.get(`${BASE_URL}/api/v1/customers/999999`);
@@ -160,7 +159,6 @@ export default function () {
       'invalid customer: 400': (r) => r.status === 400,
     });
 
-    // Reset to default: only 2xx/3xx are considered successful
     http.setResponseCallback(http.expectedStatuses({ min: 200, max: 399 }));
   });
 
