@@ -26,17 +26,17 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddPersistence(this IServiceCollection services, string connectionString)
     {
-        // NOTE: EnableRetryOnFailure is NOT configured. The outbox dual-save pattern in
-        // ApplicationDbContext.SaveChangesWithOutboxAsync uses a user-initiated transaction,
-        // which a retrying execution strategy rejects unless the entire block is wrapped in
-        // CreateExecutionStrategy().ExecuteAsync. That wrapping is unsafe here: if the first
-        // SaveChanges succeeds and the second (outbox insert) fails transiently, the transaction
-        // rolls back but EF's ChangeTracker does not reset — a retry produces Unchanged entities
-        // with IDs that no longer exist in the DB, silently dropping the write. A safe Azure SQL
-        // retry story requires moving to a single-SaveChanges outbox (HiLo or Guid v7 aggregate
-        // IDs so creation event payloads can be built pre-save).
+        // EnableRetryOnFailure is safe here because:
+        //   1. ApplicationDbContext uses a single-SaveChanges outbox (no user transaction),
+        //      so the retrying execution strategy does not have to refuse the flow.
+        //   2. CreateOrderCommandHandler's user transaction (stock reservation + order save)
+        //      is wrapped in Database.CreateExecutionStrategy().ExecuteAsync, which is the
+        //      retry-safe pattern documented by Microsoft.
+        // If a future handler opens BeginTransaction without wrapping in an execution strategy,
+        // the first transient fault will throw at runtime with a clear message.
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlServer(connectionString)
+            options.UseSqlServer(connectionString, sql =>
+                sql.EnableRetryOnFailure(maxRetryCount: 6, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null))
                    .EnableSensitiveDataLogging(false));
 
         services.AddScoped<System.Data.IDbConnection>(provider =>

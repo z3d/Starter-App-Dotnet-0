@@ -5,6 +5,8 @@ namespace StarterApp.Tests.Fuzzing;
 
 public class OrderItemFuzzTests
 {
+    private static readonly Guid TestOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
     private static Arbitrary<int> PositiveQuantity() =>
         Gen.Choose(1, 1_000).ToArbitrary();
 
@@ -22,7 +24,7 @@ public class OrderItemFuzzTests
             (quantity, amount, gstRate) =>
             {
                 var unitPrice = Money.Create(amount, "USD");
-                var item = new OrderItem(1, 1, "Product", quantity, unitPrice, gstRate);
+                var item = new OrderItem(TestOrderId, 1, "Product", quantity, unitPrice, gstRate);
 
                 var totalIncGst = item.GetTotalPriceIncludingGst().Amount;
                 var unitIncGst = item.GetUnitPriceIncludingGst().Amount;
@@ -39,7 +41,7 @@ public class OrderItemFuzzTests
             (quantity, amount) =>
             {
                 var unitPrice = Money.Create(amount, "USD");
-                var item = new OrderItem(1, 1, "Product", quantity, unitPrice);
+                var item = new OrderItem(TestOrderId, 1, "Product", quantity, unitPrice);
                 return item.GetTotalPriceExcludingGst().Amount == unitPrice.Amount * quantity;
             });
     }
@@ -53,23 +55,31 @@ public class OrderItemFuzzTests
             {
                 var unitPrice = Money.Create(10m, "USD");
                 try
-                { new OrderItem(1, 1, "Product", 1, unitPrice, gstRate); return false; }
+                { new OrderItem(TestOrderId, 1, "Product", 1, unitPrice, gstRate); return false; }
                 catch (ArgumentOutOfRangeException) { return true; }
             });
     }
 
     [Property]
-    public Property ZeroOrNegativeIds_AlwaysThrow()
+    public Property ZeroOrNegativeProductId_AlwaysThrows()
     {
         var invalidId = Gen.Choose(-10_000, 0).ToArbitrary();
         return Prop.ForAll(invalidId,
-            id =>
+            productId =>
             {
                 var unitPrice = Money.Create(10m, "USD");
                 try
-                { new OrderItem(id, 1, "Product", 1, unitPrice); return false; }
+                { new OrderItem(TestOrderId, productId, "Product", 1, unitPrice); return false; }
                 catch (ArgumentOutOfRangeException) { return true; }
             });
+    }
+
+    [Fact]
+    public void EmptyOrderId_Throws()
+    {
+        var unitPrice = Money.Create(10m, "USD");
+        Assert.Throws<ArgumentException>(() =>
+            new OrderItem(Guid.Empty, 1, "Product", 1, unitPrice));
     }
 
     [Property]
@@ -81,7 +91,7 @@ public class OrderItemFuzzTests
             {
                 var unitPrice = Money.Create(10m, "USD");
                 try
-                { new OrderItem(1, 1, "Product", qty, unitPrice); return false; }
+                { new OrderItem(TestOrderId, 1, "Product", qty, unitPrice); return false; }
                 catch (ArgumentOutOfRangeException) { return true; }
             });
     }

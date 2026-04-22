@@ -2,7 +2,7 @@ namespace StarterApp.Api.Application.Queries;
 
 public class GetOrderByIdQuery : IQuery<OrderWithItemsReadModel?>, IRequest<OrderWithItemsReadModel?>
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 }
 
 public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, OrderWithItemsReadModel?>

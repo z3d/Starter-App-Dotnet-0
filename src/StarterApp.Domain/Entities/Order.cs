@@ -6,7 +6,7 @@ public class Order : AggregateRoot
 {
     private readonly List<OrderItem> _items = [];
 
-    public int Id { get; private set; }
+    public Guid Id { get; private set; }
     public int CustomerId { get; private set; }
     public DateTimeOffset OrderDate { get; private set; }
     public OrderStatus Status { get; private set; }
@@ -28,6 +28,10 @@ public class Order : AggregateRoot
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(customerId);
 
+        // Client-assigned Id is required so creation events can be built before SaveChanges —
+        // this is what keeps SaveChangesWithOutboxAsync a single SaveChanges and makes
+        // EnableRetryOnFailure safe. Guid v7 is time-ordered, preserving insert locality.
+        Id = Guid.CreateVersion7();
         CustomerId = customerId;
         OrderDate = DateTimeOffset.UtcNow;
         Status = OrderStatus.Pending;
@@ -179,7 +183,7 @@ public class Order : AggregateRoot
         };
     }
 
-    internal static Order Reconstitute(int id, int customerId, DateTimeOffset orderDate, OrderStatus status, DateTimeOffset lastUpdated, List<OrderItem> items)
+    internal static Order Reconstitute(Guid id, int customerId, DateTimeOffset orderDate, OrderStatus status, DateTimeOffset lastUpdated, List<OrderItem> items)
     {
         var order = new Order
         {

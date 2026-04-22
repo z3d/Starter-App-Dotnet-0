@@ -2,7 +2,7 @@ namespace StarterApp.Api.Application.DTOs;
 
 public class OrderDto
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
     public int CustomerId { get; set; }
     public DateTimeOffset OrderDate { get; set; }
     public string Status { get; set; } = string.Empty;

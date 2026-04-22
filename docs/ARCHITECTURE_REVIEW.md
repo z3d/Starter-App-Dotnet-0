@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9.5/10** (36 findings resolved, 1 open — see finding #36)
+**Score: 9.6/10** (37 findings resolved, 0 open)
 
 ---
 
@@ -88,7 +88,7 @@ The mediator at `Infrastructure/Mediator/Mediator.cs` is well-designed:
 - **Health checks** at `/health`, `/health/ready`, `/health/live`, and `/alive`
 - **Password masking** in log output — implemented consistently across `Program.cs`, `DatabaseMigrationEngine`, and `DbMigrator`
 - **Dedicated `DbMigrator` service** for migrations across all deployment modes (Aspire, Docker Compose, standalone)
-- **Outbox → Service Bus pipeline** — domain events captured durably in `OutboxMessages` during `SaveChangesAsync` (post-persist, so IDENTITY values are correct), published to Azure Service Bus by `OutboxProcessor` BackgroundService with row-level locking (`UPDLOCK, READPAST, ROWLOCK`) to prevent duplicate publishing across replicas. Service Bus topic has duplicate detection enabled (10-minute window). Consumed by Azure Functions via topic subscriptions with correlation filters. Convention test enforces subscription filter ↔ domain event name sync.
+- **Outbox → Service Bus pipeline** — domain events captured durably in `OutboxMessages` during a single `SaveChangesAsync` (aggregates use client-generated Guid v7 Ids, so creation events carry correct keys before the save). `EnableRetryOnFailure` is safe because no user transaction is needed. Rows are published to Azure Service Bus by `OutboxProcessor` BackgroundService with row-level locking (`UPDLOCK, READPAST, ROWLOCK`) to prevent duplicate publishing across replicas. Service Bus topic has duplicate detection enabled (10-minute window). Consumed by Azure Functions via topic subscriptions with correlation filters. Convention test enforces subscription filter ↔ domain event contract sync.
 - **Explicit constraint naming** — all database constraints named via convention (`PK_`, `FK_`, `DF_`, `CK_`, `IX_`), enforced by convention test from script 0012 onward
 
 ### Build Quality
@@ -120,11 +120,13 @@ Good adoption of modern .NET:
 
 These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
 
-| # | Finding | Status |
-|---|---------|--------|
-| 36 | No transient-failure retry on `DbContext` for Azure SQL throttling / failover | Open — requires outbox redesign (see below) |
+*No open findings.*
 
-**Finding 36 context.** An initial attempt to add `EnableRetryOnFailure` to `AddPersistence` failed CI. The root cause: `ApplicationDbContext.SaveChangesWithOutboxAsync` performs a user-initiated transaction with two `SaveChanges` calls (aggregate writes, then outbox-message inserts populated by post-save `RecordCreation()`). A retrying execution strategy rejects user transactions unless the block is wrapped in `CreateExecutionStrategy().ExecuteAsync(...)`. Wrapping it is *unsafe* with the current design: if the first `SaveChanges` succeeds and the second fails transiently, the transaction rolls back but EF Core's `ChangeTracker` does not reset on rollback — a retry produces `Unchanged` entities with IDs that no longer exist in the DB, silently dropping the write (POST returns 201, GET returns 404). Safe Azure SQL retry requires collapsing to a single `SaveChanges` so no user transaction is needed, which means pre-computing creation-event payloads — either by moving aggregates to Guid v7 IDs or HiLo sequences (both knowable client-side), or by using an `ISaveChangesInterceptor` that appends outbox rows mid-save after IDENTITY assignment. This is deferred until aggregate ID strategy is revisited; for now, client-side HTTP retry covers the gap on the write path.
+#### Recently resolved (Azure SQL transient retry)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~36~~ | No transient-failure retry on `DbContext` for Azure SQL throttling / failover | `Order` aggregate now uses client-generated `Guid.CreateVersion7()` IDs. This lets `RecordCreation()` run BEFORE `SaveChanges` (events already know their Ids), collapsing `SaveChangesWithOutboxAsync` to a single `SaveChanges` — no user transaction needed. `EnableRetryOnFailure(6, 30s)` is re-enabled in `AddPersistence`. `CreateOrderCommandHandler` (the one handler that still needs a user-managed transaction for atomic stock-reservation + order-save) wraps itself in `Database.CreateExecutionStrategy().ExecuteAsync(...)` and calls `ChangeTracker.Clear()` at the top of each attempt so retries start from a clean state. New convention test enforces: any `AggregateRoot` overriding `RecordCreation()` must have a `Guid Id` — if a future aggregate tries to raise creation events from an IDENTITY PK, the build fails. Migration `0014_ConvertOrderIdToGuid.sql` converts existing `Orders.Id` and `OrderItems.OrderId` to `UNIQUEIDENTIFIER`. |
 
 #### Recently resolved (outbox publish resilience)
 

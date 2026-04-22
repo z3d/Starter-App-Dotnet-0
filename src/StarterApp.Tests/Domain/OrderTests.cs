@@ -2,6 +2,8 @@ namespace StarterApp.Tests.Domain;
 
 public class OrderTests
 {
+    private static readonly Guid TestOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
     [Fact]
     public void Constructor_WithValidCustomerId_ShouldCreateOrder()
     {
@@ -15,6 +17,7 @@ public class OrderTests
         Assert.Equal(customerId, order.CustomerId);
         Assert.Equal(OrderStatus.Pending, order.Status);
         Assert.Empty(order.Items);
+        Assert.NotEqual(Guid.Empty, order.Id);
         Assert.True(order.OrderDate <= DateTimeOffset.UtcNow);
         Assert.True(order.LastUpdated <= DateTimeOffset.UtcNow);
     }
@@ -34,7 +37,7 @@ public class OrderTests
         // Arrange
         var order = new Order(1);
         var money = Money.Create(10.00m, "USD");
-        var orderItem = new OrderItem(1, 1, "Test Product", 2, money);
+        var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 2, money);
 
         // Act
         order.AddItem(orderItem);
@@ -61,7 +64,7 @@ public class OrderTests
         var order = new Order(1);
         order.UpdateStatus(OrderStatus.Confirmed);
         var money = Money.Create(10.00m, "USD");
-        var orderItem = new OrderItem(1, 1, "Test Product", 2, money);
+        var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 2, money);
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() => order.AddItem(orderItem));
@@ -74,8 +77,8 @@ public class OrderTests
         // Arrange
         var order = new Order(1);
         var money = Money.Create(10.00m, "USD");
-        var firstItem = new OrderItem(1, 1, "Test Product", 2, money);
-        var secondItem = new OrderItem(1, 1, "Test Product", 3, money);
+        var firstItem = new OrderItem(TestOrderId, 1, "Test Product", 2, money);
+        var secondItem = new OrderItem(TestOrderId, 1, "Test Product", 3, money);
 
         // Act
         order.AddItem(firstItem);
@@ -93,11 +96,11 @@ public class OrderTests
     {
         // Arrange
         var order = new Order(1);
-        order.AddItem(new OrderItem(1, 1, "Product 1", 1, Money.Create(10.00m, "USD")));
+        order.AddItem(new OrderItem(TestOrderId, 1, "Product 1", 1, Money.Create(10.00m, "USD")));
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            order.AddItem(new OrderItem(1, 2, "Product 2", 1, Money.Create(10.00m, "AUD"))));
+            order.AddItem(new OrderItem(TestOrderId, 2, "Product 2", 1, Money.Create(10.00m, "AUD"))));
 
         Assert.Equal("All order items must use the same currency", exception.Message);
     }
@@ -108,7 +111,7 @@ public class OrderTests
         // Arrange
         var order = new Order(1);
         var money = Money.Create(10.00m, "USD");
-        var orderItem = new OrderItem(1, 1, "Test Product", 2, money);
+        var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 2, money);
         order.AddItem(orderItem);
 
         // Act
@@ -173,7 +176,7 @@ public class OrderTests
         if (currentStatus != OrderStatus.Pending)
         {
             // Reconstitute the order in the desired state
-            order = Order.Reconstitute(1, 1, DateTimeOffset.UtcNow, currentStatus, DateTimeOffset.UtcNow, []);
+            order = Order.Reconstitute(TestOrderId, 1, DateTimeOffset.UtcNow, currentStatus, DateTimeOffset.UtcNow, []);
         }
 
         // Act & Assert
@@ -195,7 +198,7 @@ public class OrderTests
         // Arrange
         var order = new Order(1);
         var money = Money.Create(10.00m, "USD");
-        var orderItem = new OrderItem(1, 1, "Test Product", 2, money);
+        var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 2, money);
         order.AddItem(orderItem);
 
         // Act
@@ -233,7 +236,7 @@ public class OrderTests
     public void Cancel_FromDeliveredStatus_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var order = Order.Reconstitute(1, 1, DateTimeOffset.UtcNow, OrderStatus.Delivered, DateTimeOffset.UtcNow, []);
+        var order = Order.Reconstitute(TestOrderId, 1, DateTimeOffset.UtcNow, OrderStatus.Delivered, DateTimeOffset.UtcNow, []);
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() => order.Cancel());
@@ -260,8 +263,8 @@ public class OrderTests
         var order = new Order(1);
         var money1 = Money.Create(10.00m, "USD");
         var money2 = Money.Create(20.00m, "USD");
-        var item1 = new OrderItem(1, 1, "Product 1", 2, money1); // 2 * 10.00 = 20.00
-        var item2 = new OrderItem(1, 2, "Product 2", 1, money2); // 1 * 20.00 = 20.00
+        var item1 = new OrderItem(TestOrderId, 1, "Product 1", 2, money1); // 2 * 10.00 = 20.00
+        var item2 = new OrderItem(TestOrderId, 2, "Product 2", 1, money2); // 1 * 20.00 = 20.00
 
         order.AddItem(item1);
         order.AddItem(item2);
@@ -279,7 +282,7 @@ public class OrderTests
         // Arrange
         var order = new Order(1);
         var money = Money.Create(10.00m, "USD");
-        var item = new OrderItem(1, 1, "Product 1", 2, money, 0.10m); // 2 * 10.00 * 1.10 = 22.00
+        var item = new OrderItem(TestOrderId, 1, "Product 1", 2, money, 0.10m); // 2 * 10.00 * 1.10 = 22.00
 
         order.AddItem(item);
 
@@ -296,7 +299,7 @@ public class OrderTests
         // Arrange
         var order = new Order(1);
         var money = Money.Create(10.00m, "USD");
-        var item = new OrderItem(1, 1, "Product 1", 2, money, 0.10m); // 2 * 10.00 * 0.10 = 2.00
+        var item = new OrderItem(TestOrderId, 1, "Product 1", 2, money, 0.10m); // 2 * 10.00 * 0.10 = 2.00
 
         order.AddItem(item);
 
@@ -316,14 +319,14 @@ public class OrderTests
         var money = Money.Create(10.00m, "USD");
         var items = new List<OrderItem>
         {
-            new OrderItem(1, 1, "Product 1", 2, money)
+            new OrderItem(TestOrderId, 1, "Product 1", 2, money)
         };
 
         // Act
-        var order = Order.Reconstitute(123, 1, orderDate, OrderStatus.Confirmed, lastUpdated, items);
+        var order = Order.Reconstitute(TestOrderId, 1, orderDate, OrderStatus.Confirmed, lastUpdated, items);
 
         // Assert
-        Assert.Equal(123, order.Id);
+        Assert.Equal(TestOrderId, order.Id);
         Assert.Equal(1, order.CustomerId);
         Assert.Equal(orderDate, order.OrderDate);
         Assert.Equal(OrderStatus.Confirmed, order.Status);
@@ -332,6 +335,3 @@ public class OrderTests
         Assert.Equal("Product 1", order.Items.First().ProductName);
     }
 }
-
-
-

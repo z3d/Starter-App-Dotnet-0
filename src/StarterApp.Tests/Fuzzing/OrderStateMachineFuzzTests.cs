@@ -67,7 +67,7 @@ public class OrderStateMachineFuzzTests
             pair =>
             {
                 var (current, target) = pair;
-                var order = Order.Reconstitute(1, 1, DateTimeOffset.UtcNow, current, DateTimeOffset.UtcNow, []);
+                var order = Order.Reconstitute(Guid.CreateVersion7(), 1, DateTimeOffset.UtcNow, current, DateTimeOffset.UtcNow, []);
                 try
                 { order.UpdateStatus(target); return false; }
                 catch (InvalidOperationException) { return true; }
@@ -77,11 +77,12 @@ public class OrderStateMachineFuzzTests
     [Property]
     public Property Reconstitute_PreservesAllProperties()
     {
-        var ids = Gen.Choose(1, 10_000).ToArbitrary();
+        var customerIds = Gen.Choose(1, 10_000).ToArbitrary();
         var statuses = Gen.Elements(Enum.GetValues<OrderStatus>()).ToArbitrary();
-        return Prop.ForAll(ids, ids, statuses,
-            (id, customerId, status) =>
+        return Prop.ForAll(customerIds, statuses,
+            (customerId, status) =>
             {
+                var id = Guid.CreateVersion7();
                 var orderDate = DateTimeOffset.UtcNow.AddDays(-1);
                 var lastUpdated = DateTimeOffset.UtcNow;
                 var items = new List<OrderItem>
@@ -117,7 +118,7 @@ public class OrderStateMachineFuzzTests
                 for (var i = 0; i < itemSpecs.Length; i++)
                 {
                     var spec = itemSpecs[i];
-                    var item = new OrderItem(1, i + 1, $"Product {i + 1}", spec.Quantity,
+                    var item = new OrderItem(order.Id, i + 1, $"Product {i + 1}", spec.Quantity,
                         Money.Create(spec.Amount, "USD"), spec.GstRate);
                     order.AddItem(item);
                 }

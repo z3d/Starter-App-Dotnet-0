@@ -4,8 +4,8 @@ public class UpdateOrderStatusCommandValidator : IValidator<UpdateOrderStatusCom
 {
     public IEnumerable<ValidationError> Validate(UpdateOrderStatusCommand request)
     {
-        if (request.OrderId <= 0)
-            yield return new ValidationError(nameof(request.OrderId), "OrderId must be a positive integer");
+        if (request.OrderId == Guid.Empty)
+            yield return new ValidationError(nameof(request.OrderId), "OrderId must be a non-empty Guid");
 
         if (string.IsNullOrWhiteSpace(request.Status))
         {

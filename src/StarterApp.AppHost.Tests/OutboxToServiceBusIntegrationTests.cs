@@ -74,8 +74,8 @@ public class OutboxToServiceBusIntegrationTests
         });
         orderResponse.EnsureSuccessStatusCode();
         var order = await orderResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        var orderId = order.GetProperty("id").GetInt32();
-        Assert.True(orderId > 0);
+        var orderId = order.GetProperty("id").GetGuid();
+        Assert.NotEqual(Guid.Empty, orderId);
 
         // Assert — verify the order persisted correctly
         var getResponse = await httpClient.GetAsync($"/api/v1/orders/{orderId}");
@@ -158,8 +158,8 @@ public class OutboxToServiceBusIntegrationTests
         });
         orderResponse.EnsureSuccessStatusCode();
         var order = await orderResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
-        var orderId = order.GetProperty("id").GetInt32();
-        Assert.True(orderId > 0);
+        var orderId = order.GetProperty("id").GetGuid();
+        Assert.NotEqual(Guid.Empty, orderId);
 
         // Assert — query OutboxMessages directly via SQL, correlated to this specific order
         var connectionString = await app.GetConnectionStringAsync("database");
@@ -177,7 +177,7 @@ public class OutboxToServiceBusIntegrationTests
     private static async Task<(bool Found, string? ProcessedOnUtc)> PollForOutboxMessageAsync(
         string connectionString,
         string expectedType,
-        int expectedOrderId,
+        Guid expectedOrderId,
         int maxAttempts,
         int delayMs)
     {
@@ -212,7 +212,7 @@ public class OutboxToServiceBusIntegrationTests
     private static async Task<(bool Found, string? ProcessedOnUtc)> QueryOutboxForOrderAsync(
         string connectionString,
         string expectedType,
-        int expectedOrderId)
+        Guid expectedOrderId)
     {
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
@@ -232,7 +232,7 @@ public class OutboxToServiceBusIntegrationTests
             var payload = reader.GetString(2);
             using var doc = JsonDocument.Parse(payload);
             if (doc.RootElement.TryGetProperty("OrderId", out var orderIdProp) &&
-                orderIdProp.GetInt32() == expectedOrderId)
+                orderIdProp.GetGuid() == expectedOrderId)
             {
                 var processedOnUtc = reader.IsDBNull(1) ? null : reader.GetDateTimeOffset(1).ToString("O");
                 return (true, processedOnUtc);

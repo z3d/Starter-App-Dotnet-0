@@ -66,7 +66,7 @@ public class UpdateOrderStatusCommandHandlerTests
         Assert.Equal(OrderStatusChangedDomainEvent.Contract, outboxMessage.Type);
 
         using var payload = JsonDocument.Parse(outboxMessage.Payload);
-        Assert.Equal(order.Id, payload.RootElement.GetProperty("OrderId").GetInt32());
+        Assert.Equal(order.Id, payload.RootElement.GetProperty("OrderId").GetGuid());
         Assert.Equal("Pending", payload.RootElement.GetProperty("PreviousStatus").GetString());
         Assert.Equal("Confirmed", payload.RootElement.GetProperty("NewStatus").GetString());
     }
@@ -95,7 +95,7 @@ public class UpdateOrderStatusCommandHandlerTests
             .SingleAsync();
 
         using var payload = JsonDocument.Parse(outboxMessage.Payload);
-        Assert.Equal(order.Id, payload.RootElement.GetProperty("OrderId").GetInt32());
+        Assert.Equal(order.Id, payload.RootElement.GetProperty("OrderId").GetGuid());
         Assert.Equal(1, payload.RootElement.GetProperty("LineItemCount").GetInt32());
         Assert.Equal(2, payload.RootElement.GetProperty("TotalQuantity").GetInt32());
     }
@@ -108,7 +108,7 @@ public class UpdateOrderStatusCommandHandlerTests
         await using var context = new ApplicationDbContext(options);
 
         var handler = new UpdateOrderStatusCommandHandler(context);
-        var command = new UpdateOrderStatusCommand { OrderId = 999, Status = "Confirmed" };
+        var command = new UpdateOrderStatusCommand { OrderId = Guid.NewGuid(), Status = "Confirmed" };
 
         // Act & Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>

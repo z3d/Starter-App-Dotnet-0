@@ -12,7 +12,7 @@ public class OrderEndpoints : IEndpointDefinition
             .WithTags("Orders")
 ;
 
-        orders.MapGet("/{id:int}", GetOrder)
+        orders.MapGet("/{id:guid}", GetOrder)
             .WithName("GetOrder")
             .WithSummary("Get order by ID")
             .WithDescription("Retrieves a specific order with all its items by the order ID")
@@ -43,7 +43,7 @@ public class OrderEndpoints : IEndpointDefinition
             .ProducesProblem(400)
             .ProducesProblem(500);
 
-        orders.MapPut("/{id:int}/status", UpdateOrderStatus)
+        orders.MapPut("/{id:guid}/status", UpdateOrderStatus)
             .WithName("UpdateOrderStatus")
             .WithSummary("Update order status")
             .WithDescription("Updates the status of an existing order")
@@ -54,7 +54,7 @@ public class OrderEndpoints : IEndpointDefinition
             .ProducesProblem(409)
             .ProducesProblem(500);
 
-        orders.MapPost("/{id:int}/cancel", CancelOrder)
+        orders.MapPost("/{id:guid}/cancel", CancelOrder)
             .WithName("CancelOrder")
             .WithSummary("Cancel an order")
             .WithDescription("Cancels an existing order if it's in a cancellable state")
@@ -65,7 +65,7 @@ public class OrderEndpoints : IEndpointDefinition
             .ProducesProblem(500);
     }
 
-    private static async Task<IResult> GetOrder(int id, IMediator mediator)
+    private static async Task<IResult> GetOrder(Guid id, IMediator mediator)
     {
         var query = new GetOrderByIdQuery { Id = id };
         var result = await mediator.SendAsync(query);
@@ -105,7 +105,7 @@ public class OrderEndpoints : IEndpointDefinition
         return Results.Created($"/api/v1/orders/{result.Id}", result);
     }
 
-    private static async Task<IResult> UpdateOrderStatus(int id, UpdateOrderStatusCommand command, IMediator mediator)
+    private static async Task<IResult> UpdateOrderStatus(Guid id, UpdateOrderStatusCommand command, IMediator mediator)
     {
         if (id != command.OrderId)
         {
@@ -116,7 +116,7 @@ public class OrderEndpoints : IEndpointDefinition
         return Results.Ok(result);
     }
 
-    private static async Task<IResult> CancelOrder(int id, IMediator mediator)
+    private static async Task<IResult> CancelOrder(Guid id, IMediator mediator)
     {
         var command = new CancelOrderCommand { OrderId = id };
         var result = await mediator.SendAsync(command);

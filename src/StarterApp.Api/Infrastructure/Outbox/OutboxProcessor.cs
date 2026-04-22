@@ -48,8 +48,20 @@ public class OutboxProcessor : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        // Use a transaction with row-level locking on relational databases to prevent
-        // concurrent processors (multiple API replicas) from claiming the same rows.
+        // EnableRetryOnFailure's execution strategy rejects user-initiated transactions unless
+        // wrapped in ExecuteAsync. We need a user transaction here for row-level locking
+        // (UPDLOCK, READPAST, ROWLOCK) so multiple replicas don't publish the same rows.
+        // ChangeTracker.Clear at the top of each attempt guarantees a clean state on retry.
+        var strategy = dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(cancellationToken, async ct =>
+        {
+            dbContext.ChangeTracker.Clear();
+            await ProcessBatchInTransactionAsync(dbContext, ct);
+        });
+    }
+
+    private async Task ProcessBatchInTransactionAsync(ApplicationDbContext dbContext, CancellationToken cancellationToken)
+    {
         IDbContextTransaction? transaction = null;
         if (dbContext.Database.IsRelational())
             transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);

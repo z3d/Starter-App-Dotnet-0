@@ -2,7 +2,7 @@ namespace StarterApp.Api.Application.Commands;
 
 public class CancelOrderCommand : ICommand, IRequest<OrderDto>
 {
-    public int OrderId { get; set; }
+    public Guid OrderId { get; set; }
 }
 
 public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, OrderDto>
