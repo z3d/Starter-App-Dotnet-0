@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9.6/10** (all 37 findings resolved — no active P1/P2/P3 issues)
+**Score: 9.5/10** (36 findings resolved, 1 open — see finding #36)
 
 ---
 
@@ -120,13 +120,16 @@ Good adoption of modern .NET:
 
 These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
 
-No open findings. All findings have been resolved.
+| # | Finding | Status |
+|---|---------|--------|
+| 36 | No transient-failure retry on `DbContext` for Azure SQL throttling / failover | Open — requires outbox redesign (see below) |
 
-#### Recently resolved (resilience for Azure deployment)
+**Finding 36 context.** An initial attempt to add `EnableRetryOnFailure` to `AddPersistence` failed CI. The root cause: `ApplicationDbContext.SaveChangesWithOutboxAsync` performs a user-initiated transaction with two `SaveChanges` calls (aggregate writes, then outbox-message inserts populated by post-save `RecordCreation()`). A retrying execution strategy rejects user transactions unless the block is wrapped in `CreateExecutionStrategy().ExecuteAsync(...)`. Wrapping it is *unsafe* with the current design: if the first `SaveChanges` succeeds and the second fails transiently, the transaction rolls back but EF Core's `ChangeTracker` does not reset on rollback — a retry produces `Unchanged` entities with IDs that no longer exist in the DB, silently dropping the write (POST returns 201, GET returns 404). Safe Azure SQL retry requires collapsing to a single `SaveChanges` so no user transaction is needed, which means pre-computing creation-event payloads — either by moving aggregates to Guid v7 IDs or HiLo sequences (both knowable client-side), or by using an `ISaveChangesInterceptor` that appends outbox rows mid-save after IDENTITY assignment. This is deferred until aggregate ID strategy is revisited; for now, client-side HTTP retry covers the gap on the write path.
+
+#### Recently resolved (outbox publish resilience)
 
 | # | Finding | Fix |
 |---|---------|-----|
-| ~~36~~ | `DbContext` had no transient-failure retry — Azure SQL throttling and gateway failover would surface as 500s | `AddPersistence` enables `SqlServerRetryingExecutionStrategy` (6 retries, 30s max delay). `OutboxProcessor.ProcessBatchAsync` now wraps its user-initiated transaction in `CreateExecutionStrategy().ExecuteAsync(...)` — mandatory when retries are enabled. Duplicate publishes on SaveChanges-retry are absorbed by Service Bus duplicate detection. Covered by `PersistenceRegistrationTests`. |
 | ~~37~~ | Transient Service Bus outages consumed per-message retry budget — a multi-minute SB outage would mark every polled message as permanently `Error`, requiring manual requeue | `OutboxProcessor` now distinguishes transient `ServiceBusException` reasons (`ServiceCommunicationProblem`, `ServiceTimeout`, `ServiceBusy`, `QuotaExceeded`) from message-level failures. Transient errors log a warning, break the batch, and leave rows unprocessed with retries intact — next poll tick re-attempts cleanly. Message-level errors (e.g. `MessageSizeExceeded`) still consume retries. No dedicated circuit breaker — the outbox already decouples user requests from publish latency, and this targeted fix addresses the actual failure mode. |
 
 #### Recently resolved (outbox correctness + eventing contract)

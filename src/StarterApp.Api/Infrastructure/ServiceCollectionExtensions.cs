@@ -26,12 +26,17 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddPersistence(this IServiceCollection services, string connectionString)
     {
+        // NOTE: EnableRetryOnFailure is NOT configured. The outbox dual-save pattern in
+        // ApplicationDbContext.SaveChangesWithOutboxAsync uses a user-initiated transaction,
+        // which a retrying execution strategy rejects unless the entire block is wrapped in
+        // CreateExecutionStrategy().ExecuteAsync. That wrapping is unsafe here: if the first
+        // SaveChanges succeeds and the second (outbox insert) fails transiently, the transaction
+        // rolls back but EF's ChangeTracker does not reset — a retry produces Unchanged entities
+        // with IDs that no longer exist in the DB, silently dropping the write. A safe Azure SQL
+        // retry story requires moving to a single-SaveChanges outbox (HiLo or Guid v7 aggregate
+        // IDs so creation event payloads can be built pre-save).
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlServer(connectionString, sqlOptions =>
-                    sqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: 6,
-                        maxRetryDelay: TimeSpan.FromSeconds(30),
-                        errorNumbersToAdd: null))
+            options.UseSqlServer(connectionString)
                    .EnableSensitiveDataLogging(false));
 
         services.AddScoped<System.Data.IDbConnection>(provider =>
