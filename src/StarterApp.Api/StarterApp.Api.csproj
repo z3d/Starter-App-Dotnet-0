@@ -22,4 +22,8 @@
     <ProjectReference Include="..\StarterApp.ServiceDefaults\StarterApp.ServiceDefaults.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="StarterApp.Tests" />
+  </ItemGroup>
+
 </Project>

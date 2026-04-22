@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9.6/10** (37 findings resolved, 0 open)
+**Score: 9.6/10** (38 findings resolved, 0 open)
 
 ---
 
@@ -127,6 +127,7 @@ These are unresolved issues identified across multiple agent review sessions. Wh
 | # | Finding | Fix |
 |---|---------|-----|
 | ~~36~~ | No transient-failure retry on `DbContext` for Azure SQL throttling / failover | `Order` aggregate now uses client-generated `Guid.CreateVersion7()` IDs. This lets `RecordCreation()` run BEFORE `SaveChanges` (events already know their Ids), collapsing `SaveChangesWithOutboxAsync` to a single `SaveChanges` — no user transaction needed. `EnableRetryOnFailure(6, 30s)` is re-enabled in `AddPersistence`. `CreateOrderCommandHandler` (the one handler that still needs a user-managed transaction for atomic stock-reservation + order-save) wraps itself in `Database.CreateExecutionStrategy().ExecuteAsync(...)` and calls `ChangeTracker.Clear()` at the top of each attempt so retries start from a clean state. New convention test enforces: any `AggregateRoot` overriding `RecordCreation()` must have a `Guid Id` — if a future aggregate tries to raise creation events from an IDENTITY PK, the build fails. Migration `0014_ConvertOrderIdToGuid.sql` converts existing `Orders.Id` and `OrderItems.OrderId` to `UNIQUEIDENTIFIER`. |
+| ~~38~~ | Dapper query handlers had no transient-fault retry — `EnableRetryOnFailure` only covers the EF `DbContext`; Dapper creates its own `SqlCommand` with `RetryLogicProvider = null`, so a mid-query failover or throttling event on Azure SQL would surface as a 500 while writes are transparently retried | New `SqlRetryPolicy.ExecuteAsync` helper at `Infrastructure/Persistence/SqlRetryPolicy.cs` retries transient `SqlException`s with exponential backoff (6 attempts, 30s cap, base 1s) using the same transient-error numbers as EF's `SqlServerRetryingExecutionStrategy`. All 7 query handlers (`GetAllProducts`, `GetProductById`, `GetCustomer`, `GetCustomers`, `GetOrderById`, `GetOrdersByStatus`, `GetOrdersByCustomer`) now wrap their Dapper calls in the helper. New convention test `DapperConventionTests.QueryHandlers_MustUseSqlRetryPolicy` scans IL and fails the build if any future `*QueryHandler` with an `IDbConnection` field forgets to go through the helper. |
 
 #### Recently resolved (outbox publish resilience)
 

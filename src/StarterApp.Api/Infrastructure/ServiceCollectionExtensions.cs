@@ -39,6 +39,11 @@ public static class ServiceCollectionExtensions
                 sql.EnableRetryOnFailure(maxRetryCount: 6, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null))
                    .EnableSensitiveDataLogging(false));
 
+        // Dapper reads use this connection. Retries are NOT attached at the SqlConnection level
+        // because SqlConnection.RetryLogicProvider only covers Open() — Dapper creates its own
+        // SqlCommands whose RetryLogicProvider defaults to null, so query-time transient faults
+        // would slip through. Query handlers wrap their Dapper calls in SqlRetryPolicy.ExecuteAsync
+        // instead, which is enforced by DapperConventionTests.QueryHandlers_MustUseSqlRetryPolicy.
         services.AddScoped<System.Data.IDbConnection>(provider =>
             new Microsoft.Data.SqlClient.SqlConnection(connectionString));
 
