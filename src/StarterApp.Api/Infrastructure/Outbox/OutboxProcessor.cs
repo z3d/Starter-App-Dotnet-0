@@ -1,5 +1,4 @@
 using Azure.Messaging.ServiceBus;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
 
 namespace StarterApp.Api.Infrastructure.Outbox;
@@ -48,76 +47,89 @@ public class OutboxProcessor : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        // Use a transaction with row-level locking on relational databases to prevent
-        // concurrent processors (multiple API replicas) from claiming the same rows.
-        IDbContextTransaction? transaction = null;
+        // EnableRetryOnFailure forbids ad-hoc BeginTransaction. Wrap in an execution strategy
+        // so SQL transient faults retry the entire claim-publish-commit unit.
         if (dbContext.Database.IsRelational())
-            transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-
-        try
         {
-            var messages = await ClaimUnprocessedMessagesAsync(dbContext, cancellationToken);
-
-            if (messages.Count == 0)
+            var strategy = dbContext.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async ct =>
             {
-                if (transaction != null)
-                    await transaction.CommitAsync(cancellationToken);
-                return;
-            }
+                await using var transaction = await dbContext.Database.BeginTransactionAsync(ct);
+                await ProcessClaimedBatchAsync(dbContext, ct);
+                await transaction.CommitAsync(ct);
+            }, cancellationToken);
+        }
+        else
+        {
+            await ProcessClaimedBatchAsync(dbContext, cancellationToken);
+        }
+    }
 
-            _logger.LogInformation("Processing {Count} outbox messages", messages.Count);
+    private async Task ProcessClaimedBatchAsync(ApplicationDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var messages = await ClaimUnprocessedMessagesAsync(dbContext, cancellationToken);
 
-            foreach (var message in messages)
+        if (messages.Count == 0)
+            return;
+
+        _logger.LogInformation("Processing {Count} outbox messages", messages.Count);
+
+        foreach (var message in messages)
+        {
+            try
             {
-                try
+                var serviceBusMessage = new ServiceBusMessage(message.Payload)
                 {
-                    var serviceBusMessage = new ServiceBusMessage(message.Payload)
-                    {
-                        ContentType = "application/json",
-                        MessageId = message.Id.ToString(),
-                        Subject = message.Type
-                    };
-                    serviceBusMessage.ApplicationProperties["EventType"] = message.Type;
+                    ContentType = "application/json",
+                    MessageId = message.Id.ToString(),
+                    Subject = message.Type
+                };
+                serviceBusMessage.ApplicationProperties["EventType"] = message.Type;
 
-                    await _sender.SendMessageAsync(serviceBusMessage, cancellationToken);
+                await _sender.SendMessageAsync(serviceBusMessage, cancellationToken);
 
-                    message.MarkAsProcessed(DateTimeOffset.UtcNow);
-                    _logger.LogInformation("Published outbox message {MessageId} ({Type})", message.Id, message.Type);
+                message.MarkAsProcessed(DateTimeOffset.UtcNow);
+                _logger.LogInformation("Published outbox message {MessageId} ({Type})", message.Id, message.Type);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Dependency-level outages (SB down, throttled, timing out) should not consume
+                // a message's per-message retry budget — otherwise a 10-minute outage poisons
+                // every polled message into a permanent Error state requiring manual requeue.
+                // Break the batch; the next poll tick re-attempts the same messages cleanly.
+                if (IsTransientServiceBusError(ex))
+                {
+                    _logger.LogWarning(ex, "Transient Service Bus error publishing outbox message {MessageId} ({Type}); pausing batch, will retry on next poll",
+                        message.Id, message.Type);
+                    break;
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    message.IncrementRetry();
 
-                    if (message.RetryCount >= _options.MaxRetries)
-                    {
-                        message.MarkAsError(ex.Message);
-                        _logger.LogError(ex, "Outbox message {MessageId} ({Type}) permanently failed after {RetryCount} attempts",
-                            message.Id, message.Type, message.RetryCount);
-                    }
-                    else
-                    {
-                        _logger.LogWarning(ex, "Outbox message {MessageId} ({Type}) failed, will retry (attempt {RetryCount}/{MaxRetries})",
-                            message.Id, message.Type, message.RetryCount, _options.MaxRetries);
-                    }
+                message.IncrementRetry();
+
+                if (message.RetryCount >= _options.MaxRetries)
+                {
+                    message.MarkAsError(ex.Message);
+                    _logger.LogError(ex, "Outbox message {MessageId} ({Type}) permanently failed after {RetryCount} attempts",
+                        message.Id, message.Type, message.RetryCount);
+                }
+                else
+                {
+                    _logger.LogWarning(ex, "Outbox message {MessageId} ({Type}) failed, will retry (attempt {RetryCount}/{MaxRetries})",
+                        message.Id, message.Type, message.RetryCount, _options.MaxRetries);
                 }
             }
+        }
 
-            await dbContext.SaveChangesAsync(cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 
-            if (transaction != null)
-                await transaction.CommitAsync(cancellationToken);
-        }
-        catch
-        {
-            if (transaction != null)
-                await transaction.RollbackAsync(cancellationToken);
-            throw;
-        }
-        finally
-        {
-            if (transaction != null)
-                await transaction.DisposeAsync();
-        }
+    private static bool IsTransientServiceBusError(Exception ex)
+    {
+        return ex is ServiceBusException sbEx && sbEx.Reason is
+            ServiceBusFailureReason.ServiceCommunicationProblem or
+            ServiceBusFailureReason.ServiceTimeout or
+            ServiceBusFailureReason.ServiceBusy or
+            ServiceBusFailureReason.QuotaExceeded;
     }
 
     private async Task<List<OutboxMessage>> ClaimUnprocessedMessagesAsync(

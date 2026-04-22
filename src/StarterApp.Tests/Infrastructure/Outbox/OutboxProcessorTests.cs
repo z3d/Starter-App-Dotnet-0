@@ -87,7 +87,7 @@ public class OutboxProcessorTests
     [Fact]
     public async Task ProcessBatch_WhenPublishFails_ShouldRetryBeforePermanentError()
     {
-        // Arrange
+        // Arrange — MessageSizeExceeded is non-transient (message-level bug), so consumes retry budget
         var dbName = Guid.NewGuid().ToString();
         await using (var setupContext = CreateDbContext(dbName))
         {
@@ -97,7 +97,7 @@ public class OutboxProcessorTests
 
         var senderMock = new Mock<ServiceBusSender>();
         senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new ServiceBusException("Connection refused", ServiceBusFailureReason.ServiceCommunicationProblem));
+            .ThrowsAsync(new ServiceBusException("Payload too large", ServiceBusFailureReason.MessageSizeExceeded));
 
         var processor = CreateProcessor(dbName, senderMock.Object, maxRetries: 3);
 
@@ -122,7 +122,7 @@ public class OutboxProcessorTests
         var errored = await finalContext.OutboxMessages.FirstAsync();
         Assert.Equal(3, errored.RetryCount);
         Assert.NotNull(errored.Error);
-        Assert.Contains("Connection refused", errored.Error);
+        Assert.Contains("Payload too large", errored.Error);
         Assert.Null(errored.ProcessedOnUtc);
     }
 
@@ -139,7 +139,7 @@ public class OutboxProcessorTests
 
         var senderMock = new Mock<ServiceBusSender>();
         senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new ServiceBusException("Connection refused", ServiceBusFailureReason.ServiceCommunicationProblem));
+            .ThrowsAsync(new ServiceBusException("Payload too large", ServiceBusFailureReason.MessageSizeExceeded));
 
         var processor = CreateProcessor(dbName, senderMock.Object, maxRetries: 1);
 
@@ -151,8 +151,83 @@ public class OutboxProcessorTests
         await using var verifyContext = CreateDbContext(dbName);
         var errored = await verifyContext.OutboxMessages.FirstAsync();
         Assert.NotNull(errored.Error);
-        Assert.Contains("Connection refused", errored.Error);
+        Assert.Contains("Payload too large", errored.Error);
         Assert.Null(errored.ProcessedOnUtc);
+    }
+
+    [Theory]
+    [InlineData(ServiceBusFailureReason.ServiceCommunicationProblem)]
+    [InlineData(ServiceBusFailureReason.ServiceTimeout)]
+    [InlineData(ServiceBusFailureReason.ServiceBusy)]
+    [InlineData(ServiceBusFailureReason.QuotaExceeded)]
+    public async Task ProcessBatch_WhenTransientServiceBusFailure_ShouldNotConsumeRetryBudget(ServiceBusFailureReason reason)
+    {
+        // Arrange — transient dependency failures (SB down, throttled) must not poison messages
+        var dbName = Guid.NewGuid().ToString();
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            setupContext.OutboxMessages.Add(CreateTestMessage());
+            await setupContext.SaveChangesAsync();
+        }
+
+        var senderMock = new Mock<ServiceBusSender>();
+        senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ServiceBusException("transient", reason));
+
+        var processor = CreateProcessor(dbName, senderMock.Object, maxRetries: 1);
+
+        // Act — run the batch many more times than MaxRetries would allow
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        for (var i = 0; i < 10; i++)
+            await RunSingleBatchAsync(processor, cts.Token);
+
+        // Assert — message stays unprocessed with RetryCount = 0, no Error
+        await using var verifyContext = CreateDbContext(dbName);
+        var message = await verifyContext.OutboxMessages.FirstAsync();
+        Assert.Equal(0, message.RetryCount);
+        Assert.Null(message.Error);
+        Assert.Null(message.ProcessedOnUtc);
+    }
+
+    [Fact]
+    public async Task ProcessBatch_WhenTransientFailureMidBatch_ShouldPauseRemainingMessages()
+    {
+        // Arrange — 3 messages; sender throws transient on the 2nd call
+        var dbName = Guid.NewGuid().ToString();
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            for (var i = 0; i < 3; i++)
+                setupContext.OutboxMessages.Add(CreateTestMessage());
+            await setupContext.SaveChangesAsync();
+        }
+
+        var callCount = 0;
+        var senderMock = new Mock<ServiceBusSender>();
+        senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .Returns<ServiceBusMessage, CancellationToken>((_, _) =>
+            {
+                callCount++;
+                if (callCount == 2)
+                    throw new ServiceBusException("transient", ServiceBusFailureReason.ServiceCommunicationProblem);
+                return Task.CompletedTask;
+            });
+
+        var processor = CreateProcessor(dbName, senderMock.Object);
+
+        // Act
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await RunSingleBatchAsync(processor, cts.Token);
+
+        // Assert — processor stops after transient error, 3rd message not attempted
+        Assert.Equal(2, callCount);
+
+        await using var verifyContext = CreateDbContext(dbName);
+        var messages = await verifyContext.OutboxMessages.OrderBy(m => m.OccurredOnUtc).ToListAsync();
+        Assert.NotNull(messages[0].ProcessedOnUtc);          // 1st succeeded
+        Assert.Null(messages[1].ProcessedOnUtc);             // 2nd transient — unprocessed, retries intact
+        Assert.Equal(0, messages[1].RetryCount);
+        Assert.Null(messages[2].ProcessedOnUtc);             // 3rd never attempted
+        Assert.Equal(0, messages[2].RetryCount);
     }
 
     [Fact]

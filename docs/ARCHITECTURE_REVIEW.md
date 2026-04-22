@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9.5/10** (all 35 findings resolved — no active P1/P2/P3 issues)
+**Score: 9.6/10** (all 37 findings resolved — no active P1/P2/P3 issues)
 
 ---
 
@@ -121,6 +121,13 @@ Good adoption of modern .NET:
 These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
 
 No open findings. All findings have been resolved.
+
+#### Recently resolved (resilience for Azure deployment)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~36~~ | `DbContext` had no transient-failure retry — Azure SQL throttling and gateway failover would surface as 500s | `AddPersistence` enables `SqlServerRetryingExecutionStrategy` (6 retries, 30s max delay). `OutboxProcessor.ProcessBatchAsync` now wraps its user-initiated transaction in `CreateExecutionStrategy().ExecuteAsync(...)` — mandatory when retries are enabled. Duplicate publishes on SaveChanges-retry are absorbed by Service Bus duplicate detection. Covered by `PersistenceRegistrationTests`. |
+| ~~37~~ | Transient Service Bus outages consumed per-message retry budget — a multi-minute SB outage would mark every polled message as permanently `Error`, requiring manual requeue | `OutboxProcessor` now distinguishes transient `ServiceBusException` reasons (`ServiceCommunicationProblem`, `ServiceTimeout`, `ServiceBusy`, `QuotaExceeded`) from message-level failures. Transient errors log a warning, break the batch, and leave rows unprocessed with retries intact — next poll tick re-attempts cleanly. Message-level errors (e.g. `MessageSizeExceeded`) still consume retries. No dedicated circuit breaker — the outbox already decouples user requests from publish latency, and this targeted fix addresses the actual failure mode. |
 
 #### Recently resolved (outbox correctness + eventing contract)
 
