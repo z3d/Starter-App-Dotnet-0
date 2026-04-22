@@ -157,7 +157,7 @@ public class ApplicationDbContext : DbContext
     //
     // Aggregates raising creation events (via RecordCreation override) must assign their Id
     // client-side (e.g. Guid.CreateVersion7) so the event payload can be built BEFORE SaveChanges.
-    // Enforced by DomainConventionTests.AggregatesRaisingCreationEvents_MustUseGuidId.
+    // Enforced by DomainConventionTests.AggregatesOverridingRecordCreation_MustHaveGuidId.
     //
     // Why this matters: EF's retrying execution strategy (EnableRetryOnFailure) rejects user-initiated
     // transactions, and wrapping a two-SaveChanges flow in CreateExecutionStrategy().ExecuteAsync

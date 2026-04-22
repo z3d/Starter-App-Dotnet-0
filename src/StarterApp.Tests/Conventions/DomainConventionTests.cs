@@ -212,9 +212,11 @@ public class DomainConventionTests : ConventionTestBase
     [Fact]
     public void AggregateConstructors_MustNotCallRaiseDomainEvent()
     {
-        // Domain events raised in constructors capture pre-persist identity values (e.g. Id=0
-        // for IDENTITY columns). Creation events must be raised via the RecordCreation() override
-        // which the DbContext calls BEFORE SaveChanges when the aggregate has a client-assigned Guid Id.
+        // Creation events must be raised via the RecordCreation() override, which the DbContext
+        // calls BEFORE SaveChanges. Raising from the constructor would fire the event before the
+        // aggregate is attached to the ChangeTracker, so CaptureDomainEventsIntoOutbox would never
+        // see it — the outbox row would be silently dropped. RecordCreation sidesteps this by
+        // running on Added aggregates inside the SaveChanges pipeline.
         var aggregateTypes = DomainAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(AggregateRoot)));
 
@@ -238,7 +240,8 @@ public class DomainConventionTests : ConventionTestBase
                 // Scan IL for a call/callvirt to RaiseDomainEvent
                 if (ContainsCallToMethod(il, ctor.Module, "RaiseDomainEvent"))
                     failures.Add($"{type.Name} constructor calls RaiseDomainEvent. " +
-                                 "Override RecordCreation() instead — the DbContext calls it after SaveChanges when IDENTITY values are assigned.");
+                                 "Override RecordCreation() instead — the DbContext calls it before SaveChanges on Added aggregates, " +
+                                 "so the event reaches the outbox in the same unit of work.");
             }
         }
 

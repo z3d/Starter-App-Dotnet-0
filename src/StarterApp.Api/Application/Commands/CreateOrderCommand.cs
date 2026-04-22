@@ -41,7 +41,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         var strategy = _dbContext.Database.CreateExecutionStrategy();
         Order? savedOrder = null;
 
-        await strategy.ExecuteAsync(async () =>
+        await strategy.ExecuteAsync(cancellationToken, async ct =>
         {
             // Clear tracker so a prior failed attempt's tracked entities do not leak into this retry —
             // otherwise two Added orders would be inserted on a second pass.
@@ -49,14 +49,14 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
             IDbContextTransaction? transaction = null;
             if (_dbContext.Database.IsRelational())
-                transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+                transaction = await _dbContext.Database.BeginTransactionAsync(ct);
 
             try
             {
                 var order = new Order(command.CustomerId);
                 foreach (var itemCommand in command.Items)
                 {
-                    var product = await ReserveStockAsync(itemCommand, cancellationToken);
+                    var product = await ReserveStockAsync(itemCommand, ct);
                     order.AddItem(
                         itemCommand.ProductId,
                         product.Name,
@@ -66,10 +66,10 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
                 }
 
                 _dbContext.Orders.Add(order);
-                await _dbContext.SaveChangesAsync(cancellationToken);
+                await _dbContext.SaveChangesAsync(ct);
 
                 if (transaction != null)
-                    await transaction.CommitAsync(cancellationToken);
+                    await transaction.CommitAsync(ct);
 
                 savedOrder = order;
             }
