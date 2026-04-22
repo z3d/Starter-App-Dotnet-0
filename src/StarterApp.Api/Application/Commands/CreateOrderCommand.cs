@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore.Storage;
+
 namespace StarterApp.Api.Application.Commands;
 
 public class CreateOrderCommand : ICommand, IRequest<OrderDto>
@@ -31,21 +33,11 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         if (!customerExists)
             throw new KeyNotFoundException($"Customer with ID {command.CustomerId} was not found");
 
-        var useRelationalStockUpdates = _dbContext.Database.IsRelational();
-
-        if (!useRelationalStockUpdates)
-            return await CreateOrderInMemoryAsync(command, cancellationToken);
-
-        return await CreateOrderWithRetryAwareTransactionAsync(command, cancellationToken);
-    }
-
-    // Atomic stock-reservation + order-insert must share one transaction (ExecuteUpdate bypasses
-    // the SaveChanges transaction). With EnableRetryOnFailure, user transactions must be wrapped
-    // in the execution strategy so transient SQL faults can retry the whole unit of work.
-    private async Task<OrderDto> CreateOrderWithRetryAwareTransactionAsync(
-        CreateOrderCommand command,
-        CancellationToken cancellationToken)
-    {
+        // Atomic stock-reservation + order-insert must share one transaction (ExecuteUpdate bypasses
+        // the SaveChanges transaction). With EnableRetryOnFailure, user transactions must be wrapped
+        // in the execution strategy so transient SQL faults can retry the whole unit of work.
+        // On InMemory (tests) the strategy is a no-op; the transaction is skipped via IsRelational —
+        // same outer code path runs safely for both providers.
         var strategy = _dbContext.Database.CreateExecutionStrategy();
         Order? savedOrder = null;
 
@@ -55,50 +47,51 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             // otherwise two Added orders would be inserted on a second pass.
             _dbContext.ChangeTracker.Clear();
 
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+            IDbContextTransaction? transaction = null;
+            if (_dbContext.Database.IsRelational())
+                transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-            var order = new Order(command.CustomerId);
-            foreach (var itemCommand in command.Items)
+            try
             {
-                var product = await ReserveStockWithAtomicUpdateAsync(itemCommand, cancellationToken);
-                order.AddItem(
-                    itemCommand.ProductId,
-                    product.Name,
-                    itemCommand.Quantity,
-                    product.Price,
-                    OrderItem.DefaultGstRate);
+                var order = new Order(command.CustomerId);
+                foreach (var itemCommand in command.Items)
+                {
+                    var product = await ReserveStockAsync(itemCommand, cancellationToken);
+                    order.AddItem(
+                        itemCommand.ProductId,
+                        product.Name,
+                        itemCommand.Quantity,
+                        product.Price,
+                        OrderItem.DefaultGstRate);
+                }
+
+                _dbContext.Orders.Add(order);
+                await _dbContext.SaveChangesAsync(cancellationToken);
+
+                if (transaction != null)
+                    await transaction.CommitAsync(cancellationToken);
+
+                savedOrder = order;
             }
-
-            _dbContext.Orders.Add(order);
-            await _dbContext.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-
-            savedOrder = order;
+            finally
+            {
+                if (transaction != null)
+                    await transaction.DisposeAsync();
+            }
         });
 
         Log.Information("Created order with ID: {OrderId}", savedOrder!.Id);
         return OrderMapper.ToDto(savedOrder);
     }
 
-    private async Task<OrderDto> CreateOrderInMemoryAsync(CreateOrderCommand command, CancellationToken cancellationToken)
+    // Single provider branch: relational uses atomic SQL (UPDATE ... WHERE Stock >= qty) to prevent
+    // overselling under concurrency; InMemory (tests only) falls back to tracked read-modify-write
+    // because ExecuteUpdateAsync is not supported on that provider.
+    private Task<Product> ReserveStockAsync(CreateOrderItemCommand itemCommand, CancellationToken cancellationToken)
     {
-        var order = new Order(command.CustomerId);
-        foreach (var itemCommand in command.Items)
-        {
-            var product = await ReserveStockInMemoryAsync(itemCommand, cancellationToken);
-            order.AddItem(
-                itemCommand.ProductId,
-                product.Name,
-                itemCommand.Quantity,
-                product.Price,
-                OrderItem.DefaultGstRate);
-        }
-
-        _dbContext.Orders.Add(order);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        Log.Information("Created order with ID: {OrderId}", order.Id);
-        return OrderMapper.ToDto(order);
+        return _dbContext.Database.IsRelational()
+            ? ReserveStockWithAtomicUpdateAsync(itemCommand, cancellationToken)
+            : ReserveStockInMemoryAsync(itemCommand, cancellationToken);
     }
 
     private async Task<Product> ReserveStockWithAtomicUpdateAsync(
