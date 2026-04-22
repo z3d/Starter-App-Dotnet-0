@@ -99,7 +99,7 @@ public class MediatorTests
     }
 
     [Fact]
-    public async Task SendAsync_void_dispatches_and_skips_validation_on_success()
+    public async Task SendAsync_void_dispatches_to_registered_handler()
     {
         var handler = new VoidHandler();
         var mediator = BuildMediator(s =>
@@ -108,6 +108,26 @@ public class MediatorTests
         await mediator.SendAsync(new VoidRequest());
 
         Assert.True(handler.WasCalled);
+    }
+
+    [Fact]
+    public async Task SendAsync_void_runs_validators_and_throws_ValidationException_on_failure()
+    {
+        var handler = new VoidHandler();
+        var validator = new VoidRequestValidator();
+        var mediator = BuildMediator(s =>
+        {
+            s.AddSingleton<IRequestHandler<VoidRequest>>(handler);
+            s.AddSingleton<IValidator<VoidRequest>>(validator);
+        });
+
+        var ex = await Assert.ThrowsAsync<ValidationException>(
+            () => mediator.SendAsync(new VoidRequest()));
+
+        Assert.True(validator.WasCalled);
+        Assert.False(handler.WasCalled);
+        Assert.Single(ex.Errors);
+        Assert.Equal("void-invalid", ex.Errors[0].ErrorMessage);
     }
 
     private static IMediator BuildMediator(Action<IServiceCollection> configure)
@@ -206,6 +226,16 @@ public class MediatorTests
         {
             WasCalled = true;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class VoidRequestValidator : IValidator<VoidRequest>
+    {
+        public bool WasCalled { get; private set; }
+        public IEnumerable<ValidationError> Validate(VoidRequest instance)
+        {
+            WasCalled = true;
+            return [new ValidationError("VoidRequest", "void-invalid")];
         }
     }
 }
