@@ -2,7 +2,7 @@ namespace StarterApp.Api.Application.Queries;
 
 public class GetOrderByIdQuery : IQuery<OrderWithItemsReadModel?>, IRequest<OrderWithItemsReadModel?>
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 }
 
 public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, OrderWithItemsReadModel?>
@@ -45,14 +45,18 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
             FROM OrderItems
             WHERE OrderId = @Id";
 
-        var order = await _connection.QuerySingleOrDefaultAsync<OrderWithItemsReadModel>(
-            new CommandDefinition(orderSql, new { Id = query.Id }, cancellationToken: cancellationToken));
+        var order = await SqlRetryPolicy.ExecuteAsync(
+            ct => _connection.QuerySingleOrDefaultAsync<OrderWithItemsReadModel>(
+                new CommandDefinition(orderSql, new { Id = query.Id }, cancellationToken: ct)),
+            cancellationToken);
 
         if (order == null)
             return null;
 
-        var items = await _connection.QueryAsync<OrderItemReadModel>(
-            new CommandDefinition(itemsSql, new { Id = query.Id }, cancellationToken: cancellationToken));
+        var items = await SqlRetryPolicy.ExecuteAsync(
+            ct => _connection.QueryAsync<OrderItemReadModel>(
+                new CommandDefinition(itemsSql, new { Id = query.Id }, cancellationToken: ct)),
+            cancellationToken);
         order.Items = items.ToList();
 
         return order;

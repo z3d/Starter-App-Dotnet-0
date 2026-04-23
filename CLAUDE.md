@@ -64,6 +64,7 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - Aggregate roots may raise domain events; persistence captures them into the outbox in the same unit of work
 - Aggregate roots own child collections via backing fields; EF Core populates via `.Include()`
 - `Reconstitute` is internal/test-only — production handlers use tracked EF entities
+- **Aggregate ID convention**: aggregates that raise creation events (override `RecordCreation()`) MUST use client-generated `Guid.CreateVersion7()` IDs, assigned in the constructor. Aggregates without creation events MAY use int IDENTITY. Reason: `ApplicationDbContext.SaveChangesWithOutboxAsync` is a single `SaveChanges` — creation events are captured into the outbox BEFORE the save, so Ids must be known client-side. This keeps `EnableRetryOnFailure` safe: no user transaction, retry is transparent. A convention test (`AggregatesOverridingRecordCreation_MustHaveGuidId`) enforces the rule.
 
 **CQRS Implementation**
 - Commands → EF Core (ApplicationDbContext) → return DTOs
@@ -120,6 +121,16 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - Treat warnings as errors, global analyzers enabled
 - Package lock files for reproducible builds (`RestorePackagesWithLockFile=true`)
 
+### Central Package Management (Directory.Packages.props)
+All NuGet package versions are pinned in `Directory.Packages.props` at the repo root. Individual `.csproj` files contain `<PackageReference Include="X" />` with **no `Version=` attribute** — the version comes from the central file.
+
+**When adding a new package:**
+1. Add `<PackageVersion Include="X" Version="Y" />` to `Directory.Packages.props`
+2. Add `<PackageReference Include="X" />` (no version) to the consuming `.csproj`
+3. Run `dotnet restore --force-evaluate` to update lock files
+
+Never put `Version=` on a `<PackageReference>` — CPM will error on the downgrade/mismatch. Never duplicate a `<PackageVersion>` across multiple entries for the same package. The analyzer `<GlobalPackageReference>` also lives in `Directory.Packages.props` (CPM requires it there, not in `Directory.Build.props`).
+
 ### Code Formatting (.editorconfig)
 - 180 char line length, file-scoped namespaces, system usings first
 - StyleCop rules: SA1200, SA1209, SA1210, SA1211
@@ -146,7 +157,7 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 
 **Data Access**: EF Core with `OwnsOne` for value objects, DbUp migrations in DbMigrator project. See `.claude/skills/data-access/SKILL.md`.
 
-**Domain Events / Outbox / Service Bus**: Domain events are raised inside aggregates and persisted to the `OutboxMessages` table by `ApplicationDbContext` during `SaveChangesAsync`. Creation events use the `AggregateRoot.RecordCreation()` override pattern — called AFTER `SaveChanges` so database-assigned IDENTITY values are populated. The `OutboxProcessor` BackgroundService polls unprocessed messages with row-level locking (`UPDLOCK, READPAST, ROWLOCK`) and publishes them to Azure Service Bus (topic: `domain-events`) with an `EventType` application property. Azure Functions subscribe via topic subscriptions with correlation filters (`email-notifications`, `inventory-reservation`). The processor marks messages as processed or errored — errored messages are skipped on subsequent polls. Service Bus registration is conditional: no-op when `ConnectionStrings:servicebus` is absent (tests run without Service Bus). The Service Bus emulator runs in Docker for both Aspire (`RunAsEmulator`) and Docker Compose environments. Service Bus duplicate detection is enabled (10-minute window). See `config/servicebus-emulator.json` for topology.
+**Domain Events / Outbox / Service Bus**: Domain events are raised inside aggregates and persisted to the `OutboxMessages` table by `ApplicationDbContext` during a single `SaveChangesAsync`. Creation events use the `AggregateRoot.RecordCreation()` override pattern — called BEFORE `SaveChanges` because aggregates that raise creation events carry client-assigned `Guid.CreateVersion7()` Ids. Single-SaveChanges means no user transaction is required, which keeps `EnableRetryOnFailure` safe for Azure SQL transient faults. The `OutboxProcessor` BackgroundService polls unprocessed messages with row-level locking (`UPDLOCK, READPAST, ROWLOCK`) and publishes them to Azure Service Bus (topic: `domain-events`) with an `EventType` application property. Azure Functions subscribe via topic subscriptions with correlation filters (`email-notifications`, `inventory-reservation`). The processor marks messages as processed or errored — errored messages are skipped on subsequent polls. Service Bus registration is conditional: no-op when `ConnectionStrings:servicebus` is absent (tests run without Service Bus). The Service Bus emulator runs in Docker for both Aspire (`RunAsEmulator`) and Docker Compose environments. Service Bus duplicate detection is enabled (10-minute window). See `config/servicebus-emulator.json` for topology.
 
 **Event Contracts**: Each `IDomainEvent` implementation exposes a stable, versioned `EventType` property (e.g. `order.created.v1`) via a `const Contract` field. `OutboxMessage.Create` persists `domainEvent.EventType` — **not** the CLR type name. This decouples event routing from class names: renaming a C# class does not break Service Bus subscriptions or existing outbox rows. Convention tests enforce: every event has a non-empty contract, contracts are unique, and Service Bus subscription filters reference valid contracts. When adding a new domain event, give it a `const Contract` and implement `EventType => Contract`.
 

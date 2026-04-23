@@ -22,6 +22,84 @@ public class DapperConventionTests : ConventionTestBase
             .WithFailureAssertion(Assert.Fail);
     }
 
+    [Fact]
+    public void QueryHandlers_MustUseSqlRetryPolicy()
+    {
+        // Dapper reads must go through SqlRetryPolicy.ExecuteAsync so transient Azure SQL
+        // faults (failover, throttling, network blips) are retried symmetrically with EF
+        // writes (which use EnableRetryOnFailure). A plain _connection.Query* call would
+        // surface a single transient fault as a 500 to the client.
+        var queryHandlers = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract &&
+                   t.Name.EndsWith("QueryHandler") &&
+                   !IsCompilerGenerated(t))
+            .Where(HasIDbConnectionField)
+            .ToList();
+
+        Assert.NotEmpty(queryHandlers);
+
+        var failures = new List<string>();
+
+        foreach (var handler in queryHandlers)
+        {
+            var methods = GetAllMethodsIncludingStateMachines(handler);
+            var usesRetryPolicy = methods.Any(m => IlReferencesType(m, "SqlRetryPolicy"));
+
+            if (!usesRetryPolicy)
+                failures.Add($"{handler.Name} uses IDbConnection but no method (or its async state machine) " +
+                             "references SqlRetryPolicy. Wrap Dapper calls in SqlRetryPolicy.ExecuteAsync.");
+        }
+
+        Assert.True(failures.Count == 0,
+            "Query handlers must wrap Dapper calls in SqlRetryPolicy.ExecuteAsync:\n" +
+            string.Join("\n", failures));
+    }
+
+    private static bool HasIDbConnectionField(Type type)
+    {
+        return type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .Any(f => f.FieldType == typeof(System.Data.IDbConnection));
+    }
+
+    // Scan IL for call/callvirt opcodes whose target method's DeclaringType matches the given name.
+    // Catches both direct calls (SqlRetryPolicy.ExecuteAsync) and references inside compiler-
+    // generated async state machines (where the real work lives after `async` lowering).
+    private static bool IlReferencesType(MethodInfo method, string typeName)
+    {
+        var body = method.GetMethodBody();
+        if (body == null)
+            return false;
+
+        var il = body.GetILAsByteArray();
+        if (il == null)
+            return false;
+
+        var module = method.Module;
+
+        for (var i = 0; i < il.Length - 4; i++)
+        {
+            // call = 0x28, callvirt = 0x6F — both followed by a 4-byte metadata token.
+            if (il[i] is not (0x28 or 0x6F))
+                continue;
+
+            var token = BitConverter.ToInt32(il, i + 1);
+            try
+            {
+                var member = module.ResolveMember(token);
+                if (member?.DeclaringType?.Name == typeName)
+                    return true;
+            }
+            catch
+            {
+                // Unresolvable generic instantiation — skip.
+            }
+
+            i += 4;
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Ensures Dapper query handlers never use SELECT * — columns must be explicitly listed.
     /// Inspects IL string literals in both the handler methods and compiler-generated async

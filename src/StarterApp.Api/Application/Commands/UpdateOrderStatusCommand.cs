@@ -2,7 +2,7 @@ namespace StarterApp.Api.Application.Commands;
 
 public class UpdateOrderStatusCommand : ICommand, IRequest<OrderDto>
 {
-    public int OrderId { get; set; }
+    public Guid OrderId { get; set; }
     public string Status { get; set; } = string.Empty;
 }
 

@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore.Storage;
 using StarterApp.Api.Infrastructure.Outbox;
 
 namespace StarterApp.Api.Data;
@@ -18,9 +17,8 @@ public class ApplicationDbContext : DbContext
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
-        return SaveChangesWithOutboxAsync(acceptAllChangesOnSuccess, sync: true, CancellationToken.None)
-            .GetAwaiter()
-            .GetResult();
+        CaptureDomainEventsIntoOutbox();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     public override int SaveChanges()
@@ -33,9 +31,10 @@ public class ApplicationDbContext : DbContext
         return SaveChangesAsync(acceptAllChangesOnSuccess: true, cancellationToken);
     }
 
-    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
-        return SaveChangesWithOutboxAsync(acceptAllChangesOnSuccess, sync: false, cancellationToken);
+        CaptureDomainEventsIntoOutbox();
+        return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -81,6 +80,11 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Order>(orderBuilder =>
         {
             orderBuilder.HasKey(o => o.Id);
+
+            // Order.Id is assigned client-side in the aggregate constructor (Guid v7).
+            // EF must not attempt to generate a value for it.
+            orderBuilder.Property(o => o.Id)
+                .ValueGeneratedNever();
 
             // Configure OrderStatus enum as string
             orderBuilder.Property(o => o.Status)
@@ -149,96 +153,45 @@ public class ApplicationDbContext : DbContext
         });
     }
 
-    private async Task<int> SaveChangesWithOutboxAsync(
-        bool acceptAllChangesOnSuccess,
-        bool sync,
-        CancellationToken cancellationToken)
+    // Single-SaveChanges outbox pattern.
+    //
+    // Aggregates raising creation events (via RecordCreation override) must assign their Id
+    // client-side (e.g. Guid.CreateVersion7) so the event payload can be built BEFORE SaveChanges.
+    // Enforced by DomainConventionTests.AggregatesOverridingRecordCreation_MustHaveGuidId.
+    //
+    // Why this matters: EF's retrying execution strategy (EnableRetryOnFailure) rejects user-initiated
+    // transactions, and wrapping a two-SaveChanges flow in CreateExecutionStrategy().ExecuteAsync
+    // is unsafe — mid-flow retry leaves the ChangeTracker out of sync with the rolled-back DB.
+    // Collapsing to a single SaveChanges lets EF manage its own retry-aware transaction.
+    private void CaptureDomainEventsIntoOutbox()
     {
-        // Capture new aggregates while they are still in Added state (before SaveChanges flips them to Unchanged).
-        // RecordCreation() must wait until after SaveChanges so IDENTITY values are assigned.
         var newAggregates = ChangeTracker.Entries<AggregateRoot>()
             .Where(entry => entry.State == EntityState.Added)
             .Select(entry => entry.Entity)
             .ToList();
 
-        var shouldManageTransaction = Database.IsRelational() && Database.CurrentTransaction == null;
-        IDbContextTransaction? transaction = null;
+        foreach (var aggregate in newAggregates)
+            aggregate.RecordCreation();
 
-        try
-        {
-            if (shouldManageTransaction)
-            {
-                transaction = sync
-                    ? Database.BeginTransaction()
-                    : await Database.BeginTransactionAsync(cancellationToken);
-            }
+        var aggregatesWithEvents = ChangeTracker.Entries<AggregateRoot>()
+            .Where(entry => entry.Entity.DomainEvents.Count > 0)
+            .Select(entry => entry.Entity)
+            .ToList();
 
-            var rowsAffected = sync
-                ? base.SaveChanges(acceptAllChangesOnSuccess)
-                : await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        if (aggregatesWithEvents.Count == 0)
+            return;
 
-            // Record creation events AFTER SaveChanges so database-assigned IDENTITY values are populated.
-            // Any AggregateRoot subclass can override RecordCreation() to raise creation events safely.
-            foreach (var aggregate in newAggregates)
-                aggregate.RecordCreation();
+        var outboxMessages = aggregatesWithEvents
+            .SelectMany(aggregate => aggregate.DomainEvents)
+            .Select(OutboxMessage.Create)
+            .ToList();
 
-            var aggregatesWithEvents = ChangeTracker.Entries<AggregateRoot>()
-                .Where(entry => entry.Entity.DomainEvents.Count > 0)
-                .Select(entry => entry.Entity)
-                .ToList();
+        if (outboxMessages.Count > 0)
+            OutboxMessages.AddRange(outboxMessages);
 
-            if (aggregatesWithEvents.Count > 0)
-            {
-                var outboxMessages = aggregatesWithEvents
-                    .SelectMany(aggregate => aggregate.DomainEvents)
-                    .Select(OutboxMessage.Create)
-                    .ToList();
-
-                if (outboxMessages.Count > 0)
-                {
-                    OutboxMessages.AddRange(outboxMessages);
-
-                    if (sync)
-                        base.SaveChanges(acceptAllChangesOnSuccess);
-                    else
-                        await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-                }
-            }
-
-            if (transaction != null)
-            {
-                if (sync)
-                    transaction.Commit();
-                else
-                    await transaction.CommitAsync(cancellationToken);
-            }
-
-            foreach (var aggregate in aggregatesWithEvents)
-                aggregate.ClearDomainEvents();
-
-            return rowsAffected;
-        }
-        catch
-        {
-            if (transaction != null)
-            {
-                if (sync)
-                    transaction.Rollback();
-                else
-                    await transaction.RollbackAsync(cancellationToken);
-            }
-
-            throw;
-        }
-        finally
-        {
-            if (transaction != null)
-            {
-                if (sync)
-                    transaction.Dispose();
-                else
-                    await transaction.DisposeAsync();
-            }
-        }
+        // Clear now — if SaveChanges throws, the caller retries at the use-case layer; a second pass
+        // would otherwise duplicate the outbox rows. Aggregate state is still dirty in the tracker.
+        foreach (var aggregate in aggregatesWithEvents)
+            aggregate.ClearDomainEvents();
     }
 }

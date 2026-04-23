@@ -19,7 +19,7 @@ public sealed class OrderStatusChangedDomainEvent : IDomainEvent
     }
 
     public string EventType => Contract;
-    public int OrderId { get; }
+    public Guid OrderId { get; }
     public int CustomerId { get; }
     public string PreviousStatus { get; }
     public string NewStatus { get; }

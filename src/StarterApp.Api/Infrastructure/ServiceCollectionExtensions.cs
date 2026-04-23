@@ -26,10 +26,24 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddPersistence(this IServiceCollection services, string connectionString)
     {
+        // EnableRetryOnFailure is safe here because:
+        //   1. ApplicationDbContext uses a single-SaveChanges outbox (no user transaction),
+        //      so the retrying execution strategy does not have to refuse the flow.
+        //   2. CreateOrderCommandHandler's user transaction (stock reservation + order save)
+        //      is wrapped in Database.CreateExecutionStrategy().ExecuteAsync, which is the
+        //      retry-safe pattern documented by Microsoft.
+        // If a future handler opens BeginTransaction without wrapping in an execution strategy,
+        // the first transient fault will throw at runtime with a clear message.
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlServer(connectionString)
+            options.UseSqlServer(connectionString, sql =>
+                sql.EnableRetryOnFailure(maxRetryCount: 6, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null))
                    .EnableSensitiveDataLogging(false));
 
+        // Dapper reads use this connection. Retries are NOT attached at the SqlConnection level
+        // because SqlConnection.RetryLogicProvider only covers Open() — Dapper creates its own
+        // SqlCommands whose RetryLogicProvider defaults to null, so query-time transient faults
+        // would slip through. Query handlers wrap their Dapper calls in SqlRetryPolicy.ExecuteAsync
+        // instead, which is enforced by DapperConventionTests.QueryHandlers_MustUseSqlRetryPolicy.
         services.AddScoped<System.Data.IDbConnection>(provider =>
             new Microsoft.Data.SqlClient.SqlConnection(connectionString));
 

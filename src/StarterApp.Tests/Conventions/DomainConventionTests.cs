@@ -178,11 +178,45 @@ public class DomainConventionTests : ConventionTestBase
     // === Aggregate Construction Safety ===
 
     [Fact]
+    public void AggregatesOverridingRecordCreation_MustHaveGuidId()
+    {
+        // Aggregates whose RecordCreation() captures their Id into a creation event must use
+        // client-generated Guid IDs. This is what keeps SaveChangesWithOutboxAsync a single
+        // SaveChanges call — events are built BEFORE SaveChanges, so retry (EnableRetryOnFailure)
+        // is safe. Int IDENTITY PKs would require a round-trip BEFORE RecordCreation, which
+        // breaks the single-SaveChanges model and prohibits retry.
+        var aggregateTypes = DomainAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(AggregateRoot)))
+            .ToList();
+
+        var failures = new List<string>();
+
+        foreach (var type in aggregateTypes)
+        {
+            var recordCreation = type.GetMethod("RecordCreation",
+                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+
+            if (recordCreation == null || recordCreation.DeclaringType == typeof(AggregateRoot))
+                continue;
+
+            var idProperty = type.GetProperty("Id", BindingFlags.Instance | BindingFlags.Public);
+            if (idProperty == null || idProperty.PropertyType != typeof(Guid))
+                failures.Add($"{type.Name} overrides RecordCreation but its Id is {idProperty?.PropertyType.Name ?? "missing"}. " +
+                             "Aggregates that raise creation events must use client-generated Guid IDs (e.g. Guid.CreateVersion7() in the constructor).");
+        }
+
+        Assert.True(failures.Count == 0,
+            "Aggregates overriding RecordCreation must have Guid Id:\n" + string.Join("\n", failures));
+    }
+
+    [Fact]
     public void AggregateConstructors_MustNotCallRaiseDomainEvent()
     {
-        // Domain events raised in constructors capture pre-persist identity values (e.g. Id=0
-        // for IDENTITY columns). Creation events must be raised via the RecordCreation() override
-        // which the DbContext calls AFTER SaveChanges assigns database keys.
+        // Creation events must be raised via the RecordCreation() override, which the DbContext
+        // calls BEFORE SaveChanges. Raising from the constructor would fire the event before the
+        // aggregate is attached to the ChangeTracker, so CaptureDomainEventsIntoOutbox would never
+        // see it — the outbox row would be silently dropped. RecordCreation sidesteps this by
+        // running on Added aggregates inside the SaveChanges pipeline.
         var aggregateTypes = DomainAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(AggregateRoot)));
 
@@ -206,7 +240,8 @@ public class DomainConventionTests : ConventionTestBase
                 // Scan IL for a call/callvirt to RaiseDomainEvent
                 if (ContainsCallToMethod(il, ctor.Module, "RaiseDomainEvent"))
                     failures.Add($"{type.Name} constructor calls RaiseDomainEvent. " +
-                                 "Override RecordCreation() instead — the DbContext calls it after SaveChanges when IDENTITY values are assigned.");
+                                 "Override RecordCreation() instead — the DbContext calls it before SaveChanges on Added aggregates, " +
+                                 "so the event reaches the outbox in the same unit of work.");
             }
         }
 

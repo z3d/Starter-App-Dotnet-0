@@ -2,7 +2,7 @@ namespace StarterApp.Api.Application.ReadModels;
 
 public class OrderReadModel
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; }
     public int CustomerId { get; set; }
     public DateTimeOffset OrderDate { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -15,7 +15,7 @@ public class OrderReadModel
 
 public class OrderItemReadModel
 {
-    public int OrderId { get; set; }
+    public Guid OrderId { get; set; }
     public int ProductId { get; set; }
     public string ProductName { get; set; } = string.Empty;
     public int Quantity { get; set; }

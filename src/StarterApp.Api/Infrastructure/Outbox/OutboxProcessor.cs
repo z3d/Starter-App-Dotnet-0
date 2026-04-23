@@ -48,8 +48,20 @@ public class OutboxProcessor : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        // Use a transaction with row-level locking on relational databases to prevent
-        // concurrent processors (multiple API replicas) from claiming the same rows.
+        // EnableRetryOnFailure's execution strategy rejects user-initiated transactions unless
+        // wrapped in ExecuteAsync. We need a user transaction here for row-level locking
+        // (UPDLOCK, READPAST, ROWLOCK) so multiple replicas don't publish the same rows.
+        // ChangeTracker.Clear at the top of each attempt guarantees a clean state on retry.
+        var strategy = dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(cancellationToken, async ct =>
+        {
+            dbContext.ChangeTracker.Clear();
+            await ProcessBatchInTransactionAsync(dbContext, ct);
+        });
+    }
+
+    private async Task ProcessBatchInTransactionAsync(ApplicationDbContext dbContext, CancellationToken cancellationToken)
+    {
         IDbContextTransaction? transaction = null;
         if (dbContext.Database.IsRelational())
             transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -86,6 +98,17 @@ public class OutboxProcessor : BackgroundService
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
+                    // Dependency-level outages (SB down, throttled, timing out) should not consume
+                    // a message's per-message retry budget — otherwise a multi-minute outage poisons
+                    // every polled message into a permanent Error state requiring manual requeue.
+                    // Break the batch; the next poll tick re-attempts the same messages cleanly.
+                    if (IsTransientServiceBusError(ex))
+                    {
+                        _logger.LogWarning(ex, "Transient Service Bus error publishing outbox message {MessageId} ({Type}); pausing batch, will retry on next poll",
+                            message.Id, message.Type);
+                        break;
+                    }
+
                     message.IncrementRetry();
 
                     if (message.RetryCount >= _options.MaxRetries)
@@ -118,6 +141,15 @@ public class OutboxProcessor : BackgroundService
             if (transaction != null)
                 await transaction.DisposeAsync();
         }
+    }
+
+    private static bool IsTransientServiceBusError(Exception ex)
+    {
+        return ex is ServiceBusException sbEx && sbEx.Reason is
+            ServiceBusFailureReason.ServiceCommunicationProblem or
+            ServiceBusFailureReason.ServiceTimeout or
+            ServiceBusFailureReason.ServiceBusy or
+            ServiceBusFailureReason.QuotaExceeded;
     }
 
     private async Task<List<OutboxMessage>> ClaimUnprocessedMessagesAsync(

@@ -5,7 +5,7 @@ public class OrderItem
     public const decimal DefaultGstRate = 0.10m; // 10% GST
 
     public int Id { get; private set; }
-    public int OrderId { get; private set; }
+    public Guid OrderId { get; private set; }
     public int ProductId { get; private set; }
     public string ProductName { get; private set; } = string.Empty;
     public int Quantity { get; private set; }
@@ -17,10 +17,11 @@ public class OrderItem
         ProductName = string.Empty;
     }
 
-    public OrderItem(int orderId, int productId, string productName, int quantity, Money unitPriceExcludingGst, decimal gstRate = DefaultGstRate)
+    public OrderItem(Guid orderId, int productId, string productName, int quantity, Money unitPriceExcludingGst, decimal gstRate = DefaultGstRate)
         : this(productId, productName, quantity, unitPriceExcludingGst, gstRate)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(orderId);
+        if (orderId == Guid.Empty)
+            throw new ArgumentException("OrderId must not be Guid.Empty", nameof(orderId));
         OrderId = orderId;
     }
 

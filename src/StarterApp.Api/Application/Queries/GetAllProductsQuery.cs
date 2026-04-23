@@ -34,7 +34,9 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, I
             ORDER BY Id
             OFFSET @Offset ROWS FETCH NEXT @FetchSize ROWS ONLY";
 
-        return await _connection.QueryAsync<ProductReadModel>(
-            new CommandDefinition(sqlQuery, new { Offset = offset, FetchSize = query.PageSize + 1 }, cancellationToken: cancellationToken));
+        return await SqlRetryPolicy.ExecuteAsync(
+            ct => _connection.QueryAsync<ProductReadModel>(
+                new CommandDefinition(sqlQuery, new { Offset = offset, FetchSize = query.PageSize + 1 }, cancellationToken: ct)),
+            cancellationToken);
     }
 }

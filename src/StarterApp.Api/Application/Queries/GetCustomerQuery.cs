@@ -35,10 +35,10 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
             FROM Customers
             WHERE Id = @Id";
 
-        var customer = await _connection.QueryFirstOrDefaultAsync<CustomerReadModel>(
-            new CommandDefinition(sqlQuery, new { Id = query.Id }, cancellationToken: cancellationToken));
-
-        return customer;
+        return await SqlRetryPolicy.ExecuteAsync(
+            ct => _connection.QueryFirstOrDefaultAsync<CustomerReadModel>(
+                new CommandDefinition(sqlQuery, new { Id = query.Id }, cancellationToken: ct)),
+            cancellationToken);
     }
 }
 

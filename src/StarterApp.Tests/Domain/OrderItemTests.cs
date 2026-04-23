@@ -2,11 +2,13 @@ namespace StarterApp.Tests.Domain;
 
 public class OrderItemTests
 {
+    private static readonly Guid TestOrderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
     [Fact]
     public void Constructor_WithValidParameters_ShouldCreateOrderItem()
     {
         // Arrange
-        var orderId = 1;
+        var orderId = TestOrderId;
         var productId = 2;
         var productName = "Test Product";
         var quantity = 3;
@@ -29,7 +31,7 @@ public class OrderItemTests
     public void Constructor_WithDefaultGstRate_ShouldUseDefaultValue()
     {
         // Arrange
-        var orderId = 1;
+        var orderId = TestOrderId;
         var productId = 2;
         var productName = "Test Product";
         var quantity = 3;
@@ -43,17 +45,15 @@ public class OrderItemTests
         Assert.Equal(0.10m, orderItem.GstRate);
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void Constructor_WithInvalidOrderId_ShouldThrowArgumentOutOfRangeException(int orderId)
+    [Fact]
+    public void Constructor_WithEmptyOrderId_ShouldThrowArgumentException()
     {
         // Arrange
         var unitPrice = Money.Create(10.50m, "USD");
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new OrderItem(orderId, 1, "Test Product", 1, unitPrice));
+        Assert.Throws<ArgumentException>(() =>
+            new OrderItem(Guid.Empty, 1, "Test Product", 1, unitPrice));
     }
 
     [Theory]
@@ -66,7 +66,7 @@ public class OrderItemTests
 
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new OrderItem(1, productId, "Test Product", 1, unitPrice));
+            new OrderItem(TestOrderId, productId, "Test Product", 1, unitPrice));
     }
 
     [Theory]
@@ -79,7 +79,7 @@ public class OrderItemTests
 
         // Act & Assert
         Assert.Throws<ArgumentException>(() =>
-            new OrderItem(1, 1, productName!, 1, unitPrice));
+            new OrderItem(TestOrderId, 1, productName!, 1, unitPrice));
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public class OrderItemTests
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new OrderItem(1, 1, null!, 1, unitPrice));
+            new OrderItem(TestOrderId, 1, null!, 1, unitPrice));
     }
 
     [Theory]
@@ -103,7 +103,7 @@ public class OrderItemTests
 
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new OrderItem(1, 1, "Test Product", quantity, unitPrice));
+            new OrderItem(TestOrderId, 1, "Test Product", quantity, unitPrice));
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public class OrderItemTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new OrderItem(1, 1, "Test Product", 1, null!));
+            new OrderItem(TestOrderId, 1, "Test Product", 1, null!));
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public class OrderItemTests
 
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new OrderItem(1, 1, "Test Product", 1, unitPrice, -0.1m));
+            new OrderItem(TestOrderId, 1, "Test Product", 1, unitPrice, -0.1m));
     }
 
     [Theory]
@@ -136,7 +136,7 @@ public class OrderItemTests
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new OrderItem(1, 1, "Test Product", 1, unitPrice, gstRate));
+            new OrderItem(TestOrderId, 1, "Test Product", 1, unitPrice, gstRate));
 
         Assert.Contains("GST rate must be a decimal value between 0 and 1", exception.Message);
         Assert.Contains("DECIMAL(5,4)", exception.Message);
@@ -149,7 +149,7 @@ public class OrderItemTests
         var unitPrice = Money.Create(10.50m, "USD");
 
         // Act
-        var orderItem = new OrderItem(1, 1, "Test Product", 1, unitPrice, 1.0m);
+        var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 1, unitPrice, 1.0m);
 
         // Assert
         Assert.Equal(1.0m, orderItem.GstRate);
@@ -168,7 +168,7 @@ public class OrderItemTests
         var unitPrice = Money.Create(10.50m, "USD");
 
         // Act
-        var orderItem = new OrderItem(1, 1, "Test Product", 1, unitPrice, gstRate);
+        var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 1, unitPrice, gstRate);
 
         // Assert
         Assert.Equal(gstRate, orderItem.GstRate);
@@ -180,7 +180,7 @@ public class OrderItemTests
         // Arrange
         var unitPrice = Money.Create(100.00m, "USD");
         var gstRate = 0.10m;
-        var orderItem = new OrderItem(1, 1, "Test Product", 1, unitPrice, gstRate);
+        var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 1, unitPrice, gstRate);
 
         // Act
         var priceIncludingGst = orderItem.GetUnitPriceIncludingGst();
@@ -195,7 +195,7 @@ public class OrderItemTests
         // Arrange
         var unitPrice = Money.Create(25.00m, "USD");
         var quantity = 4;
-        var orderItem = new OrderItem(1, 1, "Test Product", quantity, unitPrice);
+        var orderItem = new OrderItem(TestOrderId, 1, "Test Product", quantity, unitPrice);
 
         // Act
         var totalPrice = orderItem.GetTotalPriceExcludingGst();
@@ -211,7 +211,7 @@ public class OrderItemTests
         var unitPrice = Money.Create(50.00m, "USD");
         var quantity = 2;
         var gstRate = 0.20m;
-        var orderItem = new OrderItem(1, 1, "Test Product", quantity, unitPrice, gstRate);
+        var orderItem = new OrderItem(TestOrderId, 1, "Test Product", quantity, unitPrice, gstRate);
 
         // Act
         var totalPriceIncludingGst = orderItem.GetTotalPriceIncludingGst();
@@ -229,7 +229,7 @@ public class OrderItemTests
         var unitPrice = Money.Create(100.00m, "USD");
         var quantity = 3;
         var gstRate = 0.15m;
-        var orderItem = new OrderItem(1, 1, "Test Product", quantity, unitPrice, gstRate);
+        var orderItem = new OrderItem(TestOrderId, 1, "Test Product", quantity, unitPrice, gstRate);
 
         // Act
         var totalGst = orderItem.GetTotalGstAmount();
@@ -247,7 +247,3 @@ public class OrderItemTests
         Assert.Equal(0.10m, OrderItem.DefaultGstRate);
     }
 }
-
-
-
-

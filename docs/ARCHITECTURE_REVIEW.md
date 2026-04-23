@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9.5/10** (all 35 findings resolved — no active P1/P2/P3 issues)
+**Score: 9.6/10** (38 findings resolved, 0 open)
 
 ---
 
@@ -88,7 +88,7 @@ The mediator at `Infrastructure/Mediator/Mediator.cs` is well-designed:
 - **Health checks** at `/health`, `/health/ready`, `/health/live`, and `/alive`
 - **Password masking** in log output — implemented consistently across `Program.cs`, `DatabaseMigrationEngine`, and `DbMigrator`
 - **Dedicated `DbMigrator` service** for migrations across all deployment modes (Aspire, Docker Compose, standalone)
-- **Outbox → Service Bus pipeline** — domain events captured durably in `OutboxMessages` during `SaveChangesAsync` (post-persist, so IDENTITY values are correct), published to Azure Service Bus by `OutboxProcessor` BackgroundService with row-level locking (`UPDLOCK, READPAST, ROWLOCK`) to prevent duplicate publishing across replicas. Service Bus topic has duplicate detection enabled (10-minute window). Consumed by Azure Functions via topic subscriptions with correlation filters. Convention test enforces subscription filter ↔ domain event name sync.
+- **Outbox → Service Bus pipeline** — domain events captured durably in `OutboxMessages` during a single `SaveChangesAsync` (aggregates use client-generated Guid v7 Ids, so creation events carry correct keys before the save). `EnableRetryOnFailure` is safe because no user transaction is needed. Rows are published to Azure Service Bus by `OutboxProcessor` BackgroundService with row-level locking (`UPDLOCK, READPAST, ROWLOCK`) to prevent duplicate publishing across replicas. Service Bus topic has duplicate detection enabled (10-minute window). Consumed by Azure Functions via topic subscriptions with correlation filters. Convention test enforces subscription filter ↔ domain event contract sync.
 - **Explicit constraint naming** — all database constraints named via convention (`PK_`, `FK_`, `DF_`, `CK_`, `IX_`), enforced by convention test from script 0012 onward
 
 ### Build Quality
@@ -120,7 +120,20 @@ Good adoption of modern .NET:
 
 These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
 
-No open findings. All findings have been resolved.
+*No open findings.*
+
+#### Recently resolved (Azure SQL transient retry)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~36~~ | No transient-failure retry on `DbContext` for Azure SQL throttling / failover | `Order` aggregate now uses client-generated `Guid.CreateVersion7()` IDs. This lets `RecordCreation()` run BEFORE `SaveChanges` (events already know their Ids), collapsing `SaveChangesWithOutboxAsync` to a single `SaveChanges` — no user transaction needed. `EnableRetryOnFailure(6, 30s)` is re-enabled in `AddPersistence`. `CreateOrderCommandHandler` (the one handler that still needs a user-managed transaction for atomic stock-reservation + order-save) wraps itself in `Database.CreateExecutionStrategy().ExecuteAsync(...)` and calls `ChangeTracker.Clear()` at the top of each attempt so retries start from a clean state. New convention test enforces: any `AggregateRoot` overriding `RecordCreation()` must have a `Guid Id` — if a future aggregate tries to raise creation events from an IDENTITY PK, the build fails. Migration `0014_ConvertOrderIdToGuid.sql` converts existing `Orders.Id` and `OrderItems.OrderId` to `UNIQUEIDENTIFIER`. |
+| ~~38~~ | Dapper query handlers had no transient-fault retry — `EnableRetryOnFailure` only covers the EF `DbContext`; Dapper creates its own `SqlCommand` with `RetryLogicProvider = null`, so a mid-query failover or throttling event on Azure SQL would surface as a 500 while writes are transparently retried | New `SqlRetryPolicy.ExecuteAsync` helper at `Infrastructure/Persistence/SqlRetryPolicy.cs` retries transient `SqlException`s with exponential backoff (6 attempts, 30s cap, base 1s) using the same transient-error numbers as EF's `SqlServerRetryingExecutionStrategy`. All 7 query handlers (`GetAllProducts`, `GetProductById`, `GetCustomer`, `GetCustomers`, `GetOrderById`, `GetOrdersByStatus`, `GetOrdersByCustomer`) now wrap their Dapper calls in the helper. New convention test `DapperConventionTests.QueryHandlers_MustUseSqlRetryPolicy` scans IL and fails the build if any future `*QueryHandler` with an `IDbConnection` field forgets to go through the helper. |
+
+#### Recently resolved (outbox publish resilience)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~37~~ | Transient Service Bus outages consumed per-message retry budget — a multi-minute SB outage would mark every polled message as permanently `Error`, requiring manual requeue | `OutboxProcessor` now distinguishes transient `ServiceBusException` reasons (`ServiceCommunicationProblem`, `ServiceTimeout`, `ServiceBusy`, `QuotaExceeded`) from message-level failures. Transient errors log a warning, break the batch, and leave rows unprocessed with retries intact — next poll tick re-attempts cleanly. Message-level errors (e.g. `MessageSizeExceeded`) still consume retries. No dedicated circuit breaker — the outbox already decouples user requests from publish latency, and this targeted fix addresses the actual failure mode. |
 
 #### Recently resolved (outbox correctness + eventing contract)
 

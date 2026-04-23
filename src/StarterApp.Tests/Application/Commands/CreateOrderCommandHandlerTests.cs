@@ -121,7 +121,7 @@ public class CreateOrderCommandHandlerTests
         Assert.Single(result.Items);
         Assert.Equal(command.Items[0].ProductId, result.Items[0].ProductId);
         Assert.Equal(command.Items[0].Quantity, result.Items[0].Quantity);
-        Assert.True(result.Id > 0);
+        Assert.NotEqual(Guid.Empty, result.Id);
         Assert.Equal(product.Price.Amount, result.Items[0].UnitPriceExcludingGst);
         Assert.Equal(product.Price.Currency, result.Items[0].Currency);
         Assert.Equal(OrderItem.DefaultGstRate, result.Items[0].GstRate);
@@ -319,7 +319,7 @@ public class CreateOrderCommandHandlerTests
         Assert.Equal(OrderCreatedDomainEvent.Contract, outboxMessage.Type);
 
         using var payload = JsonDocument.Parse(outboxMessage.Payload);
-        Assert.Equal(result.Id, payload.RootElement.GetProperty("OrderId").GetInt32());
+        Assert.Equal(result.Id, payload.RootElement.GetProperty("OrderId").GetGuid());
         Assert.Equal(customer.Id, payload.RootElement.GetProperty("CustomerId").GetInt32());
         Assert.Equal(1, payload.RootElement.GetProperty("LineItemCount").GetInt32());
         Assert.Equal(2, payload.RootElement.GetProperty("TotalQuantity").GetInt32());

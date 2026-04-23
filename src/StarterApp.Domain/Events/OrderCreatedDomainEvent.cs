@@ -23,7 +23,7 @@ public sealed class OrderCreatedDomainEvent : IDomainEvent
     }
 
     public string EventType => Contract;
-    public int OrderId { get; }
+    public Guid OrderId { get; }
     public int CustomerId { get; }
     public string Status { get; }
     public int LineItemCount { get; }

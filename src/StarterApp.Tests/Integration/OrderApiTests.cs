@@ -71,7 +71,7 @@ public class OrderApiTests : IAsyncLifetime
     public async Task GetOrder_WithNonExistentId_ShouldReturnNotFound()
     {
         // Arrange
-        var nonExistentId = 999999;
+        var nonExistentId = Guid.NewGuid();
 
         // Act
         var response = await _fixture.Client.GetAsync($"/api/v1/orders/{nonExistentId}");
@@ -210,7 +210,7 @@ public class OrderApiTests : IAsyncLifetime
 
         var createdOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
-        Assert.True(createdOrder.Id > 0);
+        Assert.NotEqual(Guid.Empty, createdOrder.Id);
         Assert.Equal(customer.Id, createdOrder.CustomerId);
         Assert.Equal(OrderStatus.Pending.ToString(), createdOrder.Status);
         Assert.Single(createdOrder.Items);
@@ -336,7 +336,7 @@ public class OrderApiTests : IAsyncLifetime
     public async Task UpdateOrderStatus_WithNonExistentOrder_ShouldReturnNotFound()
     {
         // Arrange
-        var nonExistentOrderId = 999999;
+        var nonExistentOrderId = Guid.NewGuid();
         var updateCommand = new UpdateOrderStatusCommand
         {
             OrderId = nonExistentOrderId,
@@ -354,14 +354,16 @@ public class OrderApiTests : IAsyncLifetime
     public async Task UpdateOrderStatus_WithMismatchedIds_ShouldReturnBadRequest()
     {
         // Arrange
+        var bodyId = Guid.NewGuid();
+        var urlId = Guid.NewGuid();
         var updateCommand = new UpdateOrderStatusCommand
         {
-            OrderId = 1,
+            OrderId = bodyId,
             Status = OrderStatus.Processing.ToString()
         };
 
         // Act - URL ID doesn't match command ID
-        var response = await _fixture.Client.PutAsJsonAsync("/api/v1/orders/2/status", updateCommand);
+        var response = await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{urlId}/status", updateCommand);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -402,7 +404,7 @@ public class OrderApiTests : IAsyncLifetime
     public async Task CancelOrder_WithNonExistentOrder_ShouldReturnNotFound()
     {
         // Arrange
-        var nonExistentOrderId = 999999;
+        var nonExistentOrderId = Guid.NewGuid();
 
         // Act
         var response = await _fixture.Client.PostAsync($"/api/v1/orders/{nonExistentOrderId}/cancel", null);

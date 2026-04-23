@@ -45,7 +45,7 @@ public class CancelOrderCommandHandlerTests
         await using var context = new ApplicationDbContext(options);
 
         var handler = new CancelOrderCommandHandler(context);
-        var command = new CancelOrderCommand { OrderId = 999 };
+        var command = new CancelOrderCommand { OrderId = Guid.NewGuid() };
 
         // Act & Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
