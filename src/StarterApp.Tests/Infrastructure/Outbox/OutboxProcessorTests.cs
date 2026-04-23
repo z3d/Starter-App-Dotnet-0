@@ -19,9 +19,15 @@ public class OutboxProcessorTests
         return new ApplicationDbContext(options);
     }
 
-    private static OutboxMessage CreateTestMessage(string type = "TestEvent", string payload = "{\"Id\":1}")
+    private static OutboxMessage CreateTestMessage(
+        string type = "TestEvent",
+        string payload = "{\"Id\":1}",
+        DateTimeOffset? occurredOnUtc = null)
     {
-        var domainEvent = new TestDomainEvent(type, payload, DateTimeOffset.UtcNow);
+        // Callers that add multiple messages in the same test must pass distinct occurredOnUtc
+        // values — the OutboxProcessor orders claimed messages by OccurredOnUtc, so ties produce
+        // a non-deterministic processing order and poison positional assertions.
+        var domainEvent = new TestDomainEvent(type, payload, occurredOnUtc ?? DateTimeOffset.UtcNow);
         return OutboxMessage.Create(domainEvent);
     }
 
@@ -192,12 +198,16 @@ public class OutboxProcessorTests
     [Fact]
     public async Task ProcessBatch_WhenTransientFailureMidBatch_ShouldPauseRemainingMessages()
     {
-        // Arrange — 3 messages; sender throws transient on the 2nd call
+        // Arrange — 3 messages; sender throws transient on the 2nd call. OccurredOnUtc is spaced
+        // by 1ms per message so the processor (which ORDER BYs OccurredOnUtc) and the verify
+        // query below both see the same insertion order — otherwise timestamp ties on fast
+        // machines produce a non-deterministic processing order.
         var dbName = Guid.NewGuid().ToString();
+        var baseTime = DateTimeOffset.UtcNow;
         await using (var setupContext = CreateDbContext(dbName))
         {
             for (var i = 0; i < 3; i++)
-                setupContext.OutboxMessages.Add(CreateTestMessage());
+                setupContext.OutboxMessages.Add(CreateTestMessage(occurredOnUtc: baseTime.AddMilliseconds(i)));
             await setupContext.SaveChangesAsync();
         }
 
