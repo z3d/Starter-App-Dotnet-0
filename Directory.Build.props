@@ -35,12 +35,4 @@
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
-  
-  <!-- Global Package References -->
-  <ItemGroup>
-    <GlobalPackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-    </GlobalPackageReference>
-  </ItemGroup>
 </Project>

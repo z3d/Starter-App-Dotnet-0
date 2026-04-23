@@ -6,12 +6,12 @@
     <UserSecretsId>93a225fa-bb6e-4555-ad81-8cec2527f21d</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.2.1" />
-    <PackageReference Include="Aspire.Hosting.Azure.ServiceBus" Version="13.2.1" />
-    <PackageReference Include="Aspire.Hosting.DevTunnels" Version="13.2.1" />
-    <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.2.1" />
-    <PackageReference Include="Aspire.Hosting.Redis" Version="13.2.1" />
-    <PackageReference Include="Aspire.Hosting.Seq" Version="13.2.1" />
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.Azure.ServiceBus" />
+    <PackageReference Include="Aspire.Hosting.DevTunnels" />
+    <PackageReference Include="Aspire.Hosting.SqlServer" />
+    <PackageReference Include="Aspire.Hosting.Redis" />
+    <PackageReference Include="Aspire.Hosting.Seq" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\StarterApp.Api\StarterApp.Api.csproj" />
