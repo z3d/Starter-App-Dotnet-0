@@ -2,13 +2,18 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# Copy Directory.Build.props for shared configuration
+# Copy Directory.Build.props + Directory.Packages.props for shared configuration
+# (CPM requires Directory.Packages.props at restore time)
 COPY ["Directory.Build.props", "Directory.Build.props"]
+COPY ["Directory.Packages.props", "Directory.Packages.props"]
 
-# Copy csproj files first for better layer caching
+# Copy csproj + packages.lock.json files first for better layer caching
 COPY ["src/StarterApp.Api/StarterApp.Api.csproj", "src/StarterApp.Api/"]
+COPY ["src/StarterApp.Api/packages.lock.json", "src/StarterApp.Api/"]
 COPY ["src/StarterApp.Domain/StarterApp.Domain.csproj", "src/StarterApp.Domain/"]
+COPY ["src/StarterApp.Domain/packages.lock.json", "src/StarterApp.Domain/"]
 COPY ["src/StarterApp.ServiceDefaults/StarterApp.ServiceDefaults.csproj", "src/StarterApp.ServiceDefaults/"]
+COPY ["src/StarterApp.ServiceDefaults/packages.lock.json", "src/StarterApp.ServiceDefaults/"]
 
 # Restore dependencies
 RUN dotnet restore "src/StarterApp.Api/StarterApp.Api.csproj"

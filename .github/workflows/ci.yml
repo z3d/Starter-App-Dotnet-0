@@ -51,3 +51,51 @@ jobs:
 
     - name: Integration tests
       run: dotnet test --no-build --configuration Release --verbosity normal --filter "FullyQualifiedName~Integration & Category!=Aspire"
+
+  aspire:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+        cache: true
+        cache-dependency-path: '**/packages.lock.json'
+
+    - name: Trust ASP.NET Core dev cert
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y libnss3-tools
+        dotnet dev-certs https --trust || true
+        echo "SSL_CERT_DIR=$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs:/etc/ssl/certs" >> "$GITHUB_ENV"
+
+    - name: Install Azure Functions Core Tools
+      run: npm install -g azure-functions-core-tools@4 --unsafe-perm true
+
+    - name: Restore dependencies
+      run: dotnet restore --force-evaluate
+
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+
+    - name: Aspire tests
+      run: dotnet test --no-build --configuration Release --verbosity normal --filter "Category=Aspire"
+
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build migrator image
+      run: docker compose build migrator
+
+    - name: Build api image
+      run: docker compose build api
+
+    - name: Build functions image
+      run: docker compose build functions
