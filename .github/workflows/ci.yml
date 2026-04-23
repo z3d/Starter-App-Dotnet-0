@@ -66,6 +66,12 @@ jobs:
         cache: true
         cache-dependency-path: '**/packages.lock.json'
 
+    - name: Trust ASP.NET Core dev cert
+      run: dotnet dev-certs https --trust
+
+    - name: Install Azure Functions Core Tools
+      run: npm install -g azure-functions-core-tools@4 --unsafe-perm true
+
     - name: Restore dependencies
       run: dotnet restore --force-evaluate
 
