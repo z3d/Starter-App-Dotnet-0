@@ -1,0 +1,17 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/StarterApp.Api/StarterApp.Api.csproj" />
+    <Project Path="src/StarterApp.AppHost.Tests/StarterApp.AppHost.Tests.csproj" />
+    <Project Path="src/StarterApp.AppHost/StarterApp.AppHost.csproj" />
+    <Project Path="src/StarterApp.DbMigrator/StarterApp.DbMigrator.csproj" />
+    <Project Path="src/StarterApp.Domain/StarterApp.Domain.csproj" />
+    <Project Path="src/StarterApp.Functions/StarterApp.Functions.csproj" />
+    <Project Path="src/StarterApp.ServiceDefaults/StarterApp.ServiceDefaults.csproj" />
+    <Project Path="src/StarterApp.Tests/StarterApp.Tests.csproj" />
+  </Folder>
+</Solution>
