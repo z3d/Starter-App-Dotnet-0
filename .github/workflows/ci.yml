@@ -67,7 +67,11 @@ jobs:
         cache-dependency-path: '**/packages.lock.json'
 
     - name: Trust ASP.NET Core dev cert
-      run: dotnet dev-certs https --trust
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y libnss3-tools
+        dotnet dev-certs https --trust || true
+        echo "SSL_CERT_DIR=$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs:/etc/ssl/certs" >> "$GITHUB_ENV"
 
     - name: Install Azure Functions Core Tools
       run: npm install -g azure-functions-core-tools@4 --unsafe-perm true
