@@ -2,59 +2,66 @@
 
 ## Overview
 
-.NET Aspire provides a superior local development experience with built-in observability, service discovery, and configuration management. This step shows how Aspire complements your Docker setup for cloud-native development.
+.NET Aspire provides a superior local development experience with built-in observability, service discovery, and configuration management. This step shows how Aspire complements the Docker setup for cloud-native development.
 
 ## Current Status
 
 ✅ **Already Configured!** - .NET Aspire is fully set up with:
 
-- **AppHost Project**: Orchestrates all services
-- **Service Defaults**: Shared configuration and observability
-- **SQL Server Integration**: Containerized database with automatic setup
-- **Observability Dashboard**: Built-in monitoring and diagnostics
-- **Health Checks**: Comprehensive service monitoring
+- **AppHost Project** (`StarterApp.AppHost`) - Orchestrates all services
+- **Service Defaults** (`StarterApp.ServiceDefaults`) - Shared configuration and observability
+- **SQL Server Integration** - Containerized DB with automatic setup and migration
+- **Redis Integration** - Distributed cache
+- **Azure Service Bus Emulator** - Domain-event messaging with topic + subscriptions
+- **Azure Functions** - Service Bus subscribers running natively via Functions Core Tools
+- **Seq** - Centralized structured logging
+- **DevTunnel (optional)** - Exposes the API to the internet for webhook/mobile testing
+- **Observability Dashboard** - Built-in monitoring and diagnostics
 
 ## 🏗️ Aspire Architecture
 
 ```
-DockerLearning.AppHost (Orchestrator)
+StarterApp.AppHost (Orchestrator)
 ├── 📊 Aspire Dashboard (Built-in observability)
-├── 🌐 DockerLearningApi (Enhanced with telemetry)
-├── 🗄️ SQL Server Container (Managed lifecycle)
-├── 🔄 DockerLearning.DbMigrator (Automatic migrations)
+├── 🌐 StarterApp.Api (Enhanced with telemetry)
+├── 🔄 StarterApp.DbMigrator (Runs DbUp migrations; API waits for completion)
+├── ⚡ StarterApp.Functions (Service Bus subscribers)
+├── 🗄️ SQL Server container (Persistent lifetime)
+├── 🚀 Redis container (Distributed cache)
+├── 📬 Azure Service Bus emulator (Topic: domain-events with 2 subscriptions)
+├── 📝 Seq container (Centralized logs)
 └── 📈 Service Defaults (Shared configuration)
 ```
 
 ## 🆚 Development Approaches Comparison
 
 | Aspect | Docker Compose | .NET Aspire | Winner |
-|--------|----------------|-------------|---------|
-| **Configuration** | YAML files | C# with IntelliSense | 🥇 Aspire |
+|--------|----------------|-------------|--------|
+| **Configuration** | YAML | C# with IntelliSense | 🥇 Aspire |
 | **Service Discovery** | Manual networking | Automatic resolution | 🥇 Aspire |
 | **Observability** | Requires setup | Built-in dashboard | 🥇 Aspire |
 | **Debugging** | Attach to containers | Native .NET debugging | 🥇 Aspire |
 | **Hot Reload** | Container rebuilds | Instant .NET hot reload | 🥇 Aspire |
 | **Production Parity** | High | Medium | 🥇 Docker |
 | **CI/CD Integration** | Excellent | Good | 🥇 Docker |
-| **Learning Curve** | Moderate | Easy for .NET devs | 🥇 Aspire |
+| **Apple Silicon support** | Functions image is amd64-only | Functions runs natively | 🥇 Aspire |
 
 ## 🚀 Quick Start with Aspire
 
 ### 1. Start the Application
 
-```powershell
-# Navigate to the AppHost project
-cd c:\dev\scratchpad\dockerlearning\src\DockerLearning.AppHost
+```bash
+dotnet run --project src/StarterApp.AppHost
+```
 
-# Run Aspire orchestration
-dotnet run
+Optional dev tunnel (exposes the API publicly for webhook/mobile testing):
+```bash
+dotnet run --project src/StarterApp.AppHost -- --devtunnel
 ```
 
 ### 2. Access the Dashboard
 
-The Aspire dashboard automatically opens at:
-- **Primary**: http://localhost:15061
-- **HTTPS**: https://localhost:17113
+The Aspire dashboard opens automatically. The URL is printed in the console on startup — Aspire assigns a dynamic port.
 
 ### 3. Explore Your Services
 
@@ -67,367 +74,153 @@ The dashboard shows:
 
 ## 🛠️ Service Configuration
 
-### AppHost Configuration (`Program.cs`)
+### AppHost (`src/StarterApp.AppHost/Program.cs`)
+
+The real topology — simplified for readability:
 
 ```csharp
 var builder = DistributedApplication.CreateBuilder(args);
 
-// SQL Server with persistent storage
-var sql = builder.AddSqlServer("sql")
-                 .WithLifetime(ContainerLifetime.Persistent);
-
+var seq = builder.AddSeq("seq").WithLifetime(ContainerLifetime.Persistent);
+var sql = builder.AddSqlServer("sql").WithLifetime(ContainerLifetime.Persistent);
 var db = sql.AddDatabase("database");
+var redis = builder.AddRedis("redis").WithLifetime(ContainerLifetime.Persistent);
 
-// API with automatic configuration
-builder.AddProject<Projects.DockerLearningApi>("api")
-       .WithReference(db)
-       .WaitFor(db);
+// Service Bus topology defined fluently so Aspire serializes correlation filters correctly
+var serviceBus = builder.AddAzureServiceBus("servicebus");
+var domainEventsTopic = serviceBus.AddServiceBusTopic("domain-events");
 
-// Database migrator for schema updates
-builder.AddProject<Projects.DockerLearning_DbMigrator>("migrator")
-       .WithReference(db)
-       .WaitFor(db);
+domainEventsTopic.AddServiceBusSubscription("email-notifications")
+    .WithProperties(sub =>
+    {
+        sub.Rules.Add(/* correlation filter: EventType == "order.created.v1" */);
+        sub.Rules.Add(/* correlation filter: EventType == "order.status-changed.v1" */);
+    });
+
+domainEventsTopic.AddServiceBusSubscription("inventory-reservation")
+    .WithProperties(sub =>
+    {
+        sub.Rules.Add(/* correlation filter: EventType == "order.created.v1" */);
+    });
+
+serviceBus.RunAsEmulator(e => e.WithLifetime(ContainerLifetime.Persistent));
+
+var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
+    .WithReference(db).WaitFor(db);
+
+var api = builder.AddProject<Projects.StarterApp_Api>("api")
+    .WithReference(db)
+    .WithReference(redis)
+    .WithReference(serviceBus)
+    .WaitFor(db).WaitFor(redis).WaitFor(serviceBus)
+    .WaitForCompletion(migrator);           // API waits for migrator to finish
+
+builder.AddProject<Projects.StarterApp_Functions>("functions")
+    .WithReference(serviceBus)
+    .WaitFor(serviceBus);
 
 builder.Build().Run();
 ```
 
-### Key Features:
+### Key Features
 
 - ✅ **Automatic Service Discovery**: Services find each other by name
-- ✅ **Dependency Management**: `WaitFor()` ensures proper startup order
-- ✅ **Configuration Injection**: Connection strings automatically provided
-- ✅ **Lifecycle Management**: Containers started/stopped as needed
+- ✅ **Dependency Management**: `WaitFor()` / `WaitForCompletion()` enforce startup order
+- ✅ **Configuration Injection**: Connection strings wired automatically from references
+- ✅ **Lifecycle Management**: Containers started/stopped as needed (or kept persistent)
 
 ## 📊 Observability Features
 
-### Built-in Dashboard Components
+### Dashboard Components
 
-#### 1. **Service Overview**
-- Real-time service health status
-- Resource consumption metrics
-- Replica counts and scaling status
-- Direct links to service endpoints
+1. **Service Overview** — real-time health, resource usage, endpoint links
+2. **Distributed Tracing** — follow an HTTP request through API → DbContext → Service Bus publish → Functions subscriber
+3. **Structured Logging** — centralized from all services, correlation IDs, filterable
+4. **Metrics** — HTTP request metrics, DB connection metrics, custom business metrics, runtime metrics
 
-#### 2. **Distributed Tracing**
-```
-HTTP Request → API Endpoint → Repository → Database
-     ↓              ↓             ↓          ↓
-  Trace Span    Trace Span   Trace Span  SQL Span
-```
+### OpenTelemetry in ServiceDefaults
 
-#### 3. **Structured Logging**
-- Centralized logs from all services
-- Correlation IDs for request tracking
-- Filterable by service, level, and content
-- Integration with existing Serilog configuration
-
-#### 4. **Metrics Collection**
-- HTTP request metrics (latency, status codes)
-- Database connection metrics
-- Custom business metrics
-- Memory and CPU usage
-
-### Custom Observability
-
-Your application automatically gets:
-
-```csharp
-// In ServiceDefaults/Extensions.cs
-services.AddOpenTelemetry()
-    .WithMetrics(metrics =>
-    {
-        metrics.AddAspNetCoreInstrumentation()
-               .AddHttpClientInstrumentation()
-               .AddRuntimeInstrumentation();
-    })
-    .WithTracing(tracing =>
-    {
-        tracing.AddAspNetCoreInstrumentation()
-               .AddHttpClientInstrumentation()
-               .AddEntityFrameworkCoreInstrumentation();
-    });
-```
+See [src/StarterApp.ServiceDefaults/Extensions.cs](../../src/StarterApp.ServiceDefaults/Extensions.cs). Both metrics and tracing are configured with ASP.NET Core, HttpClient, and Runtime instrumentation.
 
 ## 🔄 Development Workflow
 
 ### Recommended Daily Workflow
 
-1. **Start Development Session**
-   ```powershell
-   cd src\DockerLearning.AppHost
-   dotnet run
+1. **Start**
+   ```bash
+   dotnet run --project src/StarterApp.AppHost
    ```
 
-2. **Code with Hot Reload**
-   - Make changes to API code
-   - See changes reflected immediately
-   - No container rebuilds needed
+2. **Code with Hot Reload** — edits are picked up without rebuilding containers
 
-3. **Monitor and Debug**
-   - Use Aspire dashboard for observability
-   - Set breakpoints in Visual Studio/VS Code
-   - View real-time metrics and logs
+3. **Monitor and Debug** — use the dashboard + native .NET debugger breakpoints
 
-4. **Test Integration**
-   - All services run together
-   - Database automatically migrated
-   - Service discovery works seamlessly
+4. **Test Integration** — all services come up together; DB migrated automatically; service discovery just works
 
 ### Switching Between Environments
 
 **Development with Aspire:**
-```powershell
-# Rich observability and debugging
-cd src\DockerLearning.AppHost
-dotnet run
+```bash
+dotnet run --project src/StarterApp.AppHost
 ```
 
 **Production Testing with Docker:**
-```powershell
-# Production-like environment
-docker-compose up --build
+```bash
+docker compose up --build
 ```
 
-## 🔧 Configuration Management
-
-### Environment-Specific Settings
-
-Aspire automatically handles:
-
-```csharp
-// Development configuration
-"ConnectionStrings": {
-  "DefaultConnection": "Server=127.0.0.1,61430;User ID=sa;Password=Your_password123;TrustServerCertificate=true;Initial Catalog=DockerLearning"
-}
-
-// Automatic service discovery
-services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString)); // Injected automatically
-```
-
-### Service Defaults Integration
-
-```csharp
-// Shared across all services
-builder.Services.AddServiceDefaults();
-
-// Provides:
-// - Health checks
-// - OpenTelemetry
-// - Service discovery
-// - Configuration management
-```
+> On arm64 Macs, the `functions` service in Docker Compose fails because
+> the Azure Functions isolated-worker image is amd64-only. Aspire runs
+> Functions natively via the Functions Core Tools and has no such issue —
+> another reason to use Aspire for daily development on Apple Silicon.
 
 ## 🔍 Advanced Features
 
-### Health Checks Integration
-
+### Health Checks
 ```csharp
-// Automatic health check endpoints
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/ready");
 app.MapHealthChecks("/health/live");
 ```
 
-Access health checks at:
-- http://localhost:5164/health
-- Dashboard shows aggregated health status
-
 ### Custom Metrics
-
 ```csharp
-// Add custom business metrics
 var productCreatedCounter = meter.CreateCounter<int>("products.created");
-
-// In your endpoint
 productCreatedCounter.Add(1, new("category", product.Category));
 ```
 
-### Resource Management
-
-```csharp
-// Configure resource limits
-builder.AddProject<Projects.DockerLearningApi>("api")
-       .WithReplicas(2)                    // Multiple instances
-       .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development");
-```
+### Dev Tunnel
+Pass `--devtunnel` or set `ENABLE_DEV_TUNNEL=true` to publish the API via a tunnel. The AppHost only registers the tunnel when explicitly enabled — it stays off for normal local runs.
 
 ## 🧪 Testing Integration
 
-### Integration Tests with Aspire
+Aspire end-to-end tests live in `StarterApp.AppHost.Tests` and use `DistributedApplicationTestingBuilder` to spin up the full distributed app (SQL Server, Service Bus emulator, API, Functions) and validate the end-to-end pipeline. Tag slow tests with `[Trait("Category", "Aspire")]`.
 
-```csharp
-public class AspireIntegrationTests : IClassFixture<DistributedApplicationTestingBuilder>
-{
-    [Fact]
-    public async Task GetProducts_ReturnsSuccessfully()
-    {
-        var app = await builder.BuildAsync();
-        var httpClient = app.CreateHttpClient("api");
-        
-        var response = await httpClient.GetAsync("/api/products");
-        
-        response.EnsureSuccessStatusCode();
-    }
-}
-```
+See [.claude/skills/testing-strategy/SKILL.md](../../.claude/skills/testing-strategy/SKILL.md) for details.
 
 ## 🔧 Troubleshooting
 
-### Common Issues
+**Service won't start** — Check the dashboard logs tab for the failing resource; verify all `WaitFor()` dependencies are healthy.
 
-**Port Conflicts:**
-```powershell
-# Aspire uses dynamic ports - check dashboard for actual URLs
-# If port 15061 is busy, Aspire will choose another port
-```
+**Database connection issues** — Confirm the SQL Server container is healthy in the dashboard; verify the migrator completed successfully (the API waits for it).
 
-**Service Won't Start:**
-```powershell
-# Check logs in the dashboard
-# Verify all dependencies are resolved
-# Ensure Docker is running for SQL Server container
-```
+**Service Bus emulator not ready** — The emulator has a longer start-up than the API; `WaitFor(serviceBus)` ensures ordering.
 
-**Database Connection Issues:**
-```powershell
-# Verify SQL Server container is running
-docker ps | findstr sql
-
-# Check connection string in dashboard
-# Ensure migrations have run successfully
-```
-
-**Missing Telemetry:**
-```powershell
-# Ensure ServiceDefaults is added
-builder.Services.AddServiceDefaults();
-
-# Check OpenTelemetry configuration
-# Verify instrumentation packages are installed
-```
-
-### Debugging Tips
-
-1. **Use the Dashboard**: Primary debugging tool
-2. **Check Dependencies**: Ensure `WaitFor()` is configured
-3. **View Logs**: Centralized in the dashboard
-4. **Monitor Metrics**: Real-time performance data
-5. **Trace Requests**: Follow request flow across services
+**Missing telemetry** — Make sure the project calls `builder.Services.AddServiceDefaults();` and the OpenTelemetry instrumentation packages are referenced.
 
 ## 🎯 Best Practices
 
-### Development
-- ✅ Use Aspire for daily development
-- ✅ Leverage hot reload for faster iteration
-- ✅ Monitor metrics during development
-- ✅ Use structured logging consistently
+- Use Aspire for daily development (hot reload, debugger, dashboard)
+- Use Docker Compose for production-parity integration testing
+- Deploy production workloads as containers
+- Keep `AddServiceDefaults()` on all new projects for consistent observability
 
-### Testing
-- ✅ Test with Docker Compose for production parity
-- ✅ Use Aspire testing framework for integration tests
-- ✅ Validate service discovery and configuration
+## 🔗 Related Documentation
 
-### Production
-- ✅ Deploy with Docker containers
-- ✅ Use learned observability patterns
-- ✅ Apply similar health check strategies
-- ✅ Implement same metrics in production
-
-## 🌟 Summary
-
-.NET Aspire provides:
-
-- **🚀 Enhanced Developer Experience**: Hot reload, native debugging, IntelliSense
-- **📊 Built-in Observability**: Dashboard, metrics, logging, tracing
-- **🔧 Simplified Configuration**: Service discovery, automatic connection strings
-- **🔍 Better Debugging**: Rich diagnostics and monitoring tools
-- **⚡ Faster Iteration**: No container rebuilds for code changes
-
-### When to Use What
-
-- **Daily Development**: .NET Aspire for rich experience
-- **Integration Testing**: Docker Compose for production parity  
-- **CI/CD Pipelines**: Docker for consistent environments
-- **Production Deployment**: Containers with learned patterns
-
-## 🎉 Congratulations!
-
-You've completed the full tutorial! You now have:
-
-- ✅ A modern .NET 10 Web API with clean architecture
-- ✅ SQL Server with automated migrations
-- ✅ Docker containerization for production
-- ✅ Azure deployment capabilities
-- ✅ .NET Aspire for enhanced development
-
-### Next Steps
-
-- Explore additional Aspire integrations (Redis, RabbitMQ, etc.)
-- Implement custom metrics and monitoring
-- Set up automated CI/CD pipelines
-- Add more sophisticated health checks
-- Experiment with scaling and load testing
-
-### Common Issues
-
-**Issue**: Services not starting
-**Solution**: Check the Aspire dashboard for detailed error messages
-
-**Issue**: Database connection failures
-**Solution**: Verify SQL Server container is healthy in the dashboard
-
-**Issue**: Port conflicts
-**Solution**: Aspire will automatically assign available ports
-
-### Debugging
-1. **Use the Dashboard**: Real-time service status and logs
-2. **Visual Studio Integration**: Set multiple startup projects
-3. **Distributed Tracing**: Follow requests across service boundaries
-
-## 🚀 **Advanced Scenarios**
-
-### Adding New Services
-```csharp
-// In AppHost/Program.cs
-var redis = builder.AddRedis("redis");
-var api = builder.AddProject<Projects.DockerLearningApi>("api")
-    .WithReference(sqlServer)
-    .WithReference(redis);  // Add Redis reference
-```
-
-### Custom Health Checks
-```csharp
-// In API Program.cs
-builder.Services.AddHealthChecks()
-    .AddCheck<DatabaseHealthCheck>("database")
-    .AddCheck<ExternalServiceHealthCheck>("external-api");
-```
-
-### Environment Configuration
-```csharp
-// Different configurations per environment
-if (builder.Environment.IsDevelopment())
-{
-    // Development-specific services
-    var jaeger = builder.AddContainer("jaeger", "jaegertracing/all-in-one")
-        .WithBindMount("./jaeger", "/tmp");
-}
-```
-
-## 📋 **Next Steps**
-
-1. **Try Both Approaches**: Compare development experience
-2. **Explore the Dashboard**: Discover observability features
-3. **Add Custom Metrics**: Enhance monitoring
-4. **Integration Testing**: Combine with your convention tests
-
-## 🔗 **Related Documentation**
-
-- [Docker Setup (Step 3)](../03-docker-setup/README.md) - Original Docker configuration
-- [Convention Tests](../../src/DockerLearningApi.Tests/Conventions/README.md) - Architectural testing
+- [Docker Setup (Step 3)](../03-docker-setup/README.md) - Docker Compose configuration
+- [API Endpoints](../API-ENDPOINTS.md) - Minimal API endpoint reference
 - [.NET Aspire Documentation](https://learn.microsoft.com/en-us/dotnet/aspire/) - Official Microsoft docs
 
 ---
 
-**💡 Tip**: Start your development session with Aspire to leverage the rich debugging experience, then validate with Docker Compose before committing changes.
+**💡 Tip**: Start your development session with Aspire for the rich debugging experience, then validate with Docker Compose before committing changes.

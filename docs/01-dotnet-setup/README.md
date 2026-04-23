@@ -55,12 +55,8 @@ Features implemented:
 ## Running the API Locally
 
 ### Option 1: Run API Directly
-```powershell
-# Navigate to the API project
-cd c:\dev\scratchpad\dockerlearning\src\StarterApp.Api
-
-# Run the project
-dotnet run
+```bash
+dotnet run --project src/StarterApp.Api
 ```
 
 **Access points:**
@@ -69,12 +65,8 @@ dotnet run
 - Health Check: https://localhost:7286/health
 
 ### Option 2: Run with .NET Aspire (Recommended)
-```powershell
-# Navigate to the AppHost project
-cd c:\dev\scratchpad\dockerlearning\src\StarterApp.AppHost
-
-# Run with Aspire orchestration
-dotnet run
+```bash
+dotnet run --project src/StarterApp.AppHost
 ```
 
 This will start:
@@ -91,9 +83,7 @@ This will start:
 4. Test PUT and DELETE operations
 
 ### Automated Testing
-```powershell
-# Run unit tests
-cd c:\dev\scratchpad\dockerlearning
+```bash
 dotnet test
 ```
 

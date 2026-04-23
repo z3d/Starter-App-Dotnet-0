@@ -1,50 +1,54 @@
 # 🚀 .NET Aspire Setup Complete!
 
-Your Docker learning project now has **side-by-side** .NET Aspire orchestration alongside your existing Docker Compose setup.
+This project has **side-by-side** .NET Aspire orchestration alongside the Docker Compose setup.
 
-## ✅ **What's Been Added**
+## ✅ **What's Included**
 
-### New Projects
-- **`DockerLearning.AppHost`** - Aspire orchestration host
-- **`DockerLearning.ServiceDefaults`** - Shared Aspire configuration
+### Projects
+- **`StarterApp.AppHost`** - Aspire orchestration host
+- **`StarterApp.ServiceDefaults`** - Shared Aspire configuration
 
 ### Enhanced API
-- Added Aspire ServiceDefaults for observability
+- Aspire ServiceDefaults for observability
 - Built-in health checks and telemetry
 - Service discovery integration
 
 ## 🎯 **Quick Start**
 
 ### Option 1: Run with Aspire (Rich Debugging)
-```powershell
-cd c:\dev\scratchpad\dockerlearning\src\DockerLearning.AppHost
-dotnet run
+```bash
+dotnet run --project src/StarterApp.AppHost
 ```
 - **Aspire Dashboard**: Opens automatically in browser
 - **Rich Observability**: Distributed tracing, metrics, logs
 - **Service Health**: Real-time status monitoring
 
 ### Option 2: Run with Docker Compose (Production-like)
-```powershell
-cd c:\dev\scratchpad\dockerlearning
-docker-compose up --build
+```bash
+docker compose up --build
 ```
 - **API**: http://localhost:8080
 - **Scalar API Reference**: http://localhost:8080/scalar/v1
 
-## 🔍 **Aspire Features You'll See**
+> **Note (Apple Silicon)**: The Azure Functions base image
+> `mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0`
+> is currently published for `linux/amd64` only. On arm64 Macs, run via
+> Aspire (which uses the locally-installed Functions Core Tools natively)
+> or start Docker Compose without the `functions` service.
 
-1. **Automatic Dashboard**: Opens at http://localhost:15255
+## 🔍 **Aspire Features**
+
+1. **Automatic Dashboard**: Opens at the URL printed by AppHost on startup
 2. **Service Map**: Visual representation of your services
-3. **Distributed Tracing**: Follow requests across API → Database
+3. **Distributed Tracing**: Follow requests across API → Database → Service Bus
 4. **Real-time Metrics**: Performance counters and custom metrics
 5. **Centralized Logs**: All service logs in one place
 6. **Configuration View**: Live view of all service settings
 
 ## 📊 **What the Dashboard Shows**
 
-- **Services**: API, SQL Server, DbMigrator status
-- **Traces**: HTTP requests, database queries, custom operations
+- **Services**: API, SQL Server, Redis, Service Bus emulator, Functions, DbMigrator, Seq
+- **Traces**: HTTP requests, database queries, Service Bus publishes, custom operations
 - **Metrics**: Request duration, error rates, throughput
 - **Logs**: Structured logging with correlation IDs
 - **Resources**: Container health and resource usage
@@ -52,13 +56,12 @@ docker-compose up --build
 ## 🎛️ **Development Workflow**
 
 ### Recommended Approach
-```powershell
+```bash
 # Daily development - rich debugging
-cd src\DockerLearning.AppHost
-dotnet run
+dotnet run --project src/StarterApp.AppHost
 
 # Integration testing - production-like
-docker-compose up
+docker compose up
 
 # Switch between approaches as needed
 ```
@@ -77,17 +80,15 @@ docker-compose up
 
 ## 📋 **Next Steps**
 
-1. **Try the Aspire Dashboard**: Start with `dotnet run` in AppHost
+1. **Try the Aspire Dashboard**: Start with `dotnet run --project src/StarterApp.AppHost`
 2. **Compare Experiences**: Use both Aspire and Docker Compose
 3. **Explore Observability**: Add custom metrics and traces
-4. **Run Convention Tests**: `dotnet test` still works with both setups
+4. **Run Tests**: `dotnet test` works with both setups
 
 ---
 
 ## 📚 **Documentation**
 
-- **Aspire Setup**: [docs/05-aspire-setup/README.md](../docs/05-aspire-setup/README.md)
-- **Docker Setup**: [docs/03-docker-setup/README.md](../docs/03-docker-setup/README.md)
-- **Convention Tests**: [src/DockerLearningApi.Tests/Conventions/README.md](../src/DockerLearningApi.Tests/Conventions/README.md)
-
-**🎉 You now have the best of both worlds - rich Aspire development experience AND production-ready Docker containers!**
+- **Aspire Setup**: [docs/05-aspire-setup/README.md](docs/05-aspire-setup/README.md)
+- **Docker Setup**: [docs/03-docker-setup/README.md](docs/03-docker-setup/README.md)
+- **API Endpoints**: [docs/API-ENDPOINTS.md](docs/API-ENDPOINTS.md)
