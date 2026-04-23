@@ -164,7 +164,7 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 - **Configuration Management**: Environment-specific settings with .NET configuration
 - **Database Migrations**: Automated schema updates with DbUp
 - **Container Orchestration**: Both Docker Compose and .NET Aspire support
-- **Comprehensive Testing**: Unit, convention (7 classes), integration, property-based (FsCheck), and Aspire end-to-end tests
+- **Comprehensive Testing**: Unit, convention, integration, property-based (FsCheck), and Aspire end-to-end tests
 
 ## � Documentation
 

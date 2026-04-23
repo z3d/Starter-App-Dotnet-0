@@ -169,7 +169,7 @@ Never put `Version=` on a `<PackageReference>` — CPM will error on the downgra
 - **Constraint naming**: Every constraint must have an explicit name — no anonymous/system-generated names. Convention: `PK_Table`, `FK_Table_Column`, `DF_Table_Column`, `CK_Table_Description`, `IX_Table_Column`. This makes future migrations deterministic (`DROP CONSTRAINT PK_Orders`) instead of requiring dynamic SQL lookups against `sys.default_constraints`. Enforced by convention test from script 0012 onward.
 
 **Testing**: Two test projects:
-- `StarterApp.Tests` — xUnit + FsCheck property-based testing + Best.Conventional conventions across 6 classes (including `DapperConventionTests` for SELECT * prevention via IL inspection, `DateTimeOffset` enforcement, constraint naming enforcement). Uses WebApplicationFactory + Testcontainers for integration tests. See `.claude/skills/testing-strategy/SKILL.md`.
+- `StarterApp.Tests` — xUnit + FsCheck property-based testing + Best.Conventional conventions (including `CachingConventionTests`, `DapperConventionTests` for SELECT * prevention via IL inspection, `DateTimeOffset` enforcement, constraint naming enforcement). Uses WebApplicationFactory + Testcontainers for integration tests. See `.claude/skills/testing-strategy/SKILL.md`.
 - `StarterApp.AppHost.Tests` — Aspire integration tests using `DistributedApplicationTestingBuilder`. Spins up the full distributed app (SQL Server, Service Bus emulator, API, Functions) to test the end-to-end pipeline. Tag slow tests with `[Trait("Category", "Aspire")]`. See `.claude/skills/testing-strategy/SKILL.md`.
 
 **API Design**: Minimal APIs with `IEndpointDefinition` pattern, auto-discovery, endpoint filters for route-specific logic. See `.claude/skills/api-design/SKILL.md`.
