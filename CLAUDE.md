@@ -121,6 +121,16 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - Treat warnings as errors, global analyzers enabled
 - Package lock files for reproducible builds (`RestorePackagesWithLockFile=true`)
 
+### Central Package Management (Directory.Packages.props)
+All NuGet package versions are pinned in `Directory.Packages.props` at the repo root. Individual `.csproj` files contain `<PackageReference Include="X" />` with **no `Version=` attribute** — the version comes from the central file.
+
+**When adding a new package:**
+1. Add `<PackageVersion Include="X" Version="Y" />` to `Directory.Packages.props`
+2. Add `<PackageReference Include="X" />` (no version) to the consuming `.csproj`
+3. Run `dotnet restore --force-evaluate` to update lock files
+
+Never put `Version=` on a `<PackageReference>` — CPM will error on the downgrade/mismatch. Never duplicate a `<PackageVersion>` across multiple entries for the same package. The analyzer `<GlobalPackageReference>` also lives in `Directory.Packages.props` (CPM requires it there, not in `Directory.Build.props`).
+
 ### Code Formatting (.editorconfig)
 - 180 char line length, file-scoped namespaces, system usings first
 - StyleCop rules: SA1200, SA1209, SA1210, SA1211
