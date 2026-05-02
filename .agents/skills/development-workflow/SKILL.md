@@ -215,12 +215,12 @@ act --list       # List available workflows
 
 After completing a significant batch of work (bug fixes, feature additions, refactoring), **retrospect and update rules**:
 
-1. Re-read all `.claude/skills/*/SKILL.md` files
+1. Re-read all `.agents/skills/*/SKILL.md` files
 2. Identify stale guidance that contradicts the changes just made (e.g., old patterns that were replaced)
 3. Update convention class lists and pattern descriptions to match current reality (do NOT hardcode test counts — they go stale immediately)
 4. Add new patterns or anti-patterns discovered during the session
-5. Update `CLAUDE.md` if architectural decisions or project structure changed
-6. Mirror equivalent guidance changes into `.agents/skills/**` and `AGENTS.md`; keep only intentional agent-specific path/name drift
+5. Update `AGENTS.md` if architectural decisions or project structure changed
+6. Mirror equivalent guidance changes into `.claude/skills/**` and `CLAUDE.md`; keep only intentional agent-specific path/name drift
 7. Update `docs/ARCHITECTURE_REVIEW.md` to mark resolved issues
 
 This prevents rules from drifting out of sync with the codebase — stale rules actively mislead future work.

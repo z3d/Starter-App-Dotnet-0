@@ -1,6 +1,6 @@
 # .NET 10 Clean Architecture Template
 
-Architectural patterns, conventions, and standards for a .NET 10 project using Aspire orchestration. Detailed implementation guides are in `.Codex/skills/`.
+Architectural patterns, conventions, and standards for a .NET 10 project using Aspire orchestration. Detailed implementation guides are in `.agents/skills/`.
 
 ## Project Overview
 
@@ -151,11 +151,11 @@ Never put `Version=` on a `<PackageReference>` — CPM will error on the downgra
 
 ## Key Patterns
 
-**DDD Entities**: Private setters, protected EF Core constructor, public domain constructor with validation, domain methods for mutations. See `.Codex/skills/ddd-implementation/SKILL.md`.
+**DDD Entities**: Private setters, protected EF Core constructor, public domain constructor with validation, domain methods for mutations. See `.agents/skills/ddd-implementation/SKILL.md`.
 
-**CQRS Handlers**: Commands load tracked entities via DbContext with `.Include()`, mutate through domain methods, single `SaveChangesAsync(cancellationToken)`. Queries use `IDbConnection` with Dapper SQL. Convention tests enforce this separation. See `.Codex/skills/cqrs-patterns/SKILL.md`.
+**CQRS Handlers**: Commands load tracked entities via DbContext with `.Include()`, mutate through domain methods, single `SaveChangesAsync(cancellationToken)`. Queries use `IDbConnection` with Dapper SQL. Convention tests enforce this separation. See `.agents/skills/cqrs-patterns/SKILL.md`.
 
-**Data Access**: EF Core with `OwnsOne` for value objects, per-entity `IEntityTypeConfiguration<T>` classes under `Data/Configurations/`, and DbUp migrations in DbMigrator project. `ApplicationDbContext` uses `ApplyConfigurationsFromAssembly()` so entity mapping remains mechanically discoverable and consistency-testable. See `.Codex/skills/data-access/SKILL.md`.
+**Data Access**: EF Core with `OwnsOne` for value objects, per-entity `IEntityTypeConfiguration<T>` classes under `Data/Configurations/`, and DbUp migrations in DbMigrator project. `ApplicationDbContext` uses `ApplyConfigurationsFromAssembly()` so entity mapping remains mechanically discoverable and consistency-testable. See `.agents/skills/data-access/SKILL.md`.
 
 **Domain Events / Outbox / Service Bus**: Domain events are raised inside aggregates and persisted to the `OutboxMessages` table by `ApplicationDbContext` during a single `SaveChangesAsync`. Creation events use the `AggregateRoot.RecordCreation()` override pattern — called BEFORE `SaveChanges` because aggregates that raise creation events carry client-assigned `Guid.CreateVersion7()` Ids. Single-SaveChanges means no user transaction is required, which keeps `EnableRetryOnFailure` safe for Azure SQL transient faults. The `OutboxProcessor` BackgroundService polls unprocessed messages with row-level locking (`UPDLOCK, READPAST, ROWLOCK`) and publishes them to Azure Service Bus (topic: `domain-events`) with an `EventType` application property. Azure Functions subscribe via topic subscriptions with correlation filters (`email-notifications`, `inventory-reservation`). The processor marks messages as processed or errored — errored messages are skipped on subsequent polls. Service Bus registration is conditional: no-op when `ConnectionStrings:servicebus` is absent (tests run without Service Bus). The Service Bus emulator runs in Docker for both Aspire (`RunAsEmulator`) and Docker Compose environments. Service Bus duplicate detection is enabled (10-minute window). See `config/servicebus-emulator.json` for topology.
 
@@ -169,24 +169,25 @@ Never put `Version=` on a `<PackageReference>` — CPM will error on the downgra
 - **Constraint naming**: Every constraint must have an explicit name — no anonymous/system-generated names. Convention: `PK_Table`, `FK_Table_Column`, `DF_Table_Column`, `CK_Table_Description`, `IX_Table_Column`. This makes future migrations deterministic (`DROP CONSTRAINT PK_Orders`) instead of requiring dynamic SQL lookups against `sys.default_constraints`. Enforced by convention test from script 0012 onward.
 
 **Testing**: Two test projects:
-- `StarterApp.Tests` — xUnit + FsCheck property-based testing + Best.Conventional conventions (including `CachingConventionTests`, `DapperConventionTests` for SELECT * prevention via IL inspection, `DateTimeOffset` enforcement, constraint naming enforcement). Uses WebApplicationFactory + Testcontainers for integration tests. See `.Codex/skills/testing-strategy/SKILL.md`.
-- `StarterApp.AppHost.Tests` — Aspire integration tests using `DistributedApplicationTestingBuilder`. Spins up the full distributed app (SQL Server, Service Bus emulator, API, Functions) to test the end-to-end pipeline. Tag slow tests with `[Trait("Category", "Aspire")]`. See `.Codex/skills/testing-strategy/SKILL.md`.
+- `StarterApp.Tests` — xUnit + FsCheck property-based testing + Best.Conventional conventions (including `CachingConventionTests`, `DapperConventionTests` for SELECT * prevention via IL inspection, `DateTimeOffset` enforcement, constraint naming enforcement). Uses WebApplicationFactory + Testcontainers for integration tests. See `.agents/skills/testing-strategy/SKILL.md`.
+- `StarterApp.AppHost.Tests` — Aspire integration tests using `DistributedApplicationTestingBuilder`. Spins up the full distributed app (SQL Server, Service Bus emulator, API, Functions) to test the end-to-end pipeline. Tag slow tests with `[Trait("Category", "Aspire")]`. See `.agents/skills/testing-strategy/SKILL.md`.
 
 **Consistency Measurement**: `StarterApp.Tests/Consistency/` is advisory, not a build policy surface. It measures three extensible cohorts against pinned exemplars in `docs/exemplars/`: command handlers, query handlers, and EF configurations. Use it to detect structural drift and surprising outliers; put deterministic rules in convention tests.
 
-**API Design**: Minimal APIs with `IEndpointDefinition` pattern, auto-discovery, endpoint filters for route-specific logic. See `.Codex/skills/api-design/SKILL.md`.
+**API Design**: Minimal APIs with `IEndpointDefinition` pattern, auto-discovery, endpoint filters for route-specific logic. See `.agents/skills/api-design/SKILL.md`.
 
 **Health Endpoints**: Expose `/health` for aggregate status, `/health/ready` for readiness (including database connectivity), and `/health/live` plus `/alive` for liveness. Docker and container platforms should use readiness for traffic gating and liveness for restart decisions.
 
 **Pagination**: List endpoints use `page`/`pageSize` query params with SQL `OFFSET/FETCH`. Handlers fetch `pageSize + 1` rows; endpoints trim the extra row and return a `PagedResponse<T>` envelope (`{ data: [...], hasMore: true/false }`). This avoids expensive COUNT queries. Total count is a UI concern — if a frontend needs it, add a separate count endpoint rather than embedding it in every list response.
 
-**Debugging**: Always reproduce with a failing test first, get full stack trace, fix root cause not symptoms. See `.Codex/skills/development-workflow/SKILL.md`.
+**Debugging**: Always reproduce with a failing test first, get full stack trace, fix root cause not symptoms. See `.agents/skills/development-workflow/SKILL.md`.
 
 ## Documentation Maintenance
 
 - Update AGENTS.md with every architectural change
 - Document WHY not WHAT
 - Keep subsidiary docs in sync: `README.md`, `ASPIRE_SETUP_COMPLETE.md`, `docs/API-ENDPOINTS.md`, `docs/01-dotnet-setup/`, `docs/03-docker-setup/`, `docs/05-aspire-setup/`
+- Keep `AGENTS.md`/`.agents/skills/**` and `CLAUDE.md`/`.claude/skills/**` synchronized. Any drift must be intentional and limited to agent-specific names or paths (for example `AGENTS.md` vs `CLAUDE.md`, `.agents/skills` vs `.claude/skills`); document the reason near the drift if it is not obvious.
 - **Architecture review (`docs/ARCHITECTURE_REVIEW.md`)**: Read this before starting any review or hardening task — it contains prior findings and current score. After fixing issues, update the doc: mark findings as resolved, add any new findings to the "Open Findings" section, and adjust the score. This is the shared artifact that keeps multiple agent conversations in sync.
 
 ## Development Commands

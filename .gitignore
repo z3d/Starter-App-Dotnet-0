@@ -46,6 +46,9 @@ msbuild.wrn
 *.sln.iml
 .cr/
 
+# Claude local worktree cache
+.claude/worktrees/
+
 # Docker
 .env
 .docker/data/

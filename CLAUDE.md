@@ -187,6 +187,7 @@ Never put `Version=` on a `<PackageReference>` — CPM will error on the downgra
 - Update CLAUDE.md with every architectural change
 - Document WHY not WHAT
 - Keep subsidiary docs in sync: `README.md`, `ASPIRE_SETUP_COMPLETE.md`, `docs/API-ENDPOINTS.md`, `docs/01-dotnet-setup/`, `docs/03-docker-setup/`, `docs/05-aspire-setup/`
+- Keep `CLAUDE.md`/`.claude/skills/**` and `AGENTS.md`/`.agents/skills/**` synchronized. Any drift must be intentional and limited to agent-specific names or paths (for example `CLAUDE.md` vs `AGENTS.md`, `.claude/skills` vs `.agents/skills`); document the reason near the drift if it is not obvious.
 - **Architecture review (`docs/ARCHITECTURE_REVIEW.md`)**: Read this before starting any review or hardening task — it contains prior findings and current score. After fixing issues, update the doc: mark findings as resolved, add any new findings to the "Open Findings" section, and adjust the score. This is the shared artifact that keeps multiple agent conversations in sync.
 
 ## Development Commands
