@@ -155,7 +155,7 @@ Never put `Version=` on a `<PackageReference>` — CPM will error on the downgra
 
 **CQRS Handlers**: Commands load tracked entities via DbContext with `.Include()`, mutate through domain methods, single `SaveChangesAsync(cancellationToken)`. Queries use `IDbConnection` with Dapper SQL. Convention tests enforce this separation. See `.claude/skills/cqrs-patterns/SKILL.md`.
 
-**Data Access**: EF Core with `OwnsOne` for value objects, DbUp migrations in DbMigrator project. See `.claude/skills/data-access/SKILL.md`.
+**Data Access**: EF Core with `OwnsOne` for value objects, per-entity `IEntityTypeConfiguration<T>` classes under `Data/Configurations/`, and DbUp migrations in DbMigrator project. `ApplicationDbContext` uses `ApplyConfigurationsFromAssembly()` so entity mapping remains mechanically discoverable and consistency-testable. See `.claude/skills/data-access/SKILL.md`.
 
 **Domain Events / Outbox / Service Bus**: Domain events are raised inside aggregates and persisted to the `OutboxMessages` table by `ApplicationDbContext` during a single `SaveChangesAsync`. Creation events use the `AggregateRoot.RecordCreation()` override pattern — called BEFORE `SaveChanges` because aggregates that raise creation events carry client-assigned `Guid.CreateVersion7()` Ids. Single-SaveChanges means no user transaction is required, which keeps `EnableRetryOnFailure` safe for Azure SQL transient faults. The `OutboxProcessor` BackgroundService polls unprocessed messages with row-level locking (`UPDLOCK, READPAST, ROWLOCK`) and publishes them to Azure Service Bus (topic: `domain-events`) with an `EventType` application property. Azure Functions subscribe via topic subscriptions with correlation filters (`email-notifications`, `inventory-reservation`). The processor marks messages as processed or errored — errored messages are skipped on subsequent polls. Service Bus registration is conditional: no-op when `ConnectionStrings:servicebus` is absent (tests run without Service Bus). The Service Bus emulator runs in Docker for both Aspire (`RunAsEmulator`) and Docker Compose environments. Service Bus duplicate detection is enabled (10-minute window). See `config/servicebus-emulator.json` for topology.
 
@@ -171,6 +171,8 @@ Never put `Version=` on a `<PackageReference>` — CPM will error on the downgra
 **Testing**: Two test projects:
 - `StarterApp.Tests` — xUnit + FsCheck property-based testing + Best.Conventional conventions (including `CachingConventionTests`, `DapperConventionTests` for SELECT * prevention via IL inspection, `DateTimeOffset` enforcement, constraint naming enforcement). Uses WebApplicationFactory + Testcontainers for integration tests. See `.claude/skills/testing-strategy/SKILL.md`.
 - `StarterApp.AppHost.Tests` — Aspire integration tests using `DistributedApplicationTestingBuilder`. Spins up the full distributed app (SQL Server, Service Bus emulator, API, Functions) to test the end-to-end pipeline. Tag slow tests with `[Trait("Category", "Aspire")]`. See `.claude/skills/testing-strategy/SKILL.md`.
+
+**Consistency Measurement**: `StarterApp.Tests/Consistency/` is advisory, not a build policy surface. It measures three extensible cohorts against pinned exemplars in `docs/exemplars/`: command handlers, query handlers, and EF configurations. Use it to detect structural drift and surprising outliers; put deterministic rules in convention tests.
 
 **API Design**: Minimal APIs with `IEndpointDefinition` pattern, auto-discovery, endpoint filters for route-specific logic. See `.claude/skills/api-design/SKILL.md`.
 
