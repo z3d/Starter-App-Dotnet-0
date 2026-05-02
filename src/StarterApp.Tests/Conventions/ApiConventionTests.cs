@@ -72,13 +72,53 @@ public class ApiConventionTests : ConventionTestBase
     [Fact]
     public void DTOs_MustNotHaveBehavior()
     {
-        var dtoTypes = ApiAssembly.GetTypes()
-            .Where(t => (t.Name.EndsWith("Dto") || t.Name.EndsWith("ReadModel")) &&
-                   t.IsClass && !t.IsAbstract);
+        var dtoTypes = GetApiContractTypes()
+            .Where(t => t.Name.EndsWith("Dto") || t.Name.EndsWith("ReadModel"));
 
         dtoTypes
             .MustConformTo(new MustNotHaveInstanceMethodsConvention())
             .WithFailureAssertion(Assert.Fail);
+    }
+
+    [Fact]
+    public void ApiContracts_MustHavePublicParameterlessConstructors()
+    {
+        var failures = GetApiContractTypes()
+            .Where(t => t.GetConstructor(Type.EmptyTypes)?.IsPublic != true)
+            .Select(t => $"{t.FullName} must expose a public parameterless constructor for JSON binding/serialization.")
+            .ToList();
+
+        Assert.True(failures.Count == 0,
+            "API contracts must be simple serializable shapes:\n" + string.Join("\n", failures));
+    }
+
+    [Fact]
+    public void ApiContracts_MustHavePublicSetters()
+    {
+        var failures = GetApiContractTypes()
+            .SelectMany(t => t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.GetIndexParameters().Length == 0)
+                .Where(p => p.SetMethod?.IsPublic != true)
+                .Select(p => $"{t.FullName}.{p.Name} must have a public setter for JSON binding/serialization."))
+            .ToList();
+
+        Assert.True(failures.Count == 0,
+            "API contract properties must be writable by serializers/model binding:\n" + string.Join("\n", failures));
+    }
+
+    [Fact]
+    public void ApiContracts_MustUseMaterializedCollectionProperties()
+    {
+        var failures = GetApiContractTypes()
+            .SelectMany(t => t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.GetIndexParameters().Length == 0)
+                .Where(p => IsEnumerableButNotString(p.PropertyType))
+                .Where(p => !IsMaterializedCollectionType(p.PropertyType))
+                .Select(p => $"{t.FullName}.{p.Name} is {FormatTypeName(p.PropertyType)}. Use a materialized collection type such as List<T> so responses cannot expose lazy/deferred enumerables."))
+            .ToList();
+
+        Assert.True(failures.Count == 0,
+            "API contract collection properties must be eager/materialized:\n" + string.Join("\n", failures));
     }
 
     // === Mapper Conventions ===
@@ -142,6 +182,41 @@ public class ApiConventionTests : ConventionTestBase
     }
 
     // === Custom Convention Specifications ===
+
+    private static IEnumerable<Type> GetApiContractTypes()
+    {
+        return ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t))
+            .Where(t =>
+                t.Name.EndsWith("Dto") ||
+                t.Name.EndsWith("ReadModel") ||
+                t.Name.StartsWith("PagedResponse", StringComparison.Ordinal));
+    }
+
+    private static bool IsEnumerableButNotString(Type type)
+    {
+        return type != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(type);
+    }
+
+    private static bool IsMaterializedCollectionType(Type type)
+    {
+        if (type.IsArray)
+            return true;
+
+        if (type.IsInterface || type.IsAbstract)
+            return false;
+
+        return typeof(System.Collections.IEnumerable).IsAssignableFrom(type);
+    }
+
+    private static string FormatTypeName(Type type)
+    {
+        if (!type.IsGenericType)
+            return type.Name;
+
+        var name = type.Name[..type.Name.IndexOf('`')];
+        return $"{name}<{string.Join(", ", type.GetGenericArguments().Select(FormatTypeName))}>";
+    }
 
     private class MustNotUseDateTimePropertiesConvention : ConventionSpecification
     {

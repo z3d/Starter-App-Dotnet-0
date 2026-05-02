@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using StarterApp.Api.Data;
+using StarterApp.DbMigrator;
 
 namespace StarterApp.Tests.Conventions;
 
@@ -140,6 +141,29 @@ public class PersistenceConventionTests : ConventionTestBase
             .ToList();
 
         Assert.Empty(badScripts);
+    }
+
+    [Fact]
+    public void DbMigratorAssembly_MustEmbedAllSqlMigrationScripts()
+    {
+        var scriptsDir = ResolveScriptsDirectory();
+        if (scriptsDir == null)
+            return;
+
+        var resources = typeof(DatabaseMigrationEngine).Assembly
+            .GetManifestResourceNames()
+            .ToHashSet(StringComparer.Ordinal);
+
+        var missingResources = Directory.GetFiles(scriptsDir, "*.sql", SearchOption.AllDirectories)
+            .Select(file => Path.GetRelativePath(scriptsDir, file))
+            .Select(relativePath => relativePath.Replace(Path.DirectorySeparatorChar, '.').Replace(Path.AltDirectorySeparatorChar, '.'))
+            .Select(relativePath => $"StarterApp.DbMigrator.Scripts.{relativePath}")
+            .Where(resourceName => !resources.Contains(resourceName))
+            .ToList();
+
+        Assert.True(missingResources.Count == 0,
+            "DbUp migrations must be embedded resources so published migrator artifacts contain every script:\n" +
+            string.Join("\n", missingResources));
     }
 
     [Fact]

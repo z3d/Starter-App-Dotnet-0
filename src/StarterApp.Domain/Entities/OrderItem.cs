@@ -25,10 +25,7 @@ public class OrderItem
         OrderId = orderId;
     }
 
-    /// <summary>
-    /// Creates an OrderItem without an OrderId. Used by Order.AddItem when the order
-    /// hasn't been saved yet — EF Core sets OrderId via the FK relationship on save.
-    /// </summary>
+    // Used before the parent order is saved; EF Core fills OrderId through the FK relationship.
     internal OrderItem(int productId, string productName, int quantity, Money unitPriceExcludingGst, decimal gstRate = DefaultGstRate)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(productId);
@@ -76,6 +73,5 @@ public class OrderItem
     }
 
 }
-
 
 

@@ -67,13 +67,10 @@ public class DomainConventionTests : ConventionTestBase
     [Fact]
     public void AsyncMethods_ShouldHaveAsyncSuffix()
     {
-        var assemblies = new[] { ApiAssembly, DomainAssembly };
-
-        foreach (var assembly in assemblies)
+        foreach (var assembly in CoreProductionAssemblies)
         {
             var types = assembly.GetTypes()
                 .Where(t => t.IsClass && !t.IsAbstract &&
-                       !t.Name.EndsWith("Handler") &&
                        !IsCompilerGenerated(t));
             types
                 .MustConformTo(Convention.AsyncMethodsMustHaveAsyncSuffix)
@@ -86,8 +83,7 @@ public class DomainConventionTests : ConventionTestBase
     [Fact]
     public void Methods_MustNotBeAsyncVoid()
     {
-        var assemblies = new[] { ApiAssembly, DomainAssembly };
-        foreach (var assembly in assemblies)
+        foreach (var assembly in CoreProductionAssemblies)
         {
             var types = assembly.GetTypes()
                 .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
@@ -102,13 +98,16 @@ public class DomainConventionTests : ConventionTestBase
     // time directly, ensuring testability of application logic.
 
     [Fact]
-    public void ApiTypes_MustNotResolveCurrentTimeViaDateTime()
+    public void CoreProductionTypes_MustNotResolveCurrentTimeViaDateTime()
     {
-        var types = ApiAssembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
-        types
-            .MustConformTo(Convention.MustNotResolveCurrentTimeViaDateTime)
-            .WithFailureAssertion(Assert.Fail);
+        foreach (var assembly in CoreProductionAssemblies)
+        {
+            var types = assembly.GetTypes()
+                .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
+            types
+                .MustConformTo(Convention.MustNotResolveCurrentTimeViaDateTime)
+                .WithFailureAssertion(Assert.Fail);
+        }
     }
 
     // === DateTimeOffset Enforcement ===

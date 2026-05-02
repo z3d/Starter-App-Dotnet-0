@@ -1,9 +1,5 @@
 namespace StarterApp.Api.Endpoints;
 
-/// <summary>
-/// Defines API endpoints for customer management operations.
-/// Provides CRUD operations for customers including create, read, update, and delete functionality.
-/// </summary>
 public class CustomerEndpoints : IEndpointDefinition
 {
     public void DefineEndpoints(WebApplication app)

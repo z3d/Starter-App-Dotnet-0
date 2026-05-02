@@ -59,10 +59,7 @@ public class Order : AggregateRoot
         LastUpdated = DateTimeOffset.UtcNow;
     }
 
-    /// <summary>
-    /// Creates and adds an OrderItem without requiring an OrderId.
-    /// EF Core sets the FK when the Order is saved.
-    /// </summary>
+    // EF Core sets the order FK on save, so callers do not need a persisted OrderId yet.
     public OrderItem AddItem(int productId, string productName, int quantity, Money unitPrice, decimal gstRate = OrderItem.DefaultGstRate)
     {
         if (Status != OrderStatus.Pending)

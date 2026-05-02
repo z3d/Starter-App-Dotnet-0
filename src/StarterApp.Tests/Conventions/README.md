@@ -1,129 +1,85 @@
 # Convention Tests
 
-Architectural convention tests using [Best.Conventional](https://github.com/andrewabest/Conventional) to enforce coding standards and design patterns. **23 tests** across 3 test classes.
+Architectural convention tests using [Best.Conventional](https://github.com/andrewabest/Conventional) plus a few targeted reflection/source scanners. These tests encode mechanical rules that should fail fast when future changes drift from the template's intended shape.
 
 ## File Structure
 
-| File | Tests | Purpose |
-|------|-------|---------|
-| `ConventionTestBase.cs` | — | Shared assembly refs (`DomainAssembly`, `ApiAssembly`) and `IsCompilerGenerated` helper |
-| `TypeExtensions.cs` | — | `GetAllTypesImplementingOpenGenericType` extension (from Conventional.Samples pattern) |
-| `NamingConventionTests.cs` | 9 | Naming suffix conventions for all type categories |
-| `CqrsConventionTests.cs` | 6 | CQRS wiring, data access separation, dual interface enforcement |
-| `DomainConventionTests.cs` | 8 | Encapsulation, constructors, equality, async safety, DateTime safety |
+| File | Purpose |
+|------|---------|
+| `ApiConventionTests.cs` | Endpoint/validator/handler dependency boundaries; DTO/read-model/response serializability; materialized response collections |
+| `CachingConventionTests.cs` | `ICacheable` key/duration rules, deterministic same-id keys, and different-id collision prevention |
+| `ConventionTestBase.cs` | Shared production assembly refs and compiler-generated type filtering |
+| `CqrsConventionTests.cs` | CQRS data-access separation, command/query handler wiring, validator coverage, marker/request interface pairing |
+| `DapperConventionTests.cs` | SQL literal inspection for `SELECT *` prevention and Dapper retry-policy usage |
+| `DomainConventionTests.cs` | Domain encapsulation, constructors, value-object equality, async safety, `DateTime` safety, aggregate creation-event rules |
+| `HousekeepingConventionTests.cs` | No direct `bin`/`obj` project references; no regions/XML docs/historical workaround comments in production code |
+| `NamingConventionTests.cs` | Naming suffixes plus namespace locality for commands, queries, validators, handlers, DTOs, and read models |
+| `PersistenceConventionTests.cs` | Entity registration, value-object mapping, enum string conversions, DbContext state, collection setters, migration script safety and embedding |
+| `TypeExtensions.cs` | Open-generic type discovery helper from the Conventional.Samples pattern |
 
-## Convention Categories
+AppHost-specific conventions live in `src/StarterApp.AppHost.Tests`:
 
-### Naming (NamingConventionTests — 9 tests)
+| File | Purpose |
+|------|---------|
+| `ServiceBusTopologyConventionTests.cs` | AppHost subscription filters, domain event contracts, and Azure Functions trigger wiring stay aligned |
+| `ProductionAssemblyConventionTests.cs` | Async suffix, async-void, and `DateTime.Now` safety for AppHost, Functions, and ServiceDefaults assemblies |
 
-Built-in `Convention.NameMustEndWith`:
+## Core Rules
 
-| Type | Required Suffix |
-|------|----------------|
-| Endpoint definitions | `Endpoints` |
-| DTOs | `Dto` or `ReadModel` |
-| Commands | `Command` |
-| Queries | `Query` |
-| Command handlers | `CommandHandler` |
-| Query handlers | `QueryHandler` |
-| Services | `Service` |
-| Validators | `Validator` |
-| Test classes | `Tests` or `Test` |
+**Naming and locality**
+- Endpoint definitions end with `Endpoints`
+- DTOs/read models end with `Dto`/`ReadModel` and live in their expected namespaces
+- Commands, queries, validators, and handlers live in mechanically discoverable namespaces
+- Test classes end with `Tests` or `Test`
 
-### CQRS Data Access Separation (CqrsConventionTests — 2 tests)
+**CQRS**
+- Command handlers use EF Core, not `IDbConnection`
+- Query handlers use Dapper/`IDbConnection`, not `ApplicationDbContext`
+- Every command/query has a handler and validator
+- Commands and queries implement both mediator request interfaces and local marker interfaces
 
-Built-in `Convention.MustNotTakeADependencyOn`:
+**API contracts**
+- DTOs, read models, and response envelopes have public parameterless constructors
+- Contract properties have public setters for serialization/model binding
+- Contract collection properties are materialized, concrete collections such as `List<T>`
+- DTOs/read models have no behavior
 
-- Command handlers must NOT depend on `IDbConnection` — use `ApplicationDbContext` (EF Core) for writes
-- Query handlers must NOT depend on `ApplicationDbContext` — use `IDbConnection` (Dapper) for reads
+**Persistence**
+- Domain entities are registered in `ApplicationDbContext`
+- Value objects are not registered as `DbSet`
+- Domain enum properties use EF string conversion
+- Migration scripts are numbered, embedded resources, and name constraints explicitly
 
-### CQRS Handler Wiring (CqrsConventionTests — 2 tests)
-
-Built-in `Convention.RequiresACorrespondingImplementationOf`:
-
-- Every `ICommand` must have a corresponding `IRequestHandler<,>` or `IRequestHandler<>`
-- Every `IQuery<T>` must have a corresponding `IRequestHandler<,>`
-
-Uses `GetAllTypesImplementingOpenGenericType` extension for handler discovery.
-
-### CQRS Dual Interface (CqrsConventionTests — 2 tests)
-
-Custom `ConventionSpecification` classes:
-
-- Commands must implement both `ICommand` (marker) AND `IRequest<T>`/`IRequest` (mediator dispatch)
-- Queries must implement both `IQuery<T>` (marker) AND `IRequest<T>` (mediator dispatch)
-- Bidirectional: types in Commands/Queries namespace implementing `IRequest` must also have the marker
-
-### Domain Integrity (DomainConventionTests — 6 tests)
-
-| Convention | Built-in? | What it checks |
-|-----------|-----------|---------------|
-| `PropertiesMustHavePrivateSetters` | Yes | Entity and value object encapsulation |
-| `PropertiesMustHavePublicGetters` | Yes | DTO/ReadModel serializability |
-| `MustHaveANonPublicDefaultConstructor` | Yes | EF Core entity materialization |
-| `MustOverrideEqualsAndGetHashCode` | Custom | Value object equality semantics |
-| `AsyncMethodsMustHaveAsyncSuffix` | Yes | Async naming convention |
-| `VoidMethodsMustNotBeAsync` | Yes | Prevents dangerous async void |
-
-### Safety (DomainConventionTests — 2 tests)
-
-| Convention | Built-in? | What it checks |
-|-----------|-----------|---------------|
-| `VoidMethodsMustNotBeAsync` | Yes | Async void crashes process on exception |
-| `MustNotResolveCurrentTimeViaDateTime` | Yes | IL-level check for `DateTime.Now`/`DateTime.Today` |
-
-## Approach
-
-**Use built-in conventions where possible.** Best.Conventional provides conventions for naming, properties, dependencies, constructors, async methods, and DateTime usage. For structural checks not covered (interface implementation, method overrides, handler wiring), create custom conventions extending `ConventionSpecification` from the `Conventional.Conventions` namespace.
-
-All tests must call `.WithFailureAssertion(Assert.Fail)` — without it, convention violations are silently ignored.
+**Safety and housekeeping**
+- Async methods end with `Async`; no `async void`
+- Production code does not call `DateTime.Now`, `DateTime.Today`, or `DateTime.UtcNow`
+- Project files do not reference build-output artifacts from `bin`/`obj`
+- Production app code does not use regions, XML documentation comments, or historical workaround comments
 
 ## Adding a New Convention
 
-1. Choose the right file based on category (naming → `NamingConventionTests`, CQRS → `CqrsConventionTests`, domain → `DomainConventionTests`)
+1. Put deterministic "must always" rules in `Conventions/`.
+2. Use `Convention.*` built-ins where possible.
+3. Extend `ConventionSpecification` for structural checks not covered by Best.Conventional.
+4. Always end with `.WithFailureAssertion(Assert.Fail)` for Best.Conventional checks.
+5. Keep advisory similarity/drift checks in `Consistency/`, not here.
 
-2. Check if Best.Conventional has a built-in for your check (see `Convention.*` static members)
-
-3. If built-in exists:
 ```csharp
 [Fact]
 public void MyTypes_MustFollowRule()
 {
     var types = ApiAssembly.GetTypes()
         .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
+
     types
         .MustConformTo(Convention.SomeBuiltInConvention)
         .WithFailureAssertion(Assert.Fail);
 }
 ```
 
-4. If custom needed, extend `ConventionSpecification`:
-```csharp
-private class MyConvention : ConventionSpecification
-{
-    protected override string FailureMessage => "must satisfy rule";
-
-    public override ConventionResult IsSatisfiedBy(Type type)
-    {
-        return /* passes */
-            ? ConventionResult.Satisfied(type.FullName!)
-            : ConventionResult.NotSatisfied(type.FullName!, "reason");
-    }
-}
-```
-
-## Running Tests
+## Running
 
 ```bash
-# All convention tests
-dotnet test --filter "FullyQualifiedName~Convention"
-
-# Specific category
-dotnet test --filter "FullyQualifiedName~NamingConventionTests"
-dotnet test --filter "FullyQualifiedName~CqrsConventionTests"
-dotnet test --filter "FullyQualifiedName~DomainConventionTests"
+dotnet test src/StarterApp.Tests/StarterApp.Tests.csproj --filter "FullyQualifiedName~Convention"
+dotnet test src/StarterApp.AppHost.Tests/StarterApp.AppHost.Tests.csproj --filter "FullyQualifiedName~Convention"
 ```
-
-## Compiler-Generated Type Filtering
-
-The `IsCompilerGenerated` helper in `ConventionTestBase` excludes compiler-generated types (async state machines, lambda closures, display classes, nested types) that would cause false positives. Applied via `!IsCompilerGenerated(t)` in type filters where namespace-based selection might pick up generated types.

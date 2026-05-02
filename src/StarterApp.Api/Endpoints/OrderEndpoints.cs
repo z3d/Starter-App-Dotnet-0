@@ -1,9 +1,5 @@
 namespace StarterApp.Api.Endpoints;
 
-/// <summary>
-/// Defines API endpoints for order management operations.
-/// Provides functionality for creating orders, retrieving order details, updating status, and cancelling orders.
-/// </summary>
 public class OrderEndpoints : IEndpointDefinition
 {
     public void DefineEndpoints(WebApplication app)
