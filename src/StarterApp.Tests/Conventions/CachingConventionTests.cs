@@ -33,24 +33,58 @@ public class CachingConventionTests : ConventionTestBase
     {
         foreach (var type in GetCacheableTypes())
         {
-            var instance1 = CreateDefaultInstance(type);
-            var instance2 = CreateDefaultInstance(type);
+            var instance1 = CreateInstance(type, identity: 1);
+            var instance2 = CreateInstance(type, identity: 1);
             Assert.Equal(instance1.CacheKey, instance2.CacheKey);
         }
     }
 
-    private static ICacheable CreateDefaultInstance(Type type)
+    [Fact]
+    public void CacheableQueries_MustVaryCacheKeysByIdentity()
     {
-        // Try parameterless constructor first
+        foreach (var type in GetCacheableTypes())
+        {
+            var instance1 = CreateInstance(type, identity: 1);
+            var instance2 = CreateInstance(type, identity: 2);
+            Assert.NotEqual(instance1.CacheKey, instance2.CacheKey);
+        }
+    }
+
+    private static ICacheable CreateDefaultInstance(Type type) => CreateInstance(type, identity: 1);
+
+    private static ICacheable CreateInstance(Type type, int identity)
+    {
+        var constructorWithId = type.GetConstructors()
+            .FirstOrDefault(c => c.GetParameters().Any(p =>
+                p.Name != null &&
+                p.Name.Equals("id", StringComparison.OrdinalIgnoreCase) &&
+                p.ParameterType == typeof(int)));
+
+        if (constructorWithId != null)
+        {
+            var args = constructorWithId.GetParameters()
+                .Select(p => p.ParameterType == typeof(int) &&
+                             p.Name != null &&
+                             p.Name.Equals("id", StringComparison.OrdinalIgnoreCase)
+                    ? identity
+                    : p.ParameterType.IsValueType ? Activator.CreateInstance(p.ParameterType) : null)
+                .ToArray();
+            return (ICacheable)constructorWithId.Invoke(args)!;
+        }
+
         var parameterlessCtor = type.GetConstructor(Type.EmptyTypes);
         if (parameterlessCtor != null)
-            return (ICacheable)parameterlessCtor.Invoke(null);
+        {
+            var instance = parameterlessCtor.Invoke(null);
+            var idProperty = type.GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
+            if (idProperty is { CanWrite: true } && idProperty.PropertyType == typeof(int))
+                idProperty.SetValue(instance, identity);
 
-        // Fall back to constructors with value-type parameters (supply defaults)
-        var ctor = type.GetConstructors().First();
-        var args = ctor.GetParameters()
-            .Select(p => p.ParameterType.IsValueType ? Activator.CreateInstance(p.ParameterType) : null)
-            .ToArray();
-        return (ICacheable)ctor.Invoke(args)!;
+            return (ICacheable)instance;
+        }
+
+        throw new InvalidOperationException(
+            $"{type.Name} implements ICacheable but cannot be constructed with an integer Id. " +
+            "Only by-id queries should opt into distributed caching.");
     }
 }

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using StarterApp.Api.Data;
 
 namespace StarterApp.Tests.Conventions;
@@ -50,7 +51,7 @@ public class PersistenceConventionTests : ConventionTestBase
     // === Enum Conventions ===
 
     [Fact]
-    public void EntitiesWithDomainEnums_MustHaveEnumPropertiesConfigured()
+    public void DomainEnumProperties_MustBeConfiguredWithStringConversion()
     {
         var domainEnumTypes = DomainAssembly.GetTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("Enums") && t.IsEnum)
@@ -59,11 +60,45 @@ public class PersistenceConventionTests : ConventionTestBase
         var entityTypes = DomainAssembly.GetTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("Entities") &&
                    t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t))
-            .Where(t => t.GetProperties().Any(p => domainEnumTypes.Contains(p.PropertyType)));
+            .ToList();
 
-        entityTypes
-            .MustConformTo(new MustHaveDomainEnumPropertiesConvention(domainEnumTypes))
-            .WithFailureAssertion(Assert.Fail);
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase($"enum-conventions-{Guid.NewGuid()}")
+            .Options;
+
+        using var dbContext = new ApplicationDbContext(options);
+        var failures = new List<string>();
+
+        foreach (var entityType in entityTypes)
+        {
+            var modelEntity = dbContext.Model.FindEntityType(entityType);
+            if (modelEntity == null)
+                continue;
+
+            var enumProperties = entityType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => domainEnumTypes.Contains(p.PropertyType))
+                .ToList();
+
+            foreach (var enumProperty in enumProperties)
+            {
+                var mappedProperty = modelEntity.FindProperty(enumProperty.Name);
+                if (mappedProperty == null)
+                {
+                    failures.Add($"{entityType.Name}.{enumProperty.Name} is a domain enum but is not mapped by EF Core.");
+                    continue;
+                }
+
+                var converter = mappedProperty.GetTypeMapping().Converter;
+                if (converter?.ProviderClrType != typeof(string))
+                {
+                    failures.Add($"{entityType.Name}.{enumProperty.Name} must be configured with HasConversion<string>() " +
+                                 $"to keep the database contract stable. Provider type was {converter?.ProviderClrType.Name ?? "none"}.");
+                }
+            }
+        }
+
+        Assert.True(failures.Count == 0,
+            "Domain enum properties must be persisted as strings:\n" + string.Join("\n", failures));
     }
 
     // === Data Access Conventions ===
@@ -251,30 +286,6 @@ public class PersistenceConventionTests : ConventionTestBase
                 ? ConventionResult.Satisfied(type.FullName!)
                 : ConventionResult.NotSatisfied(type.FullName!,
                     $"{type.Name} is a value object but is registered as DbSet<{type.Name}>. Use OwnsOne() instead.");
-        }
-    }
-
-    private class MustHaveDomainEnumPropertiesConvention : ConventionSpecification
-    {
-        private readonly HashSet<Type> _domainEnumTypes;
-
-        public MustHaveDomainEnumPropertiesConvention(HashSet<Type> domainEnumTypes)
-        {
-            _domainEnumTypes = domainEnumTypes;
-        }
-
-        protected override string FailureMessage => "must have domain enum properties that require string conversion configuration";
-
-        public override ConventionResult IsSatisfiedBy(Type type)
-        {
-            var enumProperties = type.GetProperties()
-                .Where(p => _domainEnumTypes.Contains(p.PropertyType))
-                .ToList();
-
-            return enumProperties.Count > 0
-                ? ConventionResult.Satisfied(type.FullName!)
-                : ConventionResult.NotSatisfied(type.FullName!,
-                    $"{type.Name} was expected to have domain enum properties but none were found");
         }
     }
 

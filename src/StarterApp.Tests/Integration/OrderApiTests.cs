@@ -67,6 +67,33 @@ public class OrderApiTests : IAsyncLifetime
         return (customer, product);
     }
 
+    private async Task MoveOrderToDeliveredAsync(Guid orderId)
+    {
+        await UpdateOrderStatusAndAssertAsync(orderId, OrderStatus.Confirmed);
+        await UpdateOrderStatusAndAssertAsync(orderId, OrderStatus.Processing);
+        await UpdateOrderStatusAndAssertAsync(orderId, OrderStatus.Shipped);
+        await UpdateOrderStatusAndAssertAsync(orderId, OrderStatus.Delivered);
+    }
+
+    private async Task UpdateOrderStatusAndAssertAsync(Guid orderId, OrderStatus status)
+    {
+        var response = await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{orderId}/status",
+            new UpdateOrderStatusCommand { OrderId = orderId, Status = status.ToString() });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _output.WriteLine($"Expected transition to {status} but got: {response.StatusCode}");
+            _output.WriteLine($"Error response: {errorContent}");
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var updatedOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
+        Assert.NotNull(updatedOrder);
+        Assert.Equal(status.ToString(), updatedOrder.Status);
+    }
+
     [Fact]
     public async Task GetOrder_WithNonExistentId_ShouldReturnNotFound()
     {
@@ -607,15 +634,7 @@ public class OrderApiTests : IAsyncLifetime
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
 
-        // First, move to Confirmed -> Processing -> Shipped -> Delivered
-        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
-            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Confirmed.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
-            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Processing.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
-            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Shipped.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
-            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Delivered.ToString() });
+        await MoveOrderToDeliveredAsync(createdOrder.Id);
 
         // Now try to change from Delivered to Pending (invalid transition)
         var invalidUpdateCommand = new UpdateOrderStatusCommand
@@ -643,15 +662,7 @@ public class OrderApiTests : IAsyncLifetime
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
 
-        // Move order to Delivered status
-        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
-            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Confirmed.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
-            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Processing.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
-            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Shipped.ToString() });
-        await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{createdOrder.Id}/status",
-            new UpdateOrderStatusCommand { OrderId = createdOrder.Id, Status = OrderStatus.Delivered.ToString() });
+        await MoveOrderToDeliveredAsync(createdOrder.Id);
 
         // Act
         var response = await _fixture.Client.PostAsync($"/api/v1/orders/{createdOrder.Id}/cancel", null);

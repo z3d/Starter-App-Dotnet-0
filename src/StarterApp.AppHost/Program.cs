@@ -1,4 +1,5 @@
 using Aspire.Hosting.Azure;
+using StarterApp.AppHost;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -20,46 +21,42 @@ var redis = builder.AddRedis("redis")
 // Topology defined via fluent API so Aspire serializes correlation filters correctly
 var serviceBus = builder.AddAzureServiceBus("servicebus");
 
-var domainEventsTopic = serviceBus.AddServiceBusTopic("domain-events");
+var domainEventsTopic = serviceBus.AddServiceBusTopic(ServiceBusTopology.DomainEventsTopic);
 
-domainEventsTopic.AddServiceBusSubscription("email-notifications")
+domainEventsTopic.AddServiceBusSubscription(ServiceBusTopology.EmailNotificationsSubscription)
     .WithProperties(sub =>
     {
         sub.DefaultMessageTimeToLive = TimeSpan.FromHours(1);
         sub.LockDuration = TimeSpan.FromSeconds(30);
         sub.MaxDeliveryCount = 5;
-        sub.Rules.Add(new AzureServiceBusRule("OrderCreatedFilter")
-        {
-            FilterType = AzureServiceBusFilterType.CorrelationFilter,
-            CorrelationFilter = new AzureServiceBusCorrelationFilter
+        foreach (var filter in ServiceBusTopology.SubscriptionFilters.Where(filter =>
+                     filter.SubscriptionName == ServiceBusTopology.EmailNotificationsSubscription))
+            sub.Rules.Add(new AzureServiceBusRule(filter.RuleName)
             {
-                Properties = { ["EventType"] = "order.created.v1" }
-            }
-        });
-        sub.Rules.Add(new AzureServiceBusRule("OrderStatusChangedFilter")
-        {
-            FilterType = AzureServiceBusFilterType.CorrelationFilter,
-            CorrelationFilter = new AzureServiceBusCorrelationFilter
-            {
-                Properties = { ["EventType"] = "order.status-changed.v1" }
-            }
-        });
+                FilterType = AzureServiceBusFilterType.CorrelationFilter,
+                CorrelationFilter = new AzureServiceBusCorrelationFilter
+                {
+                    Properties = { ["EventType"] = filter.EventType }
+                }
+            });
     });
 
-domainEventsTopic.AddServiceBusSubscription("inventory-reservation")
+domainEventsTopic.AddServiceBusSubscription(ServiceBusTopology.InventoryReservationSubscription)
     .WithProperties(sub =>
     {
         sub.DefaultMessageTimeToLive = TimeSpan.FromHours(1);
         sub.LockDuration = TimeSpan.FromSeconds(30);
         sub.MaxDeliveryCount = 5;
-        sub.Rules.Add(new AzureServiceBusRule("OrderCreatedFilter")
-        {
-            FilterType = AzureServiceBusFilterType.CorrelationFilter,
-            CorrelationFilter = new AzureServiceBusCorrelationFilter
+        foreach (var filter in ServiceBusTopology.SubscriptionFilters.Where(filter =>
+                     filter.SubscriptionName == ServiceBusTopology.InventoryReservationSubscription))
+            sub.Rules.Add(new AzureServiceBusRule(filter.RuleName)
             {
-                Properties = { ["EventType"] = "order.created.v1" }
-            }
-        });
+                FilterType = AzureServiceBusFilterType.CorrelationFilter,
+                CorrelationFilter = new AzureServiceBusCorrelationFilter
+                {
+                    Properties = { ["EventType"] = filter.EventType }
+                }
+            });
     });
 
 serviceBus.RunAsEmulator(emulator => emulator
@@ -99,7 +96,4 @@ if (args.Contains("--devtunnel") || Environment.GetEnvironmentVariable("ENABLE_D
 
 // After adding all resources, run the app...
 builder.Build().Run();
-
-
-
 

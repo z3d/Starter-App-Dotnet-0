@@ -18,6 +18,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\StarterApp.AppHost\StarterApp.AppHost.csproj" />
+    <ProjectReference Include="..\StarterApp.Domain\StarterApp.Domain.csproj" />
+    <ProjectReference Include="..\StarterApp.Functions\StarterApp.Functions.csproj" />
   </ItemGroup>
 
 </Project>

@@ -171,7 +171,7 @@ public class OutboxToServiceBusIntegrationTests
 
         Assert.True(outboxRowFound,
             $"OutboxMessages should contain a row with Type = 'order.created.v1' and OrderId = {orderId} in Payload");
-        Assert.NotNull(processedOnUtc); // Proves the OutboxProcessor published this specific event to Service Bus
+        Assert.NotNull(processedOnUtc); // Proves the OutboxProcessor sent this specific event without a publish error
     }
 
     private static async Task<(bool Found, string? ProcessedOnUtc)> PollForOutboxMessageAsync(
