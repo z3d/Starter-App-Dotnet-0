@@ -180,7 +180,7 @@ public class DomainConventionTests : ConventionTestBase
     public void AggregatesOverridingRecordCreation_MustHaveGuidId()
     {
         // Aggregates whose RecordCreation() captures their Id into a creation event must use
-        // client-generated Guid IDs. This is what keeps SaveChangesWithOutboxAsync a single
+        // client-generated Guid IDs. This is what keeps outbox capture inside a single
         // SaveChanges call — events are built BEFORE SaveChanges, so retry (EnableRetryOnFailure)
         // is safe. Int IDENTITY PKs would require a round-trip BEFORE RecordCreation, which
         // breaks the single-SaveChanges model and prohibits retry.

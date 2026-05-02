@@ -22,6 +22,17 @@ public class OrderTests
         Assert.True(order.LastUpdated <= DateTimeOffset.UtcNow);
     }
 
+    [Fact]
+    public void Constructor_WithExplicitId_ShouldCreateOrderWithProvidedId()
+    {
+        var orderId = Guid.CreateVersion7();
+
+        var order = new Order(orderId, 1);
+
+        Assert.Equal(orderId, order.Id);
+        Assert.Equal(OrderStatus.Pending, order.Status);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]

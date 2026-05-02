@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9.7/10** (39 findings resolved, 0 open)
+**Score: 9.4/10** (42 findings resolved, 3 open)
 
 ---
 
@@ -132,7 +132,18 @@ Good adoption of modern .NET:
 
 These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
 
-*No open findings.*
+| # | Finding | Impact | Suggested Fix |
+|---|---------|--------|---------------|
+| 43 | Rate limiting partitions by `RemoteIpAddress` without trusted forwarded-header handling | Behind an API gateway or reverse proxy, all clients can share one limiter bucket, so one noisy client can throttle everyone | Configure `ForwardedHeadersOptions` with known proxies/networks before `UseRateLimiter`, or partition by a trusted gateway-provided client identity |
+| 44 | `OutboxProcessor` holds SQL update locks while sending to Service Bus | Slow or throttled broker calls make the database transaction span network I/O and can create lock pressure under load | Claim rows in a short transaction with `ProcessingId`/`LockedUntil`, publish outside the transaction, then mark processed in a second short transaction |
+| 45 | AppHost eventing test observes `ProcessedOnUtc` but not subscriber consumption | Service Bus filters, Functions triggers, or subscriber host wiring can break while the test still passes after the sender marks the outbox row processed | Add a durable subscriber effect, test sink, or subscription-drain assertion so the consumer side is observable |
+
+#### Recently resolved (retry and concurrency hardening)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~41~~ | `CreateOrderCommandHandler` generated a fresh order id inside the execution-strategy retry delegate, so a commit-unknown retry could create a second order and reserve stock twice | The handler now generates one stable order id before the retry delegate and checks for that id at the start of each retry before reserving stock. `Order` has an internal explicit-id constructor for this retry-safe path. |
+| ~~42~~ | Cancellation restored stock with no stale-write gate, allowing concurrent cancellation/status changes to double-restore or overwrite inventory | `Order` and `Product` now have SQL Server `rowversion` concurrency tokens configured with `IsRowVersion()`, and `DbUpdateConcurrencyException` maps to `409 Conflict`. A convention test keeps those tokens in place. |
 
 #### Recently resolved (Azure SQL transient retry)
 
@@ -140,7 +151,7 @@ These are unresolved issues identified across multiple agent review sessions. Wh
 |---|---------|-----|
 | ~~40~~ | Conventional.Samples comparison exposed convention coverage gaps around migration embedding, serializer-friendly response contracts, namespace locality, collection materialization, bin/obj project references, comment hygiene, and async/time scan scope | Added focused convention tests for these rules in `StarterApp.Tests` and `StarterApp.AppHost.Tests`; converted existing production XML documentation comments to short ordinary comments; left EF value-object default-constructor initialization intentionally out of scope. |
 | ~~39~~ | No advisory consistency layer for structural drift across common file shapes | Added `StarterApp.Tests/Consistency/` with command-handler, query-handler, and EF-configuration cohorts; added pinned exemplar docs under `docs/exemplars/`; extracted EF mappings into per-entity `IEntityTypeConfiguration<T>` classes so mapping shape is measurable outside `ApplicationDbContext`. |
-| ~~36~~ | No transient-failure retry on `DbContext` for Azure SQL throttling / failover | `Order` aggregate now uses client-generated `Guid.CreateVersion7()` IDs. This lets `RecordCreation()` run BEFORE `SaveChanges` (events already know their Ids), collapsing `SaveChangesWithOutboxAsync` to a single `SaveChanges` — no user transaction needed. `EnableRetryOnFailure(6, 30s)` is re-enabled in `AddPersistence`. `CreateOrderCommandHandler` (the one handler that still needs a user-managed transaction for atomic stock-reservation + order-save) wraps itself in `Database.CreateExecutionStrategy().ExecuteAsync(...)` and calls `ChangeTracker.Clear()` at the top of each attempt so retries start from a clean state. New convention test enforces: any `AggregateRoot` overriding `RecordCreation()` must have a `Guid Id` — if a future aggregate tries to raise creation events from an IDENTITY PK, the build fails. Migration `0014_ConvertOrderIdToGuid.sql` converts existing `Orders.Id` and `OrderItems.OrderId` to `UNIQUEIDENTIFIER`. |
+| ~~36~~ | No transient-failure retry on `DbContext` for Azure SQL throttling / failover | `Order` aggregate now uses client-generated `Guid.CreateVersion7()` IDs. This lets `RecordCreation()` run BEFORE `SaveChanges` (events already know their Ids), keeping outbox capture inside a single `SaveChanges` — no user transaction needed. `EnableRetryOnFailure(6, 30s)` is re-enabled in `AddPersistence`. `CreateOrderCommandHandler` (the one handler that still needs a user-managed transaction for atomic stock-reservation + order-save) wraps itself in `Database.CreateExecutionStrategy().ExecuteAsync(...)` and calls `ChangeTracker.Clear()` at the top of each attempt so retries start from a clean state. New convention test enforces: any `AggregateRoot` overriding `RecordCreation()` must have a `Guid Id` — if a future aggregate tries to raise creation events from an IDENTITY PK, the build fails. Migration `0014_ConvertOrderIdToGuid.sql` converts existing `Orders.Id` and `OrderItems.OrderId` to `UNIQUEIDENTIFIER`. |
 | ~~38~~ | Dapper query handlers had no transient-fault retry — `EnableRetryOnFailure` only covers the EF `DbContext`; Dapper creates its own `SqlCommand` with `RetryLogicProvider = null`, so a mid-query failover or throttling event on Azure SQL would surface as a 500 while writes are transparently retried | New `SqlRetryPolicy.ExecuteAsync` helper at `Infrastructure/Persistence/SqlRetryPolicy.cs` retries transient `SqlException`s with exponential backoff (6 attempts, 30s cap, base 1s) using the same transient-error numbers as EF's `SqlServerRetryingExecutionStrategy`. All 7 query handlers (`GetAllProducts`, `GetProductById`, `GetCustomer`, `GetCustomers`, `GetOrderById`, `GetOrdersByStatus`, `GetOrdersByCustomer`) now wrap their Dapper calls in the helper. New convention test `DapperConventionTests.QueryHandlers_MustUseSqlRetryPolicy` scans IL and fails the build if any future `*QueryHandler` with an `IDbConnection` field forgets to go through the helper. |
 
 #### Recently resolved (outbox publish resilience)
@@ -198,7 +209,7 @@ These are unresolved issues identified across multiple agent review sessions. Wh
 | Rate limiting configured but never enforced | Added `GlobalLimiter` with per-IP partitioning | 05d2996 |
 | Mixed currencies produce incorrect order totals | `Order.EnsureCurrencyMatchesExistingItems` domain guard | 05d2996 |
 | Outbox two-save atomicity gap | DbContext manages internal transaction when no outer one exists | 2fbf07c |
-| `RecordCreation()` was caller-responsibility | Auto-detected via change tracker in `SaveChangesWithOutboxAsync` | 2fbf07c |
+| `RecordCreation()` was caller-responsibility | Auto-detected via change tracker during `SaveChanges` | 2fbf07c |
 | Stock reservation checked existence after UPDATE | Reordered: load product first, then atomic reserve | 898424c |
 | No upper bound on order items count | Validator caps at 50 items | 898424c |
 | UpdateProduct zeros Price/Stock on field omission | Nullable command properties; validator rejects nulls | 614f069 |

@@ -38,6 +38,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         // in the execution strategy so transient SQL faults can retry the whole unit of work.
         // On InMemory (tests) the strategy is a no-op; the transaction is skipped via IsRelational —
         // same outer code path runs safely for both providers.
+        var orderId = Guid.CreateVersion7();
         var strategy = _dbContext.Database.CreateExecutionStrategy();
         Order? savedOrder = null;
 
@@ -47,13 +48,22 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             // otherwise two Added orders would be inserted on a second pass.
             _dbContext.ChangeTracker.Clear();
 
+            var committedOrder = await _dbContext.Orders
+                .Include(o => o.Items)
+                .FirstOrDefaultAsync(o => o.Id == orderId, ct);
+            if (committedOrder != null)
+            {
+                savedOrder = committedOrder;
+                return;
+            }
+
             IDbContextTransaction? transaction = null;
             if (_dbContext.Database.IsRelational())
                 transaction = await _dbContext.Database.BeginTransactionAsync(ct);
 
             try
             {
-                var order = new Order(command.CustomerId);
+                var order = new Order(orderId, command.CustomerId);
                 foreach (var itemCommand in command.Items)
                 {
                     var product = await ReserveStockAsync(itemCommand, ct);

@@ -41,6 +41,15 @@ modelBuilder.Entity<Order>(orderBuilder => {
 
 This lets the aggregate root own the collection privately (`_items` backing field) while EF Core populates it via `.Include()`. Items added through `Order.AddItem()` get their `OrderId` set by EF on save — no need to know the ID upfront.
 
+**Optimistic Concurrency**:
+
+Use SQL Server `rowversion` for entities whose stale writes can corrupt state or inventory. `Order` and `Product` expose a `RowVersion` property with a private setter and their EF configurations must call `.IsRowVersion()`. `DbUpdateConcurrencyException` maps to `409 Conflict` at the API boundary.
+
+```csharp
+builder.Property(o => o.RowVersion)
+    .IsRowVersion();
+```
+
 ## Database Migrations
 
 **DbUp with Embedded Scripts**:

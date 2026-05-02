@@ -16,6 +16,9 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Status)
             .HasConversion<string>();
 
+        builder.Property(o => o.RowVersion)
+            .IsRowVersion();
+
         // Configure Items navigation via backing field (_items).
         // EF Core sets OrderId on each item when the Order is saved.
         builder.HasMany(o => o.Items)

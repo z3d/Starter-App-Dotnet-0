@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using StarterApp.Api.Data;
 using StarterApp.DbMigrator;
 
@@ -124,6 +125,49 @@ public class PersistenceConventionTests : ConventionTestBase
         entityTypes
             .MustConformTo(new CollectionPropertiesMustNotHavePublicSettersConvention())
             .WithFailureAssertion(Assert.Fail);
+    }
+
+    [Fact]
+    public void ConcurrencyCriticalEntities_MustUseRowVersionTokens()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase($"concurrency-conventions-{Guid.NewGuid()}")
+            .Options;
+
+        using var dbContext = new ApplicationDbContext(options);
+
+        var requiredTokens = new Dictionary<Type, string[]>
+        {
+            [typeof(Order)] = [nameof(Order.RowVersion)],
+            [typeof(Product)] = [nameof(Product.RowVersion)]
+        };
+
+        var failures = new List<string>();
+        foreach (var (entityType, propertyNames) in requiredTokens)
+        {
+            var modelEntity = dbContext.Model.FindEntityType(entityType);
+            if (modelEntity == null)
+            {
+                failures.Add($"{entityType.Name} is not mapped by EF Core.");
+                continue;
+            }
+
+            foreach (var propertyName in propertyNames)
+            {
+                var property = modelEntity.FindProperty(propertyName);
+                if (property == null)
+                {
+                    failures.Add($"{entityType.Name}.{propertyName} is missing from the EF model.");
+                    continue;
+                }
+
+                if (!property.IsConcurrencyToken || property.ValueGenerated != ValueGenerated.OnAddOrUpdate)
+                    failures.Add($"{entityType.Name}.{propertyName} must be configured with IsRowVersion() for optimistic concurrency.");
+            }
+        }
+
+        Assert.True(failures.Count == 0,
+            "Concurrency-critical entities must use SQL rowversion tokens:\n" + string.Join("\n", failures));
     }
 
     // === Migration Safety ===

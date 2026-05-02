@@ -16,6 +16,7 @@ public class Order : AggregateRoot
         private set { } // Required by EF Core property detection; data loaded via _items backing field (see ApplicationDbContext HasMany config with PropertyAccessMode.Field)
     }
     public DateTimeOffset LastUpdated { get; private set; }
+    public byte[] RowVersion { get; private set; } = [];
 
     protected Order()
     {
@@ -25,13 +26,21 @@ public class Order : AggregateRoot
     }
 
     public Order(int customerId)
+        : this(Guid.CreateVersion7(), customerId)
     {
+    }
+
+    internal Order(Guid id, int customerId)
+    {
+        if (id == Guid.Empty)
+            throw new ArgumentException("Order id cannot be empty", nameof(id));
+
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(customerId);
 
         // Client-assigned Id is required so creation events can be built before SaveChanges —
-        // this is what keeps SaveChangesWithOutboxAsync a single SaveChanges and makes
+        // this is what keeps outbox capture inside a single SaveChanges and makes
         // EnableRetryOnFailure safe. Guid v7 is time-ordered, preserving insert locality.
-        Id = Guid.CreateVersion7();
+        Id = id;
         CustomerId = customerId;
         OrderDate = DateTimeOffset.UtcNow;
         Status = OrderStatus.Pending;

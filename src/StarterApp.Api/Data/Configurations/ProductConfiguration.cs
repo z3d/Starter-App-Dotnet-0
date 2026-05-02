@@ -22,5 +22,8 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.Property(p => p.Description)
             .HasMaxLength(Product.MaxDescriptionLength);
+
+        builder.Property(p => p.RowVersion)
+            .IsRowVersion();
     }
 }

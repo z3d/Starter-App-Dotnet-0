@@ -12,6 +12,7 @@ public class Product
     public Money Price { get; private set; } = null!;
     public int Stock { get; private set; }
     public DateTimeOffset LastUpdated { get; private set; }
+    public byte[] RowVersion { get; private set; } = [];
 
     // Protected constructor for EF Core
     protected Product()
@@ -76,5 +77,4 @@ public class Product
     }
 
 }
-
 
