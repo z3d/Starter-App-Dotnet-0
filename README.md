@@ -161,6 +161,7 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 - **Cache Safety Conventions**: Convention tests enforce non-empty deterministic cache keys, by-id-only caching, and invalidator injection for non-create mutations on cacheable entities
 - **Outbox Pattern**: Domain events are captured durably and published to Azure Service Bus via BackgroundService
 - **Azure Functions**: Service Bus subscribers for email notifications and inventory reservation
+- **Payload Archive / PII Audit**: Bounded HTTP payload capture plus full Service Bus payload archiving to Blob storage with explicit fail-open/fail-closed policy
 - **Observability**: Distributed tracing, metrics, and structured logging
 - **Configuration Management**: Environment-specific settings with .NET configuration
 - **Database Migrations**: Automated schema updates with DbUp

@@ -86,13 +86,15 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 
 **Payload Archive / PII Audit**
 - Every inbound and outbound payload is captured through the shared payload capture service: HTTP request/response bodies, outbound Service Bus domain-event messages, and inbound Service Bus Function messages
-- Aspire-owned infrastructure such as Blob storage must be wired in `AppHost` and covered by AppHost tests whenever production code depends on it
+- Orchestration-owned infrastructure such as Blob storage must be wired in both `AppHost` and `docker-compose.yml`; Docker Compose must mirror Aspire for production-like dependencies
 - Archive blobs are correlation-bound JSONL streams under `archive/{yyyy-MM-dd}/{HH}/{mm}/{correlationId}.jsonl`; all operations for the same correlation id in that minute append to the same archive file
 - Audit blobs are time-window JSONL streams under `audit/{yyyy-MM-dd}/{HH}/{mm}/payload-audit.jsonl`; each audit row includes timestamp, correlation id, operation metadata, archive blob name, payload hash, and the full payload
 - Entity index blobs are pointer-only support indexes under `entity-index/{entityType}/{entityId}/{yyyy-MM-dd}/{HH}/{mm}/{correlationId}.jsonl`; they must not duplicate the full payload, only metadata and archive/audit blob names
 - Blob archive/audit are full-fidelity support artifacts and may contain PII. Logs must remain redacted: use the shared JSON payload redactor plus `Serilog.Enrichers.Sensitive`; never log raw `{Body}` values directly. Payload capture logs must include archive, audit, and entity-index blob file names so support agents can jump from logs to artifacts.
+- Payload capture has an explicit failure policy: `PayloadCapture:FailureMode=FailOpen|FailClosed`. Production-like orchestrations set `RequireArchiveStore=true` and `FailClosed`; standalone development may fail open or use the null store intentionally.
+- HTTP payload capture is bounded by `PayloadCapture:MaxPayloadBytes` and `CapturedContentTypes`; truncated or skipped payload records include metadata so support can distinguish full-fidelity artifacts from bounded captures.
 - `X-Correlation-ID` is accepted on HTTP requests, echoed in HTTP responses, persisted on outbox rows, and propagated to Service Bus `CorrelationId` and application properties
-- `PayloadArchiveCleanupFunction` is timer-triggered and deletes archive, audit, and entity-index blobs older than `PayloadCapture:RetentionDays` by parsing the date/hour/minute path
+- `PayloadArchiveCleanupFunction` is timer-triggered from `PayloadCapture__CleanupCron` and deletes archive, audit, and entity-index blobs older than `PayloadCapture:RetentionDays` by parsing the date/hour/minute path
 
 **Authentication**
 - This API assumes it runs behind an API gateway that handles auth — do not add authentication middleware to the API itself

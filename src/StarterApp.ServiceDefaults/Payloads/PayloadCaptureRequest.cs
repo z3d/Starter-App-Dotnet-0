@@ -9,6 +9,10 @@ public sealed class PayloadCaptureRequest
     public string Operation { get; init; } = string.Empty;
     public string? ContentType { get; init; }
     public string Payload { get; init; } = string.Empty;
+    public bool PayloadTruncated { get; init; }
+    public long? PayloadSizeBytes { get; init; }
+    public int CapturedPayloadBytes { get; init; }
+    public string? PayloadSkipReason { get; init; }
     public int? StatusCode { get; init; }
     public Dictionary<string, string> Metadata { get; init; } = [];
     public List<PayloadEntityReference> EntityReferences { get; init; } = [];

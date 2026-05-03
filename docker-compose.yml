@@ -22,6 +22,9 @@ services:
       - ConnectionStrings__database=Server=db;Database=StarterApp;User Id=sa;Password=Your_password123;TrustServerCertificate=True;
       - ConnectionStrings__redis=redis:6379
       - ConnectionStrings__servicebus=Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
+      - ConnectionStrings__payloadarchive=UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite
+      - PayloadCapture__RequireArchiveStore=true
+      - PayloadCapture__FailureMode=FailClosed
       - SEQ_URL=http://seq:5341
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
@@ -37,6 +40,8 @@ services:
       seq:
         condition: service_started
       redis:
+        condition: service_healthy
+      azurite:
         condition: service_healthy
       servicebus-emulator:
         condition: service_started
@@ -64,12 +69,36 @@ services:
       context: .
       dockerfile: src/StarterApp.Functions/Dockerfile
     environment:
-      - AzureWebJobsStorage=UseDevelopmentStorage=true
       - FUNCTIONS_WORKER_RUNTIME=dotnet-isolated
       - servicebus=Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
+      - AzureWebJobsStorage=UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite
+      - ConnectionStrings__payloadarchive=UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite
+      - PayloadCapture__RequireArchiveStore=true
+      - PayloadCapture__FailureMode=FailClosed
+      - PayloadCapture__CleanupCron=0 0 * * * *
     depends_on:
       servicebus-emulator:
         condition: service_started
+      azurite:
+        condition: service_healthy
+    networks:
+      - backend-network
+    restart: unless-stopped
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --location /data
+    ports:
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+    volumes:
+      - azurite-data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "const net=require('net'); const s=net.connect(10000,'127.0.0.1').on('connect',()=>{s.destroy();process.exit(0);}).on('error',()=>process.exit(1));"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - backend-network
     restart: unless-stopped
@@ -147,4 +176,6 @@ volumes:
   redis-data:
     driver: local
   seq-data:
+    driver: local
+  azurite-data:
     driver: local

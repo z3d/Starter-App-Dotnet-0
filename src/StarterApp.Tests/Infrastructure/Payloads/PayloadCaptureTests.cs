@@ -40,6 +40,34 @@ public class PayloadCaptureTests
     }
 
     [Fact]
+    public void JsonPayloadRedactor_ShouldMaskSensitiveSubstringFieldsAndEmailsInsideJsonStrings()
+    {
+        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions()));
+
+        var redacted = redactor.Redact(
+            """{"customerEmail":"ada@example.com","notes":"Contact ada@example.com today","profile":{"ownerName":"Ada"},"total":42}""",
+            "application/json");
+
+        Assert.DoesNotContain("ada@example.com", redacted);
+        Assert.DoesNotContain("Ada", redacted);
+        Assert.Contains("\"total\":42", redacted);
+    }
+
+    [Fact]
+    public void JsonPayloadRedactor_ShouldWalkJsonArraysWithoutReparentingNodes()
+    {
+        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions()));
+
+        var redacted = redactor.Redact(
+            """{"items":[{"productId":12,"notes":"email ops@example.com"},{"productId":13}]}""",
+            "application/json");
+
+        Assert.DoesNotContain("ops@example.com", redacted);
+        Assert.Contains("\"productId\":12", redacted);
+        Assert.Contains("\"productId\":13", redacted);
+    }
+
+    [Fact]
     public async Task CaptureAsync_ShouldWriteFullPayloadToArchiveAndAuditWithCorrelationAndTime()
     {
         var store = new InMemoryPayloadArchiveStore();
@@ -66,6 +94,95 @@ public class PayloadCaptureTests
         Assert.Equal("2026-05-03T04:07:00+00:00", archiveJson.RootElement.GetProperty("timestampUtc").GetString());
         Assert.Contains("ada@example.com", archiveJson.RootElement.GetProperty("payload").GetString());
         Assert.Equal(archiveJson.RootElement.GetProperty("archiveBlobName").GetString(), auditJson.RootElement.GetProperty("archiveBlobName").GetString());
+    }
+
+    [Fact]
+    public async Task CaptureAsync_WithNullStore_ShouldReturnNullWithoutClaimingCapture()
+    {
+        var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
+        var sink = CreateSink(new NullPayloadArchiveStore(), timestamp);
+
+        var result = await sink.CaptureAsync(new PayloadCaptureRequest
+        {
+            CorrelationId = "case-123",
+            Direction = "inbound",
+            Channel = "http",
+            Operation = "POST /api/v1/customers",
+            ContentType = "application/json",
+            Payload = """{"name":"Ada"}"""
+        }, CancellationToken.None);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task CaptureAsync_WhenArchiveWriteFailsAndFailureModeIsFailOpen_ShouldReturnNull()
+    {
+        var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
+        var sink = CreateSink(new ThrowingPayloadArchiveStore(), timestamp, new PayloadCaptureOptions
+        {
+            FailureMode = PayloadCaptureFailureMode.FailOpen
+        });
+
+        var result = await sink.CaptureAsync(new PayloadCaptureRequest
+        {
+            CorrelationId = "case-123",
+            Direction = "inbound",
+            Channel = "http",
+            Operation = "POST /api/v1/customers",
+            ContentType = "application/json",
+            Payload = """{"name":"Ada"}"""
+        }, CancellationToken.None);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task CaptureAsync_WhenArchiveWriteFailsAndFailureModeIsFailClosed_ShouldThrow()
+    {
+        var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
+        var sink = CreateSink(new ThrowingPayloadArchiveStore(), timestamp, new PayloadCaptureOptions
+        {
+            FailureMode = PayloadCaptureFailureMode.FailClosed
+        });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => sink.CaptureAsync(new PayloadCaptureRequest
+        {
+            CorrelationId = "case-123",
+            Direction = "inbound",
+            Channel = "http",
+            Operation = "POST /api/v1/customers",
+            ContentType = "application/json",
+            Payload = """{"name":"Ada"}"""
+        }, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task CaptureAsync_WhenRedactionFails_ShouldStillArchiveAndSuppressOperationalPayload()
+    {
+        var store = new InMemoryPayloadArchiveStore();
+        var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
+        var options = Options.Create(new PayloadCaptureOptions { FailureMode = PayloadCaptureFailureMode.FailClosed });
+        var sink = new PayloadCaptureSink(
+            store,
+            new ThrowingPayloadRedactor(),
+            new FixedTimeProvider(timestamp),
+            options,
+            new LoggerFactory().CreateLogger<PayloadCaptureSink>());
+
+        var result = await sink.CaptureAsync(new PayloadCaptureRequest
+        {
+            CorrelationId = "case-123",
+            Direction = "inbound",
+            Channel = "http",
+            Operation = "POST /api/v1/customers",
+            ContentType = "application/json",
+            Payload = """{"email":"ada@example.com"}"""
+        }, CancellationToken.None);
+
+        Assert.NotNull(result);
+        var archiveEntry = store.Lines.Single(pair => pair.Key == "archive/2026-05-03/04/07/case-123.jsonl");
+        Assert.Contains("ada@example.com", archiveEntry.Value.Single());
     }
 
     [Fact]
@@ -125,9 +242,9 @@ public class PayloadCaptureTests
         Assert.Contains("archive/2026-05-09/01/00/case-new.jsonl", store.Lines.Keys);
     }
 
-    internal static PayloadCaptureSink CreateSink(InMemoryPayloadArchiveStore store, DateTimeOffset timestamp)
+    internal static PayloadCaptureSink CreateSink(IPayloadArchiveStore store, DateTimeOffset timestamp, PayloadCaptureOptions? captureOptions = null)
     {
-        var options = Options.Create(new PayloadCaptureOptions());
+        var options = Options.Create(captureOptions ?? new PayloadCaptureOptions());
         var logger = new LoggerFactory().CreateLogger<PayloadCaptureSink>();
         return new PayloadCaptureSink(store, new JsonPayloadRedactor(options), new FixedTimeProvider(timestamp), options, logger);
     }
@@ -144,6 +261,27 @@ public class PayloadCaptureTests
         public override DateTimeOffset GetUtcNow()
         {
             return _timestamp;
+        }
+    }
+
+    private sealed class ThrowingPayloadArchiveStore : IPayloadArchiveStore
+    {
+        public Task AppendLineAsync(string blobName, string line, CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("archive store unavailable");
+        }
+
+        public Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("archive store unavailable");
+        }
+    }
+
+    private sealed class ThrowingPayloadRedactor : IPayloadRedactor
+    {
+        public string Redact(string payload, string? contentType)
+        {
+            throw new InvalidOperationException("redactor unavailable");
         }
     }
 }

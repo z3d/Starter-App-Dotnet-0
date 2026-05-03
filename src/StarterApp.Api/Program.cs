@@ -16,8 +16,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext()
-        .Enrich.WithSensitiveDataMasking(_ => { })
-        .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
+        .Enrich.WithSensitiveDataMasking(_ => { });
 
     var seqUrl = context.Configuration["SEQ_URL"] ?? context.Configuration["SeqUrl"];
     if (!string.IsNullOrEmpty(seqUrl))

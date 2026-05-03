@@ -12,6 +12,7 @@
 - **Service Defaults** (`StarterApp.ServiceDefaults`) - Shared configuration and observability
 - **SQL Server Integration** - Containerized DB with automatic setup and migration
 - **Redis Integration** - Distributed cache
+- **Azure Blob Storage Emulator** - Payload archive/audit and entity-index artifacts
 - **Azure Service Bus Emulator** - Domain-event messaging with topic + subscriptions
 - **Azure Functions** - Service Bus subscribers running natively via Functions Core Tools
 - **Seq** - Centralized structured logging
@@ -28,6 +29,7 @@ StarterApp.AppHost (Orchestrator)
 ├── ⚡ StarterApp.Functions (Service Bus subscribers)
 ├── 🗄️ SQL Server container (Persistent lifetime)
 ├── 🚀 Redis container (Distributed cache)
+├── 🧾 Azure Blob Storage emulator (Payload archive/audit)
 ├── 📬 Azure Service Bus emulator (Topic: domain-events with 2 subscriptions)
 ├── 📝 Seq container (Centralized logs)
 └── 📈 Service Defaults (Shared configuration)
@@ -85,6 +87,9 @@ var seq = builder.AddSeq("seq").WithLifetime(ContainerLifetime.Persistent);
 var sql = builder.AddSqlServer("sql").WithLifetime(ContainerLifetime.Persistent);
 var db = sql.AddDatabase("database");
 var redis = builder.AddRedis("redis").WithLifetime(ContainerLifetime.Persistent);
+var storage = builder.AddAzureStorage("storage");
+var payloadArchive = storage.AddBlobs("payloadarchive");
+storage.RunAsEmulator(e => e.WithLifetime(ContainerLifetime.Persistent));
 
 // Service Bus topology defined fluently so Aspire serializes correlation filters correctly
 var serviceBus = builder.AddAzureServiceBus("servicebus");
@@ -111,13 +116,20 @@ var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
 var api = builder.AddProject<Projects.StarterApp_Api>("api")
     .WithReference(db)
     .WithReference(redis)
+    .WithReference(payloadArchive)
     .WithReference(serviceBus)
-    .WaitFor(db).WaitFor(redis).WaitFor(serviceBus)
+    .WithEnvironment("PayloadCapture__RequireArchiveStore", "true")
+    .WithEnvironment("PayloadCapture__FailureMode", "FailClosed")
+    .WaitFor(db).WaitFor(redis).WaitFor(payloadArchive).WaitFor(serviceBus)
     .WaitForCompletion(migrator);           // API waits for migrator to finish
 
 builder.AddProject<Projects.StarterApp_Functions>("functions")
     .WithReference(serviceBus)
-    .WaitFor(serviceBus);
+    .WithReference(payloadArchive)
+    .WithEnvironment("PayloadCapture__RequireArchiveStore", "true")
+    .WithEnvironment("PayloadCapture__FailureMode", "FailClosed")
+    .WithEnvironment("PayloadCapture__CleanupCron", "0 0 * * * *")
+    .WaitFor(serviceBus).WaitFor(payloadArchive);
 
 builder.Build().Run();
 ```

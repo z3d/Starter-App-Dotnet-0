@@ -14,6 +14,8 @@ public sealed partial class JsonPayloadRedactor : IPayloadRedactor
     {
         _sensitiveNames = options.Value.SensitivePropertyNames
             .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(NormalizeName)
+            .Where(name => name.Length > 0)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -39,7 +41,7 @@ public sealed partial class JsonPayloadRedactor : IPayloadRedactor
             }
         }
 
-        return EmailRegex().Replace(payload, Mask);
+        return RedactText(payload);
     }
 
     private void RedactNode(JsonNode node)
@@ -48,20 +50,47 @@ public sealed partial class JsonPayloadRedactor : IPayloadRedactor
         {
             foreach (var property in jsonObject.ToList())
             {
-                if (_sensitiveNames.Contains(property.Key))
+                if (IsSensitivePropertyName(property.Key))
+                {
                     jsonObject[property.Key] = Mask;
+                    continue;
+                }
+
+                if (property.Value is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var value))
+                    jsonObject[property.Key] = RedactText(value);
                 else if (property.Value != null)
                     RedactNode(property.Value);
             }
         }
         else if (node is JsonArray jsonArray)
         {
-            foreach (var item in jsonArray)
+            for (var index = 0; index < jsonArray.Count; index++)
             {
-                if (item != null)
+                var item = jsonArray[index];
+                if (item is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var value))
+                    jsonArray[index] = RedactText(value);
+                else if (item != null)
                     RedactNode(item);
             }
         }
+    }
+
+    private bool IsSensitivePropertyName(string propertyName)
+    {
+        var normalizedPropertyName = NormalizeName(propertyName);
+        return _sensitiveNames.Any(sensitiveName =>
+            normalizedPropertyName.Equals(sensitiveName, StringComparison.OrdinalIgnoreCase) ||
+            normalizedPropertyName.Contains(sensitiveName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string RedactText(string value)
+    {
+        return EmailRegex().Replace(value, Mask);
+    }
+
+    private static string NormalizeName(string name)
+    {
+        return new string(name.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
     }
 
     private static bool IsJsonContent(string? contentType)

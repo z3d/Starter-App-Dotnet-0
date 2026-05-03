@@ -14,6 +14,10 @@ public sealed class PayloadCaptureRecord
     public string AuditBlobName { get; init; } = string.Empty;
     public string PayloadSha256 { get; init; } = string.Empty;
     public string Payload { get; init; } = string.Empty;
+    public bool PayloadTruncated { get; init; }
+    public long? PayloadSizeBytes { get; init; }
+    public int CapturedPayloadBytes { get; init; }
+    public string? PayloadSkipReason { get; init; }
     public Dictionary<string, string> Metadata { get; init; } = [];
     public List<PayloadEntityReference> EntityReferences { get; init; } = [];
 }

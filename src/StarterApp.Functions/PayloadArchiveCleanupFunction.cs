@@ -25,7 +25,7 @@ public sealed class PayloadArchiveCleanupFunction
     }
 
     [Function(nameof(PayloadArchiveCleanupFunction))]
-    public async Task RunAsync([TimerTrigger("0 0 * * * *")] TimerInfo timerInfo, CancellationToken cancellationToken)
+    public async Task RunAsync([TimerTrigger("%PayloadCapture__CleanupCron%")] TimerInfo timerInfo, CancellationToken cancellationToken)
     {
         var cutoffUtc = _timeProvider.GetUtcNow().AddDays(-_options.RetentionDays);
         var result = await _payloadArchiveStore.DeleteOlderThanAsync(cutoffUtc, cancellationToken);

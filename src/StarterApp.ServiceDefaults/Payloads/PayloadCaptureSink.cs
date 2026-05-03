@@ -37,11 +37,26 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
         if (!_options.Enabled)
             return null;
 
+        if (_store is NullPayloadArchiveStore)
+        {
+            _logger.LogWarning(
+                "Skipped {Direction} {Channel} payload capture for {Operation} with correlation {CorrelationId}: no payload archive store is configured",
+                request.Direction,
+                request.Channel,
+                request.Operation,
+                CorrelationContext.Sanitize(request.CorrelationId ?? CorrelationContext.GetOrCreate()));
+            return null;
+        }
+
         var timestampUtc = (request.TimestampUtc ?? _timeProvider.GetUtcNow()).ToUniversalTime();
         var correlationId = CorrelationContext.Sanitize(request.CorrelationId ?? CorrelationContext.GetOrCreate());
         var archiveBlobName = PayloadBlobNaming.BuildArchiveBlobName(timestampUtc, correlationId, _options.ArchivePrefix);
         var auditBlobName = PayloadBlobNaming.BuildAuditBlobName(timestampUtc, _options.AuditPrefix);
         var entityReferences = PayloadEntityReferenceExtractor.Extract(request);
+        var capturedPayloadBytes = request.CapturedPayloadBytes == 0 && request.Payload.Length > 0
+            ? Encoding.UTF8.GetByteCount(request.Payload)
+            : request.CapturedPayloadBytes;
+        var payloadSizeBytes = request.PayloadSizeBytes ?? capturedPayloadBytes;
 
         var record = new PayloadCaptureRecord
         {
@@ -57,51 +72,87 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
             AuditBlobName = auditBlobName,
             PayloadSha256 = ComputeSha256(request.Payload),
             Payload = request.Payload,
+            PayloadTruncated = request.PayloadTruncated,
+            PayloadSizeBytes = payloadSizeBytes,
+            CapturedPayloadBytes = capturedPayloadBytes,
+            PayloadSkipReason = request.PayloadSkipReason,
             Metadata = request.Metadata,
             EntityReferences = entityReferences.ToList()
         };
 
-        var line = JsonSerializer.Serialize(record, SerializerOptions);
-        await _store.AppendLineAsync(archiveBlobName, line, cancellationToken);
-        await _store.AppendLineAsync(auditBlobName, line, cancellationToken);
-
-        var entityIndexBlobNames = new List<string>();
-        foreach (var entityReference in entityReferences)
+        try
         {
-            var entityIndexBlobName = PayloadBlobNaming.BuildEntityIndexBlobName(timestampUtc, entityReference, correlationId, _options.EntityIndexPrefix);
-            var entityIndexRecord = new PayloadEntityIndexRecord
-            {
-                OperationId = record.OperationId,
-                TimestampUtc = timestampUtc,
-                CorrelationId = correlationId,
-                Direction = request.Direction,
-                Channel = request.Channel,
-                Operation = request.Operation,
-                EntityType = entityReference.EntityType,
-                EntityId = entityReference.EntityId,
-                ArchiveBlobName = archiveBlobName,
-                AuditBlobName = auditBlobName,
-                PayloadSha256 = record.PayloadSha256,
-                Metadata = BuildEntityIndexMetadata(request.Metadata)
-            };
+            var line = JsonSerializer.Serialize(record, SerializerOptions);
+            await _store.AppendLineAsync(archiveBlobName, line, cancellationToken);
+            await _store.AppendLineAsync(auditBlobName, line, cancellationToken);
 
-            await _store.AppendLineAsync(entityIndexBlobName, JsonSerializer.Serialize(entityIndexRecord, SerializerOptions), cancellationToken);
-            entityIndexBlobNames.Add(entityIndexBlobName);
+            var entityIndexBlobNames = new List<string>();
+            foreach (var entityReference in entityReferences)
+            {
+                var entityIndexBlobName = PayloadBlobNaming.BuildEntityIndexBlobName(timestampUtc, entityReference, correlationId, _options.EntityIndexPrefix);
+                var entityIndexRecord = new PayloadEntityIndexRecord
+                {
+                    OperationId = record.OperationId,
+                    TimestampUtc = timestampUtc,
+                    CorrelationId = correlationId,
+                    Direction = request.Direction,
+                    Channel = request.Channel,
+                    Operation = request.Operation,
+                    EntityType = entityReference.EntityType,
+                    EntityId = entityReference.EntityId,
+                    ArchiveBlobName = archiveBlobName,
+                    AuditBlobName = auditBlobName,
+                    PayloadSha256 = record.PayloadSha256,
+                    Metadata = BuildEntityIndexMetadata(request.Metadata)
+                };
+
+                await _store.AppendLineAsync(entityIndexBlobName, JsonSerializer.Serialize(entityIndexRecord, SerializerOptions), cancellationToken);
+                entityIndexBlobNames.Add(entityIndexBlobName);
+            }
+
+            var redactedPayload = RedactForLog(request);
+            _logger.LogInformation(
+                "Captured {Direction} {Channel} payload for {Operation} with correlation {CorrelationId}. ArchiveBlob: {ArchiveBlobName}. AuditBlob: {AuditBlobName}. EntityIndexBlobs: {EntityIndexBlobNames}. Truncated: {PayloadTruncated}. SkipReason: {PayloadSkipReason}. Payload: {Payload}",
+                request.Direction,
+                request.Channel,
+                request.Operation,
+                correlationId,
+                archiveBlobName,
+                auditBlobName,
+                entityIndexBlobNames.Count == 0 ? "(none)" : string.Join(",", entityIndexBlobNames),
+                request.PayloadTruncated,
+                request.PayloadSkipReason ?? "(none)",
+                redactedPayload);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException && _options.FailureMode == PayloadCaptureFailureMode.FailOpen)
+        {
+            _logger.LogError(ex,
+                "Payload capture failed for {Direction} {Channel} {Operation} with correlation {CorrelationId}; continuing because FailureMode is FailOpen",
+                request.Direction,
+                request.Channel,
+                request.Operation,
+                correlationId);
+            return null;
         }
 
-        var redactedPayload = _redactor.Redact(request.Payload, request.ContentType);
-        _logger.LogInformation(
-            "Captured {Direction} {Channel} payload for {Operation} with correlation {CorrelationId}. ArchiveBlob: {ArchiveBlobName}. AuditBlob: {AuditBlobName}. EntityIndexBlobs: {EntityIndexBlobNames}. Payload: {Payload}",
-            request.Direction,
-            request.Channel,
-            request.Operation,
-            correlationId,
-            archiveBlobName,
-            auditBlobName,
-            entityIndexBlobNames.Count == 0 ? "(none)" : string.Join(",", entityIndexBlobNames),
-            redactedPayload);
-
         return record;
+    }
+
+    private string RedactForLog(PayloadCaptureRequest request)
+    {
+        try
+        {
+            return _redactor.Redact(request.Payload, request.ContentType);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex,
+                "Payload redaction failed for {Direction} {Channel} {Operation}; suppressing payload in operational logs",
+                request.Direction,
+                request.Channel,
+                request.Operation);
+            return "[payload redaction failed]";
+        }
     }
 
     private Dictionary<string, string> BuildEntityIndexMetadata(Dictionary<string, string> metadata)

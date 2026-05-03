@@ -129,7 +129,9 @@ Endpoints are organized with OpenAPI tags for better Scalar API reference docume
 - **Archive Layout**: `archive/{yyyy-MM-dd}/{HH}/{mm}/{correlationId}.jsonl`
 - **Audit Layout**: `audit/{yyyy-MM-dd}/{HH}/{mm}/payload-audit.jsonl`
 - **Entity Index Layout**: `entity-index/{entityType}/{entityId}/{yyyy-MM-dd}/{HH}/{mm}/{correlationId}.jsonl` pointer rows for support lookups without duplicating full payloads
-- **Retention**: `PayloadArchiveCleanupFunction` deletes archive, audit, and entity-index blobs older than `PayloadCapture:RetentionDays`
+- **Bounds**: HTTP capture is limited by `PayloadCapture:MaxPayloadBytes` and `CapturedContentTypes`; archive/audit rows include truncation or skip metadata when capture is bounded
+- **Failure Policy**: `PayloadCapture:FailureMode` controls fail-open vs fail-closed archive writes, and production-like orchestrations require a configured archive store
+- **Retention**: `PayloadArchiveCleanupFunction` runs on `PayloadCapture__CleanupCron` and deletes archive, audit, and entity-index blobs older than `PayloadCapture:RetentionDays`
 
 ### Usage Example
 ```csharp

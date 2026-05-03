@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9.4/10** (42 findings resolved, 3 open)
+**Score: 9.5/10** (48 findings resolved, 3 open)
 
 ---
 
@@ -23,7 +23,7 @@ The project enforces architectural rules through convention tests in the main an
 | `PersistenceConventionTests` | Every entity has a `DbSet`; value objects use `OwnsOne` not `DbSet`; enum properties configured; no static mutable state on `DbContext`; collection properties have private setters; migration scripts follow numbered prefix, are embedded resources, and name constraints explicitly |
 | `DapperConventionTests` | Query handlers must not use `SELECT *` in SQL (IL inspection of compiled string literals) |
 | `CachingConventionTests` | ICacheable queries must have non-empty cache keys, positive durations, and deterministic keys |
-| `HousekeepingConventionTests` | Project files don't reference `bin`/`obj` artifacts; production code avoids regions, XML documentation comments, and historical workaround comments |
+| `HousekeepingConventionTests` | Project files don't reference `bin`/`obj` artifacts; production code avoids regions, XML documentation comments, and historical workaround comments; Docker Compose mirrors Aspire payload-archive storage wiring |
 | `StarterApp.AppHost.Tests` conventions | Service Bus topology/Function trigger alignment plus async/DateTime safety for AppHost, Functions, and ServiceDefaults |
 
 These tests catch entire categories of mistakes at compile time rather than in production.
@@ -92,14 +92,14 @@ The mediator at `Infrastructure/Mediator/Mediator.cs` is well-designed:
 
 ### DevOps and Observability
 
-- **Aspire orchestration** — `AppHost/Program.cs` wires up API, SQL Server, Seq, Service Bus emulator, Functions, and DbMigrator with proper `WaitFor` dependencies and optional dev tunnel support
+- **Aspire orchestration** — `AppHost/Program.cs` wires up API, SQL Server, Redis, Blob storage, Seq, Service Bus emulator, Functions, and DbMigrator with proper `WaitFor` dependencies and optional dev tunnel support
 - **Serilog** structured logging with console, file, Seq, and OpenTelemetry sinks
 - **OpenTelemetry** metrics (ASP.NET Core, HTTP, runtime) and tracing via `ServiceDefaults`
-- **Docker** multi-stage build with docker-compose (API + SQL Server + Seq + Service Bus emulator + Functions + dedicated migrator)
+- **Docker** multi-stage build with docker-compose (API + SQL Server + Redis + Azurite + Seq + Service Bus emulator + Functions + dedicated migrator)
 - **CI** pipeline with GitHub Actions (unit tests + integration tests with Testcontainers)
 - **Health checks** at `/health`, `/health/ready`, `/health/live`, and `/alive`
 - **Password masking** in log output — implemented consistently across `Program.cs`, `DatabaseMigrationEngine`, and `DbMigrator`
-- **Payload archive / PII audit** — HTTP request/response bodies, outbound Service Bus payloads, and inbound Function payloads are written as full-fidelity JSONL support artifacts to Azure Blob under date/hour/minute paths. Archive files are correlation-bound (`archive/{date}/{hour}/{minute}/{correlationId}.jsonl`); audit files are time-window streams (`audit/{date}/{hour}/{minute}/payload-audit.jsonl`) that include timestamp, correlation id, archive blob name, payload hash, and full payload. Operational logs use redacted payloads and a convention test blocks direct raw `{Body}` logging.
+- **Payload archive / PII audit** — HTTP request/response bodies, outbound Service Bus payloads, and inbound Function payloads are written as JSONL support artifacts to Azure Blob under date/hour/minute paths. Archive files are correlation-bound (`archive/{date}/{hour}/{minute}/{correlationId}.jsonl`); audit files are time-window streams (`audit/{date}/{hour}/{minute}/payload-audit.jsonl`) that include timestamp, correlation id, archive blob name, payload hash, payload bounds metadata, and the captured payload. HTTP capture is bounded by `MaxPayloadBytes` and content-type allowlist metadata; Service Bus payload capture remains full-fidelity for JSON events. Operational logs use redacted payloads and a convention test blocks direct raw `{Body}` logging.
 - **Dedicated `DbMigrator` service** for migrations across all deployment modes (Aspire, Docker Compose, standalone)
 - **Outbox → Service Bus pipeline** — domain events captured durably in `OutboxMessages` during a single `SaveChangesAsync` (aggregates use client-generated Guid v7 Ids, so creation events carry correct keys before the save). `EnableRetryOnFailure` is safe because no user transaction is needed. Rows are published to Azure Service Bus by `OutboxProcessor` BackgroundService with row-level locking (`UPDLOCK, READPAST, ROWLOCK`) to prevent duplicate publishing across replicas. Service Bus topic has duplicate detection enabled (10-minute window). Consumed by Azure Functions via topic subscriptions with correlation filters. Convention test enforces subscription filter ↔ domain event contract sync.
 - **Explicit constraint naming** — all database constraints named via convention (`PK_`, `FK_`, `DF_`, `CK_`, `IX_`), enforced by convention test from script 0012 onward
@@ -138,6 +138,17 @@ These are unresolved issues identified across multiple agent review sessions. Wh
 | 43 | Rate limiting partitions by `RemoteIpAddress` without trusted forwarded-header handling | Behind an API gateway or reverse proxy, all clients can share one limiter bucket, so one noisy client can throttle everyone | Configure `ForwardedHeadersOptions` with known proxies/networks before `UseRateLimiter`, or partition by a trusted gateway-provided client identity |
 | 44 | `OutboxProcessor` holds SQL update locks while sending to Service Bus | Slow or throttled broker calls make the database transaction span network I/O and can create lock pressure under load | Claim rows in a short transaction with `ProcessingId`/`LockedUntil`, publish outside the transaction, then mark processed in a second short transaction |
 | 45 | AppHost eventing test observes `ProcessedOnUtc` but not subscriber consumption | Service Bus filters, Functions triggers, or subscriber host wiring can break while the test still passes after the sender marks the outbox row processed | Add a durable subscriber effect, test sink, or subscription-drain assertion so the consumer side is observable |
+
+#### Recently resolved (payload archive hardening)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~46~~ | Payload capture had no explicit failure policy, so configured storage outages broke requests while missing storage silently dropped archive rows | Added `PayloadCapture:FailureMode=FailOpen|FailClosed`, `RequireArchiveStore` startup validation, null-store skip logging, and tests for fail-open/fail-closed behavior. Aspire and Docker run production-like payload capture with `RequireArchiveStore=true` and `FailClosed`. |
+| ~~47~~ | Docker Compose did not mirror Aspire's payload archive Blob dependency | Added Azurite to Docker Compose, wired API and Functions `payloadarchive` connection strings, persisted `azurite-data`, and added a convention test that fails if Docker loses this wiring. |
+| ~~48~~ | HTTP payload capture buffered full request/response bodies with no limit | Replaced full response buffering with a bounded tee stream, bounded request reads by `PayloadCapture:MaxPayloadBytes`, added content-type capture rules, and persisted truncation/skip metadata on archive/audit rows. |
+| ~~49~~ | JSON log redaction only matched exact sensitive property names and missed emails inside JSON strings | Redactor now matches normalized sensitive names inside property names (e.g. `customerEmail`, `ownerName`) and redacts email-like substrings inside non-sensitive JSON string values. |
+| ~~50~~ | API console logging was configured twice | Removed the unconditional code-level console sink from `Program.cs`; Serilog sinks now come from configuration. |
+| ~~51~~ | `PayloadCaptureOptions.CleanupCron` was exposed but the Function timer was hardcoded | `PayloadArchiveCleanupFunction` now uses the `PayloadCapture__CleanupCron` app setting; local, Docker, and AppHost configurations provide the default hourly schedule. |
 
 #### Recently resolved (retry and concurrency hardening)
 

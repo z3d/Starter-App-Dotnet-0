@@ -74,7 +74,7 @@ public class OutboxToServiceBusIntegrationTests
             CustomerId = customerId,
             Items = new[] { new { ProductId = productId, Quantity = 2 } }
         });
-        orderResponse.EnsureSuccessStatusCode();
+        await EnsureSuccessWithBodyAsync(orderResponse);
         var order = await orderResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var orderId = order.GetProperty("id").GetGuid();
         Assert.NotEqual(Guid.Empty, orderId);
@@ -158,7 +158,7 @@ public class OutboxToServiceBusIntegrationTests
             CustomerId = customerId,
             Items = new[] { new { ProductId = productId, Quantity = 1 } }
         });
-        orderResponse.EnsureSuccessStatusCode();
+        await EnsureSuccessWithBodyAsync(orderResponse);
         var order = await orderResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var orderId = order.GetProperty("id").GetGuid();
         Assert.NotEqual(Guid.Empty, orderId);
@@ -373,5 +373,14 @@ public class OutboxToServiceBusIntegrationTests
 
         return lastResponse ?? throw new TimeoutException(
             $"Health endpoint {endpoint} did not become healthy after {maxAttempts} attempts");
+    }
+
+    private static async Task EnsureSuccessWithBodyAsync(HttpResponseMessage response)
+    {
+        if (response.IsSuccessStatusCode)
+            return;
+
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Fail($"Expected success status code, got {(int)response.StatusCode} {response.StatusCode}. Body: {body}");
     }
 }

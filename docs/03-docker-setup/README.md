@@ -9,10 +9,10 @@ Containerizing the .NET Web API, Azure Functions, SQL Server, Redis, Service Bus
 ✅ **Already Configured!** - Docker setup includes:
 
 - **Multi-stage Dockerfiles** for the API, DbMigrator, and Functions
-- **Docker Compose** orchestration for API + Functions + SQL Server + Redis + Service Bus emulator + Seq
+- **Docker Compose** orchestration for API + Functions + SQL Server + Redis + Azurite + Service Bus emulator + Seq
 - **Seq centralized logging** with web interface
 - **Health checks** for service monitoring
-- **Volume persistence** for database and log storage
+- **Volume persistence** for database, log, cache, and payload archive storage
 - **Environment-specific configuration**
 
 > **⚠️ Apple Silicon note**: The Azure Functions base image
@@ -31,6 +31,7 @@ Docker Environment
 ├── functions           (StarterApp.Functions, Service Bus subscribers)
 ├── db                  (SQL Server 2022 — main application DB)
 ├── sqledge             (Azure SQL Edge — backing store for the SB emulator)
+├── azurite            (Azure Blob/Queue/Table storage emulator for payload archive + Functions host storage)
 ├── servicebus-emulator (Azure Service Bus emulator)
 ├── redis               (Redis 7 — distributed cache)
 ├── seq                 (Seq — centralized log aggregation)
@@ -64,6 +65,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0
 - **functions** - Azure Functions worker (Service Bus subscribers)
 - **db** - SQL Server 2022 (application DB)
 - **sqledge** - Azure SQL Edge (backs the Service Bus emulator)
+- **azurite** - Azure Storage emulator for payload archive/audit artifacts and Azure Functions host storage
 - **servicebus-emulator** - Azure Service Bus emulator (topology in [config/servicebus-emulator.json](../../config/servicebus-emulator.json))
 - **redis** - Redis 7 (distributed cache for queries implementing `ICacheable`)
 - **seq** - Centralized structured log viewer
@@ -116,6 +118,7 @@ docker compose up --build migrator api db redis seq servicebus-emulator sqledge
 | **Seq Logs** | http://localhost:5341 | Centralized log viewer |
 | **SQL Server** | localhost:1433 | Database connection |
 | **Redis** | localhost:6379 | Redis cache |
+| **Azurite Blob** | http://localhost:10000 | Payload archive/audit Blob endpoint |
 | **Service Bus Emulator** | localhost:5672 | AMQP endpoint |
 
 ## Configuration Details
@@ -127,6 +130,9 @@ environment:
   - ConnectionStrings__database=Server=db;Database=StarterApp;User Id=sa;Password=Your_password123;TrustServerCertificate=True;
   - ConnectionStrings__redis=redis:6379
   - ConnectionStrings__servicebus=Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
+  - ConnectionStrings__payloadarchive=UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite
+  - PayloadCapture__RequireArchiveStore=true
+  - PayloadCapture__FailureMode=FailClosed
   - SEQ_URL=http://seq:5341
 ```
 
@@ -179,7 +185,10 @@ volumes:
   sqldata:    { driver: local }
   redis-data: { driver: local }
   seq-data:   { driver: local }
+  azurite-data: { driver: local }
 ```
+
+Docker Compose intentionally mirrors Aspire-owned dependencies. Payload archive/audit writes use the Azurite-backed `payloadarchive` connection string, API and Functions wait for Azurite health, and both services set `PayloadCapture__RequireArchiveStore=true` with `FailClosed` so storage drift fails loudly instead of silently dropping support artifacts.
 
 ### Volume Management
 ```bash

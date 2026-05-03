@@ -107,6 +107,8 @@ public static class Extensions
         builder.Services.AddOptions<PayloadCaptureOptions>()
             .Bind(builder.Configuration.GetSection("PayloadCapture"))
             .ValidateDataAnnotations()
+            .Validate(options => !options.RequireArchiveStore || HasPayloadArchiveStore(options, builder.Configuration),
+                "PayloadCapture:RequireArchiveStore is true, but no payload archive connection string or account URI is configured.")
             .ValidateOnStart();
 
         builder.Services.TryAddSingleton(TimeProvider.System);
@@ -131,6 +133,14 @@ public static class Extensions
         return builder;
     }
 
+    private static bool HasPayloadArchiveStore(PayloadCaptureOptions options, IConfiguration configuration)
+    {
+        return !string.IsNullOrWhiteSpace(options.ConnectionString) ||
+            !string.IsNullOrWhiteSpace(options.AccountUri) ||
+            !string.IsNullOrWhiteSpace(configuration.GetConnectionString("payloadarchive")) ||
+            !string.IsNullOrWhiteSpace(configuration.GetConnectionString("payloadstorage"));
+    }
+
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
         // Adding health checks endpoints to applications in non-development environments has security implications.
@@ -150,6 +160,5 @@ public static class Extensions
         return app;
     }
 }
-
 
 

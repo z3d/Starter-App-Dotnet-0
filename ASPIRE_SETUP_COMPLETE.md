@@ -47,7 +47,7 @@ docker compose up --build
 
 ## 📊 **What the Dashboard Shows**
 
-- **Services**: API, SQL Server, Redis, Service Bus emulator, Functions, DbMigrator, Seq
+- **Services**: API, SQL Server, Redis, Blob storage emulator, Service Bus emulator, Functions, DbMigrator, Seq
 - **Traces**: HTTP requests, database queries, Service Bus publishes, custom operations
 - **Metrics**: Request duration, error rates, throughput
 - **Logs**: Structured logging with correlation IDs
