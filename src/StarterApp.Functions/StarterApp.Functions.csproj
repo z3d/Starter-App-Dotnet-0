@@ -7,6 +7,7 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.ServiceBus" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\StarterApp.ServiceDefaults\StarterApp.ServiceDefaults.csproj" />

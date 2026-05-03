@@ -17,6 +17,13 @@ var db = sql.AddDatabase("database");
 var redis = builder.AddRedis("redis")
                    .WithLifetime(ContainerLifetime.Persistent);
 
+// Add Azure Blob Storage emulator for payload archive and audit artifacts
+var storage = builder.AddAzureStorage("storage");
+var payloadArchive = storage.AddBlobs("payloadarchive");
+
+storage.RunAsEmulator(emulator => emulator
+    .WithLifetime(ContainerLifetime.Persistent));
+
 // Add Azure Service Bus emulator for domain event messaging
 // Topology defined via fluent API so Aspire serializes correlation filters correctly
 var serviceBus = builder.AddAzureServiceBus("servicebus");
@@ -73,10 +80,12 @@ var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
 var api = builder.AddProject<Projects.StarterApp_Api>("api")
        .WithReference(db)
        .WithReference(redis)
+       .WithReference(payloadArchive)
        .WithReference(serviceBus)
        .WithEnvironment("SEQ_URL", seq.GetEndpoint("http"))
        .WaitFor(db)
        .WaitFor(redis)
+       .WaitFor(payloadArchive)
        .WaitFor(seq)
        .WaitFor(serviceBus)
        .WaitForCompletion(migrator);
@@ -84,7 +93,9 @@ var api = builder.AddProject<Projects.StarterApp_Api>("api")
 // Add Azure Functions project for Service Bus subscribers
 builder.AddProject<Projects.StarterApp_Functions>("functions")
        .WithReference(serviceBus)
-       .WaitFor(serviceBus);
+       .WithReference(payloadArchive)
+       .WaitFor(serviceBus)
+       .WaitFor(payloadArchive);
 
 // Dev Tunnel: expose the API to the internet for webhook/mobile testing
 // Enable with: dotnet run -- --devtunnel  OR  set ENABLE_DEV_TUNNEL=true
@@ -96,4 +107,3 @@ if (args.Contains("--devtunnel") || Environment.GetEnvironmentVariable("ENABLE_D
 
 // After adding all resources, run the app...
 builder.Build().Run();
-

@@ -1,5 +1,7 @@
 using Scalar.AspNetCore;
+using Serilog.Enrichers.Sensitive;
 using StarterApp.Api.Endpoints;
+using StarterApp.Api.Infrastructure.Payloads;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +16,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext()
+        .Enrich.WithSensitiveDataMasking(_ => { })
         .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
 
     var seqUrl = context.Configuration["SEQ_URL"] ?? context.Configuration["SeqUrl"];
@@ -38,6 +41,7 @@ builder.Services.AddApiCors(builder.Configuration, builder.Environment);
 builder.Services.AddApiRateLimiting();
 builder.Services.AddApiHealthChecks();
 builder.Services.AddServiceBusPublisher(builder.Configuration);
+builder.AddPayloadCapture();
 
 var app = builder.Build();
 
@@ -61,6 +65,7 @@ try
         app.UseHsts();
     }
 
+    app.UsePayloadCapture();
     app.UseExceptionHandling();
     app.UseSecurityHeaders();
     app.UseHttpsRedirection();

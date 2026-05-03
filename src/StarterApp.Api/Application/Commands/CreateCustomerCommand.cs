@@ -21,7 +21,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
     {
         Log.Information("Handling CreateCustomerCommand to return CustomerDto");
 
-        Log.Information("Creating customer {Name} with EF Core", command.Name);
+        Log.Information("Creating customer with EF Core");
 
         var email = Email.Create(command.Email);
         await EnsureEmailIsUniqueAsync(email.Value, cancellationToken);
@@ -35,7 +35,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         }
         catch (DbUpdateException ex) when (ex.IsUniqueConstraintViolation("IX_Customers_Email"))
         {
-            throw new InvalidOperationException($"A customer with email '{email.Value}' already exists", ex);
+            throw new InvalidOperationException("A customer with that email already exists", ex);
         }
 
         await _cacheInvalidator.InvalidateCustomerAsync(customer.Id, cancellationToken);
@@ -59,8 +59,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             .AnyAsync(customer => customer.Email.Value == email, cancellationToken);
 
         if (emailExists)
-            throw new InvalidOperationException($"A customer with email '{email}' already exists");
+            throw new InvalidOperationException("A customer with that email already exists");
     }
 }
-
 

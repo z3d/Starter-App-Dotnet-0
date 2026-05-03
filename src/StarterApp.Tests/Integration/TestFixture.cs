@@ -4,11 +4,14 @@ using DotNet.Testcontainers.Containers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Respawn;
 using Respawn.Graph;
 using StarterApp.Api.Infrastructure; // Added for IApiMarker access
+using StarterApp.ServiceDefaults.Payloads;
 using Testcontainers.MsSql;
 
 namespace StarterApp.Tests.Integration;
@@ -212,6 +215,7 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
 {
     private readonly TestDatabaseFixture _dbFixture;
     private readonly Serilog.ILogger _logger;
+    public InMemoryPayloadArchiveStore PayloadArchiveStore { get; } = new();
     public HttpClient Client { get; private set; } = null!;
 
     // Expose the connection string from the database fixture
@@ -242,7 +246,8 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
 
         builder.ConfigureTestServices(services =>
         {
-            // Any test-specific service overrides can go here
+            services.RemoveAll<IPayloadArchiveStore>();
+            services.AddSingleton<IPayloadArchiveStore>(PayloadArchiveStore);
         });
     }
     public async Task InitializeAsync()
@@ -295,6 +300,7 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
         try
         {
             await _dbFixture.ResetDatabaseAsync();
+            PayloadArchiveStore.Clear();
         }
         catch (Exception ex)
         {
@@ -311,5 +317,3 @@ public class IntegrationTestCollection : ICollectionFixture<ApiTestFixture>
     // This class has no code, and is never created. Its purpose is to be the place
     // to apply [CollectionDefinition] and all the ICollectionFixture<> interfaces.
 }
-
-

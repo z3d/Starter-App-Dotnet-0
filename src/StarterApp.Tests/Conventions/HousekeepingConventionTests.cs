@@ -66,6 +66,26 @@ public class HousekeepingConventionTests : ConventionTestBase
             "Production code comment hygiene violations:\n" + string.Join("\n", failures));
     }
 
+    [Fact]
+    public void ProductionLogs_MustNotWriteRawBodyPlaceholders()
+    {
+        var failures = new List<string>();
+
+        foreach (var file in EnumerateProductionSourceFiles())
+        {
+            var lineNumber = 0;
+            foreach (var line in File.ReadLines(file))
+            {
+                lineNumber++;
+                if (line.Contains("{Body}", StringComparison.Ordinal))
+                    failures.Add($"{FormatPath(file)}:{lineNumber} raw Body placeholders must not be written to logs; archive full payloads and log redacted payloads only.");
+            }
+        }
+
+        Assert.True(failures.Count == 0,
+            "Production logs must not write raw body placeholders:\n" + string.Join("\n", failures));
+    }
+
     private static IEnumerable<string> EnumerateProjectFiles()
     {
         var root = FindRepoRoot();

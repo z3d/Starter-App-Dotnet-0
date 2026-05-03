@@ -1,6 +1,7 @@
 using Azure.Messaging.ServiceBus;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
+using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Api.Infrastructure.Outbox;
 
@@ -8,17 +9,20 @@ public class OutboxProcessor : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ServiceBusSender _sender;
+    private readonly IPayloadCaptureSink _payloadCaptureSink;
     private readonly OutboxProcessorOptions _options;
     private readonly ILogger<OutboxProcessor> _logger;
 
     public OutboxProcessor(
         IServiceScopeFactory scopeFactory,
         ServiceBusSender sender,
+        IPayloadCaptureSink payloadCaptureSink,
         IOptions<OutboxProcessorOptions> options,
         ILogger<OutboxProcessor> logger)
     {
         _scopeFactory = scopeFactory;
         _sender = sender;
+        _payloadCaptureSink = payloadCaptureSink;
         _options = options.Value;
         _logger = logger;
     }
@@ -87,9 +91,27 @@ public class OutboxProcessor : BackgroundService
                     {
                         ContentType = "application/json",
                         MessageId = message.Id.ToString(),
+                        CorrelationId = message.CorrelationId,
                         Subject = message.Type
                     };
                     serviceBusMessage.ApplicationProperties["EventType"] = message.Type;
+                    serviceBusMessage.ApplicationProperties[CorrelationContext.ApplicationPropertyName] = message.CorrelationId;
+
+                    await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
+                    {
+                        CorrelationId = message.CorrelationId,
+                        Direction = "outbound",
+                        Channel = "servicebus",
+                        Operation = message.Type,
+                        ContentType = "application/json",
+                        Payload = message.Payload,
+                        Metadata = new Dictionary<string, string>
+                        {
+                            ["messageId"] = message.Id.ToString(),
+                            ["subject"] = message.Type,
+                            ["topic"] = _options.TopicName
+                        }
+                    }, cancellationToken);
 
                     await _sender.SendMessageAsync(serviceBusMessage, cancellationToken);
 

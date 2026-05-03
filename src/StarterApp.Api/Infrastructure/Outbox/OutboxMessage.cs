@@ -1,3 +1,4 @@
+using StarterApp.ServiceDefaults.Payloads;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -13,6 +14,7 @@ public class OutboxMessage
     public Guid Id { get; private set; }
     public DateTimeOffset OccurredOnUtc { get; private set; }
     public string Type { get; private set; } = string.Empty;
+    public string CorrelationId { get; private set; } = string.Empty;
     public string Payload { get; private set; } = string.Empty;
     public DateTimeOffset? ProcessedOnUtc { get; private set; }
     public int RetryCount { get; private set; }
@@ -47,6 +49,7 @@ public class OutboxMessage
             Id = Guid.NewGuid(),
             OccurredOnUtc = domainEvent.OccurredOnUtc,
             Type = domainEvent.EventType,
+            CorrelationId = CorrelationContext.GetOrCreate(),
             Payload = JsonSerializer.Serialize(domainEvent, domainEvent.GetType(), SerializerOptions)
         };
     }

@@ -1,11 +1,17 @@
+using Azure.Identity;
+using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using StarterApp.ServiceDefaults.Payloads;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -96,6 +102,35 @@ public static class Extensions
         return builder;
     }
 
+    public static IHostApplicationBuilder AddPayloadCapture(this IHostApplicationBuilder builder)
+    {
+        builder.Services.AddOptions<PayloadCaptureOptions>()
+            .Bind(builder.Configuration.GetSection("PayloadCapture"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        builder.Services.TryAddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<IPayloadRedactor, JsonPayloadRedactor>();
+        builder.Services.AddSingleton<IPayloadCaptureSink, PayloadCaptureSink>();
+        builder.Services.AddSingleton<IPayloadArchiveStore>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<PayloadCaptureOptions>>();
+            var connectionString = options.Value.ConnectionString
+                ?? builder.Configuration.GetConnectionString("payloadarchive")
+                ?? builder.Configuration.GetConnectionString("payloadstorage");
+
+            if (!string.IsNullOrWhiteSpace(connectionString))
+                return new AzureBlobPayloadArchiveStore(new BlobServiceClient(connectionString), options);
+
+            if (!string.IsNullOrWhiteSpace(options.Value.AccountUri))
+                return new AzureBlobPayloadArchiveStore(new BlobServiceClient(new Uri(options.Value.AccountUri), new DefaultAzureCredential()), options);
+
+            return new NullPayloadArchiveStore();
+        });
+
+        return builder;
+    }
+
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
         // Adding health checks endpoints to applications in non-development environments has security implications.
@@ -115,7 +150,6 @@ public static class Extensions
         return app;
     }
 }
-
 
 
 

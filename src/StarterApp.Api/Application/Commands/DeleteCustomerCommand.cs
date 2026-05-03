@@ -33,7 +33,7 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
         if (hasOrders)
         {
             Log.Warning("Customer {Id} cannot be deleted because they have existing orders", command.Id);
-            throw new InvalidOperationException($"Cannot delete customer '{customer.Name}' because they have existing orders");
+            throw new InvalidOperationException("Cannot delete customer because they have existing orders");
         }
 
         _dbContext.Customers.Remove(customer);
@@ -43,6 +43,5 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
         Log.Information("Deleted customer with ID: {CustomerId}", command.Id);
     }
 }
-
 
 

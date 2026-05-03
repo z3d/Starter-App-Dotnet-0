@@ -42,7 +42,7 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
         }
         catch (DbUpdateException ex) when (ex.IsUniqueConstraintViolation("IX_Customers_Email"))
         {
-            throw new InvalidOperationException($"A customer with email '{email.Value}' already exists", ex);
+            throw new InvalidOperationException("A customer with that email already exists", ex);
         }
 
         await _cacheInvalidator.InvalidateCustomerAsync(customer.Id, cancellationToken);
@@ -66,8 +66,7 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
             .AnyAsync(customer => customer.Id != customerId && customer.Email.Value == email, cancellationToken);
 
         if (emailExists)
-            throw new InvalidOperationException($"A customer with email '{email}' already exists");
+            throw new InvalidOperationException("A customer with that email already exists");
     }
 }
-
 

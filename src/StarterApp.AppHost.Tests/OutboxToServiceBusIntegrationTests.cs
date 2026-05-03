@@ -1,4 +1,6 @@
 using Aspire.Hosting.Testing;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Microsoft.Data.SqlClient;
 using System.Net;
 using System.Net.Http.Json;
@@ -174,6 +176,61 @@ public class OutboxToServiceBusIntegrationTests
         Assert.NotNull(processedOnUtc); // Proves the OutboxProcessor sent this specific event without a publish error
     }
 
+    [Fact]
+    public async Task CreateCustomer_ShouldArchivePayloadsToAspireBlobStorage()
+    {
+        // Arrange
+        var appHost = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.StarterApp_AppHost>();
+        await using var app = await appHost.BuildAsync();
+        await app.StartAsync();
+
+        var httpClient = app.CreateHttpClient("api");
+        await PollForHealthyAsync(httpClient, "/health/ready");
+
+        var correlationId = $"aspire-{Guid.NewGuid():N}";
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/customers")
+        {
+            Content = JsonContent.Create(new
+            {
+                Name = "Aspire Payload Customer",
+                Email = $"{correlationId}@test.com"
+            })
+        };
+        request.Headers.Add("X-Correlation-ID", correlationId);
+
+        // Act
+        var response = await httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        // Assert — AppHost must wire the Blob component so the API writes real archive/audit blobs.
+        var storageConnectionString = await app.GetConnectionStringAsync("payloadarchive");
+        Assert.NotNull(storageConnectionString);
+
+        var (archiveBlobName, archiveContent) = await PollForBlobContentAsync(
+            storageConnectionString,
+            "payload-observability",
+            "archive/",
+            correlationId,
+            maxAttempts: 30,
+            delayMs: 2000);
+
+        var (auditBlobName, auditContent) = await PollForBlobContentAsync(
+            storageConnectionString,
+            "payload-observability",
+            "audit/",
+            correlationId,
+            maxAttempts: 30,
+            delayMs: 2000);
+
+        Assert.EndsWith($"/{correlationId}.jsonl", archiveBlobName);
+        Assert.Contains($"{correlationId}@test.com", archiveContent);
+        Assert.Contains("\"direction\":\"inbound\"", archiveContent);
+        Assert.Contains("\"direction\":\"outbound\"", archiveContent);
+        Assert.EndsWith("/payload-audit.jsonl", auditBlobName);
+        Assert.Contains($"\"archiveBlobName\":\"{archiveBlobName}\"", auditContent);
+    }
+
     private static async Task<(bool Found, string? ProcessedOnUtc)> PollForOutboxMessageAsync(
         string connectionString,
         string expectedType,
@@ -207,6 +264,40 @@ public class OutboxToServiceBusIntegrationTests
         {
             return (false, null);
         }
+    }
+
+    private static async Task<(string BlobName, string Content)> PollForBlobContentAsync(
+        string storageConnectionString,
+        string containerName,
+        string prefix,
+        string expectedCorrelationId,
+        int maxAttempts,
+        int delayMs)
+    {
+        var containerClient = new BlobServiceClient(storageConnectionString).GetBlobContainerClient(containerName);
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                await foreach (var blob in containerClient.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, CancellationToken.None))
+                {
+                    var blobClient = containerClient.GetBlobClient(blob.Name);
+                    var content = await blobClient.DownloadContentAsync();
+                    var text = content.Value.Content.ToString();
+                    if (text.Contains(expectedCorrelationId, StringComparison.Ordinal))
+                        return (blob.Name, text);
+                }
+            }
+            catch (Exception) when (attempt < maxAttempts)
+            {
+                // Blob container or emulator may still be coming up.
+            }
+
+            await Task.Delay(delayMs);
+        }
+
+        throw new TimeoutException($"Blob prefix {prefix} did not contain correlation {expectedCorrelationId} after {maxAttempts} attempts.");
     }
 
     private static async Task<(bool Found, string? ProcessedOnUtc)> QueryOutboxForOrderAsync(

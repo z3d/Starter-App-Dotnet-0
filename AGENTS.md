@@ -44,6 +44,7 @@ Solution Root/
 This codebase is maintained by AI agents. Design decisions favour **mechanical rules over architectural taste**:
 - Convention tests enforce structural rules that agents follow perfectly — ambiguity is the real risk, not boilerplate
 - Every command and query must have a validator (enforced by convention test), even trivial ones — agents generate boilerplate cheaply, and skipping coverage creates judgment calls that cause drift
+- **Always assume concurrent sessions:** multiple AI agents or human sessions may be editing this codebase at the same time. Before changing files, check the working tree, treat unfamiliar edits as someone else's work, keep changes scoped, and never revert or overwrite changes you did not make unless explicitly instructed.
 - **Example:** The validator coverage rule was a deliberate trade-off. For human-maintained code, requiring a validator for `DeleteProductCommand` (just `Id > 0`) would be busywork. For agent-maintained code, the mechanical rule eliminates the question "does this command need a validator?" and the convention test catches missing validators on every build.
 
 ### Validator–Domain Guard Sync Rule
@@ -82,6 +83,15 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - Command handlers invalidate specific entity keys via `ICacheInvalidator` after `SaveChangesAsync`
 - Only by-id queries are cached — list/collection queries are NOT cached because `IDistributedCache` has no pattern-based deletion, and stale list pages after writes are user-visible bugs. If list caching is needed later, use a versioned namespace approach.
 - Convention tests enforce: non-empty cache keys, positive durations, deterministic identity keys, by-id-only caching, and invalidator injection for non-create mutations on cacheable entities
+
+**Payload Archive / PII Audit**
+- Every inbound and outbound payload is captured through the shared payload capture service: HTTP request/response bodies, outbound Service Bus domain-event messages, and inbound Service Bus Function messages
+- Aspire-owned infrastructure such as Blob storage must be wired in `AppHost` and covered by AppHost tests whenever production code depends on it
+- Archive blobs are correlation-bound JSONL streams under `archive/{yyyy-MM-dd}/{HH}/{mm}/{correlationId}.jsonl`; all operations for the same correlation id in that minute append to the same archive file
+- Audit blobs are time-window JSONL streams under `audit/{yyyy-MM-dd}/{HH}/{mm}/payload-audit.jsonl`; each audit row includes timestamp, correlation id, operation metadata, archive blob name, payload hash, and the full payload
+- Blob archive/audit are full-fidelity support artifacts and may contain PII. Logs must remain redacted: use the shared JSON payload redactor plus `Serilog.Enrichers.Sensitive`; never log raw `{Body}` values directly. Payload capture logs must include both archive and audit blob file names so support agents can jump from logs to artifacts.
+- `X-Correlation-ID` is accepted on HTTP requests, echoed in HTTP responses, persisted on outbox rows, and propagated to Service Bus `CorrelationId` and application properties
+- `PayloadArchiveCleanupFunction` is timer-triggered and deletes archive/audit blobs older than `PayloadCapture:RetentionDays` by parsing the date/hour/minute path
 
 **Authentication**
 - This API assumes it runs behind an API gateway that handles auth — do not add authentication middleware to the API itself

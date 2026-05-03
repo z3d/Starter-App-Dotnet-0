@@ -123,6 +123,13 @@ Endpoints are organized with OpenAPI tags for better Scalar API reference docume
 - **Applied**: Can be applied to any endpoint or endpoint group
 - **Output**: Structured logs with timing information
 
+### Payload Capture Middleware
+- **Purpose**: Archives inbound and outbound payloads for support investigation while keeping operational logs redacted
+- **Correlation**: Accepts and echoes `X-Correlation-ID`; generated IDs are also propagated through outbox and Service Bus messages
+- **Archive Layout**: `archive/{yyyy-MM-dd}/{HH}/{mm}/{correlationId}.jsonl`
+- **Audit Layout**: `audit/{yyyy-MM-dd}/{HH}/{mm}/payload-audit.jsonl`
+- **Retention**: `PayloadArchiveCleanupFunction` deletes archive and audit blobs older than `PayloadCapture:RetentionDays`
+
 ### Usage Example
 ```csharp
 customers.MapPost("/", CreateCustomer)

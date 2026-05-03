@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using StarterApp.Api.Data;
 using StarterApp.Api.Infrastructure.Outbox;
+using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Tests.Infrastructure.Outbox;
 
@@ -88,6 +89,42 @@ public class OutboxProcessorTests
         Assert.Equal("test.event.v1", capturedMessage.ApplicationProperties["EventType"]);
         Assert.Equal("test.event.v1", capturedMessage.Subject);
         Assert.Equal("application/json", capturedMessage.ContentType);
+    }
+
+    [Fact]
+    public async Task ProcessBatch_ShouldPropagateCorrelationAndCaptureOutboundPayload()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            using var correlationScope = CorrelationContext.Push("support-case-123");
+            setupContext.OutboxMessages.Add(CreateTestMessage(payload: "{\"Email\":\"customer@example.com\",\"Total\":42}"));
+            await setupContext.SaveChangesAsync();
+        }
+
+        ServiceBusMessage? capturedMessage = null;
+        var senderMock = new Mock<ServiceBusSender>();
+        senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .Callback<ServiceBusMessage, CancellationToken>((msg, _) => capturedMessage = msg)
+            .Returns(Task.CompletedTask);
+
+        var payloadStore = new InMemoryPayloadArchiveStore();
+        var processor = CreateProcessor(dbName, senderMock.Object, payloadStore: payloadStore);
+
+        // Act
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await RunSingleBatchAsync(processor, cts.Token);
+
+        // Assert
+        Assert.NotNull(capturedMessage);
+        Assert.Equal("support-case-123", capturedMessage.CorrelationId);
+        Assert.Equal("support-case-123", capturedMessage.ApplicationProperties[CorrelationContext.ApplicationPropertyName]);
+
+        var archiveEntry = payloadStore.Lines.Single(pair => pair.Key.StartsWith("archive/", StringComparison.Ordinal));
+        Assert.EndsWith("/support-case-123.jsonl", archiveEntry.Key);
+        Assert.Contains("\"channel\":\"servicebus\"", archiveEntry.Value.Single());
+        Assert.Contains("customer@example.com", archiveEntry.Value.Single());
     }
 
     [Fact]
@@ -310,7 +347,12 @@ public class OutboxProcessorTests
         senderMock.Verify(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    private static OutboxProcessor CreateProcessor(string databaseName, ServiceBusSender sender, int batchSize = 20, int maxRetries = 3)
+    private static OutboxProcessor CreateProcessor(
+        string databaseName,
+        ServiceBusSender sender,
+        int batchSize = 20,
+        int maxRetries = 3,
+        InMemoryPayloadArchiveStore? payloadStore = null)
     {
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddScoped(_ => CreateDbContext(databaseName));
@@ -327,8 +369,16 @@ public class OutboxProcessorTests
         return new OutboxProcessor(
             serviceProvider.GetRequiredService<IServiceScopeFactory>(),
             sender,
+            CreatePayloadCaptureSink(payloadStore ?? new InMemoryPayloadArchiveStore()),
             options,
             new LoggerFactory().CreateLogger<OutboxProcessor>());
+    }
+
+    private static PayloadCaptureSink CreatePayloadCaptureSink(InMemoryPayloadArchiveStore payloadStore)
+    {
+        var options = Options.Create(new PayloadCaptureOptions());
+        var logger = new LoggerFactory().CreateLogger<PayloadCaptureSink>();
+        return new PayloadCaptureSink(payloadStore, new JsonPayloadRedactor(options), TimeProvider.System, options, logger);
     }
 
     private static async Task RunSingleBatchAsync(OutboxProcessor processor, CancellationToken cancellationToken)

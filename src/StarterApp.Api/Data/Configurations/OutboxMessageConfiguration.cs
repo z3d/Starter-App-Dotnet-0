@@ -14,6 +14,10 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
             .HasMaxLength(200)
             .IsRequired();
 
+        builder.Property(message => message.CorrelationId)
+            .HasMaxLength(128)
+            .IsRequired();
+
         builder.Property(message => message.Payload)
             .IsRequired();
 
