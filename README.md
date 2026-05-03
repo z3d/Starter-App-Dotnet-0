@@ -40,7 +40,7 @@ docker-compose up --build
    - Domain-driven design with value objects
    - CQRS pattern with mediator
    - Entity Framework Core for commands, Dapper for queries
-   - Distributed caching with Redis (mediator pipeline behavior)
+   - Distributed caching with Redis for by-id queries (mediator pipeline behavior)
 
 2. **Database Management**
    - SQL Server with Entity Framework Core
@@ -157,7 +157,8 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 - **Clean Architecture**: Separation of concerns with Domain, Application, and Infrastructure layers
 - **Modern .NET Patterns**: Uses C# 13/.NET 10 features like collection expressions, guard clauses, and using declarations
 - **Health Checks**: Built-in health monitoring for all services
-- **Distributed Caching**: Redis-backed query caching via mediator pipeline behavior with automatic cache invalidation on writes
+- **Distributed Caching**: Redis-backed by-id query caching via mediator pipeline behavior; list queries are intentionally not cached because `IDistributedCache` cannot invalidate by pattern
+- **Cache Safety Conventions**: Convention tests enforce non-empty deterministic cache keys, by-id-only caching, and invalidator injection for non-create mutations on cacheable entities
 - **Outbox Pattern**: Domain events are captured durably and published to Azure Service Bus via BackgroundService
 - **Azure Functions**: Service Bus subscribers for email notifications and inventory reservation
 - **Observability**: Distributed tracing, metrics, and structured logging
@@ -166,13 +167,13 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 - **Container Orchestration**: Both Docker Compose and .NET Aspire support
 - **Comprehensive Testing**: Unit, convention, integration, property-based (FsCheck), and Aspire end-to-end tests
 
-## � Documentation
+## Documentation
 
 - **[API Endpoints](docs/API-ENDPOINTS.md)**: Complete documentation of all Minimal API endpoints with examples and usage patterns
 - **[Architectural Guide](CLAUDE.md)**: Comprehensive guide to the Clean Architecture implementation, patterns, and conventions
 - **[Setup Guides](docs/)**: Step-by-step guides for development environment setup and deployment
 
-## �📖 Learning Resources
+## Learning Resources
 
 This project serves as a practical example for learning:
 - Modern .NET development practices
