@@ -9,6 +9,6 @@ public sealed class NullPayloadArchiveStore : IPayloadArchiveStore
 
     public Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
     {
-        return Task.FromResult(new PayloadArchiveDeleteResult(0, 0));
+        return Task.FromResult(new PayloadArchiveDeleteResult(0, 0, 0));
     }
 }

@@ -11,4 +11,5 @@ public sealed class PayloadCaptureRequest
     public string Payload { get; init; } = string.Empty;
     public int? StatusCode { get; init; }
     public Dictionary<string, string> Metadata { get; init; } = [];
+    public List<PayloadEntityReference> EntityReferences { get; init; } = [];
 }

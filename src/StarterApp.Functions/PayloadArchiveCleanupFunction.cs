@@ -31,10 +31,11 @@ public sealed class PayloadArchiveCleanupFunction
         var result = await _payloadArchiveStore.DeleteOlderThanAsync(cutoffUtc, cancellationToken);
 
         _logger.LogInformation(
-            "Payload archive cleanup completed. CutoffUtc: {CutoffUtc}, ArchiveDeleted: {ArchiveDeleted}, AuditDeleted: {AuditDeleted}, TotalDeleted: {TotalDeleted}",
+            "Payload archive cleanup completed. CutoffUtc: {CutoffUtc}, ArchiveDeleted: {ArchiveDeleted}, AuditDeleted: {AuditDeleted}, EntityIndexDeleted: {EntityIndexDeleted}, TotalDeleted: {TotalDeleted}",
             cutoffUtc,
             result.ArchiveDeleted,
             result.AuditDeleted,
+            result.EntityIndexDeleted,
             result.TotalDeleted);
     }
 }

@@ -39,6 +39,8 @@ public class PayloadCaptureIntegrationTests : IAsyncLifetime
         var response = await _fixture.Client.SendAsync(request);
 
         response.EnsureSuccessStatusCode();
+        var customer = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var customerId = customer.GetProperty("id").GetInt32();
         Assert.Equal(correlationId, response.Headers.GetValues("X-Correlation-ID").Single());
 
         var archiveEntry = _fixture.PayloadArchiveStore.Lines.Single(pair =>
@@ -47,12 +49,18 @@ public class PayloadCaptureIntegrationTests : IAsyncLifetime
         var auditEntry = _fixture.PayloadArchiveStore.Lines.Single(pair =>
             pair.Key.StartsWith("audit/", StringComparison.Ordinal) &&
             pair.Key.EndsWith("/payload-audit.jsonl", StringComparison.Ordinal));
+        var entityIndexEntry = _fixture.PayloadArchiveStore.Lines.Single(pair =>
+            pair.Key.StartsWith($"entity-index/customer/{customerId}/", StringComparison.Ordinal) &&
+            pair.Key.EndsWith($"/{correlationId}.jsonl", StringComparison.Ordinal));
 
         Assert.Equal(2, archiveEntry.Value.Count);
         Assert.Equal(2, auditEntry.Value.Count);
+        Assert.Single(entityIndexEntry.Value);
         Assert.Contains($"{correlationId}@example.com", archiveEntry.Value[0]);
         Assert.Contains("\"direction\":\"inbound\"", archiveEntry.Value[0]);
         Assert.Contains("\"direction\":\"outbound\"", archiveEntry.Value[1]);
+        Assert.Contains($"\"archiveBlobName\":\"{archiveEntry.Key}\"", entityIndexEntry.Value.Single());
+        Assert.DoesNotContain($"{correlationId}@example.com", entityIndexEntry.Value.Single());
 
         using var auditJson = JsonDocument.Parse(auditEntry.Value[0]);
         Assert.Equal(correlationId, auditJson.RootElement.GetProperty("correlationId").GetString());
@@ -60,5 +68,6 @@ public class PayloadCaptureIntegrationTests : IAsyncLifetime
 
         _output.WriteLine($"Archive blob: {archiveEntry.Key}");
         _output.WriteLine($"Audit blob: {auditEntry.Key}");
+        _output.WriteLine($"Entity index blob: {entityIndexEntry.Key}");
     }
 }

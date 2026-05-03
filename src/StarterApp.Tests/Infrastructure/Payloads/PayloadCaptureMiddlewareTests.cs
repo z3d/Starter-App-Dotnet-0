@@ -32,11 +32,14 @@ public class PayloadCaptureMiddlewareTests
 
         var archiveEntry = store.Lines.Single(pair => pair.Key == "archive/2026-05-03/04/07/case-456.jsonl");
         var auditEntry = store.Lines.Single(pair => pair.Key == "audit/2026-05-03/04/07/payload-audit.jsonl");
+        var entityIndexEntry = store.Lines.Single(pair => pair.Key == "entity-index/customer/42/2026-05-03/04/07/case-456.jsonl");
 
         Assert.Equal(2, archiveEntry.Value.Count);
         Assert.Equal(2, auditEntry.Value.Count);
         Assert.Contains("ada@example.com", archiveEntry.Value[0]);
         Assert.Contains("response@example.com", archiveEntry.Value[1]);
+        Assert.Contains("\"archiveBlobName\":\"archive/2026-05-03/04/07/case-456.jsonl\"", entityIndexEntry.Value.Single());
+        Assert.DoesNotContain("response@example.com", entityIndexEntry.Value.Single());
         Assert.Equal("case-456", context.Response.Headers[CorrelationContext.HeaderName]);
     }
 }

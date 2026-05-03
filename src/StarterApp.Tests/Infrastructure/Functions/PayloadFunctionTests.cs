@@ -26,8 +26,11 @@ public class PayloadFunctionTests
         await function.RunAsync(message, CancellationToken.None);
 
         var archiveEntry = store.Lines.Single(pair => pair.Key == "archive/2026-05-03/04/07/case-789.jsonl");
+        var entityIndexEntry = store.Lines.Single(pair => pair.Key == "entity-index/order/abc/2026-05-03/04/07/case-789.jsonl");
         Assert.Contains("\"channel\":\"servicebus\"", archiveEntry.Value.Single());
         Assert.Contains("ada@example.com", archiveEntry.Value.Single());
+        Assert.Contains("\"archiveBlobName\":\"archive/2026-05-03/04/07/case-789.jsonl\"", entityIndexEntry.Value.Single());
+        Assert.DoesNotContain("ada@example.com", entityIndexEntry.Value.Single());
     }
 
     [Fact]
@@ -36,6 +39,7 @@ public class PayloadFunctionTests
         var store = new InMemoryPayloadArchiveStore();
         await store.AppendLineAsync("archive/2026-05-01/00/00/case-old.jsonl", "{}", CancellationToken.None);
         await store.AppendLineAsync("audit/2026-05-01/00/00/payload-audit.jsonl", "{}", CancellationToken.None);
+        await store.AppendLineAsync("entity-index/customer/42/2026-05-01/00/00/case-old.jsonl", "{}", CancellationToken.None);
         await store.AppendLineAsync("archive/2026-05-09/00/00/case-new.jsonl", "{}", CancellationToken.None);
 
         var options = Options.Create(new PayloadCaptureOptions { RetentionDays = 7 });
@@ -49,6 +53,7 @@ public class PayloadFunctionTests
 
         Assert.DoesNotContain("archive/2026-05-01/00/00/case-old.jsonl", store.Lines.Keys);
         Assert.DoesNotContain("audit/2026-05-01/00/00/payload-audit.jsonl", store.Lines.Keys);
+        Assert.DoesNotContain("entity-index/customer/42/2026-05-01/00/00/case-old.jsonl", store.Lines.Keys);
         Assert.Contains("archive/2026-05-09/00/00/case-new.jsonl", store.Lines.Keys);
     }
 }

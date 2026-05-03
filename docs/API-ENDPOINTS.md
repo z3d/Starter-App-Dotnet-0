@@ -128,7 +128,8 @@ Endpoints are organized with OpenAPI tags for better Scalar API reference docume
 - **Correlation**: Accepts and echoes `X-Correlation-ID`; generated IDs are also propagated through outbox and Service Bus messages
 - **Archive Layout**: `archive/{yyyy-MM-dd}/{HH}/{mm}/{correlationId}.jsonl`
 - **Audit Layout**: `audit/{yyyy-MM-dd}/{HH}/{mm}/payload-audit.jsonl`
-- **Retention**: `PayloadArchiveCleanupFunction` deletes archive and audit blobs older than `PayloadCapture:RetentionDays`
+- **Entity Index Layout**: `entity-index/{entityType}/{entityId}/{yyyy-MM-dd}/{HH}/{mm}/{correlationId}.jsonl` pointer rows for support lookups without duplicating full payloads
+- **Retention**: `PayloadArchiveCleanupFunction` deletes archive, audit, and entity-index blobs older than `PayloadCapture:RetentionDays`
 
 ### Usage Example
 ```csharp

@@ -46,6 +46,7 @@ public sealed class InMemoryPayloadArchiveStore : IPayloadArchiveStore
         {
             var archiveDeleted = 0;
             var auditDeleted = 0;
+            var entityIndexDeleted = 0;
 
             foreach (var blobName in _lines.Keys.ToList())
             {
@@ -57,9 +58,11 @@ public sealed class InMemoryPayloadArchiveStore : IPayloadArchiveStore
                     archiveDeleted++;
                 else if (blobName.StartsWith("audit/", StringComparison.Ordinal))
                     auditDeleted++;
+                else if (blobName.StartsWith("entity-index/", StringComparison.Ordinal))
+                    entityIndexDeleted++;
             }
 
-            return Task.FromResult(new PayloadArchiveDeleteResult(archiveDeleted, auditDeleted));
+            return Task.FromResult(new PayloadArchiveDeleteResult(archiveDeleted, auditDeleted, entityIndexDeleted));
         }
     }
 }

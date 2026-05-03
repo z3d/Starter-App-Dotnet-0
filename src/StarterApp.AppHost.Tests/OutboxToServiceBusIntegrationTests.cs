@@ -202,8 +202,10 @@ public class OutboxToServiceBusIntegrationTests
         // Act
         var response = await httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
+        var customer = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
+        var customerId = customer.GetProperty("id").GetInt32();
 
-        // Assert — AppHost must wire the Blob component so the API writes real archive/audit blobs.
+        // Assert — AppHost must wire the Blob component so the API writes real archive/audit/entity-index blobs.
         var storageConnectionString = await app.GetConnectionStringAsync("payloadarchive");
         Assert.NotNull(storageConnectionString);
 
@@ -223,12 +225,23 @@ public class OutboxToServiceBusIntegrationTests
             maxAttempts: 30,
             delayMs: 2000);
 
+        var (entityIndexBlobName, entityIndexContent) = await PollForBlobContentAsync(
+            storageConnectionString,
+            "payload-observability",
+            $"entity-index/customer/{customerId}/",
+            correlationId,
+            maxAttempts: 30,
+            delayMs: 2000);
+
         Assert.EndsWith($"/{correlationId}.jsonl", archiveBlobName);
         Assert.Contains($"{correlationId}@test.com", archiveContent);
         Assert.Contains("\"direction\":\"inbound\"", archiveContent);
         Assert.Contains("\"direction\":\"outbound\"", archiveContent);
         Assert.EndsWith("/payload-audit.jsonl", auditBlobName);
         Assert.Contains($"\"archiveBlobName\":\"{archiveBlobName}\"", auditContent);
+        Assert.EndsWith($"/{correlationId}.jsonl", entityIndexBlobName);
+        Assert.Contains($"\"archiveBlobName\":\"{archiveBlobName}\"", entityIndexContent);
+        Assert.DoesNotContain($"{correlationId}@test.com", entityIndexContent);
     }
 
     private static async Task<(bool Found, string? ProcessedOnUtc)> PollForOutboxMessageAsync(

@@ -18,6 +18,9 @@ public class PayloadCaptureOptions
     [Required, MinLength(1)]
     public string AuditPrefix { get; set; } = "audit";
 
+    [Required, MinLength(1)]
+    public string EntityIndexPrefix { get; set; } = "entity-index";
+
     [Range(1, 3650)]
     public int RetentionDays { get; set; } = 30;
 

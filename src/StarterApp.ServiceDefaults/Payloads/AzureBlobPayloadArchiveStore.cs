@@ -35,7 +35,8 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
 
         var archiveDeleted = await DeletePrefixOlderThanAsync(_options.ArchivePrefix, cutoffUtc, cancellationToken);
         var auditDeleted = await DeletePrefixOlderThanAsync(_options.AuditPrefix, cutoffUtc, cancellationToken);
-        return new PayloadArchiveDeleteResult(archiveDeleted, auditDeleted);
+        var entityIndexDeleted = await DeletePrefixOlderThanAsync(_options.EntityIndexPrefix, cutoffUtc, cancellationToken);
+        return new PayloadArchiveDeleteResult(archiveDeleted, auditDeleted, entityIndexDeleted);
     }
 
     private async Task<int> DeletePrefixOlderThanAsync(string prefix, DateTimeOffset cutoffUtc, CancellationToken cancellationToken)

@@ -6,6 +6,7 @@
     "servicebus": "Endpoint=sb://localhost;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;",
     "ConnectionStrings:payloadarchive": "UseDevelopmentStorage=true",
     "PayloadCapture:ContainerName": "payload-observability",
+    "PayloadCapture:EntityIndexPrefix": "entity-index",
     "PayloadCapture:RetentionDays": "30"
   }
 }
