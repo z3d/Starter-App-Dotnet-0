@@ -7,7 +7,7 @@ Architectural convention tests using [Best.Conventional](https://github.com/andr
 | File | Purpose |
 |------|---------|
 | `ApiConventionTests.cs` | Endpoint/validator/handler dependency boundaries; DTO/read-model/response serializability; materialized response collections |
-| `CachingConventionTests.cs` | `ICacheable` key/duration rules, deterministic same-id keys, and different-id collision prevention |
+| `CachingConventionTests.cs` | `ICacheable` key/duration rules, deterministic same-id keys, different-id collision prevention, by-id-only caching, and mutation invalidation coverage |
 | `ConventionTestBase.cs` | Shared production assembly refs and compiler-generated type filtering |
 | `CqrsConventionTests.cs` | CQRS data-access separation, command/query handler wiring, validator coverage, marker/request interface pairing |
 | `DapperConventionTests.cs` | SQL literal inspection for `SELECT *` prevention and Dapper retry-policy usage |
@@ -37,6 +37,11 @@ AppHost-specific conventions live in `src/StarterApp.AppHost.Tests`:
 - Query handlers use Dapper/`IDbConnection`, not `ApplicationDbContext`
 - Every command/query has a handler and validator
 - Commands and queries implement both mediator request interfaces and local marker interfaces
+
+**Caching**
+- Only by-id queries implement `ICacheable`; list and paged queries are not cached
+- Non-create command handlers for cacheable entities inject `ICacheInvalidator`
+- Cache keys are non-empty, deterministic for the same identity, and vary by identity
 
 **API contracts**
 - DTOs, read models, and response envelopes have public parameterless constructors
