@@ -58,7 +58,7 @@ public class ProblemDetailsTests : IAsyncLifetime
         Assert.Equal(400, problemDetails.Status);
         Assert.Equal("Bad Request", problemDetails.Title);
         Assert.NotNull(problemDetails.Type);
-        // Note: Detail may be null for security reasons in the default implementation
+        AssertValidationError(problemDetails, nameof(CreateCustomerCommand.Email), "Email must be a valid email address");
 
         _output.WriteLine($"Problem Details response: {JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { WriteIndented = true })}");
     }
@@ -303,6 +303,17 @@ public class ProblemDetailsTests : IAsyncLifetime
 
         _output.WriteLine($"Problem Details response: {JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { WriteIndented = true })}");
     }
-}
 
+    private static void AssertValidationError(ProblemDetails problemDetails, string propertyName, string errorMessage)
+    {
+        Assert.True(problemDetails.Extensions.TryGetValue("errors", out var errorsValue),
+            "ProblemDetails should include validation errors.");
+
+        var errors = Assert.IsType<JsonElement>(errorsValue);
+        Assert.True(errors.TryGetProperty(propertyName, out var propertyErrors),
+            $"ProblemDetails validation errors should include '{propertyName}'.");
+
+        Assert.Contains(propertyErrors.EnumerateArray(), error => error.GetString() == errorMessage);
+    }
+}
 

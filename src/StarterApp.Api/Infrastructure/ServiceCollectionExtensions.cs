@@ -7,6 +7,31 @@ namespace StarterApp.Api.Infrastructure;
 
 public static class ServiceCollectionExtensions
 {
+    public static IServiceCollection AddApiProblemDetails(this IServiceCollection services)
+    {
+        services.AddProblemDetails(options =>
+        {
+            options.CustomizeProblemDetails = context =>
+            {
+                var exception = context.HttpContext.Features
+                    .Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()
+                    ?.Error;
+
+                if (exception is not ValidationException validationException)
+                    return;
+
+                context.ProblemDetails.Extensions["errors"] = validationException.Errors
+                    .GroupBy(error => error.PropertyName)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => group.Select(error => error.ErrorMessage).ToArray(),
+                        StringComparer.Ordinal);
+            };
+        });
+
+        return services;
+    }
+
     public static IServiceCollection AddApiOpenApi(this IServiceCollection services)
     {
         services.AddOpenApi(options =>

@@ -29,7 +29,11 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
             throw new KeyNotFoundException($"Order with ID {command.OrderId} was not found");
         }
 
-        order.UpdateStatus(status);
+        if (status == OrderStatus.Cancelled)
+            await OrderCancellationService.CancelAndRestoreStockAsync(_dbContext, order, cancellationToken);
+        else
+            order.UpdateStatus(status);
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return OrderMapper.ToDto(order);

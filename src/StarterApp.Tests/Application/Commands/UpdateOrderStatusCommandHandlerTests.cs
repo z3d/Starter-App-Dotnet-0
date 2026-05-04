@@ -137,4 +137,41 @@ public class UpdateOrderStatusCommandHandlerTests
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             handler.HandleAsync(command, CancellationToken.None));
     }
+
+    [Fact]
+    public async Task Handle_WhenCancelling_ShouldRestoreProductStock()
+    {
+        // Arrange
+        var options = CreateInMemoryOptions();
+        await using var context = new ApplicationDbContext(options);
+
+        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);
+        context.Customers.Add(customer);
+        context.Products.Add(product);
+        await context.SaveChangesAsync();
+
+        var createHandler = new CreateOrderCommandHandler(context);
+        var orderDto = await createHandler.HandleAsync(new CreateOrderCommand
+        {
+            CustomerId = customer.Id,
+            Items = [new() { ProductId = product.Id, Quantity = 15 }]
+        }, CancellationToken.None);
+
+        var decrementedProduct = await context.Products.FindAsync(product.Id);
+        Assert.Equal(85, decrementedProduct!.Stock);
+
+        var handler = new UpdateOrderStatusCommandHandler(context);
+
+        // Act
+        var result = await handler.HandleAsync(
+            new UpdateOrderStatusCommand { OrderId = orderDto.Id, Status = "Cancelled" },
+            CancellationToken.None);
+
+        // Assert
+        Assert.Equal("Cancelled", result.Status);
+
+        var updatedProduct = await context.Products.FindAsync(product.Id);
+        Assert.Equal(100, updatedProduct!.Stock);
+    }
 }

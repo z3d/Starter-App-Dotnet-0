@@ -181,6 +181,28 @@ public class ApiConventionTests : ConventionTestBase
             .WithFailureAssertion(Assert.Fail);
     }
 
+    [Fact]
+    public void DomainAssembly_MustNotReferenceThirdPartyAssemblies()
+    {
+        var allowedNames = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "System",
+            "netstandard"
+        };
+
+        var failures = DomainAssembly.GetReferencedAssemblies()
+            .Select(assemblyName => assemblyName.Name ?? string.Empty)
+            .Where(name => !allowedNames.Contains(name))
+            .Where(name => !name.StartsWith("System.", StringComparison.Ordinal))
+            .Where(name => !name.StartsWith("Microsoft.", StringComparison.Ordinal))
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(failures.Count == 0,
+            "Domain assembly must stay free of third-party and application-layer dependencies:\n" +
+            string.Join("\n", failures));
+    }
+
     // === Custom Convention Specifications ===
 
     private static IEnumerable<Type> GetApiContractTypes()

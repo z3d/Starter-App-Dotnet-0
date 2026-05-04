@@ -31,7 +31,7 @@ if (!string.IsNullOrEmpty(builder.Configuration.GetConnectionString("redis")))
 else
     builder.Services.AddDistributedMemoryCache();
 
-builder.Services.AddProblemDetails();
+builder.Services.AddApiProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddApiOpenApi();
 builder.Services.AddPersistence(connectionString);

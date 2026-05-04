@@ -26,21 +26,7 @@ public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, Ord
             throw new KeyNotFoundException($"Order with ID {command.OrderId} was not found");
         }
 
-        order.Cancel();
-
-        // Restore stock for each item in the cancelled order
-        foreach (var item in order.Items)
-        {
-            var product = await _dbContext.Products.FindAsync([item.ProductId], cancellationToken);
-            if (product == null)
-            {
-                Log.Warning("Product {ProductId} no longer exists; cannot restore {Quantity} units of stock for order {OrderId}",
-                    item.ProductId, item.Quantity, order.Id);
-                continue;
-            }
-
-            product.UpdateStock(item.Quantity);
-        }
+        await OrderCancellationService.CancelAndRestoreStockAsync(_dbContext, order, cancellationToken);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
