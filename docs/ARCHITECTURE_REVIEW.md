@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9.5/10** (48 findings resolved, 3 open)
+**Score: 9.6/10** (52 findings resolved, 3 open)
 
 ---
 
@@ -19,7 +19,7 @@ The project enforces architectural rules through convention tests in the main an
 | `NamingConventionTests` | Endpoints, DTOs, commands, queries, handlers, validators, services, and test classes follow naming conventions; application contracts and handlers live in mechanically discoverable namespaces |
 | `CqrsConventionTests` | Command handlers don't touch `IDbConnection`; query handlers don't touch `DbContext`; every command/query has a handler; dual interface enforcement (`ICommand` + `IRequest<T>`) |
 | `DomainConventionTests` | Private property setters on entities; immutable value objects; public getters on DTOs; non-public default constructors; `Equals`/`GetHashCode` overrides; async suffix; no async void; no `DateTime.Now`; aggregate creation-event safety |
-| `ApiConventionTests` | Endpoints don't access DB directly; validators are pure; DTOs have no instance methods; API contract shapes are serializer-friendly; collection properties are materialized; mappers are static; handlers don't dispatch to other handlers; domain doesn't reference API |
+| `ApiConventionTests` | Endpoints don't access DB directly; validators are pure; DTOs have no instance methods; API contract shapes are serializer-friendly; collection properties are materialized; mappers are static; handlers don't dispatch to other handlers; domain doesn't reference API or third-party packages |
 | `PersistenceConventionTests` | Every entity has a `DbSet`; value objects use `OwnsOne` not `DbSet`; enum properties configured; no static mutable state on `DbContext`; collection properties have private setters; migration scripts follow numbered prefix, are embedded resources, and name constraints explicitly |
 | `DapperConventionTests` | Query handlers must not use `SELECT *` in SQL (IL inspection of compiled string literals) |
 | `CachingConventionTests` | ICacheable queries must have non-empty cache keys, positive durations, and deterministic keys |
@@ -65,12 +65,12 @@ All command handlers follow correct patterns:
 - **Single `SaveChangesAsync`** per handler — atomicity guaranteed
 - **Tracked entities** loaded via `FindAsync` / `Include().FirstOrDefaultAsync` — EF Core detects only changed properties
 - **Domain methods invoked** for all mutations (`Order.Cancel()`, `Product.UpdateStock()`, `Customer.UpdateDetails()`) — no direct property assignment
-- **Stock lifecycle** managed correctly: `CreateOrderCommandHandler` validates availability and decrements atomically; `CancelOrderCommandHandler` restores stock on cancellation
+- **Stock lifecycle** managed correctly: `CreateOrderCommandHandler` validates availability and decrements atomically; both cancellation endpoints share one stock-restoration workflow
 - **Consistent error handling**: `KeyNotFoundException` for missing entities, `InvalidOperationException` for domain violations
 
 ### Validator Coverage
 
-Every command and query has an `IValidator<T>` implementation (16 total). Convention tests enforce this — adding a new command or query without a validator fails the build. Validators provide structured multi-error `ValidationError` responses at the API boundary; domain guards are the safety net (defense-in-depth).
+Every command and query has an `IValidator<T>` implementation (16 total). Convention tests enforce this — adding a new command or query without a validator fails the build. Validators provide structured multi-error `ValidationError` responses at the API boundary via the ProblemDetails `errors` extension; domain guards are the safety net (defense-in-depth).
 
 ### Property-Based Testing
 
@@ -133,11 +133,22 @@ Good adoption of modern .NET:
 
 These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
 
+Fresh review reconciliation: finding #43 matched the latest fresh-eyes review and remains open because the gateway forwarded-header fix was intentionally deferred. Findings #44 and #45 remain open from earlier review sessions. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
+
 | # | Finding | Impact | Suggested Fix |
 |---|---------|--------|---------------|
 | 43 | Rate limiting partitions by `RemoteIpAddress` without trusted forwarded-header handling | Behind an API gateway or reverse proxy, all clients can share one limiter bucket, so one noisy client can throttle everyone | Configure `ForwardedHeadersOptions` with known proxies/networks before `UseRateLimiter`, or partition by a trusted gateway-provided client identity |
 | 44 | `OutboxProcessor` holds SQL update locks while sending to Service Bus | Slow or throttled broker calls make the database transaction span network I/O and can create lock pressure under load | Claim rows in a short transaction with `ProcessingId`/`LockedUntil`, publish outside the transaction, then mark processed in a second short transaction |
 | 45 | AppHost eventing test observes `ProcessedOnUtc` but not subscriber consumption | Service Bus filters, Functions triggers, or subscriber host wiring can break while the test still passes after the sender marks the outbox row processed | Add a durable subscriber effect, test sink, or subscription-drain assertion so the consumer side is observable |
+
+#### Recently resolved (fresh review fixes, commit 5285814)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~52~~ | `PUT /orders/{id}/status` could cancel an order without restoring reserved stock | Added shared `OrderCancellationService` used by both `CancelOrderCommandHandler` and `UpdateOrderStatusCommandHandler`; added regression coverage for cancelling through the status-update path restoring stock. |
+| ~~53~~ | `ValidationException` collected structured `ValidationError`s, but HTTP responses returned generic ProblemDetails only | Replaced plain `AddProblemDetails()` with `AddApiProblemDetails()` customization that emits `errors` grouped by property; added fast ProblemDetails customization coverage and an integration assertion. |
+| ~~54~~ | Domain project referenced Serilog despite the no-external-dependencies rule, and conventions only blocked API references | Removed the Domain Serilog package reference and lock-file entry; added `DomainAssembly_MustNotReferenceThirdPartyAssemblies` convention coverage. |
+| ~~55~~ | `OrderItem` rejected GST rates above 1.0, but the database schema only checked `GstRate >= 0` | Added DbUp migration `0017_AddOrderItemGstRateRangeConstraint.sql` with named constraint `CK_OrderItems_GstRate_Range` enforcing `0 <= GstRate <= 1`. |
 
 #### Recently resolved (payload archive hardening)
 
@@ -257,7 +268,7 @@ Rate limiting and security headers provide defense-in-depth at the service level
 
 ### ~~6. Thin Application Layer~~ IMPROVED
 
-**Status: Partially resolved.** `CreateOrderCommandHandler` now checks stock availability before adding each order item and decrements stock via `Product.UpdateStock()`. Stock reservation is atomic with order creation — if any item fails (product not found, insufficient stock), no stock is decremented and no order is saved. `CancelOrderCommandHandler` restores stock on cancellation, completing the stock lifecycle for the order flow.
+**Status: Partially resolved.** `CreateOrderCommandHandler` now checks stock availability before adding each order item and decrements stock via `Product.UpdateStock()`. Stock reservation is atomic with order creation — if any item fails (product not found, insufficient stock), no stock is decremented and no order is saved. A shared `OrderCancellationService` restores stock for both the dedicated cancel command and the status-update cancellation path.
 
 **Remaining gap:** Other command handlers are still CRUD pass-through.
 
@@ -265,7 +276,7 @@ Rate limiting and security headers provide defense-in-depth at the service level
 
 **Status: Resolved.** Every command and query now has an `IValidator<T>` implementation (16 total). Convention tests `EveryCommand_MustHaveAValidator` and `EveryQuery_MustHaveAValidator` enforce coverage — adding a new command or query without a validator fails the build.
 
-Validators intentionally overlap with domain constructor guards (defense-in-depth). Validators provide structured multi-error `ValidationError` responses at the API boundary; domain guards are the safety net. The sync rule is documented in CLAUDE.md.
+Validators intentionally overlap with domain constructor guards (defense-in-depth). Validators provide structured multi-error `ValidationError` responses at the API boundary through the ProblemDetails `errors` extension; domain guards are the safety net. The sync rule is documented in AGENTS.md and CLAUDE.md.
 
 **Design rationale:** This codebase is AI-agent maintained. For human maintainers, requiring a validator for `DeleteProductCommand` (just `Id > 0`) would be busywork. For agents, the mechanical rule eliminates the judgment call "does this command need a validator?" — boilerplate is cheap, ambiguity is expensive.
 
@@ -296,7 +307,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 ### ~~12. CancelOrderCommand Silently Skips Deleted Products~~ FIXED
 
-**Status: Resolved.** `CancelOrderCommandHandler` now logs a warning via `Log.Warning` when a product no longer exists during stock restoration, including the product ID, quantity, and order ID. The cancellation still succeeds (the order should be cancellable regardless of product state), but operators have visibility into unrestorable stock via structured logs.
+**Status: Resolved.** The shared cancellation service logs a warning via `Log.Warning` when a product no longer exists during stock restoration, including the product ID, quantity, and order ID. The cancellation still succeeds (the order should be cancellable regardless of product state), but operators have visibility into unrestorable stock via structured logs.
 
 ### ~~13. UpdateDetails Methods Have Ambiguous Null Semantics~~ FIXED
 
@@ -304,7 +315,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 ### ~~14. CreateOrderCommandValidator Missing GST Rate Bounds~~ FIXED
 
-**Status: Resolved.** `CreateOrderCommandValidator` now validates `GstRate` bounds (0 to 1.0) per item in the validation loop, yielding a structured `ValidationError` with message `"GST rate must be between 0 and 1 (e.g., 0.10 for 10%)"`. This provides a clean 400 response at the API boundary instead of letting the domain guard throw a raw `ArgumentOutOfRangeException`.
+**Status: Resolved.** `CreateOrderCommandValidator` now validates `GstRate` bounds (0 to 1.0) per item in the validation loop, yielding a structured `ValidationError` with message `"GST rate must be between 0 and 1 (e.g., 0.10 for 10%)"`. This provides a clean 400 response at the API boundary instead of letting the domain guard throw a raw `ArgumentOutOfRangeException`. Migration `0017_AddOrderItemGstRateRangeConstraint.sql` also enforces the same range at the database boundary.
 
 ### 15. Missing Patterns for a Starter Template
 
@@ -314,11 +325,11 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 |---------|--------|
 | ~~Domain events~~ | ~~Implemented for the `Order` aggregate~~ — resolved. Full pipeline: domain events → outbox → `OutboxProcessor` BackgroundService → Azure Service Bus → Azure Functions subscribers |
 | ~~Outbox pattern~~ | ~~Still needs a background dispatcher~~ — resolved. `OutboxProcessor` polls and publishes to Service Bus; Functions consume via topic subscriptions with correlation filters |
-| Caching | No `IDistributedCache` or response caching |
+| ~~Caching~~ | ~~Redis-backed `IDistributedCache` support with by-id query caching and command invalidation~~ — resolved |
 | ~~`PagedResult<T>`~~ | ~~Endpoints accept `page`/`pageSize` but return raw collections without total count~~ — resolved. Endpoints now fetch `pageSize + 1` rows and set `X-Has-More` response header. Total count is a UI concern; APIs just signal whether more data exists. |
 | API versioning | Routes use `/api/v1/` prefix strings but no formal versioning library |
 
-**Recommendation:** Caching (`IDistributedCache` for product catalog) and API versioning are the next opportunities.
+**Recommendation:** Formal API versioning remains the next optional starter-template extension if the template needs multi-version route negotiation beyond the current `/api/v1/` prefix convention.
 
 ---
 
@@ -331,7 +342,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 - ~~**No `appsettings.Development.json`**~~ — resolved. Added with `localhost` connection string defaults for standalone dev without Aspire.
 - ~~**`Order.Reconstitute()` is public**~~ — now `internal`, visible only to the test assembly via `InternalsVisibleTo`.
 - ~~**Scalar UI replaces Swagger UI**~~ — no longer relevant. Swashbuckle was removed from .NET 9+; Scalar is the standard replacement for OpenAPI UI.
-- **`Directory.Build.props` lock file path uses backslashes** — `NuGetLockFilePath` uses `\` separator. Works on Windows and modern .NET MSBuild on macOS/Linux, but should use `/` for explicit cross-platform compatibility.
+- ~~**`Directory.Build.props` lock file path uses backslashes**~~ — resolved. `NuGetLockFilePath` now uses `/` for explicit cross-platform compatibility.
 - ~~**CI pipeline missing NuGet cache**~~ — resolved. `actions/setup-dotnet` now uses built-in NuGet caching keyed from `packages.lock.json`.
 - ~~**No Dockerfile health check**~~ — resolved. The runtime image now includes a `HEALTHCHECK` targeting `/health/live`.
 - ~~**ServiceDefaults only adds liveness probe**~~ — resolved at the API layer. The API now exposes `/health/ready` backed by a database readiness check, alongside `/health/live` and `/alive`.
@@ -344,9 +355,9 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 |----------|-------|---------------|
 | Domain unit tests | 6 | Entity creation, validation, state transitions, value object behavior |
 | Property-based (FsCheck) | 5 | Money arithmetic invariants, order state machine, GST calculations, email validation |
-| Convention tests | 6 classes | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping, Dapper SQL quality, DateTimeOffset enforcement, constraint naming enforcement, event routing contract validation |
+| Convention tests | 6 classes | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping, Dapper SQL quality, DateTimeOffset enforcement, constraint naming enforcement, event routing contract validation, domain third-party dependency isolation |
 | Application tests | 9 | All command handlers tested with in-memory DbContext |
-| Infrastructure tests | 2 | OutboxMessage mutation tests, OutboxProcessor batch processing with Moq ServiceBusSender |
+| Infrastructure tests | 3 | OutboxMessage mutation tests, OutboxProcessor batch processing with Moq ServiceBusSender, ProblemDetails validation-error customization |
 | Integration tests | 4+ | Full API endpoint testing with Testcontainers SQL Server, DbUp migrations, ProblemDetails responses |
 | Aspire integration tests | 4 | End-to-end pipeline testing via DistributedApplicationTestingBuilder: health endpoints, CRUD path, stock decrement, outbox-to-Service-Bus eventing verification |
 | Test builders | 3 | Fluent builders for Customer, Product, Order |
@@ -359,7 +370,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention via IL inspection), proper CQRS separation with zero violations, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-Issues #1–#14, #16–#21, #22–#27, and #28–#31 have all been resolved. Recent hardening addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, the outbox persists events transactionally, rate limiting is enforced globally, and mixed-currency orders are rejected at the domain level. The Service Bus integration was hardened with proper resource disposal, retry logic for transient failures, validated configuration, and optimized database indexing. The outbox processor now uses row-level locking to prevent duplicate publishing across replicas, domain events capture post-persist identity values, convention tests enforce that Service Bus subscription filters stay in sync with stable event contracts, and Aspire integration tests verify the full eventing path (outbox row creation and processor publication) via direct database queries.
+Issues #1–#14, #16–#42, and #46–#55 have all been resolved. Recent hardening addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, cancellation restores reserved stock through every exposed cancellation path, the outbox persists events transactionally, rate limiting is enforced globally, validation failures return structured field errors, domain dependency isolation is convention-guarded, and mixed-currency orders are rejected at the domain level. The Service Bus integration was hardened with proper resource disposal, retry logic for transient failures, validated configuration, and optimized database indexing. Open work is now concentrated in trusted forwarded-client identity for rate limiting, outbox lock duration during publish, and consumer-observable AppHost eventing tests.
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 
