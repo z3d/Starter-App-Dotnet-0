@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { BASE_URL, JSON_HEADERS } from './config.js';
+import { AUTH_HEADERS, BASE_URL, JSON_HEADERS } from './config.js';
 
 const CUSTOMERS_URL = `${BASE_URL}/api/v1/customers`;
 
@@ -16,6 +16,7 @@ export function createCustomer(name, email) {
 
 export function getCustomer(id) {
   const res = http.get(`${CUSTOMERS_URL}/${id}`, {
+    headers: AUTH_HEADERS,
     tags: { endpoint: 'get_customer' },
   });
   check(res, { 'get customer: status 200': (r) => r.status === 200 });
@@ -24,6 +25,7 @@ export function getCustomer(id) {
 
 export function listCustomers(page = 1, pageSize = 50) {
   const res = http.get(`${CUSTOMERS_URL}?page=${page}&pageSize=${pageSize}`, {
+    headers: AUTH_HEADERS,
     tags: { endpoint: 'list_customers' },
   });
   check(res, {
@@ -45,6 +47,7 @@ export function updateCustomer(id, name, email) {
 
 export function deleteCustomer(id) {
   const res = http.del(`${CUSTOMERS_URL}/${id}`, null, {
+    headers: AUTH_HEADERS,
     tags: { endpoint: 'delete_customer' },
   });
   check(res, {

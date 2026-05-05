@@ -6,7 +6,7 @@ The StarterApp API has comprehensive integration tests (xUnit + Testcontainers) 
 
 ## API Surface
 
-Three resource groups, all unauthenticated (API runs behind a gateway):
+Three resource groups, using the local gateway identity headers expected by the API when APIM is not present:
 
 | Group | Base Path | Operations |
 |-------|-----------|------------|
@@ -164,7 +164,7 @@ K6_BASE_URL=http://localhost:8080 k6 run tests/k6/load.js
 - **Email uniqueness**: `uniqueSuffix()` prevents collisions across VUs
 - **Database growth**: Load tests create many orders; reset the test database between runs for consistent baselines
 - **Delete constraints**: Smoke test tolerates 409 on cleanup when order history exists
-- **No auth**: API runs behind a gateway; k6 tests send no auth headers
+- **Local gateway identity**: API auth remains gateway-owned; k6 sends the normalized `X-Authenticated-*` headers used by local `UnsignedDevelopment` mode
 
 ## Verification
 

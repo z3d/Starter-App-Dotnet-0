@@ -45,4 +45,10 @@ public static class WebApplicationExtensions
 
         return app;
     }
+
+    public static WebApplication UseGatewayIdentity(this WebApplication app)
+    {
+        app.UseMiddleware<GatewayIdentityMiddleware>();
+        return app;
+    }
 }

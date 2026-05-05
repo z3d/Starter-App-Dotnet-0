@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check, fail, group } from 'k6';
-import { BASE_URL, uniqueSuffix } from './lib/config.js';
+import { AUTH_HEADERS, BASE_URL, JSON_HEADERS, uniqueSuffix } from './lib/config.js';
 import {
   createCustomer,
   getCustomer,
@@ -136,17 +136,23 @@ export default function () {
     // Tell k6 that 4xx responses are expected (not failures) for this group
     http.setResponseCallback(http.expectedStatuses(400, 404));
 
-    const notFoundCustomer = http.get(`${BASE_URL}/api/v1/customers/999999`);
+    const notFoundCustomer = http.get(`${BASE_URL}/api/v1/customers/999999`, {
+      headers: AUTH_HEADERS,
+    });
     check(notFoundCustomer, {
       'nonexistent customer: 404': (r) => r.status === 404,
     });
 
-    const notFoundProduct = http.get(`${BASE_URL}/api/v1/products/999999`);
+    const notFoundProduct = http.get(`${BASE_URL}/api/v1/products/999999`, {
+      headers: AUTH_HEADERS,
+    });
     check(notFoundProduct, {
       'nonexistent product: 404': (r) => r.status === 404,
     });
 
-    const notFoundOrder = http.get(`${BASE_URL}/api/v1/orders/999999`);
+    const notFoundOrder = http.get(`${BASE_URL}/api/v1/orders/999999`, {
+      headers: AUTH_HEADERS,
+    });
     check(notFoundOrder, {
       'nonexistent order: 404': (r) => r.status === 404,
     });
@@ -154,7 +160,7 @@ export default function () {
     const badCustomer = http.post(
       `${BASE_URL}/api/v1/customers`,
       JSON.stringify({ name: '', email: 'not-an-email' }),
-      { headers: { 'Content-Type': 'application/json' } },
+      JSON_HEADERS,
     );
     check(badCustomer, {
       'invalid customer: 400': (r) => r.status === 400,

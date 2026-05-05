@@ -35,6 +35,36 @@ public class ApiConventionTests : ConventionTestBase
             .WithFailureAssertion(Assert.Fail);
     }
 
+    [Fact]
+    public void ApiEndpointGroups_MustRequireGatewayIdentity()
+    {
+        var endpointFiles = Directory.EnumerateFiles(Path.Combine(FindRepoRoot(), "src", "StarterApp.Api", "Endpoints"), "*Endpoints.cs", SearchOption.TopDirectoryOnly);
+        var failures = endpointFiles
+            .SelectMany(FindUnprotectedApiRouteGroups)
+            .ToList();
+
+        Assert.True(failures.Count == 0,
+            "API endpoint groups must opt into the trusted gateway identity middleware:\n" + string.Join("\n", failures));
+    }
+
+    [Fact]
+    public void GatewayIdentityHeaders_MustOnlyBeReadByIdentityInfrastructure()
+    {
+        var apiRoot = Path.Combine(FindRepoRoot(), "src", "StarterApp.Api");
+        var identityRoot = Path.Combine(apiRoot, "Infrastructure", "Identity");
+        var failures = Directory.EnumerateFiles(apiRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(file => !file.StartsWith(identityRoot, StringComparison.Ordinal))
+            .SelectMany(file => File.ReadLines(file)
+                .Select((line, index) => new { File = file, Line = line, LineNumber = index + 1 })
+                .Where(item => item.Line.Contains("X-Authenticated-", StringComparison.Ordinal) ||
+                               item.Line.Contains("X-Gateway-Assertion", StringComparison.Ordinal))
+                .Select(item => $"{FormatPath(item.File)}:{item.LineNumber} raw gateway identity headers must stay behind ICurrentUser/GatewayIdentity infrastructure."))
+            .ToList();
+
+        Assert.True(failures.Count == 0,
+            "Production code must not read or define gateway identity headers outside the identity infrastructure:\n" + string.Join("\n", failures));
+    }
+
     // === Validator Conventions ===
 
     [Fact]
@@ -238,6 +268,56 @@ public class ApiConventionTests : ConventionTestBase
 
         var name = type.Name[..type.Name.IndexOf('`')];
         return $"{name}<{string.Join(", ", type.GetGenericArguments().Select(FormatTypeName))}>";
+    }
+
+    private static string FindRepoRoot()
+    {
+        var candidates = new[]
+        {
+            Directory.GetCurrentDirectory(),
+            AppContext.BaseDirectory
+        };
+
+        foreach (var candidate in candidates)
+        {
+            var directory = new DirectoryInfo(candidate);
+            while (directory != null)
+            {
+                if (File.Exists(Path.Combine(directory.FullName, "StarterApp.slnx")) ||
+                    File.Exists(Path.Combine(directory.FullName, "Directory.Packages.props")))
+                    return directory.FullName;
+
+                directory = directory.Parent;
+            }
+        }
+
+        throw new InvalidOperationException("Could not locate repository root.");
+    }
+
+    private static string FormatPath(string file)
+    {
+        return Path.GetRelativePath(FindRepoRoot(), file);
+    }
+
+    private static IEnumerable<string> FindUnprotectedApiRouteGroups(string file)
+    {
+        var lines = File.ReadAllLines(file);
+        for (var index = 0; index < lines.Length; index++)
+        {
+            if (!lines[index].Contains("MapGroup(\"/api/v1", StringComparison.Ordinal))
+                continue;
+
+            var statement = lines[index];
+            var endIndex = index;
+            while (!statement.Contains(';', StringComparison.Ordinal) && endIndex + 1 < lines.Length)
+            {
+                endIndex++;
+                statement += "\n" + lines[endIndex];
+            }
+
+            if (!statement.Contains(".RequireGatewayIdentity()", StringComparison.Ordinal))
+                yield return $"{FormatPath(file)}:{index + 1} /api/v1 MapGroup must call RequireGatewayIdentity() in the same route-group declaration.";
+        }
     }
 
     private class MustNotUseDateTimePropertiesConvention : ConventionSpecification

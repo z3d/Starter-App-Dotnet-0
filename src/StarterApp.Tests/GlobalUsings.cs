@@ -14,6 +14,7 @@ global using StarterApp.Api.Application.Commands;
 global using StarterApp.Api.Application.DTOs;
 global using StarterApp.Api.Application.ReadModels;
 global using StarterApp.Api.Infrastructure.Caching;
+global using StarterApp.Api.Infrastructure.Identity;
 // Domain references
 global using StarterApp.Domain.Abstractions;
 global using StarterApp.Domain.Entities;
@@ -33,6 +34,5 @@ global using System.Threading.Tasks;
 // Testing frameworks
 global using Xunit;
 global using Xunit.Abstractions;
-
 
 

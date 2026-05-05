@@ -1,7 +1,9 @@
 using Azure.Messaging.ServiceBus;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scalar.AspNetCore;
 using StarterApp.Api.Infrastructure.HealthChecks;
 using StarterApp.Api.Infrastructure.Outbox;
+using System.Text;
 
 namespace StarterApp.Api.Infrastructure;
 
@@ -93,13 +95,39 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    public static IServiceCollection AddGatewayIdentity(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
+    {
+        services.AddOptions<GatewayIdentityOptions>()
+            .Bind(configuration.GetSection(GatewayIdentityOptions.SectionName))
+            .ValidateDataAnnotations()
+            .Validate(options => IsDevelopmentLike(environment) || options.Mode == GatewayIdentityMode.Required,
+                "GatewayIdentity:Mode=UnsignedDevelopment is only allowed in Development, Testing, or Docker environments.")
+            .Validate(options => options.Mode != GatewayIdentityMode.Required || !string.IsNullOrWhiteSpace(options.SigningKey),
+                "GatewayIdentity:SigningKey is required when GatewayIdentity:Mode=Required.")
+            .Validate(options => options.Mode != GatewayIdentityMode.Required ||
+                                 (!string.IsNullOrWhiteSpace(options.SigningKey) && Encoding.UTF8.GetByteCount(options.SigningKey) >= 32),
+                "GatewayIdentity:SigningKey must be at least 32 bytes when GatewayIdentity:Mode=Required.")
+            .ValidateOnStart();
+
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddScoped<CurrentUserAccessor>();
+        services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<CurrentUserAccessor>());
+        services.AddSingleton<IGatewayAssertionValidator, GatewayAssertionValidator>();
+
+        return services;
+    }
+
     public static IServiceCollection AddApiRateLimiting(this IServiceCollection services)
     {
         services.AddRateLimiter(options =>
         {
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
             {
-                var key = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                var currentUser = httpContext.RequestServices.GetService<ICurrentUser>();
+                var key = currentUser is { IsAuthenticated: true }
+                    ? $"identity:{currentUser.TenantId}:{currentUser.Subject}"
+                    : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
                 return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = 100,
@@ -121,6 +149,13 @@ public static class ServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    private static bool IsDevelopmentLike(IHostEnvironment environment)
+    {
+        return environment.IsDevelopment() ||
+            environment.EnvironmentName == "Testing" ||
+            environment.EnvironmentName == "Docker";
     }
 
     public static IServiceCollection AddApiHealthChecks(this IServiceCollection services)

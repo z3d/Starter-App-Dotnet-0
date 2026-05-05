@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9.6/10** (52 findings resolved, 3 open)
+**Score: 9.8/10** (53 findings resolved, 3 open)
 
 ---
 
@@ -19,7 +19,7 @@ The project enforces architectural rules through convention tests in the main an
 | `NamingConventionTests` | Endpoints, DTOs, commands, queries, handlers, validators, services, and test classes follow naming conventions; application contracts and handlers live in mechanically discoverable namespaces |
 | `CqrsConventionTests` | Command handlers don't touch `IDbConnection`; query handlers don't touch `DbContext`; every command/query has a handler; dual interface enforcement (`ICommand` + `IRequest<T>`) |
 | `DomainConventionTests` | Private property setters on entities; immutable value objects; public getters on DTOs; non-public default constructors; `Equals`/`GetHashCode` overrides; async suffix; no async void; no `DateTime.Now`; aggregate creation-event safety |
-| `ApiConventionTests` | Endpoints don't access DB directly; validators are pure; DTOs have no instance methods; API contract shapes are serializer-friendly; collection properties are materialized; mappers are static; handlers don't dispatch to other handlers; domain doesn't reference API or third-party packages |
+| `ApiConventionTests` | Endpoints don't access DB directly; protected API groups require gateway identity metadata; raw gateway identity headers stay behind infrastructure abstractions; validators are pure; DTOs have no instance methods; API contract shapes are serializer-friendly; collection properties are materialized; mappers are static; handlers don't dispatch to other handlers; domain doesn't reference API or third-party packages |
 | `PersistenceConventionTests` | Every entity has a `DbSet`; value objects use `OwnsOne` not `DbSet`; enum properties configured; no static mutable state on `DbContext`; collection properties have private setters; migration scripts follow numbered prefix, are embedded resources, and name constraints explicitly |
 | `DapperConventionTests` | Query handlers must not use `SELECT *` in SQL (IL inspection of compiled string literals) |
 | `CachingConventionTests` | ICacheable queries must have non-empty cache keys, positive durations, and deterministic keys |
@@ -90,6 +90,17 @@ The mediator at `Infrastructure/Mediator/Mediator.cs` is well-designed:
 - Supports both `IRequest<TResponse>` (returns value) and `IRequest` (void) dispatch
 - Keeps the codebase free from MediatR's commercial licensing constraints
 
+### Trusted Gateway Identity
+
+Authentication remains gateway-owned, but the API now has an enforceable trust boundary instead of blind header trust:
+
+- `/api/v1` endpoint groups opt into `RequireGatewayIdentity()` metadata; health and OpenAPI stay public
+- `GatewayIdentityMiddleware` parses a small normalized header contract into `ICurrentUser`
+- Production-like `GatewayIdentity:Mode=Required` validates a signed `X-Gateway-Assertion` over issuer, audience, subject, principal type, tenant, scopes, correlation id, method, path, short lifetime, key id, and a hash of the projected headers
+- Local Development/Testing/Docker can use `UnsignedDevelopment`, and startup validation rejects that mode elsewhere
+- Security tests cover missing identity, missing assertion, expired assertion, wrong audience, wrong path, tampered identity headers, wrong signing key, and unknown key id
+- Rate limiting now partitions protected requests by verified tenant/subject identity, falling back to IP only where no authenticated gateway identity exists
+
 ### DevOps and Observability
 
 - **Aspire orchestration** — `AppHost/Program.cs` wires up API, SQL Server, Redis, Blob storage, Seq, Service Bus emulator, Functions, and DbMigrator with proper `WaitFor` dependencies and optional dev tunnel support
@@ -133,13 +144,19 @@ Good adoption of modern .NET:
 
 These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
 
-Fresh review reconciliation: finding #43 matched the latest fresh-eyes review and remains open because the gateway forwarded-header fix was intentionally deferred. Findings #44 and #45 remain open from earlier review sessions. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
+Fresh review reconciliation: finding #43 is resolved by the trusted gateway identity boundary and identity-based rate limiting. Findings #44 and #45 remain open from earlier review sessions. Finding #56 records an order-state modeling design risk: the enum is acceptable as a compact state label, but workflows should not grow around arbitrary status assignment. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
 
 | # | Finding | Impact | Suggested Fix |
 |---|---------|--------|---------------|
-| 43 | Rate limiting partitions by `RemoteIpAddress` without trusted forwarded-header handling | Behind an API gateway or reverse proxy, all clients can share one limiter bucket, so one noisy client can throttle everyone | Configure `ForwardedHeadersOptions` with known proxies/networks before `UseRateLimiter`, or partition by a trusted gateway-provided client identity |
 | 44 | `OutboxProcessor` holds SQL update locks while sending to Service Bus | Slow or throttled broker calls make the database transaction span network I/O and can create lock pressure under load | Claim rows in a short transaction with `ProcessingId`/`LockedUntil`, publish outside the transaction, then mark processed in a second short transaction |
 | 45 | AppHost eventing test observes `ProcessedOnUtc` but not subscriber consumption | Service Bus filters, Functions triggers, or subscriber host wiring can break while the test still passes after the sender marks the outbox row processed | Add a durable subscriber effect, test sink, or subscription-drain assertion so the consumer side is observable |
+| 56 | Order status API models lifecycle changes as arbitrary state assignment | `OrderStatus` is fine as a finite state label, and the aggregate owns transition validation, but `UpdateOrderStatusCommand.Status` accepts a string and the handler parses it into a generic `UpdateStatus(...)` call. As order behavior grows, this shape encourages state-specific side effects to leak into handlers, as cancellation already needs special stock-restoration handling. | Keep the enum for persistence/API readability, but prefer intent-specific commands and domain methods (`Confirm`, `StartProcessing`, `Ship`, `Deliver`, `Cancel`) over "set status" APIs. Normalize query input to `OrderStatus` before SQL, and keep state-specific side effects behind aggregate/domain-service operations. |
+
+#### Recently resolved (gateway identity hardening)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~43~~ | Rate limiting partitions by `RemoteIpAddress` without trusted forwarded-header handling | Added a trusted gateway identity contract with signed assertion validation, `ICurrentUser`, `RequireGatewayIdentity()` endpoint metadata, convention coverage for protected API groups and raw header access, and identity-based rate-limit partitioning for protected requests. |
 
 #### Recently resolved (fresh review fixes, commit 5285814)
 
@@ -250,9 +267,9 @@ Fresh review reconciliation: finding #43 matched the latest fresh-eyes review an
 
 ### ~~2. No Authentication or Authorization~~ BY DESIGN
 
-**Status: Intentional.** This template assumes the API runs behind an API gateway (API Management, YARP, nginx, etc.) that handles authentication and authorization. Embedding auth in the API would duplicate gateway concerns and couple the service to a specific identity provider.
+**Status: Intentional and hardened.** This template assumes the API runs behind APIM or an equivalent trusted gateway that validates caller authentication. The API does not add ASP.NET authentication/JWT bearer middleware, but it no longer blindly trusts arbitrary headers.
 
-Rate limiting and security headers provide defense-in-depth at the service level. If the API is ever exposed directly to clients without a gateway, add `AddAuthentication().AddJwtBearer()` with `RequireAuthorization()` on the endpoint groups.
+Protected API groups require normalized gateway identity headers and, in production-like `GatewayIdentity:Mode=Required`, a signed `X-Gateway-Assertion`. The API exposes identity through `ICurrentUser`, rejects missing/tampered assertions with `401`, and keeps resource/tenant authorization in application/domain code.
 
 ### ~~3. CreateOrderCommand Has Two SaveChanges Without Transaction Boundary~~ FIXED
 
@@ -370,8 +387,8 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention via IL inspection), proper CQRS separation with zero violations, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-Issues #1–#14, #16–#42, and #46–#55 have all been resolved. Recent hardening addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, cancellation restores reserved stock through every exposed cancellation path, the outbox persists events transactionally, rate limiting is enforced globally, validation failures return structured field errors, domain dependency isolation is convention-guarded, and mixed-currency orders are rejected at the domain level. The Service Bus integration was hardened with proper resource disposal, retry logic for transient failures, validated configuration, and optimized database indexing. Open work is now concentrated in trusted forwarded-client identity for rate limiting, outbox lock duration during publish, and consumer-observable AppHost eventing tests.
+Issues #1–#14, #16–#43, and #46–#55 have all been resolved. Recent hardening addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, cancellation restores reserved stock through every exposed cancellation path, the outbox persists events transactionally, rate limiting is enforced globally by verified identity where available, validation failures return structured field errors, domain dependency isolation is convention-guarded, mixed-currency orders are rejected at the domain level, and APIM-projected identity headers now require a signed gateway assertion in production-like mode. The Service Bus integration was hardened with proper resource disposal, retry logic for transient failures, validated configuration, and optimized database indexing. Open work is now concentrated in outbox lock duration during publish, consumer-observable AppHost eventing tests, and keeping order lifecycle changes intent-based instead of generic status assignment.
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 
-**Best suited for:** Teams starting a new .NET API who want architectural guardrails from day one. Auth is left to the API gateway by design; the full event pipeline (domain events → outbox → Service Bus → Azure Functions) is implemented for the Order aggregate.
+**Best suited for:** Teams starting a new .NET API who want architectural guardrails from day one. Authentication validation is left to the API gateway by design, while the API enforces a signed trusted-edge identity contract; the full event pipeline (domain events → outbox → Service Bus → Azure Functions) is implemented for the Order aggregate.

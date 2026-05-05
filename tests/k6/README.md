@@ -46,6 +46,8 @@ K6_BASE_URL=http://localhost:8080 k6 run tests/k6/load.js
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `K6_BASE_URL` | `http://localhost:8080` | API base URL (no trailing slash) |
+| `K6_AUTH_SUBJECT` | `k6-user` | Local gateway identity subject header |
+| `K6_AUTH_TENANT` | `k6-tenant` | Local gateway identity tenant header |
 
 ## Thresholds
 
@@ -66,5 +68,5 @@ K6_BASE_URL=http://localhost:8080 k6 run tests/k6/load.js
 
 - **Database reset**: Reset the test database between load test runs for consistent baselines
 - **Stock**: Seed products are created with 100,000 stock to avoid depletion during load tests
-- **No auth**: The API runs behind a gateway; k6 tests send no authentication headers
+- **Gateway identity**: The API still assumes gateway-owned auth; k6 sends the normalized local `X-Authenticated-*` headers used when APIM is not present
 - **Cleanup**: Smoke tests attempt cleanup but tolerate 409 (conflict) when order history prevents deletion

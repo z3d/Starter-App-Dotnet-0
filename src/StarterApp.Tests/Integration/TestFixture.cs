@@ -4,6 +4,7 @@ using DotNet.Testcontainers.Containers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -238,6 +239,11 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
 
         builder.UseEnvironment("Testing");
 
+        builder.ConfigureAppConfiguration((_, configuration) =>
+        {
+            configuration.AddInMemoryCollection(TestGatewayIdentity.Configuration);
+        });
+
         builder.ConfigureLogging(logging =>
         {
             logging.ClearProviders();
@@ -264,10 +270,8 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
             Log.Information($"Set connection string environment variable: {_dbFixture.ConnectionString}");
 
             // Then create the client with the configured web host
-            Client = CreateClient(new WebApplicationFactoryClientOptions
-            {
-                AllowAutoRedirect = false
-            });
+            ClientOptions.AllowAutoRedirect = false;
+            Client = CreateDefaultClient(new GatewayIdentitySigningHandler());
             Log.Information("Test API client created and ready");
         }
         catch (Exception ex)
@@ -307,6 +311,14 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
             Log.Error(ex, "Error resetting database in ApiTestFixture");
             throw;
         }
+    }
+
+    public HttpClient CreateUnauthenticatedClient()
+    {
+        return CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
     }
 }
 

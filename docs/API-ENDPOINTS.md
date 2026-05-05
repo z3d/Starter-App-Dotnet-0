@@ -133,6 +133,13 @@ Endpoints are organized with OpenAPI tags for better Scalar API reference docume
 - **Failure Policy**: `PayloadCapture:FailureMode` controls fail-open vs fail-closed archive writes, and production-like orchestrations require a configured archive store
 - **Retention**: `PayloadArchiveCleanupFunction` runs on `PayloadCapture__CleanupCron` and deletes archive, audit, and entity-index blobs older than `PayloadCapture:RetentionDays`
 
+### Gateway Identity Middleware
+- **Purpose**: Trusts APIM-projected identity headers only after validating the gateway assertion
+- **Protected Groups**: `/api/v1` endpoint groups call `RequireGatewayIdentity()`; health and OpenAPI endpoints remain public
+- **Required Headers**: `X-Authenticated-Subject`, `X-Authenticated-Principal-Type`, `X-Authenticated-Tenant-Id`, `X-Authenticated-Scopes`, `X-Correlation-ID`
+- **Assertion**: `X-Gateway-Assertion` signs the projected headers plus issuer, audience, method, path, and short lifetime in production-like `Required` mode
+- **Access Pattern**: Application code consumes `ICurrentUser`; raw identity header reads stay inside `Infrastructure/Identity`
+
 ### Usage Example
 ```csharp
 customers.MapPost("/", CreateCustomer)
@@ -148,6 +155,7 @@ customers.MapPost("/", CreateCustomer)
 
 ### Error Responses
 - `400 Bad Request`: Validation errors or business rule violations
+- `401 Unauthorized`: Missing or invalid gateway identity
 - `404 Not Found`: Resource not found
 - `409 Conflict`: Business rule conflict or state transition violation
 - `429 Too Many Requests`: Rate limit exceeded

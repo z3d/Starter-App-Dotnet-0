@@ -8,6 +8,12 @@ set -euo pipefail
 
 BASE_URL="${1:-http://localhost:8080}"
 CURL_OPTS="-sf"
+AUTH_HEADERS=(
+    -H "X-Authenticated-Subject: smoke-test-user"
+    -H "X-Authenticated-Principal-Type: User"
+    -H "X-Authenticated-Tenant-Id: smoke-test-tenant"
+    -H "X-Authenticated-Scopes: customers:read customers:write orders:read orders:write products:read products:write"
+)
 
 # Allow self-signed certs for local HTTPS (Aspire dev certs)
 if [[ "$BASE_URL" == https://* ]]; then
@@ -30,7 +36,7 @@ assert_status() {
     local assert_opts="-s"
     [[ "$BASE_URL" == https://* ]] && assert_opts="-sk"
     local actual
-    actual=$(curl $assert_opts -o /dev/null -w "%{http_code}" -X "$method" "$BASE_URL$url" "$@" 2>/dev/null || echo "000")
+    actual=$(curl $assert_opts -o /dev/null -w "%{http_code}" -X "$method" "$BASE_URL$url" "${AUTH_HEADERS[@]}" "$@" 2>/dev/null || echo "000")
     if [ "$actual" = "$expected" ]; then
         echo "  PASS  $description ($actual)"
         PASS=$((PASS + 1))
@@ -44,7 +50,7 @@ post_json() {
     local url="$1" body="$2"
     local post_opts="-s"
     [[ "$BASE_URL" == https://* ]] && post_opts="-sk"
-    curl $post_opts -X POST "$BASE_URL$url" -H "Content-Type: application/json" -d "$body" 2>/dev/null
+    curl $post_opts -X POST "$BASE_URL$url" "${AUTH_HEADERS[@]}" -H "Content-Type: application/json" -d "$body" 2>/dev/null
 }
 
 extract_id() {
@@ -65,7 +71,7 @@ echo "================================"
 echo ""
 echo "Health"
 # Health check may return 503 under Aspire (service discovery probes) — warn but don't fail
-local health_opts="-s"
+health_opts="-s"
 [[ "$BASE_URL" == https://* ]] && health_opts="-sk"
 HEALTH_STATUS=$(curl $health_opts -o /dev/null -w "%{http_code}" "$BASE_URL/health" 2>/dev/null || echo "000")
 if [ "$HEALTH_STATUS" = "200" ]; then

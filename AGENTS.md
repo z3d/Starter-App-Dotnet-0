@@ -97,9 +97,13 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - `PayloadArchiveCleanupFunction` is timer-triggered from `PayloadCapture__CleanupCron` and deletes archive, audit, and entity-index blobs older than `PayloadCapture:RetentionDays` by parsing the date/hour/minute path
 
 **Authentication**
-- This API assumes it runs behind an API gateway that handles auth — do not add authentication middleware to the API itself
-- Rate limiting and security headers provide defense-in-depth at the service level
-- If the API is ever exposed directly to clients without a gateway, add `AddAuthentication().AddJwtBearer()` with `RequireAuthorization()` on endpoint groups
+- This API assumes it runs behind APIM or an equivalent trusted gateway that validates caller auth — do not add ASP.NET authentication/JWT bearer middleware to the API itself
+- The gateway must strip inbound `X-Authenticated-*` and `X-Gateway-Assertion` headers, then project a small normalized identity contract: `X-Authenticated-Subject`, `X-Authenticated-Principal-Type`, `X-Authenticated-Tenant-Id`, `X-Authenticated-Scopes`, and `X-Correlation-ID`
+- Production-like environments must use `GatewayIdentity:Mode=Required` with a signed `X-Gateway-Assertion`; `UnsignedDevelopment` is only for Development, Testing, and local Docker workflows
+- `X-Gateway-Assertion` signs issuer, audience, subject, principal type, tenant, scopes, correlation id, method, path, lifetime, key id, and a hash of the projected identity headers. Missing, expired, tampered, wrong-audience, wrong-path, or wrong-key assertions return `401`
+- Endpoint groups under `/api/v1` must call `RequireGatewayIdentity()`. Convention tests enforce this, and production code must use `ICurrentUser` instead of reading raw identity headers directly
+- Gateway auth does not eliminate API authorization. Tenant ownership, resource-level permissions, and domain-sensitive workflow rules still belong in application/domain code
+- Rate limiting partitions by the verified tenant/subject identity for protected endpoints and falls back to IP only for public/unauthenticated requests
 
 **Clean Architecture**
 - Domain layer has no external dependencies

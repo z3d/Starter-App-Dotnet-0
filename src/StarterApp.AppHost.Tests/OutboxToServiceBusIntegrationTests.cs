@@ -23,6 +23,7 @@ public class OutboxToServiceBusIntegrationTests
         await app.StartAsync();
 
         var httpClient = app.CreateHttpClient("api");
+        ConfigureGatewayIdentity(httpClient);
 
         // Act — poll with retries instead of a single GET, since resources may still be starting
         var response = await PollForHealthyAsync(httpClient, "/health/live");
@@ -41,6 +42,7 @@ public class OutboxToServiceBusIntegrationTests
         await app.StartAsync();
 
         var httpClient = app.CreateHttpClient("api");
+        ConfigureGatewayIdentity(httpClient);
 
         // Wait for API to be ready
         await PollForHealthyAsync(httpClient, "/health/ready");
@@ -102,6 +104,7 @@ public class OutboxToServiceBusIntegrationTests
         await app.StartAsync();
 
         var httpClient = app.CreateHttpClient("api");
+        ConfigureGatewayIdentity(httpClient);
 
         // Wait for full readiness before checking all endpoints
         await PollForHealthyAsync(httpClient, "/health/ready");
@@ -127,6 +130,7 @@ public class OutboxToServiceBusIntegrationTests
         await app.StartAsync();
 
         var httpClient = app.CreateHttpClient("api");
+        ConfigureGatewayIdentity(httpClient);
         await PollForHealthyAsync(httpClient, "/health/ready");
 
         // Create a customer
@@ -186,6 +190,7 @@ public class OutboxToServiceBusIntegrationTests
         await app.StartAsync();
 
         var httpClient = app.CreateHttpClient("api");
+        ConfigureGatewayIdentity(httpClient);
         await PollForHealthyAsync(httpClient, "/health/ready");
 
         var correlationId = $"aspire-{Guid.NewGuid():N}";
@@ -277,6 +282,14 @@ public class OutboxToServiceBusIntegrationTests
         {
             return (false, null);
         }
+    }
+
+    private static void ConfigureGatewayIdentity(HttpClient client)
+    {
+        client.DefaultRequestHeaders.Add("X-Authenticated-Subject", "apphost-test-user");
+        client.DefaultRequestHeaders.Add("X-Authenticated-Principal-Type", "User");
+        client.DefaultRequestHeaders.Add("X-Authenticated-Tenant-Id", "apphost-test-tenant");
+        client.DefaultRequestHeaders.Add("X-Authenticated-Scopes", "customers:read customers:write orders:read orders:write products:read products:write");
     }
 
     private static async Task<(string BlobName, string Content)> PollForBlobContentAsync(

@@ -28,6 +28,7 @@ public sealed class PayloadCaptureMiddleware
     {
         var correlationId = ResolveCorrelationId(context);
         context.TraceIdentifier = correlationId;
+        context.Request.Headers[CorrelationContext.HeaderName] = correlationId;
         context.Response.Headers[CorrelationContext.HeaderName] = correlationId;
 
         using var correlationScope = CorrelationContext.Push(correlationId);

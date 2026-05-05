@@ -6,6 +6,7 @@ public class CustomerEndpoints : IEndpointDefinition
     {
         var customers = app.MapGroup("/api/v1/customers")
             .WithTags("Customers")
+            .RequireGatewayIdentity()
 ;
 
         customers.MapGet("/", GetCustomers)

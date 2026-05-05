@@ -37,6 +37,7 @@ builder.Services.AddApiOpenApi();
 builder.Services.AddPersistence(connectionString);
 builder.Services.AddMediator(Assembly.GetExecutingAssembly());
 builder.Services.AddApiCors(builder.Configuration, builder.Environment);
+builder.Services.AddGatewayIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddApiRateLimiting();
 builder.Services.AddApiHealthChecks();
 builder.Services.AddServiceBusPublisher(builder.Configuration);
@@ -69,8 +70,9 @@ try
     app.UseSecurityHeaders();
     app.UseHttpsRedirection();
     app.UseCors();
-    app.UseRateLimiter();
     app.UseRouting();
+    app.UseGatewayIdentity();
+    app.UseRateLimiter();
 
     app.MapApiEndpoints();
     app.MapHealthChecks("/health");

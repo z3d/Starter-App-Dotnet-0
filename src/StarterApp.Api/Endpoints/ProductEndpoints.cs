@@ -6,6 +6,7 @@ public class ProductEndpoints : IEndpointDefinition
     {
         var products = app.MapGroup("/api/v1/products")
             .WithTags("Products")
+            .RequireGatewayIdentity()
 ;
 
         products.MapGet("/", GetProducts)

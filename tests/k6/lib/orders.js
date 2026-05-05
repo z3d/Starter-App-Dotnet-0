@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { BASE_URL, JSON_HEADERS } from './config.js';
+import { AUTH_HEADERS, BASE_URL, JSON_HEADERS } from './config.js';
 
 const ORDERS_URL = `${BASE_URL}/api/v1/orders`;
 
@@ -16,6 +16,7 @@ export function createOrder(customerId, items) {
 
 export function getOrder(id) {
   const res = http.get(`${ORDERS_URL}/${id}`, {
+    headers: AUTH_HEADERS,
     tags: { endpoint: 'get_order' },
   });
   check(res, { 'get order: status 200': (r) => r.status === 200 });
@@ -25,7 +26,7 @@ export function getOrder(id) {
 export function getOrdersByCustomer(customerId, page = 1, pageSize = 50) {
   const res = http.get(
     `${ORDERS_URL}/customer/${customerId}?page=${page}&pageSize=${pageSize}`,
-    { tags: { endpoint: 'orders_by_customer' } },
+    { headers: AUTH_HEADERS, tags: { endpoint: 'orders_by_customer' } },
   );
   check(res, {
     'orders by customer: status 200': (r) => r.status === 200,
@@ -37,7 +38,7 @@ export function getOrdersByCustomer(customerId, page = 1, pageSize = 50) {
 export function getOrdersByStatus(status, page = 1, pageSize = 50) {
   const res = http.get(
     `${ORDERS_URL}/status/${status}?page=${page}&pageSize=${pageSize}`,
-    { tags: { endpoint: 'orders_by_status' } },
+    { headers: AUTH_HEADERS, tags: { endpoint: 'orders_by_status' } },
   );
   check(res, {
     'orders by status: status 200': (r) => r.status === 200,
@@ -60,6 +61,7 @@ export function updateOrderStatus(orderId, status) {
 
 export function cancelOrder(orderId) {
   const res = http.post(`${ORDERS_URL}/${orderId}/cancel`, null, {
+    headers: AUTH_HEADERS,
     tags: { endpoint: 'cancel_order' },
   });
   check(res, { 'cancel order: status 200': (r) => r.status === 200 });

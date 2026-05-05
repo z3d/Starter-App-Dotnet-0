@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { BASE_URL, JSON_HEADERS } from './config.js';
+import { AUTH_HEADERS, BASE_URL, JSON_HEADERS } from './config.js';
 
 const PRODUCTS_URL = `${BASE_URL}/api/v1/products`;
 
@@ -16,6 +16,7 @@ export function createProduct(name, description, price, currency, stock) {
 
 export function getProduct(id) {
   const res = http.get(`${PRODUCTS_URL}/${id}`, {
+    headers: AUTH_HEADERS,
     tags: { endpoint: 'get_product' },
   });
   check(res, { 'get product: status 200': (r) => r.status === 200 });
@@ -24,6 +25,7 @@ export function getProduct(id) {
 
 export function listProducts(page = 1, pageSize = 50) {
   const res = http.get(`${PRODUCTS_URL}?page=${page}&pageSize=${pageSize}`, {
+    headers: AUTH_HEADERS,
     tags: { endpoint: 'list_products' },
   });
   check(res, {
@@ -45,6 +47,7 @@ export function updateProduct(id, name, description, price, currency, stock) {
 
 export function deleteProduct(id) {
   const res = http.del(`${PRODUCTS_URL}/${id}`, null, {
+    headers: AUTH_HEADERS,
     tags: { endpoint: 'delete_product' },
   });
   check(res, {
