@@ -10,7 +10,8 @@ namespace StarterApp.Tests.Consistency;
 /// Limitations:
 /// - No deep semantic understanding. Synonyms, abstractions, and intent are invisible.
 /// - Vocabulary is bounded by the tokens actually present in the IL.
-/// - For production use, replace with a real code embedding model via ICodeEmbedder.
+/// - A real code embedding model can be plugged in via ICodeEmbedder, but the default
+///   implementation is deliberately deterministic and local.
 /// </summary>
 public class SourceTokenEmbedder : ICodeEmbedder
 {

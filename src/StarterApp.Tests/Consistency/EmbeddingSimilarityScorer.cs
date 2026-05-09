@@ -1,20 +1,21 @@
 namespace StarterApp.Tests.Consistency;
 
 /// <summary>
-/// Scores cohort members by cosine similarity of their embeddings to the exemplar centroid.
+/// Scores cohort members by cosine similarity of their token vectors to the exemplar centroid.
 ///
 /// This is the third measurement layer from the consistency paper:
 /// - Structural fingerprint (Mahalanobis): proportion and complexity outliers
 /// - AST shingles (Jaccard): skeleton novelty
-/// - Embedding distance (cosine): semantic drift — a handler that looks structurally
-///   normal but is conceptually doing something the cohort never does
+/// - Source-token similarity (cosine): vocabulary novelty — a member that refers to
+///   different domain types, methods, strings, or metadata tokens than the exemplars
 ///
-/// Low similarity = semantically novel relative to the exemplar set.
+/// Low similarity = vocabulary novelty relative to the exemplar set. It is not a
+/// judgement about business intent.
 /// </summary>
 public static class EmbeddingSimilarityScorer
 {
     /// <summary>
-    /// Computes the centroid of the exemplar embeddings.
+    /// Computes the centroid of the exemplar token vectors.
     /// </summary>
     public static double[] ComputeCentroid(IReadOnlyList<double[]> exemplarEmbeddings)
     {
@@ -59,8 +60,8 @@ public static class EmbeddingSimilarityScorer
     }
 
     /// <summary>
-    /// Scores all cohort members against the exemplar embedding centroid.
-    /// Returns results sorted by similarity ascending (most semantically novel first).
+    /// Scores all cohort members against the exemplar token-vector centroid.
+    /// Returns results sorted by similarity ascending (most vocabulary-novel first).
     /// </summary>
     public static IReadOnlyList<EmbeddingScore> ScoreAll(
         IReadOnlyList<Type> allTypes,
