@@ -12,6 +12,7 @@ global using Serilog.Events;
 global using StarterApp.Api.Application;
 global using StarterApp.Api.Application.Commands;
 global using StarterApp.Api.Application.DTOs;
+global using StarterApp.Api.Application.Interfaces;
 global using StarterApp.Api.Application.ReadModels;
 global using StarterApp.Api.Infrastructure.Caching;
 global using StarterApp.Api.Infrastructure.Identity;
@@ -34,5 +35,4 @@ global using System.Threading.Tasks;
 // Testing frameworks
 global using Xunit;
 global using Xunit.Abstractions;
-
 

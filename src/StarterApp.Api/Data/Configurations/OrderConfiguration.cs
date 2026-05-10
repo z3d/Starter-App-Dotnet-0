@@ -16,8 +16,22 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Status)
             .HasConversion<string>();
 
+        builder.Property(o => o.OwnerSubject)
+            .HasMaxLength(OwnershipDefaults.MaxOwnerSubjectLength)
+            .IsRequired();
+
+        builder.Property(o => o.TenantId)
+            .HasMaxLength(OwnershipDefaults.MaxTenantIdLength)
+            .IsRequired();
+
         builder.Property(o => o.RowVersion)
             .IsRowVersion();
+
+        builder.HasIndex(o => new { o.TenantId, o.OwnerSubject });
+
+        builder.HasIndex(o => new { o.TenantId, o.OwnerSubject, o.CustomerId });
+
+        builder.HasIndex(o => new { o.TenantId, o.OwnerSubject, o.Status });
 
         // Configure Items navigation via backing field (_items).
         // EF Core sets OrderId on each item when the Order is saved.

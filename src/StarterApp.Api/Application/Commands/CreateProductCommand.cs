@@ -13,11 +13,13 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly ICacheInvalidator _cacheInvalidator;
+    private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public CreateProductCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator)
+    public CreateProductCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _dbContext = dbContext;
         _cacheInvalidator = cacheInvalidator;
+        _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
     public async Task<ProductDto> HandleAsync(
@@ -28,7 +30,8 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
         Log.Information("Creating product {Name} with EF Core", command.Name);
 
         var price = Money.Create(command.Price, command.Currency);
-        var product = new Product(command.Name, command.Description, price, command.Stock);
+        var ownerScope = _ownerOnlyPolicy.GetRequiredScope();
+        var product = new Product(command.Name, command.Description, price, command.Stock, ownerScope.OwnerSubject, ownerScope.TenantId);
 
         _dbContext.Products.Add(product);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -49,6 +52,4 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
         };
     }
 }
-
-
 

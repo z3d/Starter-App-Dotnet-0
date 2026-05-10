@@ -14,11 +14,13 @@ public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand>
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly ICacheInvalidator _cacheInvalidator;
+    private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public DeleteProductCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator)
+    public DeleteProductCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _dbContext = dbContext;
         _cacheInvalidator = cacheInvalidator;
+        _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
     public async Task HandleAsync(DeleteProductCommand command, CancellationToken cancellationToken)
@@ -31,6 +33,8 @@ public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand>
             Log.Warning("Product {Id} not found for deletion", command.Id);
             throw new KeyNotFoundException($"Product with ID {command.Id} not found");
         }
+
+        _ownerOnlyPolicy.Authorize(product.OwnerSubject, product.TenantId);
 
         var hasOrderItems = await _dbContext.OrderItems.AnyAsync(oi => oi.ProductId == command.Id, cancellationToken);
         if (hasOrderItems)

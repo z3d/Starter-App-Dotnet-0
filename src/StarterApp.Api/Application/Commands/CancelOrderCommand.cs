@@ -8,10 +8,12 @@ public class CancelOrderCommand : ICommand, IRequest<OrderDto>
 public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, OrderDto>
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public CancelOrderCommandHandler(ApplicationDbContext dbContext)
+    public CancelOrderCommandHandler(ApplicationDbContext dbContext, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _dbContext = dbContext;
+        _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
     public async Task<OrderDto> HandleAsync(CancelOrderCommand command, CancellationToken cancellationToken)
@@ -25,6 +27,8 @@ public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, Ord
             Log.Warning("Order {OrderId} not found for cancellation", command.OrderId);
             throw new KeyNotFoundException($"Order with ID {command.OrderId} was not found");
         }
+
+        _ownerOnlyPolicy.Authorize(order.OwnerSubject, order.TenantId);
 
         await OrderCancellationService.CancelAndRestoreStockAsync(_dbContext, order, cancellationToken);
 

@@ -97,7 +97,7 @@ public class CreateOrderCommandHandlerTests
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context);
+        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
 
         var command = new CreateOrderCommand
         {
@@ -153,7 +153,7 @@ public class CreateOrderCommandHandlerTests
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context);
+        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
 
         var command = new CreateOrderCommand
         {
@@ -188,7 +188,7 @@ public class CreateOrderCommandHandlerTests
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context);
+        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
 
         var command = new CreateOrderCommand
         {
@@ -225,7 +225,7 @@ public class CreateOrderCommandHandlerTests
         context.Products.AddRange(product1, product2);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context);
+        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
 
         var command = new CreateOrderCommand
         {
@@ -264,7 +264,7 @@ public class CreateOrderCommandHandlerTests
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context);
+        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         var command = new CreateOrderCommand
         {
             CustomerId = customer.Id,
@@ -305,7 +305,7 @@ public class CreateOrderCommandHandlerTests
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context);
+        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
 
         // Act
         var result = await handler.HandleAsync(new CreateOrderCommand
@@ -343,7 +343,7 @@ public class CreateOrderCommandHandlerTests
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context);
+        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         var command = new CreateOrderCommand
         {
             CustomerId = customer.Id,

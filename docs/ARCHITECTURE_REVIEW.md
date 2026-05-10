@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9.8/10** (53 findings resolved, 3 open)
+**Score: 9.85/10** (56 findings resolved, 3 open)
 
 ---
 
@@ -97,8 +97,12 @@ Authentication remains gateway-owned, but the API now has an enforceable trust b
 - `/api/v1` endpoint groups opt into `RequireGatewayIdentity()` metadata; health and OpenAPI stay public
 - `GatewayIdentityMiddleware` parses a small normalized header contract into `ICurrentUser`
 - Production-like `GatewayIdentity:Mode=Required` validates a signed `X-Gateway-Assertion` over issuer, audience, subject, principal type, tenant, scopes, correlation id, method, path, short lifetime, key id, and a hash of the projected headers
+- Each protected route declares a required gateway scope (`products:read`, `products:write`, `customers:read`, `customers:write`, `orders:read`, or `orders:write`); authenticated callers missing the route scope receive `403 Forbidden`
+- Customer, Product, and Order rows persist `OwnerSubject` and `TenantId` from the verified gateway identity. Create handlers stamp ownership, query handlers filter by owner scope, and mutation handlers call `IOwnerOnlyPolicy` before changing loaded resources.
+- Cross-owner reads are hidden as `404 Not Found` or empty pages, while cross-owner mutations return `403 Forbidden`. By-id cache keys are owner-scoped so cached resources cannot leak across identities.
 - Local Development/Testing/Docker can use `UnsignedDevelopment`, and startup validation rejects that mode elsewhere
 - Security tests cover missing identity, missing assertion, expired assertion, wrong audience, wrong path, tampered identity headers, wrong signing key, and unknown key id
+- Convention tests inspect the mapped endpoint metadata so every `/api/v1` route must carry both gateway identity and gateway scope metadata, regardless of source-file placement. CQRS and persistence conventions now also require owner-scoped resource queries, owner-policy injection, and persisted owner columns on owned aggregates.
 - Rate limiting now partitions protected requests by verified tenant/subject identity, falling back to IP only where no authenticated gateway identity exists
 
 ### DevOps and Observability
@@ -144,7 +148,7 @@ Good adoption of modern .NET:
 
 These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
 
-Fresh review reconciliation: finding #43 is resolved by the trusted gateway identity boundary and identity-based rate limiting. Findings #44 and #45 remain open from earlier review sessions. Finding #56 records an order-state modeling design risk: the enum is acceptable as a compact state label, but workflows should not grow around arbitrary status assignment. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
+Fresh review reconciliation: finding #43 is resolved by the trusted gateway identity boundary and identity-based rate limiting. Findings #57-#59 are resolved by route-level scope enforcement, mapped-endpoint convention coverage, and owner-only resource authorization. Findings #44 and #45 remain open from earlier review sessions. Finding #56 records an order-state modeling design risk: the enum is acceptable as a compact state label, but workflows should not grow around arbitrary status assignment. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
 
 | # | Finding | Impact | Suggested Fix |
 |---|---------|--------|---------------|
@@ -157,6 +161,14 @@ Fresh review reconciliation: finding #43 is resolved by the trusted gateway iden
 | # | Finding | Fix |
 |---|---------|-----|
 | ~~43~~ | Rate limiting partitions by `RemoteIpAddress` without trusted forwarded-header handling | Added a trusted gateway identity contract with signed assertion validation, `ICurrentUser`, `RequireGatewayIdentity()` endpoint metadata, convention coverage for protected API groups and raw header access, and identity-based rate-limit partitioning for protected requests. |
+
+#### Recently resolved (gateway authorization review)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~57~~ | Gateway identity scopes were signed but never enforced | Added `RequireScope(...)` endpoint metadata plus a central endpoint filter that returns `403 Forbidden` when the authenticated identity lacks the route's required read/write scope; added integration coverage for missing read and write scopes. |
+| ~~58~~ | Protected-route convention was a fragile source-text scan | Replaced the literal endpoint-file scan with mapped `EndpointDataSource` convention coverage so every `/api/v1` route must carry gateway identity and scope metadata regardless of source layout. |
+| ~~59~~ | Resource ownership authorization was documented but not broadly enforced | Added owner-scope persistence (`OwnerSubject`, `TenantId`) for Customer/Product/Order, `IOwnerOnlyPolicy` checks in command handlers, owner-filtered Dapper queries, owner-scoped cache keys, DbUp migration `0018_AddOwnerScopeColumns.sql`, convention coverage, and integration tests for cross-owner read/write behavior. |
 
 #### Recently resolved (fresh review fixes, commit 5285814)
 
@@ -269,7 +281,7 @@ Fresh review reconciliation: finding #43 is resolved by the trusted gateway iden
 
 **Status: Intentional and hardened.** This template assumes the API runs behind APIM or an equivalent trusted gateway that validates caller authentication. The API does not add ASP.NET authentication/JWT bearer middleware, but it no longer blindly trusts arbitrary headers.
 
-Protected API groups require normalized gateway identity headers and, in production-like `GatewayIdentity:Mode=Required`, a signed `X-Gateway-Assertion`. The API exposes identity through `ICurrentUser`, rejects missing/tampered assertions with `401`, and keeps resource/tenant authorization in application/domain code.
+Protected API groups require normalized gateway identity headers and, in production-like `GatewayIdentity:Mode=Required`, a signed `X-Gateway-Assertion`. The API exposes identity through `ICurrentUser`, rejects missing/tampered assertions with `401`, enforces route scopes with `403`, and applies owner-only resource authorization for Customer, Product, and Order through persisted owner columns plus `IOwnerOnlyPolicy`.
 
 ### ~~3. CreateOrderCommand Has Two SaveChanges Without Transaction Boundary~~ FIXED
 
@@ -387,8 +399,8 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention via IL inspection), proper CQRS separation with zero violations, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-Issues #1–#14, #16–#43, and #46–#55 have all been resolved. Recent hardening addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, cancellation restores reserved stock through every exposed cancellation path, the outbox persists events transactionally, rate limiting is enforced globally by verified identity where available, validation failures return structured field errors, domain dependency isolation is convention-guarded, mixed-currency orders are rejected at the domain level, and APIM-projected identity headers now require a signed gateway assertion in production-like mode. The Service Bus integration was hardened with proper resource disposal, retry logic for transient failures, validated configuration, and optimized database indexing. Open work is now concentrated in outbox lock duration during publish, consumer-observable AppHost eventing tests, and keeping order lifecycle changes intent-based instead of generic status assignment.
+Issues #1–#14, #16–#43, #46–#55, and #57–#59 have all been resolved. Recent hardening addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, cancellation restores reserved stock through every exposed cancellation path, the outbox persists events transactionally, rate limiting is enforced globally by verified identity where available, validation failures return structured field errors, domain dependency isolation is convention-guarded, mixed-currency orders are rejected at the domain level, APIM-projected identity headers now require a signed gateway assertion in production-like mode, route scopes are enforced, and resource access is owner-scoped for Customer, Product, and Order. The Service Bus integration was hardened with proper resource disposal, retry logic for transient failures, validated configuration, and optimized database indexing. Open work is now concentrated in outbox lock duration during publish, consumer-observable AppHost eventing tests, and keeping order lifecycle changes intent-based instead of generic status assignment.
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 
-**Best suited for:** Teams starting a new .NET API who want architectural guardrails from day one. Authentication validation is left to the API gateway by design, while the API enforces a signed trusted-edge identity contract; the full event pipeline (domain events → outbox → Service Bus → Azure Functions) is implemented for the Order aggregate.
+**Best suited for:** Teams starting a new .NET API who want architectural guardrails from day one. Authentication validation is left to the API gateway by design, while the API enforces a signed trusted-edge identity contract, route scopes, and owner-only resource access; the full event pipeline (domain events → outbox → Service Bus → Azure Functions) is implemented for the Order aggregate.

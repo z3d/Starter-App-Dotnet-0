@@ -9,10 +9,12 @@ public class UpdateOrderStatusCommand : ICommand, IRequest<OrderDto>
 public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatusCommand, OrderDto>
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public UpdateOrderStatusCommandHandler(ApplicationDbContext dbContext)
+    public UpdateOrderStatusCommandHandler(ApplicationDbContext dbContext, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _dbContext = dbContext;
+        _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
     public async Task<OrderDto> HandleAsync(UpdateOrderStatusCommand command, CancellationToken cancellationToken)
@@ -28,6 +30,8 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
             Log.Warning("Order {OrderId} not found for status update", command.OrderId);
             throw new KeyNotFoundException($"Order with ID {command.OrderId} was not found");
         }
+
+        _ownerOnlyPolicy.Authorize(order.OwnerSubject, order.TenantId);
 
         if (status == OrderStatus.Cancelled)
             await OrderCancellationService.CancelAndRestoreStockAsync(_dbContext, order, cancellationToken);

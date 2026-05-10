@@ -1,4 +1,3 @@
-using StarterApp.Api.Application.Interfaces;
 using StarterApp.Api.Data;
 using StarterApp.Api.Infrastructure.Mediator;
 using StarterApp.Api.Infrastructure.Validation;
@@ -31,6 +30,54 @@ public class CqrsConventionTests : ConventionTestBase
         queryHandlers
             .MustConformTo(Convention.MustNotTakeADependencyOn(typeof(ApplicationDbContext), "Queries should use IDbConnection/Dapper for reads"))
             .WithFailureAssertion(Assert.Fail);
+    }
+
+    [Fact]
+    public void ResourceQueries_MustBeOwnerScoped()
+    {
+        var queryTypes = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract &&
+                   t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>)))
+            .Where(t => !typeof(IOwnerScopedRequest).IsAssignableFrom(t))
+            .Select(t => t.FullName ?? t.Name)
+            .OrderBy(name => name)
+            .ToList();
+
+        Assert.True(queryTypes.Count == 0,
+            "Resource queries must implement IOwnerScopedRequest so reads cannot drift back to global visibility:\n" +
+            string.Join("\n", queryTypes));
+    }
+
+    [Fact]
+    public void QueryHandlers_MustInjectOwnerOnlyPolicy()
+    {
+        var violations = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("QueryHandler", StringComparison.Ordinal))
+            .Where(t => !t.GetConstructors().Any(ctor => ctor.GetParameters().Any(parameter => parameter.ParameterType == typeof(IOwnerOnlyPolicy))))
+            .Select(t => t.FullName ?? t.Name)
+            .OrderBy(name => name)
+            .ToList();
+
+        Assert.True(violations.Count == 0,
+            "Query handlers must inject IOwnerOnlyPolicy so reads are filtered by the current owner scope:\n" +
+            string.Join("\n", violations));
+    }
+
+    [Fact]
+    public void CommandHandlers_MustInjectOwnerOnlyPolicy()
+    {
+        var violations = ApiAssembly
+            .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
+            .Concat(ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<>)))
+            .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
+            .Where(t => !t.GetConstructors().Any(ctor => ctor.GetParameters().Any(parameter => parameter.ParameterType == typeof(IOwnerOnlyPolicy))))
+            .Select(t => t.FullName ?? t.Name)
+            .OrderBy(name => name)
+            .ToList();
+
+        Assert.True(violations.Count == 0,
+            "Command handlers must inject IOwnerOnlyPolicy so mutations are owner-authorized consistently:\n" +
+            string.Join("\n", violations));
     }
 
     // === Handler Wiring ===

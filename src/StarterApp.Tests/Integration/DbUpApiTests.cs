@@ -48,8 +48,8 @@ public class DbUpApiTests : IAsyncLifetime
         var insertScript = $@"
             SET IDENTITY_INSERT Products ON;
             
-            INSERT INTO Products (Id, Name, Description, PriceAmount, PriceCurrency, Stock, LastUpdated)
-            VALUES ({productId}, '{productName.Replace("'", "''")}', '{productDescription.Replace("'", "''")}', {price.ToString().Replace(',', '.')}, 'USD', {stock}, GETUTCDATE());
+            INSERT INTO Products (Id, Name, Description, PriceAmount, PriceCurrency, Stock, LastUpdated, OwnerSubject, TenantId)
+            VALUES ({productId}, '{productName.Replace("'", "''")}', '{productDescription.Replace("'", "''")}', {price.ToString().Replace(',', '.')}, 'USD', {stock}, GETUTCDATE(), '{TestGatewayIdentity.DefaultSubject}', '{TestGatewayIdentity.DefaultTenantId}');
             
             SET IDENTITY_INSERT Products OFF;
         ";
@@ -186,6 +186,5 @@ public class DbUpApiTests : IAsyncLifetime
         Assert.Equal(0, tableExists);
     }
 }
-
 
 

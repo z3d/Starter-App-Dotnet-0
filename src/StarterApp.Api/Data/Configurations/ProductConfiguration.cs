@@ -23,7 +23,17 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.Description)
             .HasMaxLength(Product.MaxDescriptionLength);
 
+        builder.Property(p => p.OwnerSubject)
+            .HasMaxLength(OwnershipDefaults.MaxOwnerSubjectLength)
+            .IsRequired();
+
+        builder.Property(p => p.TenantId)
+            .HasMaxLength(OwnershipDefaults.MaxTenantIdLength)
+            .IsRequired();
+
         builder.Property(p => p.RowVersion)
             .IsRowVersion();
+
+        builder.HasIndex(p => new { p.TenantId, p.OwnerSubject });
     }
 }

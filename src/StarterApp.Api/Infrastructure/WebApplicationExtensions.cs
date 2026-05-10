@@ -32,6 +32,8 @@ public static class WebApplicationExtensions
                 DbUpdateException dbUpdateException when dbUpdateException.IsUniqueConstraintViolation() => StatusCodes.Status409Conflict,
                 DbUpdateException dbUpdateException when dbUpdateException.IsStringTruncationViolation() => StatusCodes.Status400BadRequest,
                 ValidationException => StatusCodes.Status400BadRequest,
+                ForbiddenAccessException => StatusCodes.Status403Forbidden,
+                UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
                 ArgumentNullException => StatusCodes.Status400BadRequest,
                 ArgumentOutOfRangeException => StatusCodes.Status400BadRequest,
                 ArgumentException => StatusCodes.Status400BadRequest,

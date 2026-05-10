@@ -26,7 +26,7 @@ public class CancelOrderCommandHandlerTests
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
-        var handler = new CancelOrderCommandHandler(context);
+        var handler = new CancelOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         var command = new CancelOrderCommand { OrderId = order.Id };
 
         // Act
@@ -44,7 +44,7 @@ public class CancelOrderCommandHandlerTests
         var options = CreateInMemoryOptions();
         await using var context = new ApplicationDbContext(options);
 
-        var handler = new CancelOrderCommandHandler(context);
+        var handler = new CancelOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         var command = new CancelOrderCommand { OrderId = Guid.NewGuid() };
 
         // Act & Assert
@@ -66,7 +66,7 @@ public class CancelOrderCommandHandlerTests
         await context.SaveChangesAsync();
 
         // Create order (which decrements stock)
-        var createHandler = new CreateOrderCommandHandler(context);
+        var createHandler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         var createCommand = new CreateOrderCommand
         {
             CustomerId = customer.Id,
@@ -82,7 +82,7 @@ public class CancelOrderCommandHandlerTests
         Assert.Equal(85, decrementedProduct!.Stock);
 
         // Act — cancel the order
-        var cancelHandler = new CancelOrderCommandHandler(context);
+        var cancelHandler = new CancelOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         await cancelHandler.HandleAsync(new CancelOrderCommand { OrderId = orderDto.Id }, CancellationToken.None);
 
         // Assert — stock should be restored to 100
@@ -103,14 +103,14 @@ public class CancelOrderCommandHandlerTests
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var createHandler = new CreateOrderCommandHandler(context);
+        var createHandler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         var createdOrder = await createHandler.HandleAsync(new CreateOrderCommand
         {
             CustomerId = customer.Id,
             Items = [new() { ProductId = product.Id, Quantity = 1 }]
         }, CancellationToken.None);
 
-        var cancelHandler = new CancelOrderCommandHandler(context);
+        var cancelHandler = new CancelOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
 
         // Act
         await cancelHandler.HandleAsync(new CancelOrderCommand { OrderId = createdOrder.Id }, CancellationToken.None);

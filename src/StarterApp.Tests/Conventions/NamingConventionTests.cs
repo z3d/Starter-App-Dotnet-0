@@ -1,4 +1,3 @@
-using StarterApp.Api.Application.Interfaces;
 using StarterApp.Api.Infrastructure.Mediator;
 using StarterApp.Api.Infrastructure.Validation;
 

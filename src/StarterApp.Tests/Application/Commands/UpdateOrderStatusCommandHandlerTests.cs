@@ -27,7 +27,7 @@ public class UpdateOrderStatusCommandHandlerTests
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateOrderStatusCommandHandler(context);
+        var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         var command = new UpdateOrderStatusCommand { OrderId = order.Id, Status = "Confirmed" };
 
         // Act
@@ -54,7 +54,7 @@ public class UpdateOrderStatusCommandHandlerTests
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateOrderStatusCommandHandler(context);
+        var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
 
         // Act
         await handler.HandleAsync(new UpdateOrderStatusCommand { OrderId = order.Id, Status = "Confirmed" }, CancellationToken.None);
@@ -107,7 +107,7 @@ public class UpdateOrderStatusCommandHandlerTests
         var options = CreateInMemoryOptions();
         await using var context = new ApplicationDbContext(options);
 
-        var handler = new UpdateOrderStatusCommandHandler(context);
+        var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         var command = new UpdateOrderStatusCommand { OrderId = Guid.NewGuid(), Status = "Confirmed" };
 
         // Act & Assert
@@ -130,7 +130,7 @@ public class UpdateOrderStatusCommandHandlerTests
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateOrderStatusCommandHandler(context);
+        var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         var command = new UpdateOrderStatusCommand { OrderId = order.Id, Status = "Delivered" };
 
         // Act & Assert — Pending → Delivered is not a valid transition
@@ -151,7 +151,7 @@ public class UpdateOrderStatusCommandHandlerTests
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var createHandler = new CreateOrderCommandHandler(context);
+        var createHandler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         var orderDto = await createHandler.HandleAsync(new CreateOrderCommand
         {
             CustomerId = customer.Id,
@@ -161,7 +161,7 @@ public class UpdateOrderStatusCommandHandlerTests
         var decrementedProduct = await context.Products.FindAsync(product.Id);
         Assert.Equal(85, decrementedProduct!.Stock);
 
-        var handler = new UpdateOrderStatusCommandHandler(context);
+        var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
 
         // Act
         var result = await handler.HandleAsync(

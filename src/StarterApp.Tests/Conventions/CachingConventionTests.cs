@@ -1,4 +1,3 @@
-using StarterApp.Api.Application.Interfaces;
 using StarterApp.Api.Infrastructure.Mediator;
 
 namespace StarterApp.Tests.Conventions;

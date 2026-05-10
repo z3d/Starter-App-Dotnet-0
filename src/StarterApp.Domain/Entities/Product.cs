@@ -10,6 +10,8 @@ public class Product
     public string Name { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
     public Money Price { get; private set; } = null!;
+    public string OwnerSubject { get; private set; } = string.Empty;
+    public string TenantId { get; private set; } = string.Empty;
     public int Stock { get; private set; }
     public DateTimeOffset LastUpdated { get; private set; }
     public byte[] RowVersion { get; private set; } = [];
@@ -25,6 +27,11 @@ public class Product
 
     // Public constructor (replacing the factory method)
     public Product(string name, string? description, Money price, int stock)
+        : this(name, description, price, stock, OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId)
+    {
+    }
+
+    public Product(string name, string? description, Money price, int stock, string ownerSubject, string tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(price);
@@ -32,10 +39,13 @@ public class Product
 
         ValidateName(name);
         ValidateDescription(description);
+        OwnershipDefaults.Validate(ownerSubject, tenantId);
 
         Name = name;
         Description = description ?? string.Empty;
         Price = price;
+        OwnerSubject = ownerSubject;
+        TenantId = tenantId;
         Stock = stock;
         LastUpdated = DateTimeOffset.UtcNow;
     }
@@ -77,4 +87,3 @@ public class Product
     }
 
 }
-

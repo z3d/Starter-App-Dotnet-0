@@ -31,7 +31,7 @@ public class DeleteProductCommandHandlerTests
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new DeleteProductCommandHandler(context, NullCacheInvalidator.Instance);
+        var handler = new DeleteProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var command = new DeleteProductCommand(product.Id);
 
         // Act
@@ -49,7 +49,7 @@ public class DeleteProductCommandHandlerTests
         var options = CreateInMemoryOptions();
         await using var context = new ApplicationDbContext(options);
 
-        var handler = new DeleteProductCommandHandler(context, NullCacheInvalidator.Instance);
+        var handler = new DeleteProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var command = new DeleteProductCommand(999);
 
         // Act & Assert
@@ -71,14 +71,14 @@ public class DeleteProductCommandHandlerTests
         await context.SaveChangesAsync();
 
         // Create an order referencing the product
-        var createHandler = new CreateOrderCommandHandler(context);
+        var createHandler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         await createHandler.HandleAsync(new CreateOrderCommand
         {
             CustomerId = customer.Id,
             Items = [new() { ProductId = product.Id, Quantity = 1 }]
         }, CancellationToken.None);
 
-        var handler = new DeleteProductCommandHandler(context, NullCacheInvalidator.Instance);
+        var handler = new DeleteProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var command = new DeleteProductCommand(product.Id);
 
         // Act & Assert

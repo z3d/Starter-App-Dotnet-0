@@ -6,11 +6,11 @@ The consistency toolset (`StarterApp.Tests/Consistency/`) reports all three meas
 
 <!-- Tests parse exemplar names from bold-backtick lines and dependency counts from "N dependencies". -->
 
-**`CreateProductCommandHandler.cs`** — Simple create command. Builds a value object, creates a product aggregate, saves once, invalidates the product cache, logs the operation, and returns a DTO inline. Pinned as the basic write shape. 2 dependencies (ApplicationDbContext, ICacheInvalidator).
+**`CreateProductCommandHandler.cs`** — Simple create command. Builds a value object, stamps the owner scope, creates a product aggregate, saves once, invalidates the product cache, logs the operation, and returns a DTO inline. Pinned as the basic write shape. 3 dependencies (ApplicationDbContext, ICacheInvalidator, IOwnerOnlyPolicy).
 
-**`UpdateOrderStatusCommandHandler.cs`** — Tracked aggregate mutation without cache invalidation. Loads an order with its item collection, applies a domain state transition, saves once, and maps through `OrderMapper`. Pinned as the order-state transition shape. 1 dependency (ApplicationDbContext).
+**`UpdateOrderStatusCommandHandler.cs`** — Tracked aggregate mutation without cache invalidation. Loads an order with its item collection, verifies owner access, applies a domain state transition, saves once, and maps through `OrderMapper`. Pinned as the order-state transition shape. 2 dependencies (ApplicationDbContext, IOwnerOnlyPolicy).
 
-**`DeleteCustomerCommandHandler.cs`** — Void mutation with a guard query. Loads a tracked customer, checks for dependent orders, removes the aggregate, saves once, invalidates the customer cache, and logs both success and failure paths. Pinned as the delete-command shape. 2 dependencies (ApplicationDbContext, ICacheInvalidator).
+**`DeleteCustomerCommandHandler.cs`** — Void mutation with a guard query. Loads a tracked customer, verifies owner access, checks for dependent orders, removes the aggregate, saves once, invalidates the customer cache, and logs both success and failure paths. Pinned as the delete-command shape. 3 dependencies (ApplicationDbContext, ICacheInvalidator, IOwnerOnlyPolicy).
 
 ## What the toolset measures
 
@@ -26,7 +26,7 @@ The consistency toolset (`StarterApp.Tests/Consistency/`) reports all three meas
 | Feature | Why it's meaningful |
 |---------|--------------------|
 | `IlByteSize` | Complexity proxy across the handler and async state-machine methods |
-| `ConstructorDependencyCount` | Handlers should stay small and dependency-light |
+| `ConstructorDependencyCount` | Handlers should stay small; owner-scoped mutations add `IOwnerOnlyPolicy` as a standard dependency |
 | `HasLogger` | StarterApp uses static Serilog calls; handlers without diagnostics are drift |
 | `HasCacheInvalidator` | Mutations for cacheable entities should invalidate entity cache keys |
 | `HasTryCatch` | Explicit exception handling is rare and worth review |

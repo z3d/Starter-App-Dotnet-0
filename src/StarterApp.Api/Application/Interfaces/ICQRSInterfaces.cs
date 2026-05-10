@@ -5,5 +5,6 @@ public interface ICommand { }
 
 public interface IQuery<TResult> { }
 
+public interface IOwnerScopedRequest { }
 
 

@@ -8,6 +8,8 @@ public class Order : AggregateRoot
 
     public Guid Id { get; private set; }
     public int CustomerId { get; private set; }
+    public string OwnerSubject { get; private set; } = string.Empty;
+    public string TenantId { get; private set; } = string.Empty;
     public DateTimeOffset OrderDate { get; private set; }
     public OrderStatus Status { get; private set; }
     public IReadOnlyList<OrderItem> Items
@@ -26,22 +28,35 @@ public class Order : AggregateRoot
     }
 
     public Order(int customerId)
-        : this(Guid.CreateVersion7(), customerId)
+        : this(Guid.CreateVersion7(), customerId, OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId)
     {
     }
 
     internal Order(Guid id, int customerId)
+        : this(id, customerId, OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId)
+    {
+    }
+
+    public Order(int customerId, string ownerSubject, string tenantId)
+        : this(Guid.CreateVersion7(), customerId, ownerSubject, tenantId)
+    {
+    }
+
+    internal Order(Guid id, int customerId, string ownerSubject, string tenantId)
     {
         if (id == Guid.Empty)
             throw new ArgumentException("Order id cannot be empty", nameof(id));
 
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(customerId);
+        OwnershipDefaults.Validate(ownerSubject, tenantId);
 
         // Client-assigned Id is required so creation events can be built before SaveChanges —
         // this is what keeps outbox capture inside a single SaveChanges and makes
         // EnableRetryOnFailure safe. Guid v7 is time-ordered, preserving insert locality.
         Id = id;
         CustomerId = customerId;
+        OwnerSubject = ownerSubject;
+        TenantId = tenantId;
         OrderDate = DateTimeOffset.UtcNow;
         Status = OrderStatus.Pending;
         LastUpdated = DateTimeOffset.UtcNow;
@@ -195,6 +210,8 @@ public class Order : AggregateRoot
         {
             Id = id,
             CustomerId = customerId,
+            OwnerSubject = OwnershipDefaults.LegacyOwnerSubject,
+            TenantId = OwnershipDefaults.LegacyTenantId,
             OrderDate = orderDate,
             Status = status,
             LastUpdated = lastUpdated

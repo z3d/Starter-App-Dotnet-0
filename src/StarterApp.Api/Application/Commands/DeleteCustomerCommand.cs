@@ -9,11 +9,13 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly ICacheInvalidator _cacheInvalidator;
+    private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public DeleteCustomerCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator)
+    public DeleteCustomerCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _dbContext = dbContext;
         _cacheInvalidator = cacheInvalidator;
+        _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
     public async Task HandleAsync(DeleteCustomerCommand command, CancellationToken cancellationToken)
@@ -29,6 +31,8 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
             throw new KeyNotFoundException($"Customer with ID {command.Id} not found");
         }
 
+        _ownerOnlyPolicy.Authorize(customer.OwnerSubject, customer.TenantId);
+
         var hasOrders = await _dbContext.Orders.AnyAsync(o => o.CustomerId == command.Id, cancellationToken);
         if (hasOrders)
         {
@@ -43,5 +47,4 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
         Log.Information("Deleted customer with ID: {CustomerId}", command.Id);
     }
 }
-
 

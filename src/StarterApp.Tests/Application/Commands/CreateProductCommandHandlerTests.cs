@@ -56,7 +56,7 @@ public class CreateProductCommandHandlerTests
             .Options;
 
         await using var context = new ApplicationDbContext(options);
-        var handler = new CreateProductCommandHandler(context, NullCacheInvalidator.Instance);
+        var handler = new CreateProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
 
         var command = new CreateProductCommand
         {

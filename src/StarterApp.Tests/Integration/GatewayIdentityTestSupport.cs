@@ -9,8 +9,8 @@ internal static class TestGatewayIdentity
     public const string KeyId = "test-key-1";
     public const string SigningKey = "starter-app-test-gateway-signing-key-32-bytes-minimum";
 
-    private const string DefaultSubject = "test-user-01";
-    private const string DefaultTenantId = "test-tenant-01";
+    public const string DefaultSubject = "test-user-01";
+    public const string DefaultTenantId = "test-tenant-01";
     private const string DefaultScopes = "customers:read customers:write orders:read orders:write products:read products:write";
 
     public static IReadOnlyDictionary<string, string?> Configuration { get; } = new Dictionary<string, string?>

@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Application.Queries;
 
-public class GetOrderByIdQuery : IQuery<OrderWithItemsReadModel?>, IRequest<OrderWithItemsReadModel?>
+public class GetOrderByIdQuery : IQuery<OrderWithItemsReadModel?>, IRequest<OrderWithItemsReadModel?>, IOwnerScopedRequest
 {
     public Guid Id { get; set; }
 }
@@ -8,15 +8,18 @@ public class GetOrderByIdQuery : IQuery<OrderWithItemsReadModel?>, IRequest<Orde
 public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, OrderWithItemsReadModel?>
 {
     private readonly IDbConnection _connection;
+    private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public GetOrderByIdQueryHandler(IDbConnection connection)
+    public GetOrderByIdQueryHandler(IDbConnection connection, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _connection = connection;
+        _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
     public async Task<OrderWithItemsReadModel?> HandleAsync(GetOrderByIdQuery query, CancellationToken cancellationToken)
     {
         Log.Information("Handling GetOrderByIdQuery for order {Id}", query.Id);
+        var ownerScope = _ownerOnlyPolicy.GetRequiredScope();
 
         const string orderSql = @"
             SELECT o.Id, o.CustomerId, o.OrderDate, o.Status,
@@ -34,7 +37,9 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
                 FROM OrderItems
                 WHERE OrderId = o.Id
             ) t
-            WHERE o.Id = @Id";
+            WHERE o.Id = @Id
+              AND o.OwnerSubject = @OwnerSubject
+              AND o.TenantId = @TenantId";
 
         const string itemsSql = @"
             SELECT OrderId, ProductId, ProductName, Quantity, UnitPriceExcludingGst,
@@ -47,7 +52,9 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
 
         var order = await SqlRetryPolicy.ExecuteAsync(
             ct => _connection.QuerySingleOrDefaultAsync<OrderWithItemsReadModel>(
-                new CommandDefinition(orderSql, new { Id = query.Id }, cancellationToken: ct)),
+                new CommandDefinition(orderSql,
+                    new { query.Id, ownerScope.OwnerSubject, ownerScope.TenantId },
+                    cancellationToken: ct)),
             cancellationToken);
 
         if (order == null)
@@ -62,5 +69,3 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
         return order;
     }
 }
-
-

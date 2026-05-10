@@ -16,6 +16,7 @@ public class CachingBehaviorTests
     {
         _behavior = new CachingBehavior<TestQuery, string>(
             _cacheMock.Object,
+            CurrentUser.Anonymous,
             new LoggerFactory().CreateLogger<CachingBehavior<TestQuery, string>>());
     }
 
@@ -25,6 +26,7 @@ public class CachingBehaviorTests
         var nonCacheableRequest = new NonCacheableQuery();
         var behavior = new CachingBehavior<NonCacheableQuery, string>(
             _cacheMock.Object,
+            CurrentUser.Anonymous,
             new LoggerFactory().CreateLogger<CachingBehavior<NonCacheableQuery, string>>());
 
         var result = await behavior.HandleAsync(nonCacheableRequest, () =>
@@ -88,12 +90,44 @@ public class CachingBehaviorTests
 
         var behavior = new CachingBehavior<NullableTestQuery, string?>(
             _cacheMock.Object,
+            CurrentUser.Anonymous,
             new LoggerFactory().CreateLogger<CachingBehavior<NullableTestQuery, string?>>());
 
         var result = await behavior.HandleAsync(request, () => Task.FromResult<string?>(null), CancellationToken.None);
 
         Assert.Null(result);
         _cacheMock.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<DistributedCacheEntryOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenRequestIsOwnerScoped_ShouldVaryCacheKeyByOwner()
+    {
+        var currentUser = new CurrentUser(
+            "subject-1",
+            AuthenticatedPrincipalType.User,
+            "tenant-1",
+            ["products:read"],
+            "correlation",
+            null,
+            null,
+            null);
+        var behavior = new CachingBehavior<OwnerScopedTestQuery, string>(
+            _cacheMock.Object,
+            currentUser,
+            new LoggerFactory().CreateLogger<CachingBehavior<OwnerScopedTestQuery, string>>());
+        var request = new OwnerScopedTestQuery { Id = 42 };
+        _cacheMock.Setup(c => c.GetAsync(
+                It.Is<string>(key => key.StartsWith("Test:42:Owner:", StringComparison.Ordinal)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((byte[]?)null);
+
+        await behavior.HandleAsync(request, () => Task.FromResult("fresh result"), CancellationToken.None);
+
+        _cacheMock.Verify(c => c.SetAsync(
+            It.Is<string>(key => key.StartsWith("Test:42:Owner:", StringComparison.Ordinal)),
+            It.IsAny<byte[]>(),
+            It.IsAny<DistributedCacheEntryOptions>(),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     public class TestQuery : IRequest<string>, ICacheable
@@ -110,6 +144,13 @@ public class CachingBehaviorTests
     public class NullableTestQuery : IRequest<string?>, ICacheable
     {
         public string CacheKey => "NullableTest";
+        public TimeSpan CacheDuration => TimeSpan.FromMinutes(5);
+    }
+
+    public class OwnerScopedTestQuery : IRequest<string>, ICacheable, IOwnerScopedRequest
+    {
+        public int Id { get; set; }
+        public string CacheKey => $"Test:{Id}";
         public TimeSpan CacheDuration => TimeSpan.FromMinutes(5);
     }
 }

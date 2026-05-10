@@ -14,11 +14,13 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly ICacheInvalidator _cacheInvalidator;
+    private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public UpdateProductCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator)
+    public UpdateProductCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _dbContext = dbContext;
         _cacheInvalidator = cacheInvalidator;
+        _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
     public async Task<ProductDto?> HandleAsync(UpdateProductCommand command, CancellationToken cancellationToken)
@@ -33,6 +35,8 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
             Log.Warning("Product {Id} not found for update", command.Id);
             throw new KeyNotFoundException($"Product with ID {command.Id} not found");
         }
+
+        _ownerOnlyPolicy.Authorize(product.OwnerSubject, product.TenantId);
 
         var price = Money.Create(command.Price!.Value, command.Currency!);
         product.UpdateDetails(command.Name!, command.Description, price);
@@ -62,5 +66,4 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         };
     }
 }
-
 

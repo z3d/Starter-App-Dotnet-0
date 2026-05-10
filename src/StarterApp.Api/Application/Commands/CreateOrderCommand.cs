@@ -17,10 +17,12 @@ public class CreateOrderItemCommand
 public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, OrderDto>
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public CreateOrderCommandHandler(ApplicationDbContext dbContext)
+    public CreateOrderCommandHandler(ApplicationDbContext dbContext, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _dbContext = dbContext;
+        _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
     public async Task<OrderDto> HandleAsync(CreateOrderCommand command, CancellationToken cancellationToken)
@@ -28,10 +30,15 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         Log.Information("Creating order for customer {CustomerId} with EF Core", command.CustomerId);
 
         EnsureNoDuplicateProducts(command);
+        var ownerScope = _ownerOnlyPolicy.GetRequiredScope();
 
-        var customerExists = await _dbContext.Customers.AnyAsync(c => c.Id == command.CustomerId, cancellationToken);
-        if (!customerExists)
+        var customer = await _dbContext.Customers
+            .AsNoTracking()
+            .SingleOrDefaultAsync(c => c.Id == command.CustomerId, cancellationToken);
+        if (customer == null)
             throw new KeyNotFoundException($"Customer with ID {command.CustomerId} was not found");
+
+        _ownerOnlyPolicy.Authorize(customer.OwnerSubject, customer.TenantId);
 
         // Atomic stock-reservation + order-insert must share one transaction (ExecuteUpdate bypasses
         // the SaveChanges transaction). With EnableRetryOnFailure, user transactions must be wrapped
@@ -63,10 +70,10 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
             try
             {
-                var order = new Order(orderId, command.CustomerId);
+                var order = new Order(orderId, command.CustomerId, ownerScope.OwnerSubject, ownerScope.TenantId);
                 foreach (var itemCommand in command.Items)
                 {
-                    var product = await ReserveStockAsync(itemCommand, ct);
+                    var product = await ReserveStockAsync(itemCommand, ownerScope, ct);
                     order.AddItem(
                         itemCommand.ProductId,
                         product.Name,
@@ -97,15 +104,16 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
     // Single provider branch: relational uses atomic SQL (UPDATE ... WHERE Stock >= qty) to prevent
     // overselling under concurrency; InMemory (tests only) falls back to tracked read-modify-write
     // because ExecuteUpdateAsync is not supported on that provider.
-    private Task<Product> ReserveStockAsync(CreateOrderItemCommand itemCommand, CancellationToken cancellationToken)
+    private Task<Product> ReserveStockAsync(CreateOrderItemCommand itemCommand, OwnerScope ownerScope, CancellationToken cancellationToken)
     {
         return _dbContext.Database.IsRelational()
-            ? ReserveStockWithAtomicUpdateAsync(itemCommand, cancellationToken)
+            ? ReserveStockWithAtomicUpdateAsync(itemCommand, ownerScope, cancellationToken)
             : ReserveStockInMemoryAsync(itemCommand, cancellationToken);
     }
 
     private async Task<Product> ReserveStockWithAtomicUpdateAsync(
         CreateOrderItemCommand itemCommand,
+        OwnerScope ownerScope,
         CancellationToken cancellationToken)
     {
         // Load product first to verify existence and get catalog details (name, price).
@@ -118,9 +126,15 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         if (product == null)
             throw new KeyNotFoundException($"Product with ID {itemCommand.ProductId} was not found");
 
+        _ownerOnlyPolicy.Authorize(product.OwnerSubject, product.TenantId);
+
         // Atomic stock reservation — WHERE Stock >= @qty prevents concurrent overselling
         var updatedRows = await _dbContext.Products
-            .Where(p => p.Id == itemCommand.ProductId && p.Stock >= itemCommand.Quantity)
+            .Where(p =>
+                p.Id == itemCommand.ProductId &&
+                p.OwnerSubject == ownerScope.OwnerSubject &&
+                p.TenantId == ownerScope.TenantId &&
+                p.Stock >= itemCommand.Quantity)
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(p => p.Stock, p => p.Stock - itemCommand.Quantity)
@@ -141,6 +155,8 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         var product = await _dbContext.Products.FindAsync([itemCommand.ProductId], cancellationToken);
         if (product == null)
             throw new KeyNotFoundException($"Product with ID {itemCommand.ProductId} was not found");
+
+        _ownerOnlyPolicy.Authorize(product.OwnerSubject, product.TenantId);
 
         if (product.Stock < itemCommand.Quantity)
             throw new InvalidOperationException(

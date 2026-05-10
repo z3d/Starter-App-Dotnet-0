@@ -7,11 +7,13 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
     where TRequest : IRequest<TResponse>
 {
     private readonly IDistributedCache _cache;
+    private readonly ICurrentUser _currentUser;
     private readonly ILogger<CachingBehavior<TRequest, TResponse>> _logger;
 
-    public CachingBehavior(IDistributedCache cache, ILogger<CachingBehavior<TRequest, TResponse>> logger)
+    public CachingBehavior(IDistributedCache cache, ICurrentUser currentUser, ILogger<CachingBehavior<TRequest, TResponse>> logger)
     {
         _cache = cache;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
@@ -20,10 +22,11 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         if (request is not ICacheable cacheable)
             return await next();
 
-        var cached = await _cache.GetStringAsync(cacheable.CacheKey, cancellationToken);
+        var cacheKey = ResolveCacheKey(cacheable);
+        var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
         if (cached is not null)
         {
-            _logger.LogDebug("Cache hit for {CacheKey}", cacheable.CacheKey);
+            _logger.LogDebug("Cache hit for {CacheKey}", cacheKey);
             return JsonSerializer.Deserialize<TResponse>(cached)!;
         }
 
@@ -36,9 +39,16 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
             {
                 AbsoluteExpirationRelativeToNow = cacheable.CacheDuration
             };
-            await _cache.SetStringAsync(cacheable.CacheKey, serialized, options, cancellationToken);
+            await _cache.SetStringAsync(cacheKey, serialized, options, cancellationToken);
         }
 
         return result;
+    }
+
+    private string ResolveCacheKey(ICacheable cacheable)
+    {
+        return cacheable is IOwnerScopedRequest && _currentUser.IsAuthenticated
+            ? OwnerScopedCacheKey.Create(cacheable.CacheKey, _currentUser)
+            : cacheable.CacheKey;
     }
 }

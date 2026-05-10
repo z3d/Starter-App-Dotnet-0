@@ -170,6 +170,34 @@ public class PersistenceConventionTests : ConventionTestBase
             "Concurrency-critical entities must use SQL rowversion tokens:\n" + string.Join("\n", failures));
     }
 
+    [Fact]
+    public void OwnerScopedEntities_MustPersistOwnerSubjectAndTenantId()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase($"owner-scope-conventions-{Guid.NewGuid()}")
+            .Options;
+
+        using var dbContext = new ApplicationDbContext(options);
+        var ownerScopedEntities = new[] { typeof(Customer), typeof(Product), typeof(Order) };
+        var failures = new List<string>();
+
+        foreach (var entityType in ownerScopedEntities)
+        {
+            var modelEntity = dbContext.Model.FindEntityType(entityType);
+            if (modelEntity == null)
+            {
+                failures.Add($"{entityType.Name} is not mapped by EF Core.");
+                continue;
+            }
+
+            AssertOwnerScopeProperty(entityType, modelEntity, nameof(Customer.OwnerSubject), OwnershipDefaults.MaxOwnerSubjectLength, failures);
+            AssertOwnerScopeProperty(entityType, modelEntity, nameof(Customer.TenantId), OwnershipDefaults.MaxTenantIdLength, failures);
+        }
+
+        Assert.True(failures.Count == 0,
+            "Owner-scoped entities must persist required owner identity columns:\n" + string.Join("\n", failures));
+    }
+
     // === Migration Safety ===
 
     [Fact]
@@ -313,6 +341,22 @@ public class PersistenceConventionTests : ConventionTestBase
         }
 
         return Directory.Exists(scriptsDir) ? scriptsDir : null;
+    }
+
+    private static void AssertOwnerScopeProperty(Type entityType, IEntityType modelEntity, string propertyName, int maxLength, List<string> failures)
+    {
+        var property = modelEntity.FindProperty(propertyName);
+        if (property == null)
+        {
+            failures.Add($"{entityType.Name}.{propertyName} is missing from the EF model.");
+            return;
+        }
+
+        if (property.IsNullable)
+            failures.Add($"{entityType.Name}.{propertyName} must be required.");
+
+        if (property.GetMaxLength() != maxLength)
+            failures.Add($"{entityType.Name}.{propertyName} must have max length {maxLength}.");
     }
 
     // === Custom Convention Specifications ===

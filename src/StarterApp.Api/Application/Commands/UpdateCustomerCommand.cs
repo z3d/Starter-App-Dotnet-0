@@ -11,11 +11,13 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly ICacheInvalidator _cacheInvalidator;
+    private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public UpdateCustomerCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator)
+    public UpdateCustomerCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _dbContext = dbContext;
         _cacheInvalidator = cacheInvalidator;
+        _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
     public async Task<CustomerDto> HandleAsync(UpdateCustomerCommand command, CancellationToken cancellationToken)
@@ -31,8 +33,10 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
             throw new KeyNotFoundException($"Customer with ID {command.Id} not found");
         }
 
+        _ownerOnlyPolicy.Authorize(customer.OwnerSubject, customer.TenantId);
+
         var email = Email.Create(command.Email);
-        await EnsureEmailIsUniqueAsync(email.Value, command.Id, cancellationToken);
+        await EnsureEmailIsUniqueAsync(email.Value, command.Id, customer.OwnerSubject, customer.TenantId, cancellationToken);
 
         customer.UpdateDetails(command.Name, email);
 
@@ -40,7 +44,7 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
         {
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException ex) when (ex.IsUniqueConstraintViolation("IX_Customers_Email"))
+        catch (DbUpdateException ex) when (ex.IsUniqueConstraintViolation("IX_Customers_TenantId_OwnerSubject_Email"))
         {
             throw new InvalidOperationException("A customer with that email already exists", ex);
         }
@@ -59,14 +63,18 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
         };
     }
 
-    private async Task EnsureEmailIsUniqueAsync(string email, int customerId, CancellationToken cancellationToken)
+    private async Task EnsureEmailIsUniqueAsync(string email, int customerId, string ownerSubject, string tenantId, CancellationToken cancellationToken)
     {
         var emailExists = await _dbContext.Customers
             .AsNoTracking()
-            .AnyAsync(customer => customer.Id != customerId && customer.Email.Value == email, cancellationToken);
+            .AnyAsync(customer =>
+                customer.Id != customerId &&
+                customer.Email.Value == email &&
+                customer.OwnerSubject == ownerSubject &&
+                customer.TenantId == tenantId,
+                cancellationToken);
 
         if (emailExists)
             throw new InvalidOperationException("A customer with that email already exists");
     }
 }
-

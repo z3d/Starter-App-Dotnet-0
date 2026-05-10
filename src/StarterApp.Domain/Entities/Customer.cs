@@ -7,6 +7,8 @@ public class Customer
     public int Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public Email Email { get; private set; } = null!;
+    public string OwnerSubject { get; private set; } = string.Empty;
+    public string TenantId { get; private set; } = string.Empty;
     public DateTimeOffset DateCreated { get; private set; }
     public bool IsActive { get; private set; }
 
@@ -18,14 +20,22 @@ public class Customer
     }
 
     public Customer(string name, Email email)
+        : this(name, email, OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId)
+    {
+    }
+
+    public Customer(string name, Email email, string ownerSubject, string tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(email);
 
         ValidateName(name);
+        OwnershipDefaults.Validate(ownerSubject, tenantId);
 
         Name = name;
         Email = email;
+        OwnerSubject = ownerSubject;
+        TenantId = tenantId;
         DateCreated = DateTimeOffset.UtcNow;
         IsActive = true;
     }
@@ -57,5 +67,4 @@ public class Customer
             throw new ArgumentException($"Customer name cannot exceed {MaxNameLength} characters", nameof(name));
     }
 }
-
 

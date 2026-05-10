@@ -6,11 +6,11 @@ The consistency toolset (`StarterApp.Tests/Consistency/`) reports all three meas
 
 <!-- Tests parse exemplar names from bold-backtick lines and dependency counts from "N dependencies". -->
 
-**`GetProductByIdQueryHandler.cs`** — Cached by-id lookup. Uses Dapper against `IDbConnection`, returns a nullable read model, and the query implements `ICacheable`. Pinned as the default by-id cacheable read shape. 1 dependency (IDbConnection).
+**`GetProductByIdQueryHandler.cs`** — Cached by-id lookup. Uses Dapper against `IDbConnection`, returns a nullable read model, filters through `IOwnerOnlyPolicy`, and the query implements `ICacheable`. Pinned as the default by-id cacheable read shape. 2 dependencies (IDbConnection, IOwnerOnlyPolicy).
 
-**`GetAllProductsQueryHandler.cs`** — Paged list lookup. Uses `Page`/`PageSize`, SQL `OFFSET/FETCH`, and returns `IEnumerable<ProductReadModel>`. Pinned as the standard collection query shape. 1 dependency (IDbConnection).
+**`GetAllProductsQueryHandler.cs`** — Paged list lookup. Uses `Page`/`PageSize`, SQL `OFFSET/FETCH`, owner filtering through `IOwnerOnlyPolicy`, and returns `IEnumerable<ProductReadModel>`. Pinned as the standard collection query shape. 2 dependencies (IDbConnection, IOwnerOnlyPolicy).
 
-**`GetOrderByIdQueryHandler.cs`** — Rich aggregate read. Uses two SQL statements: one root projection plus one item projection, then assembles an `OrderWithItemsReadModel`. Pinned as the intentionally complex by-id read shape. 1 dependency (IDbConnection).
+**`GetOrderByIdQueryHandler.cs`** — Rich aggregate read. Uses two SQL statements: one owner-filtered root projection plus one item projection, then assembles an `OrderWithItemsReadModel`. Pinned as the intentionally complex by-id read shape. 2 dependencies (IDbConnection, IOwnerOnlyPolicy).
 
 ## What the toolset measures
 
@@ -26,7 +26,7 @@ The consistency toolset (`StarterApp.Tests/Consistency/`) reports all three meas
 | Feature | Why it's meaningful |
 |---------|--------------------|
 | `IlByteSize` | Complexity proxy across handler and async state-machine methods |
-| `ConstructorDependencyCount` | Queries should normally depend only on `IDbConnection` |
+| `ConstructorDependencyCount` | Queries should normally depend only on `IDbConnection` plus `IOwnerOnlyPolicy` for owner-scoped resources |
 | `HasPagination` | StarterApp pagination is detected from `Page` and `PageSize` query properties |
 | `IsCacheable` | Only by-id queries should be cacheable |
 | `ReturnsList` | Distinguishes collection queries from single-row reads |

@@ -138,6 +138,8 @@ Endpoints are organized with OpenAPI tags for better Scalar API reference docume
 - **Protected Groups**: `/api/v1` endpoint groups call `RequireGatewayIdentity()`; health and OpenAPI endpoints remain public
 - **Required Headers**: `X-Authenticated-Subject`, `X-Authenticated-Principal-Type`, `X-Authenticated-Tenant-Id`, `X-Authenticated-Scopes`, `X-Correlation-ID`
 - **Assertion**: `X-Gateway-Assertion` signs the projected headers plus issuer, audience, method, path, and short lifetime in production-like `Required` mode
+- **Scope Enforcement**: Each `/api/v1` route declares a required scope with `RequireScope(...)`; read routes use `products:read`, `customers:read`, or `orders:read`, and write routes use the matching `*:write` scope
+- **Owner Enforcement**: Customers, products, and orders are stamped with `OwnerSubject` and `TenantId` from the gateway identity. Reads are filtered to the current owner; cross-owner single-resource reads return `404`, cross-owner lists return empty pages, and cross-owner mutations return `403`.
 - **Access Pattern**: Application code consumes `ICurrentUser`; raw identity header reads stay inside `Infrastructure/Identity`
 
 ### Usage Example
@@ -156,6 +158,7 @@ customers.MapPost("/", CreateCustomer)
 ### Error Responses
 - `400 Bad Request`: Validation errors or business rule violations
 - `401 Unauthorized`: Missing or invalid gateway identity
+- `403 Forbidden`: Authenticated gateway identity is missing the route's required scope or does not own the mutated resource
 - `404 Not Found`: Resource not found
 - `409 Conflict`: Business rule conflict or state transition violation
 - `429 Too Many Requests`: Rate limit exceeded

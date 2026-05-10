@@ -101,8 +101,11 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - The gateway must strip inbound `X-Authenticated-*` and `X-Gateway-Assertion` headers, then project a small normalized identity contract: `X-Authenticated-Subject`, `X-Authenticated-Principal-Type`, `X-Authenticated-Tenant-Id`, `X-Authenticated-Scopes`, and `X-Correlation-ID`
 - Production-like environments must use `GatewayIdentity:Mode=Required` with a signed `X-Gateway-Assertion`; `UnsignedDevelopment` is only for Development, Testing, and local Docker workflows
 - `X-Gateway-Assertion` signs issuer, audience, subject, principal type, tenant, scopes, correlation id, method, path, lifetime, key id, and a hash of the projected identity headers. Missing, expired, tampered, wrong-audience, wrong-path, or wrong-key assertions return `401`
-- Endpoint groups under `/api/v1` must call `RequireGatewayIdentity()`. Convention tests enforce this, and production code must use `ICurrentUser` instead of reading raw identity headers directly
-- Gateway auth does not eliminate API authorization. Tenant ownership, resource-level permissions, and domain-sensitive workflow rules still belong in application/domain code
+- Endpoint groups under `/api/v1` must call `RequireGatewayIdentity()`, and every `/api/v1` route must declare its required gateway scope with `RequireScope("domain:read|write")`. Convention tests enforce this from mapped endpoint metadata, and production code must use `ICurrentUser` instead of reading raw identity headers directly
+- Customer, Product, and Order are owner-scoped resources. Create handlers stamp `OwnerSubject` and `TenantId` from `ICurrentUser`; query handlers filter by that owner scope; mutation handlers call `IOwnerOnlyPolicy` before changing or deleting a loaded aggregate. Cross-owner reads are hidden as not found or empty lists, while cross-owner mutations return `403 Forbidden`.
+- All resource queries must implement `IOwnerScopedRequest`, and all command/query handlers must inject `IOwnerOnlyPolicy`; convention tests enforce both rules so future endpoints cannot drift back to global visibility
+- Owner-scoped by-id caches include the verified tenant/subject in the cache key. Mutations invalidate both the legacy resource key and the owner-scoped key so cached data cannot cross identities.
+- Gateway auth does not eliminate API authorization. Tenant ownership, resource-level permissions, and domain-sensitive workflow rules still belong in application/domain code, with `IOwnerOnlyPolicy` as the minimum baseline for owned resources.
 - Rate limiting partitions by the verified tenant/subject identity for protected endpoints and falls back to IP only for public/unauthenticated requests
 
 **Clean Architecture**
