@@ -6,13 +6,13 @@ public class ProductEndpoints : IEndpointDefinition
     {
         var products = app.MapGroup("/api/v1/products")
             .WithTags("Products")
-            .RequireGatewayIdentity()
-;
+            .RequireGatewayIdentity();
 
         products.MapGet("/", GetProducts)
             .WithName("GetProducts")
             .WithSummary("Get all products")
             .WithDescription("Retrieves a list of all products in the catalog")
+            .RequireScope("products:read")
             .Produces<PagedResponse<ProductReadModel>>(200, "application/json")
             .ProducesProblem(500);
 
@@ -20,6 +20,7 @@ public class ProductEndpoints : IEndpointDefinition
             .WithName("GetProduct")
             .WithSummary("Get product by ID")
             .WithDescription("Retrieves a specific product by its unique identifier")
+            .RequireScope("products:read")
             .Produces<ProductReadModel>(200, "application/json")
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -28,6 +29,7 @@ public class ProductEndpoints : IEndpointDefinition
             .WithName("CreateProduct")
             .WithSummary("Create a new product")
             .WithDescription("Creates a new product in the catalog with the provided information")
+            .RequireScope("products:write")
             .Accepts<CreateProductCommand>("application/json")
             .Produces<ProductDto>(201, "application/json")
             .ProducesProblem(400)
@@ -37,6 +39,7 @@ public class ProductEndpoints : IEndpointDefinition
             .WithName("UpdateProduct")
             .WithSummary("Update an existing product")
             .WithDescription("Updates an existing product with the provided information")
+            .RequireScope("products:write")
             .Accepts<UpdateProductCommand>("application/json")
             .Produces(204)
             .ProducesProblem(400)
@@ -47,6 +50,7 @@ public class ProductEndpoints : IEndpointDefinition
             .WithName("DeleteProduct")
             .WithSummary("Delete a product")
             .WithDescription("Permanently removes a product from the catalog")
+            .RequireScope("products:write")
             .Produces(204)
             .ProducesProblem(404)
             .ProducesProblem(409)

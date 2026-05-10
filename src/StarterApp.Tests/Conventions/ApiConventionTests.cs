@@ -1,3 +1,7 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using StarterApp.Api.Endpoints;
 using StarterApp.Api.Infrastructure.Mediator;
 using StarterApp.Api.Infrastructure.Validation;
 
@@ -36,15 +40,29 @@ public class ApiConventionTests : ConventionTestBase
     }
 
     [Fact]
-    public void ApiEndpointGroups_MustRequireGatewayIdentity()
+    public void ApiRouteEndpoints_MustRequireGatewayIdentity()
     {
-        var endpointFiles = Directory.EnumerateFiles(Path.Combine(FindRepoRoot(), "src", "StarterApp.Api", "Endpoints"), "*Endpoints.cs", SearchOption.TopDirectoryOnly);
-        var failures = endpointFiles
-            .SelectMany(FindUnprotectedApiRouteGroups)
+        using var app = BuildEndpointMetadataApp();
+        var failures = GetApiRouteEndpoints(app)
+            .Where(endpoint => endpoint.Metadata.GetMetadata<GatewayIdentityRequiredMetadata>() == null)
+            .Select(endpoint => $"{FormatEndpoint(endpoint)} must call RequireGatewayIdentity().")
             .ToList();
 
         Assert.True(failures.Count == 0,
-            "API endpoint groups must opt into the trusted gateway identity middleware:\n" + string.Join("\n", failures));
+            "API endpoint routes must opt into the trusted gateway identity middleware:\n" + string.Join("\n", failures));
+    }
+
+    [Fact]
+    public void ApiRouteEndpoints_MustRequireGatewayScope()
+    {
+        using var app = BuildEndpointMetadataApp();
+        var failures = GetApiRouteEndpoints(app)
+            .Where(endpoint => endpoint.Metadata.GetMetadata<GatewayScopeRequiredMetadata>() == null)
+            .Select(endpoint => $"{FormatEndpoint(endpoint)} must call RequireScope(\"...\").")
+            .ToList();
+
+        Assert.True(failures.Count == 0,
+            "API endpoint routes must declare the required gateway scope:\n" + string.Join("\n", failures));
     }
 
     [Fact]
@@ -299,24 +317,40 @@ public class ApiConventionTests : ConventionTestBase
         return Path.GetRelativePath(FindRepoRoot(), file);
     }
 
-    private static IEnumerable<string> FindUnprotectedApiRouteGroups(string file)
+    private static WebApplication BuildEndpointMetadataApp()
     {
-        var lines = File.ReadAllLines(file);
-        for (var index = 0; index < lines.Length; index++)
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
+        builder.Services.AddSingleton<IMediator, EndpointMetadataMediator>();
+        var app = builder.Build();
+        app.MapApiEndpoints();
+        return app;
+    }
+
+    private static IReadOnlyList<RouteEndpoint> GetApiRouteEndpoints(WebApplication app)
+    {
+        return ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/v1", StringComparison.Ordinal) == true)
+            .ToList();
+    }
+
+    private static string FormatEndpoint(RouteEndpoint endpoint)
+    {
+        var methods = endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? ["ANY"];
+        return $"{string.Join(",", methods)} {endpoint.RoutePattern.RawText}";
+    }
+
+    private sealed class EndpointMetadataMediator : IMediator
+    {
+        public Task<TResponse> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
         {
-            if (!lines[index].Contains("MapGroup(\"/api/v1", StringComparison.Ordinal))
-                continue;
+            throw new NotSupportedException("Endpoint metadata convention tests never invoke handlers.");
+        }
 
-            var statement = lines[index];
-            var endIndex = index;
-            while (!statement.Contains(';', StringComparison.Ordinal) && endIndex + 1 < lines.Length)
-            {
-                endIndex++;
-                statement += "\n" + lines[endIndex];
-            }
-
-            if (!statement.Contains(".RequireGatewayIdentity()", StringComparison.Ordinal))
-                yield return $"{FormatPath(file)}:{index + 1} /api/v1 MapGroup must call RequireGatewayIdentity() in the same route-group declaration.";
+        public Task SendAsync(IRequest request, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException("Endpoint metadata convention tests never invoke handlers.");
         }
     }
 

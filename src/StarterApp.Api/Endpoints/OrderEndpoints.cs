@@ -6,13 +6,13 @@ public class OrderEndpoints : IEndpointDefinition
     {
         var orders = app.MapGroup("/api/v1/orders")
             .WithTags("Orders")
-            .RequireGatewayIdentity()
-;
+            .RequireGatewayIdentity();
 
         orders.MapGet("/{id:guid}", GetOrder)
             .WithName("GetOrder")
             .WithSummary("Get order by ID")
             .WithDescription("Retrieves a specific order with all its items by the order ID")
+            .RequireScope("orders:read")
             .Produces<OrderWithItemsReadModel>(200, "application/json")
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -21,6 +21,7 @@ public class OrderEndpoints : IEndpointDefinition
             .WithName("GetOrdersByCustomer")
             .WithSummary("Get orders by customer ID")
             .WithDescription("Retrieves all orders for a specific customer")
+            .RequireScope("orders:read")
             .Produces<PagedResponse<OrderReadModel>>(200, "application/json")
             .ProducesProblem(500);
 
@@ -28,6 +29,7 @@ public class OrderEndpoints : IEndpointDefinition
             .WithName("GetOrdersByStatus")
             .WithSummary("Get orders by status")
             .WithDescription("Retrieves all orders with the specified status")
+            .RequireScope("orders:read")
             .Produces<PagedResponse<OrderReadModel>>(200, "application/json")
             .ProducesProblem(500);
 
@@ -35,6 +37,7 @@ public class OrderEndpoints : IEndpointDefinition
             .WithName("CreateOrder")
             .WithSummary("Create a new order")
             .WithDescription("Creates a new order with the specified items for a customer")
+            .RequireScope("orders:write")
             .Accepts<CreateOrderCommand>("application/json")
             .Produces<OrderDto>(201, "application/json")
             .ProducesProblem(400)
@@ -44,6 +47,7 @@ public class OrderEndpoints : IEndpointDefinition
             .WithName("UpdateOrderStatus")
             .WithSummary("Update order status")
             .WithDescription("Updates the status of an existing order")
+            .RequireScope("orders:write")
             .Accepts<UpdateOrderStatusCommand>("application/json")
             .Produces<OrderDto>(200, "application/json")
             .ProducesProblem(400)
@@ -55,6 +59,7 @@ public class OrderEndpoints : IEndpointDefinition
             .WithName("CancelOrder")
             .WithSummary("Cancel an order")
             .WithDescription("Cancels an existing order if it's in a cancellable state")
+            .RequireScope("orders:write")
             .Produces<OrderDto>(200, "application/json")
             .ProducesProblem(400)
             .ProducesProblem(404)

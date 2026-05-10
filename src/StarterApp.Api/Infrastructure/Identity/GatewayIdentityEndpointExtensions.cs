@@ -9,4 +9,13 @@ public static class GatewayIdentityEndpointExtensions
 
         return builder;
     }
+
+    public static RouteHandlerBuilder RequireScope(this RouteHandlerBuilder builder, string scope)
+    {
+        builder.WithMetadata(new GatewayScopeRequiredMetadata(scope))
+            .AddEndpointFilter<GatewayScopeEndpointFilter>()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        return builder;
+    }
 }

@@ -6,13 +6,13 @@ public class CustomerEndpoints : IEndpointDefinition
     {
         var customers = app.MapGroup("/api/v1/customers")
             .WithTags("Customers")
-            .RequireGatewayIdentity()
-;
+            .RequireGatewayIdentity();
 
         customers.MapGet("/", GetCustomers)
             .WithName("GetCustomers")
             .WithSummary("Get all customers")
             .WithDescription("Retrieves a list of all customers in the system")
+            .RequireScope("customers:read")
             .Produces<PagedResponse<CustomerReadModel>>(200, "application/json")
             .ProducesProblem(500);
 
@@ -20,6 +20,7 @@ public class CustomerEndpoints : IEndpointDefinition
             .WithName("GetCustomer")
             .WithSummary("Get customer by ID")
             .WithDescription("Retrieves a specific customer by their unique identifier")
+            .RequireScope("customers:read")
             .Produces<CustomerReadModel>(200, "application/json")
             .ProducesProblem(404)
             .ProducesProblem(500);
@@ -28,6 +29,7 @@ public class CustomerEndpoints : IEndpointDefinition
             .WithName("CreateCustomer")
             .WithSummary("Create a new customer")
             .WithDescription("Creates a new customer with the provided information")
+            .RequireScope("customers:write")
             .Accepts<CreateCustomerCommand>("application/json")
             .Produces<CustomerDto>(201, "application/json")
             .ProducesProblem(400)
@@ -37,6 +39,7 @@ public class CustomerEndpoints : IEndpointDefinition
             .WithName("UpdateCustomer")
             .WithSummary("Update an existing customer")
             .WithDescription("Updates an existing customer with the provided information")
+            .RequireScope("customers:write")
             .Accepts<UpdateCustomerCommand>("application/json")
             .Produces(204)
             .ProducesProblem(400)
@@ -47,6 +50,7 @@ public class CustomerEndpoints : IEndpointDefinition
             .WithName("DeleteCustomer")
             .WithSummary("Delete a customer")
             .WithDescription("Permanently deletes a customer from the system")
+            .RequireScope("customers:write")
             .Produces(204)
             .ProducesProblem(404)
             .ProducesProblem(409)

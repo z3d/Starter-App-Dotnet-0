@@ -46,6 +46,40 @@ public class GatewayIdentityIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ProtectedReadEndpoint_WithMissingReadScope_ShouldReturnForbidden()
+    {
+        using var client = _fixture.CreateUnauthenticatedClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/products");
+        TestGatewayIdentity.AddSignedHeaders(request, scopes: "orders:read");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProtectedWriteEndpoint_WithMissingWriteScope_ShouldReturnForbidden()
+    {
+        using var client = _fixture.CreateUnauthenticatedClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/products")
+        {
+            Content = JsonContent.Create(new CreateProductCommand
+            {
+                Name = "Scoped Product",
+                Description = "Missing write scope",
+                Price = 10,
+                Currency = "USD",
+                Stock = 5
+            })
+        };
+        TestGatewayIdentity.AddSignedHeaders(request, scopes: "products:read");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task ProtectedEndpoint_WithIdentityHeadersButMissingAssertion_ShouldReturnUnauthorized()
     {
         using var client = _fixture.CreateUnauthenticatedClient();
