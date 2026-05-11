@@ -19,6 +19,8 @@ public class GatewayIdentityHeadersTests
         Assert.Equal("tenant-123", result.Envelope.User.TenantId);
         Assert.True(result.Envelope.User.HasScope("orders:read"));
         Assert.True(result.Envelope.User.HasScope("products:write"));
+        Assert.True(result.Envelope.User.HasAuthenticationMethod("mfa"));
+        Assert.True(result.Envelope.User.HasAuthenticationMethod("pwd"));
         Assert.False(string.IsNullOrWhiteSpace(result.Envelope.HeaderHash));
     }
 
@@ -28,6 +30,23 @@ public class GatewayIdentityHeadersTests
         var first = CreateContext();
         var second = CreateContext();
         second.Request.Headers[GatewayIdentityHeaders.Scopes] = "orders:read products:write";
+
+        var firstResult = GatewayIdentityHeaders.Read(first.Request.Headers);
+        var secondResult = GatewayIdentityHeaders.Read(second.Request.Headers);
+
+        Assert.True(firstResult.Succeeded);
+        Assert.True(secondResult.Succeeded);
+        Assert.NotNull(firstResult.Envelope);
+        Assert.NotNull(secondResult.Envelope);
+        Assert.Equal(firstResult.Envelope.HeaderHash, secondResult.Envelope.HeaderHash);
+    }
+
+    [Fact]
+    public void Read_WithAuthenticationMethodsInDifferentOrder_ShouldProduceSameHeaderHash()
+    {
+        var first = CreateContext();
+        var second = CreateContext();
+        second.Request.Headers[GatewayIdentityHeaders.AuthenticationMethods] = "pwd mfa";
 
         var firstResult = GatewayIdentityHeaders.Read(first.Request.Headers);
         var secondResult = GatewayIdentityHeaders.Read(second.Request.Headers);
@@ -90,6 +109,21 @@ public class GatewayIdentityHeadersTests
         Assert.Contains(result.Errors, error => error.Contains(GatewayIdentityHeaders.Scopes, StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("Mfa")]
+    [InlineData("mfa/otp")]
+    [InlineData("mfa!")]
+    public void Read_WithInvalidAuthenticationMethodShape_ShouldFail(string authenticationMethod)
+    {
+        var context = CreateContext();
+        context.Request.Headers[GatewayIdentityHeaders.AuthenticationMethods] = authenticationMethod;
+
+        var result = GatewayIdentityHeaders.Read(context.Request.Headers);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Errors, error => error.Contains(GatewayIdentityHeaders.AuthenticationMethods, StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Read_WithLowercasePrincipalType_ShouldFail()
     {
@@ -109,6 +143,7 @@ public class GatewayIdentityHeadersTests
         context.Request.Headers[GatewayIdentityHeaders.PrincipalType] = AuthenticatedPrincipalType.User.ToString();
         context.Request.Headers[GatewayIdentityHeaders.TenantId] = "tenant-123";
         context.Request.Headers[GatewayIdentityHeaders.Scopes] = "products:write orders:read";
+        context.Request.Headers[GatewayIdentityHeaders.AuthenticationMethods] = "mfa pwd";
         context.Request.Headers[CorrelationContext.HeaderName] = "case-123";
         return context;
     }

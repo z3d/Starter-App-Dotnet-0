@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using StarterApp.Api.Endpoints;
@@ -63,6 +64,20 @@ public class ApiConventionTests : ConventionTestBase
 
         Assert.True(failures.Count == 0,
             "API endpoint routes must declare the required gateway scope:\n" + string.Join("\n", failures));
+    }
+
+    [Fact]
+    public void ApiWriteEndpoints_MustBeSecuredBy2Fa()
+    {
+        using var app = BuildEndpointMetadataApp();
+        var failures = GetApiRouteEndpoints(app)
+            .Where(IsWriteEndpoint)
+            .Where(endpoint => endpoint.Metadata.GetMetadata<GatewayTwoFactorRequiredMetadata>() == null)
+            .Select(endpoint => $"{FormatEndpoint(endpoint)} must call SecuredBy2Fa().")
+            .ToList();
+
+        Assert.True(failures.Count == 0,
+            "API write routes must require gateway-projected two-factor authentication:\n" + string.Join("\n", failures));
     }
 
     [Fact]
@@ -339,6 +354,12 @@ public class ApiConventionTests : ConventionTestBase
     {
         var methods = endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? ["ANY"];
         return $"{string.Join(",", methods)} {endpoint.RoutePattern.RawText}";
+    }
+
+    private static bool IsWriteEndpoint(RouteEndpoint endpoint)
+    {
+        var methods = endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? [];
+        return methods.Count == 0 || methods.Any(method => !HttpMethods.IsGet(method) && !HttpMethods.IsHead(method));
     }
 
     private sealed class EndpointMetadataMediator : IMediator

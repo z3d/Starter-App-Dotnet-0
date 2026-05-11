@@ -137,7 +137,8 @@ Endpoints are organized with OpenAPI tags for better Scalar API reference docume
 - **Purpose**: Trusts APIM-projected identity headers only after validating the gateway assertion
 - **Protected Groups**: `/api/v1` endpoint groups call `RequireGatewayIdentity()`; health and OpenAPI endpoints remain public
 - **Required Headers**: `X-Authenticated-Subject`, `X-Authenticated-Principal-Type`, `X-Authenticated-Tenant-Id`, `X-Authenticated-Scopes`, `X-Correlation-ID`
-- **Assertion**: `X-Gateway-Assertion` signs the projected headers plus issuer, audience, method, path, and short lifetime in production-like `Required` mode
+- **Step-Up Header**: `X-Authenticated-Amr` carries gateway-projected authentication methods; write routes require `mfa` through `SecuredBy2Fa()`
+- **Assertion**: `X-Gateway-Assertion` signs the projected headers, including `X-Authenticated-Amr` when present, plus issuer, audience, method, path, and short lifetime in production-like `Required` mode
 - **Scope Enforcement**: Each `/api/v1` route declares a required scope with `RequireScope(...)`; read routes use `products:read`, `customers:read`, or `orders:read`, and write routes use the matching `*:write` scope
 - **Owner Enforcement**: Customers, products, and orders are stamped with `OwnerSubject` and `TenantId` from the gateway identity. Reads are filtered to the current owner; cross-owner single-resource reads return `404`, cross-owner lists return empty pages, and cross-owner mutations return `403`.
 - **Access Pattern**: Application code consumes `ICurrentUser`; raw identity header reads stay inside `Infrastructure/Identity`
@@ -145,6 +146,8 @@ Endpoints are organized with OpenAPI tags for better Scalar API reference docume
 ### Usage Example
 ```csharp
 customers.MapPost("/", CreateCustomer)
+    .RequireScope("customers:write")
+    .SecuredBy2Fa()
     .AddEndpointFilter<LoggingFilter>();
 ```
 

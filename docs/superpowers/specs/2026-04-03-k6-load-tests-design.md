@@ -164,7 +164,7 @@ K6_BASE_URL=http://localhost:8080 k6 run tests/k6/load.js
 - **Email uniqueness**: `uniqueSuffix()` prevents collisions across VUs
 - **Database growth**: Load tests create many orders; reset the test database between runs for consistent baselines
 - **Delete constraints**: Smoke test tolerates 409 on cleanup when order history exists
-- **Local gateway identity**: API auth remains gateway-owned; k6 sends the normalized `X-Authenticated-*` headers used by local `UnsignedDevelopment` mode
+- **Local gateway identity**: API auth remains gateway-owned; k6 sends the normalized `X-Authenticated-*` headers used by local `UnsignedDevelopment` mode, including `X-Authenticated-Amr` for write-route MFA proof
 
 ## Verification
 

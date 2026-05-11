@@ -68,5 +68,5 @@ K6_BASE_URL=http://localhost:8080 k6 run tests/k6/load.js
 
 - **Database reset**: Reset the test database between load test runs for consistent baselines
 - **Stock**: Seed products are created with 100,000 stock to avoid depletion during load tests
-- **Gateway identity**: The API still assumes gateway-owned auth; k6 sends the normalized local `X-Authenticated-*` headers used when APIM is not present
+- **Gateway identity**: The API still assumes gateway-owned auth; k6 sends the normalized local `X-Authenticated-*` headers used when APIM is not present, including `X-Authenticated-Amr` for write-route MFA proof
 - **Cleanup**: Smoke tests attempt cleanup but tolerate 409 (conflict) when order history prevents deletion

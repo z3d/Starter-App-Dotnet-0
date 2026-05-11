@@ -18,4 +18,13 @@ public static class GatewayIdentityEndpointExtensions
 
         return builder;
     }
+
+    public static RouteHandlerBuilder SecuredBy2Fa(this RouteHandlerBuilder builder)
+    {
+        builder.WithMetadata(new GatewayTwoFactorRequiredMetadata(GatewayTwoFactorEndpointFilter.RequiredAuthenticationMethod))
+            .AddEndpointFilter<GatewayTwoFactorEndpointFilter>()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        return builder;
+    }
 }

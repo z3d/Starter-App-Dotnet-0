@@ -6,6 +6,7 @@ export const AUTH_HEADERS = {
   'X-Authenticated-Tenant-Id': __ENV.K6_AUTH_TENANT || 'k6-tenant',
   'X-Authenticated-Scopes':
     'customers:read customers:write orders:read orders:write products:read products:write',
+  'X-Authenticated-Amr': __ENV.K6_AUTH_AMR || 'mfa pwd',
 };
 
 export const JSON_HEADERS = {

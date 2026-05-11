@@ -12,6 +12,8 @@ public interface ICurrentUser
 
     IReadOnlySet<string> Scopes { get; }
 
+    IReadOnlySet<string> AuthenticationMethods { get; }
+
     string CorrelationId { get; }
 
     string? Email { get; }
@@ -21,4 +23,6 @@ public interface ICurrentUser
     string? Issuer { get; }
 
     bool HasScope(string scope);
+
+    bool HasAuthenticationMethod(string authenticationMethod);
 }

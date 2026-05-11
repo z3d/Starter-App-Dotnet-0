@@ -14,6 +14,8 @@ internal sealed class CurrentUserAccessor : ICurrentUser
 
     public IReadOnlySet<string> Scopes => _currentUser.Scopes;
 
+    public IReadOnlySet<string> AuthenticationMethods => _currentUser.AuthenticationMethods;
+
     public string CorrelationId => _currentUser.CorrelationId;
 
     public string? Email => _currentUser.Email;
@@ -30,5 +32,10 @@ internal sealed class CurrentUserAccessor : ICurrentUser
     public bool HasScope(string scope)
     {
         return _currentUser.HasScope(scope);
+    }
+
+    public bool HasAuthenticationMethod(string authenticationMethod)
+    {
+        return _currentUser.HasAuthenticationMethod(authenticationMethod);
     }
 }

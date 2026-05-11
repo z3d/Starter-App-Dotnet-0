@@ -11,6 +11,7 @@ public static class GatewayIdentityHeaders
     public const string PrincipalType = "X-Authenticated-Principal-Type";
     public const string TenantId = "X-Authenticated-Tenant-Id";
     public const string Scopes = "X-Authenticated-Scopes";
+    public const string AuthenticationMethods = "X-Authenticated-Amr";
     public const string Email = "X-Authenticated-Email";
     public const string ClientId = "X-Authenticated-Client-Id";
     public const string Issuer = "X-Authenticated-Issuer";
@@ -18,6 +19,8 @@ public static class GatewayIdentityHeaders
     private const int MaxHeaderLength = 512;
     private const int MaxScopeLength = 100;
     private const int MaxScopes = 50;
+    private const int MaxAuthenticationMethodLength = 64;
+    private const int MaxAuthenticationMethods = 20;
 
     private static readonly HashSet<string> AcceptedAuthenticatedHeaders = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -25,6 +28,7 @@ public static class GatewayIdentityHeaders
         PrincipalType,
         TenantId,
         Scopes,
+        AuthenticationMethods,
         Email,
         ClientId,
         Issuer
@@ -40,6 +44,7 @@ public static class GatewayIdentityHeaders
         var tenantId = ReadRequiredHeader(headers, TenantId, errors);
         var scopesValue = ReadRequiredHeader(headers, Scopes, errors);
         var correlationId = ReadRequiredHeader(headers, CorrelationContext.HeaderName, errors);
+        var authenticationMethodsValue = ReadOptionalHeader(headers, AuthenticationMethods, errors);
         var email = ReadOptionalHeader(headers, Email, errors);
         var clientId = ReadOptionalHeader(headers, ClientId, errors);
         var issuer = ReadOptionalHeader(headers, Issuer, errors);
@@ -48,6 +53,7 @@ public static class GatewayIdentityHeaders
             errors.Add($"{PrincipalType} must be either User or Service.");
 
         var scopes = ParseScopes(scopesValue, errors);
+        var authenticationMethods = ParseAuthenticationMethods(authenticationMethodsValue, errors);
 
         if (errors.Count > 0)
             return GatewayIdentityReadResult.Failure(errors);
@@ -60,7 +66,8 @@ public static class GatewayIdentityHeaders
             CorrelationContext.Sanitize(correlationId),
             email,
             clientId,
-            issuer);
+            issuer,
+            authenticationMethods);
 
         return GatewayIdentityReadResult.Success(new GatewayIdentityEnvelope(user, ComputeHeaderHash(user)));
     }
@@ -72,6 +79,7 @@ public static class GatewayIdentityHeaders
         AppendCanonicalHeader(builder, PrincipalType, user.PrincipalType.ToString());
         AppendCanonicalHeader(builder, TenantId, user.TenantId);
         AppendCanonicalHeader(builder, Scopes, string.Join(' ', user.Scopes.OrderBy(scope => scope, StringComparer.Ordinal)));
+        AppendCanonicalHeader(builder, AuthenticationMethods, string.Join(' ', user.AuthenticationMethods.OrderBy(method => method, StringComparer.Ordinal)));
         AppendCanonicalHeader(builder, CorrelationContext.HeaderName, user.CorrelationId);
         AppendCanonicalHeader(builder, Email, user.Email);
         AppendCanonicalHeader(builder, ClientId, user.ClientId);
@@ -149,11 +157,33 @@ public static class GatewayIdentityHeaders
 
         foreach (var scope in scopes)
         {
-            if (scope.Length > MaxScopeLength || scope.Any(character => !IsScopeCharacter(character)))
+            if (scope.Length > MaxScopeLength || scope.Any(character => !IsIdentityTokenCharacter(character)))
                 errors.Add($"{Scopes} contains invalid scope '{scope}'.");
         }
 
         return scopes;
+    }
+
+    private static string[] ParseAuthenticationMethods(string? authenticationMethodsValue, ICollection<string> errors)
+    {
+        if (string.IsNullOrWhiteSpace(authenticationMethodsValue))
+            return Array.Empty<string>();
+
+        var authenticationMethods = authenticationMethodsValue.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(authenticationMethod => authenticationMethod, StringComparer.Ordinal)
+            .ToArray();
+
+        if (authenticationMethods.Length > MaxAuthenticationMethods)
+            errors.Add($"{AuthenticationMethods} must contain no more than {MaxAuthenticationMethods} authentication methods.");
+
+        foreach (var authenticationMethod in authenticationMethods)
+        {
+            if (authenticationMethod.Length > MaxAuthenticationMethodLength || authenticationMethod.Any(character => !IsIdentityTokenCharacter(character)))
+                errors.Add($"{AuthenticationMethods} contains invalid authentication method '{authenticationMethod}'.");
+        }
+
+        return authenticationMethods;
     }
 
     private static bool IsSafeSingleHeaderValue(string value)
@@ -163,7 +193,7 @@ public static class GatewayIdentityHeaders
             !value.Contains(',', StringComparison.Ordinal);
     }
 
-    private static bool IsScopeCharacter(char character)
+    private static bool IsIdentityTokenCharacter(char character)
     {
         return character is >= 'a' and <= 'z' ||
             character is >= '0' and <= '9' ||

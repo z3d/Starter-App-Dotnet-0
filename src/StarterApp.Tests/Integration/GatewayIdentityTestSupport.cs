@@ -12,6 +12,7 @@ internal static class TestGatewayIdentity
     public const string DefaultSubject = "test-user-01";
     public const string DefaultTenantId = "test-tenant-01";
     private const string DefaultScopes = "customers:read customers:write orders:read orders:write products:read products:write";
+    private const string DefaultAuthenticationMethods = "mfa pwd";
 
     public static IReadOnlyDictionary<string, string?> Configuration { get; } = new Dictionary<string, string?>
     {
@@ -31,6 +32,7 @@ internal static class TestGatewayIdentity
         string scopes = DefaultScopes,
         string? path = null,
         string? method = null,
+        string? authenticationMethods = DefaultAuthenticationMethods,
         string issuer = Issuer,
         string audience = Audience,
         string? keyId = KeyId,
@@ -42,6 +44,8 @@ internal static class TestGatewayIdentity
         SetHeader(request, GatewayIdentityHeaders.PrincipalType, AuthenticatedPrincipalType.User.ToString());
         SetHeader(request, GatewayIdentityHeaders.TenantId, tenantId);
         SetHeader(request, GatewayIdentityHeaders.Scopes, scopes);
+        if (authenticationMethods != null)
+            SetHeader(request, GatewayIdentityHeaders.AuthenticationMethods, authenticationMethods);
 
         var correlationId = GetOrSetHeader(request, CorrelationContext.HeaderName, $"test-{Guid.NewGuid():N}");
         var currentUser = new CurrentUser(
@@ -52,7 +56,8 @@ internal static class TestGatewayIdentity
             correlationId,
             null,
             null,
-            null);
+            null,
+            authenticationMethods?.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? Array.Empty<string>());
 
         var now = issuedAt ?? DateTimeOffset.UtcNow;
         var payload = new GatewayAssertionPayload
@@ -81,6 +86,7 @@ internal static class TestGatewayIdentity
         SetHeader(request, GatewayIdentityHeaders.PrincipalType, AuthenticatedPrincipalType.User.ToString());
         SetHeader(request, GatewayIdentityHeaders.TenantId, DefaultTenantId);
         SetHeader(request, GatewayIdentityHeaders.Scopes, DefaultScopes);
+        SetHeader(request, GatewayIdentityHeaders.AuthenticationMethods, DefaultAuthenticationMethods);
         GetOrSetHeader(request, CorrelationContext.HeaderName, $"test-{Guid.NewGuid():N}");
     }
 

@@ -80,6 +80,40 @@ public class GatewayIdentityIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SensitiveWriteEndpoint_WithoutTwoFactorProof_ShouldReturnForbidden()
+    {
+        using var client = _fixture.CreateUnauthenticatedClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/products")
+        {
+            Content = JsonContent.Create(new CreateProductCommand
+            {
+                Name = "Step-Up Product",
+                Description = "Missing two-factor proof",
+                Price = 10,
+                Currency = "USD",
+                Stock = 5
+            })
+        };
+        TestGatewayIdentity.AddSignedHeaders(request, authenticationMethods: "pwd");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProtectedReadEndpoint_WithoutTwoFactorProof_ShouldSucceed()
+    {
+        using var client = _fixture.CreateUnauthenticatedClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/products");
+        TestGatewayIdentity.AddSignedHeaders(request, authenticationMethods: "pwd");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task ProtectedEndpoint_WithIdentityHeadersButMissingAssertion_ShouldReturnUnauthorized()
     {
         using var client = _fixture.CreateUnauthenticatedClient();
@@ -148,6 +182,20 @@ public class GatewayIdentityIntegrationTests : IAsyncLifetime
         TestGatewayIdentity.AddSignedHeaders(request);
         request.Headers.Remove(GatewayIdentityHeaders.Subject);
         request.Headers.Add(GatewayIdentityHeaders.Subject, "attacker");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ProtectedEndpoint_WithTamperedAuthenticationMethodsHeader_ShouldReturnUnauthorized()
+    {
+        using var client = _fixture.CreateUnauthenticatedClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/products");
+        TestGatewayIdentity.AddSignedHeaders(request);
+        request.Headers.Remove(GatewayIdentityHeaders.AuthenticationMethods);
+        request.Headers.Add(GatewayIdentityHeaders.AuthenticationMethods, "pwd");
 
         var response = await client.SendAsync(request);
 
