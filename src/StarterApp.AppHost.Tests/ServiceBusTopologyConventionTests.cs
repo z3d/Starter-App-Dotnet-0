@@ -1,6 +1,7 @@
 using StarterApp.Domain.Abstractions;
 using StarterApp.Functions;
 using System.Reflection;
+using System.Text.Json;
 
 namespace StarterApp.AppHost.Tests;
 
@@ -87,6 +88,30 @@ public class ServiceBusTopologyConventionTests
             string.Join("\n", unknownContracts));
     }
 
+    [Fact]
+    public void ServiceBusEmulatorTopicProperties_MustMatchAppHostTopology()
+    {
+        var configPath = Path.Combine(FindRepoRoot(), "config", "servicebus-emulator.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(configPath));
+
+        var topics = document.RootElement
+            .GetProperty("UserConfig")
+            .GetProperty("Namespaces")[0]
+            .GetProperty("Topics")
+            .EnumerateArray();
+
+        var topic = topics.Single(topicElement =>
+            topicElement.GetProperty("Name").GetString() == ServiceBusTopology.DomainEventsTopic);
+        var properties = topic.GetProperty("Properties");
+
+        Assert.Equal(ServiceBusTopology.DomainEventsRequiresDuplicateDetection,
+            properties.GetProperty("RequiresDuplicateDetection").GetBoolean());
+        Assert.Equal(ToIso8601Duration(ServiceBusTopology.DomainEventsDefaultMessageTimeToLive),
+            properties.GetProperty("DefaultMessageTimeToLive").GetString());
+        Assert.Equal(ToIso8601Duration(ServiceBusTopology.DomainEventsDuplicateDetectionHistoryTimeWindow),
+            properties.GetProperty("DuplicateDetectionHistoryTimeWindow").GetString());
+    }
+
     private static IEnumerable<ServiceBusTriggerBinding> GetServiceBusTriggerBindings()
     {
         return typeof(OrderConfirmationEmailFunction).Assembly.GetTypes()
@@ -106,6 +131,31 @@ public class ServiceBusTopologyConventionTests
     {
         var value = attribute.GetType().GetProperty(propertyName)?.GetValue(attribute) as string;
         return value ?? string.Empty;
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "StarterApp.slnx")))
+                return directory.FullName;
+
+            directory = directory.Parent;
+        }
+
+        throw new InvalidOperationException("Could not find repository root.");
+    }
+
+    private static string ToIso8601Duration(TimeSpan value)
+    {
+        if (value.TotalHours >= 1 && value == TimeSpan.FromHours(Math.Truncate(value.TotalHours)))
+            return $"PT{value.TotalHours:0}H";
+
+        if (value.TotalMinutes >= 1 && value == TimeSpan.FromMinutes(Math.Truncate(value.TotalMinutes)))
+            return $"PT{value.TotalMinutes:0}M";
+
+        return $"PT{value.TotalSeconds:0}S";
     }
 
     private sealed record ServiceBusTriggerBinding(

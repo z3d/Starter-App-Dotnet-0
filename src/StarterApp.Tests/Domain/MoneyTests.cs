@@ -22,14 +22,14 @@ public class MoneyTests
         Log.Debug("Attempting to create money with currency {Currency} that exceeds max length", currency);
         var exception = Assert.Throws<ArgumentException>(() =>
             Money.Create(amount, currency));
-        Assert.Contains($"Currency code cannot exceed {Money.MaxCurrencyLength} characters", exception.Message);
+        Assert.Contains($"Currency code must be exactly {Money.MaxCurrencyLength} characters", exception.Message);
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);
     }
 
     [Theory]
     [InlineData("USD", true)]
-    [InlineData("EU", true)]
-    [InlineData("A", true)]
+    [InlineData("EU", false)]
+    [InlineData("A", false)]
     [InlineData("USDT", false)]
     [InlineData("EURO", false)]
     public void Create_ValidatesCurrencyLength(string currency, bool shouldBeValid)
@@ -54,7 +54,7 @@ public class MoneyTests
             // Act & Assert - Should throw for invalid currency codes
             Log.Debug("Attempting to create money with invalid currency length: {Currency}", currency);
             var exception = Assert.Throws<ArgumentException>(() => Money.Create(amount, currency));
-            Assert.Contains($"Currency code cannot exceed {Money.MaxCurrencyLength} characters", exception.Message);
+            Assert.Contains($"Currency code must be exactly {Money.MaxCurrencyLength} characters", exception.Message);
             Log.Information("Exception correctly thrown for invalid currency: {Currency}", currency);
         }
     }
@@ -213,6 +213,5 @@ public class MoneyTests
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);
     }
 }
-
 
 

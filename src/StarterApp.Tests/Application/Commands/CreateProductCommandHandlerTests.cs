@@ -26,6 +26,27 @@ public class CreateProductCommandHandlerTests
         Assert.Empty(errors);
     }
 
+    [Theory]
+    [InlineData("US")]
+    [InlineData("USDT")]
+    public void CreateProductCommandValidator_WithInvalidCurrencyLength_ShouldReturnValidationError(string currency)
+    {
+        var command = new CreateProductCommand
+        {
+            Name = "Test Product",
+            Description = "Test Description",
+            Price = 10.99m,
+            Currency = currency,
+            Stock = 100
+        };
+
+        var validator = new CreateProductCommandValidator();
+
+        var errors = validator.Validate(command).ToList();
+
+        Assert.Contains(errors, error => error.PropertyName == nameof(command.Currency));
+    }
+
     [Fact]
     public void CreateProductCommand_PropertiesTest()
     {

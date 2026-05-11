@@ -18,15 +18,17 @@ public class Email : IEquatable<Email>
         if (value.Length > MaxEmailLength)
             throw new ArgumentException($"Email cannot exceed {MaxEmailLength} characters", nameof(value));
 
-        if (!IsValidEmail(value))
+        if (!IsValidAddress(value))
             throw new ArgumentException("Invalid email format", nameof(value));
 
         return new Email(value);
     }
 
-    private static bool IsValidEmail(string email)
+    public static bool IsValidAddress(string? email)
     {
-        return System.Net.Mail.MailAddress.TryCreate(email, out var addr)
+        return !string.IsNullOrWhiteSpace(email)
+            && email.Length <= MaxEmailLength
+            && System.Net.Mail.MailAddress.TryCreate(email, out var addr)
             && addr.Address == email;
     }
 
@@ -53,6 +55,5 @@ public class Email : IEquatable<Email>
         return Value;
     }
 }
-
 
 

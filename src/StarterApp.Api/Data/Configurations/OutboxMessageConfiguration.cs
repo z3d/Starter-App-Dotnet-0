@@ -26,7 +26,13 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
 
         builder.Property(message => message.Error);
 
-        builder.HasIndex(message => message.OccurredOnUtc)
+        builder.Property(message => message.ProcessingId)
+            .IsConcurrencyToken();
+
+        builder.Property(message => message.LockedUntilUtc);
+
+        builder.HasIndex(message => new { message.OccurredOnUtc, message.LockedUntilUtc })
+            .HasDatabaseName("IX_OutboxMessages_Claimable")
             .HasFilter("[ProcessedOnUtc] IS NULL AND [Error] IS NULL");
     }
 }

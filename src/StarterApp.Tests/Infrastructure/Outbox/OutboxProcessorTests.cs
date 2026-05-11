@@ -1,3 +1,4 @@
+using Azure;
 using Azure.Messaging.ServiceBus;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -59,6 +60,8 @@ public class OutboxProcessorTests
         await using var verifyContext = CreateDbContext(dbName);
         var processed = await verifyContext.OutboxMessages.FirstAsync();
         Assert.NotNull(processed.ProcessedOnUtc);
+        Assert.Null(processed.ProcessingId);
+        Assert.Null(processed.LockedUntilUtc);
     }
 
     [Fact]
@@ -230,6 +233,48 @@ public class OutboxProcessorTests
         Assert.Equal(0, message.RetryCount);
         Assert.Null(message.Error);
         Assert.Null(message.ProcessedOnUtc);
+        Assert.NotNull(message.ProcessingId);
+        Assert.NotNull(message.LockedUntilUtc);
+        senderMock.Verify(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessBatch_WhenFailClosedPayloadArchiveHasTransientFailure_ShouldNotConsumeRetryBudget()
+    {
+        // Arrange — fail-closed archive outages are dependency failures, not message defects
+        var dbName = Guid.NewGuid().ToString();
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            setupContext.OutboxMessages.Add(CreateTestMessage());
+            await setupContext.SaveChangesAsync();
+        }
+
+        var senderMock = new Mock<ServiceBusSender>();
+        senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var processor = CreateProcessor(
+            dbName,
+            senderMock.Object,
+            maxRetries: 1,
+            payloadStore: new ThrowingPayloadArchiveStore(new RequestFailedException(503, "archive unavailable")),
+            payloadCaptureOptions: new PayloadCaptureOptions { FailureMode = PayloadCaptureFailureMode.FailClosed });
+
+        // Act — run the batch many more times than MaxRetries would allow
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        for (var i = 0; i < 10; i++)
+            await RunSingleBatchAsync(processor, cts.Token);
+
+        // Assert — capture failed before send, and retry budget stayed untouched
+        senderMock.Verify(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+
+        await using var verifyContext = CreateDbContext(dbName);
+        var message = await verifyContext.OutboxMessages.FirstAsync();
+        Assert.Equal(0, message.RetryCount);
+        Assert.Null(message.Error);
+        Assert.Null(message.ProcessedOnUtc);
+        Assert.NotNull(message.ProcessingId);
+        Assert.NotNull(message.LockedUntilUtc);
     }
 
     [Fact]
@@ -271,10 +316,82 @@ public class OutboxProcessorTests
         await using var verifyContext = CreateDbContext(dbName);
         var messages = await verifyContext.OutboxMessages.OrderBy(m => m.OccurredOnUtc).ToListAsync();
         Assert.NotNull(messages[0].ProcessedOnUtc);          // 1st succeeded
+        Assert.Null(messages[0].ProcessingId);
+        Assert.Null(messages[0].LockedUntilUtc);
         Assert.Null(messages[1].ProcessedOnUtc);             // 2nd transient — unprocessed, retries intact
         Assert.Equal(0, messages[1].RetryCount);
+        Assert.NotNull(messages[1].ProcessingId);
+        Assert.NotNull(messages[1].LockedUntilUtc);
         Assert.Null(messages[2].ProcessedOnUtc);             // 3rd never attempted
         Assert.Equal(0, messages[2].RetryCount);
+        Assert.NotNull(messages[2].ProcessingId);
+        Assert.NotNull(messages[2].LockedUntilUtc);
+    }
+
+    [Fact]
+    public async Task ProcessBatch_WithUnexpiredClaim_ShouldSkipMessage()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            var claimedMessage = CreateTestMessage();
+            claimedMessage.Claim(Guid.CreateVersion7(), DateTimeOffset.UtcNow.AddMinutes(1));
+            setupContext.OutboxMessages.Add(claimedMessage);
+            await setupContext.SaveChangesAsync();
+        }
+
+        var senderMock = new Mock<ServiceBusSender>();
+        senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var processor = CreateProcessor(dbName, senderMock.Object);
+
+        // Act
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await RunSingleBatchAsync(processor, cts.Token);
+
+        // Assert
+        senderMock.Verify(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+
+        await using var verifyContext = CreateDbContext(dbName);
+        var message = await verifyContext.OutboxMessages.FirstAsync();
+        Assert.Null(message.ProcessedOnUtc);
+        Assert.NotNull(message.ProcessingId);
+        Assert.NotNull(message.LockedUntilUtc);
+    }
+
+    [Fact]
+    public async Task ProcessBatch_WithExpiredClaim_ShouldReclaimAndPublishMessage()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            var claimedMessage = CreateTestMessage();
+            claimedMessage.Claim(Guid.CreateVersion7(), DateTimeOffset.UtcNow.AddMinutes(-1));
+            setupContext.OutboxMessages.Add(claimedMessage);
+            await setupContext.SaveChangesAsync();
+        }
+
+        var senderMock = new Mock<ServiceBusSender>();
+        senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var processor = CreateProcessor(dbName, senderMock.Object);
+
+        // Act
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await RunSingleBatchAsync(processor, cts.Token);
+
+        // Assert
+        senderMock.Verify(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        await using var verifyContext = CreateDbContext(dbName);
+        var message = await verifyContext.OutboxMessages.FirstAsync();
+        Assert.NotNull(message.ProcessedOnUtc);
+        Assert.Null(message.ProcessingId);
+        Assert.Null(message.LockedUntilUtc);
     }
 
     [Fact]
@@ -352,7 +469,8 @@ public class OutboxProcessorTests
         ServiceBusSender sender,
         int batchSize = 20,
         int maxRetries = 3,
-        InMemoryPayloadArchiveStore? payloadStore = null)
+        IPayloadArchiveStore? payloadStore = null,
+        PayloadCaptureOptions? payloadCaptureOptions = null)
     {
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddScoped(_ => CreateDbContext(databaseName));
@@ -363,20 +481,21 @@ public class OutboxProcessorTests
             PollingIntervalSeconds = 1,
             BatchSize = batchSize,
             MaxRetries = maxRetries,
+            LockDurationSeconds = 60,
             TopicName = "domain-events"
         });
 
         return new OutboxProcessor(
             serviceProvider.GetRequiredService<IServiceScopeFactory>(),
             sender,
-            CreatePayloadCaptureSink(payloadStore ?? new InMemoryPayloadArchiveStore()),
+            CreatePayloadCaptureSink(payloadStore ?? new InMemoryPayloadArchiveStore(), payloadCaptureOptions),
             options,
             new LoggerFactory().CreateLogger<OutboxProcessor>());
     }
 
-    private static PayloadCaptureSink CreatePayloadCaptureSink(InMemoryPayloadArchiveStore payloadStore)
+    private static PayloadCaptureSink CreatePayloadCaptureSink(IPayloadArchiveStore payloadStore, PayloadCaptureOptions? captureOptions)
     {
-        var options = Options.Create(new PayloadCaptureOptions());
+        var options = Options.Create(captureOptions ?? new PayloadCaptureOptions());
         var logger = new LoggerFactory().CreateLogger<PayloadCaptureSink>();
         return new PayloadCaptureSink(payloadStore, new JsonPayloadRedactor(options), TimeProvider.System, options, logger);
     }
@@ -393,5 +512,25 @@ public class OutboxProcessorTests
     private sealed record TestDomainEvent(string Type, string Data, DateTimeOffset OccurredOnUtc) : IDomainEvent
     {
         public string EventType => "test.event.v1";
+    }
+
+    private sealed class ThrowingPayloadArchiveStore : IPayloadArchiveStore
+    {
+        private readonly Exception _exception;
+
+        public ThrowingPayloadArchiveStore(Exception exception)
+        {
+            _exception = exception;
+        }
+
+        public Task AppendLineAsync(string blobName, string line, CancellationToken cancellationToken)
+        {
+            return Task.FromException(_exception);
+        }
+
+        public Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
+        {
+            return Task.FromException<PayloadArchiveDeleteResult>(_exception);
+        }
     }
 }

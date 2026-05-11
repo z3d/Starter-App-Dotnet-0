@@ -96,9 +96,9 @@ public class MoneyFuzzTests
     }
 
     [Property]
-    public Property CurrencyCodeOver3Chars_AlwaysRejected()
+    public Property CurrencyCodeNotExactly3Chars_AlwaysRejected()
     {
-        var longCurrency = Gen.Elements("USDX", "EURO", "GBPP", "AUDD", "ABCDE", "TOOLONG")
+        var longCurrency = Gen.Elements("U", "US", "USDX", "EURO", "GBPP", "AUDD", "ABCDE", "TOOLONG")
             .ToArbitrary();
         return Prop.ForAll(longCurrency,
             currency =>

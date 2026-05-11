@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9.85/10** (56 findings resolved, 3 open)
+**Score: 9.9/10** (63 findings resolved, 1 open)
 
 ---
 
@@ -96,18 +96,19 @@ Authentication remains gateway-owned, but the API now has an enforceable trust b
 
 - `/api/v1` endpoint groups opt into `RequireGatewayIdentity()` metadata; health and OpenAPI stay public
 - `GatewayIdentityMiddleware` parses a small normalized header contract into `ICurrentUser`
-- Production-like `GatewayIdentity:Mode=Required` validates a signed `X-Gateway-Assertion` over issuer, audience, subject, principal type, tenant, scopes, correlation id, method, path, short lifetime, key id, and a hash of the projected headers
+- Production-like `GatewayIdentity:Mode=Required` validates a signed `X-Gateway-Assertion` over issuer, audience, subject, principal type, tenant, scopes, correlation id, method, path, short lifetime, key id, and a hash of the projected headers including authentication methods
 - Each protected route declares a required gateway scope (`products:read`, `products:write`, `customers:read`, `customers:write`, `orders:read`, or `orders:write`); authenticated callers missing the route scope receive `403 Forbidden`
+- Sensitive write routes call `SecuredBy2Fa()` and require the gateway-projected `X-Authenticated-Amr` authentication-method set to include `mfa`; callers with valid identity and write scope but no MFA proof receive `403 Forbidden`
 - Customer, Product, and Order rows persist `OwnerSubject` and `TenantId` from the verified gateway identity. Create handlers stamp ownership, query handlers filter by owner scope, and mutation handlers call `IOwnerOnlyPolicy` before changing loaded resources.
 - Cross-owner reads are hidden as `404 Not Found` or empty pages, while cross-owner mutations return `403 Forbidden`. By-id cache keys are owner-scoped so cached resources cannot leak across identities.
 - Local Development/Testing/Docker can use `UnsignedDevelopment`, and startup validation rejects that mode elsewhere
-- Security tests cover missing identity, missing assertion, expired assertion, wrong audience, wrong path, tampered identity headers, wrong signing key, and unknown key id
+- Security tests cover missing identity, missing assertion, expired assertion, wrong audience, wrong path, tampered identity/authentication-method headers, missing MFA proof, wrong signing key, and unknown key id
 - Convention tests inspect the mapped endpoint metadata so every `/api/v1` route must carry both gateway identity and gateway scope metadata, regardless of source-file placement. CQRS and persistence conventions now also require owner-scoped resource queries, owner-policy injection, and persisted owner columns on owned aggregates.
 - Rate limiting now partitions protected requests by verified tenant/subject identity, falling back to IP only where no authenticated gateway identity exists
 
 ### DevOps and Observability
 
-- **Aspire orchestration** — `AppHost/Program.cs` wires up API, SQL Server, Redis, Blob storage, Seq, Service Bus emulator, Functions, and DbMigrator with proper `WaitFor` dependencies and optional dev tunnel support
+- **Aspire orchestration** — `AppHost/Program.cs` wires up API, SQL Server, Redis, Blob storage, Seq, Service Bus emulator, the Azure Functions runtime container, and DbMigrator with proper `WaitFor` dependencies and optional dev tunnel support
 - **Serilog** structured logging with console, file, Seq, and OpenTelemetry sinks
 - **OpenTelemetry** metrics (ASP.NET Core, HTTP, runtime) and tracing via `ServiceDefaults`
 - **Docker** multi-stage build with docker-compose (API + SQL Server + Redis + Azurite + Seq + Service Bus emulator + Functions + dedicated migrator)
@@ -116,7 +117,7 @@ Authentication remains gateway-owned, but the API now has an enforceable trust b
 - **Password masking** in log output — implemented consistently across `Program.cs`, `DatabaseMigrationEngine`, and `DbMigrator`
 - **Payload archive / PII audit** — HTTP request/response bodies, outbound Service Bus payloads, and inbound Function payloads are written as JSONL support artifacts to Azure Blob under date/hour/minute paths. Archive files are correlation-bound (`archive/{date}/{hour}/{minute}/{correlationId}.jsonl`); audit files are time-window streams (`audit/{date}/{hour}/{minute}/payload-audit.jsonl`) that include timestamp, correlation id, archive blob name, payload hash, payload bounds metadata, and the captured payload. HTTP capture is bounded by `MaxPayloadBytes` and content-type allowlist metadata; Service Bus payload capture remains full-fidelity for JSON events. Operational logs use redacted payloads and a convention test blocks direct raw `{Body}` logging.
 - **Dedicated `DbMigrator` service** for migrations across all deployment modes (Aspire, Docker Compose, standalone)
-- **Outbox → Service Bus pipeline** — domain events captured durably in `OutboxMessages` during a single `SaveChangesAsync` (aggregates use client-generated Guid v7 Ids, so creation events carry correct keys before the save). `EnableRetryOnFailure` is safe because no user transaction is needed. Rows are published to Azure Service Bus by `OutboxProcessor` BackgroundService with row-level locking (`UPDLOCK, READPAST, ROWLOCK`) to prevent duplicate publishing across replicas. Service Bus topic has duplicate detection enabled (10-minute window). Consumed by Azure Functions via topic subscriptions with correlation filters. Convention test enforces subscription filter ↔ domain event contract sync.
+- **Outbox → Service Bus pipeline** — domain events captured durably in `OutboxMessages` during a single `SaveChangesAsync` (aggregates use client-generated Guid v7 Ids, so creation events carry correct keys before the save). `EnableRetryOnFailure` is safe because no user transaction is needed. `OutboxProcessor` claims rows in a short SQL transaction using `ProcessingId`/`LockedUntilUtc` plus `UPDLOCK, READPAST, ROWLOCK`, releases locks before Blob capture and Service Bus publish, then saves processed/error outcomes afterward. Service Bus topic has duplicate detection enabled (5-minute window, the emulator maximum). Consumed by Azure Functions via topic subscriptions with correlation filters; AppHost runs Functions through the Docker runtime so trigger listeners are active in integration tests. Convention tests enforce subscription filter ↔ domain event contract sync and topology property alignment.
 - **Explicit constraint naming** — all database constraints named via convention (`PK_`, `FK_`, `DF_`, `CK_`, `IX_`), enforced by convention test from script 0012 onward
 
 ### Build Quality
@@ -148,13 +149,22 @@ Good adoption of modern .NET:
 
 These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
 
-Fresh review reconciliation: finding #43 is resolved by the trusted gateway identity boundary and identity-based rate limiting. Findings #57-#59 are resolved by route-level scope enforcement, mapped-endpoint convention coverage, and owner-only resource authorization. Findings #44 and #45 remain open from earlier review sessions. Finding #56 records an order-state modeling design risk: the enum is acceptable as a compact state label, but workflows should not grow around arbitrary status assignment. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
+Fresh review reconciliation: finding #43 is resolved by the trusted gateway identity boundary and identity-based rate limiting. Findings #57-#59 are resolved by route-level scope enforcement, mapped-endpoint convention coverage, and owner-only resource authorization. Findings #44 and #45 are resolved by the outbox processing-claim redesign and AppHost subscriber-consumption assertion. Finding #56 remains open as an order-state modeling design risk: the enum is acceptable as a compact state label, but workflows should not grow around arbitrary status assignment. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
 
 | # | Finding | Impact | Suggested Fix |
 |---|---------|--------|---------------|
-| 44 | `OutboxProcessor` holds SQL update locks while sending to Service Bus | Slow or throttled broker calls make the database transaction span network I/O and can create lock pressure under load | Claim rows in a short transaction with `ProcessingId`/`LockedUntil`, publish outside the transaction, then mark processed in a second short transaction |
-| 45 | AppHost eventing test observes `ProcessedOnUtc` but not subscriber consumption | Service Bus filters, Functions triggers, or subscriber host wiring can break while the test still passes after the sender marks the outbox row processed | Add a durable subscriber effect, test sink, or subscription-drain assertion so the consumer side is observable |
 | 56 | Order status API models lifecycle changes as arbitrary state assignment | `OrderStatus` is fine as a finite state label, and the aggregate owns transition validation, but `UpdateOrderStatusCommand.Status` accepts a string and the handler parses it into a generic `UpdateStatus(...)` call. As order behavior grows, this shape encourages state-specific side effects to leak into handlers, as cancellation already needs special stock-restoration handling. | Keep the enum for persistence/API readability, but prefer intent-specific commands and domain methods (`Confirm`, `StartProcessing`, `Ship`, `Deliver`, `Cancel`) over "set status" APIs. Normalize query input to `OrderStatus` before SQL, and keep state-specific side effects behind aggregate/domain-service operations. |
+
+#### Recently resolved (eventing and observability hardening)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~44~~ | `OutboxProcessor` held SQL update locks while performing Blob capture and Service Bus send network I/O | Added `ProcessingId` and `LockedUntilUtc` outbox claim columns, DbUp migration `0019_AddOutboxProcessingClaims.sql`, EF mapping/index updates, and processor flow that claims rows in a short transaction, publishes outside the lock, and saves outcomes afterward. |
+| ~~45~~ | AppHost eventing test observed `ProcessedOnUtc` but not subscriber consumption | `CreateOrder_ShouldWriteAndProcessOutboxEvent` now sends a known correlation id and waits for both `OrderConfirmationEmailFunction` and `InventoryReservationFunction` inbound Service Bus payload-capture records in Blob storage. AppHost runs Functions via the Azure Functions Docker image and wires `servicebus`, `AzureWebJobsStorage`, and payload archive settings so subscribers consume under the real Functions host. |
+| ~~60~~ | Aspire Service Bus topic duplicate detection was missing/misaligned with Docker/docs | AppHost topic properties now explicitly enable duplicate detection with a 5-minute window, Docker emulator config uses the same window, and `ServiceBusTopologyConventionTests` verifies the emulator JSON matches shared topology constants. |
+| ~~61~~ | Fail-closed payload archive outages could consume outbox retry budget and permanently error rows | Added transient payload archive failure classification and outbox coverage so Azure Blob dependency failures pause the batch with retries intact instead of poisoning messages. |
+| ~~62~~ | Validators and domain guards drifted for email and currency invariants | `Email` and `Money` now expose canonical validation predicates used by command validators; `Money.Create` enforces exactly three-character currency codes; unit/fuzz tests cover the synchronized behavior. |
+| ~~63~~ | Aspire AppHost SDK version was skewed from Aspire package versions | Aligned `Aspire.AppHost.Sdk` to `13.2.3` and added `HousekeepingConventionTests.AppHostSdkVersion_MustMatchAspirePackageVersion`. |
 
 #### Recently resolved (gateway identity hardening)
 
@@ -281,7 +291,7 @@ Fresh review reconciliation: finding #43 is resolved by the trusted gateway iden
 
 **Status: Intentional and hardened.** This template assumes the API runs behind APIM or an equivalent trusted gateway that validates caller authentication. The API does not add ASP.NET authentication/JWT bearer middleware, but it no longer blindly trusts arbitrary headers.
 
-Protected API groups require normalized gateway identity headers and, in production-like `GatewayIdentity:Mode=Required`, a signed `X-Gateway-Assertion`. The API exposes identity through `ICurrentUser`, rejects missing/tampered assertions with `401`, enforces route scopes with `403`, and applies owner-only resource authorization for Customer, Product, and Order through persisted owner columns plus `IOwnerOnlyPolicy`.
+Protected API groups require normalized gateway identity headers and, in production-like `GatewayIdentity:Mode=Required`, a signed `X-Gateway-Assertion`. The API exposes identity through `ICurrentUser`, rejects missing/tampered assertions with `401`, enforces route scopes with `403`, requires gateway-projected MFA proof on write routes through `SecuredBy2Fa()`, and applies owner-only resource authorization for Customer, Product, and Order through persisted owner columns plus `IOwnerOnlyPolicy`.
 
 ### ~~3. CreateOrderCommand Has Two SaveChanges Without Transaction Boundary~~ FIXED
 

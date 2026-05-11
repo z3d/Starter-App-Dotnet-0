@@ -19,10 +19,15 @@ public class Money : IEquatable<Money>
 
         ArgumentException.ThrowIfNullOrWhiteSpace(currency);
 
-        if (currency.Length > MaxCurrencyLength)
-            throw new ArgumentException($"Currency code cannot exceed {MaxCurrencyLength} characters", nameof(currency));
+        if (currency.Length != MaxCurrencyLength)
+            throw new ArgumentException($"Currency code must be exactly {MaxCurrencyLength} characters", nameof(currency));
 
         return new Money(amount, currency);
+    }
+
+    public static bool IsValidCurrencyCode(string? currency)
+    {
+        return !string.IsNullOrWhiteSpace(currency) && currency.Length == MaxCurrencyLength;
     }
 
     public static Money FromDecimal(decimal amount)
@@ -69,6 +74,5 @@ public class Money : IEquatable<Money>
         return $"{Amount} {Currency}";
     }
 }
-
 
 

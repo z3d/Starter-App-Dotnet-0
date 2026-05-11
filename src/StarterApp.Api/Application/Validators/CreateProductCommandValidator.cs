@@ -17,7 +17,7 @@ public class CreateProductCommandValidator : IValidator<CreateProductCommand>
 
         if (string.IsNullOrWhiteSpace(request.Currency))
             yield return new ValidationError(nameof(request.Currency), "Currency is required");
-        else if (request.Currency.Length != 3)
+        else if (!Money.IsValidCurrencyCode(request.Currency))
             yield return new ValidationError(nameof(request.Currency), "Currency must be a 3-letter ISO code");
 
         if (request.Stock < 0)

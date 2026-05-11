@@ -24,6 +24,22 @@ public class CreateCustomerCommandHandlerTests
     }
 
     [Fact]
+    public void CreateCustomerCommandValidator_WithDisplayNameEmail_ShouldReturnValidationError()
+    {
+        var command = new CreateCustomerCommand
+        {
+            Name = "John Doe",
+            Email = "John Doe <john@example.com>"
+        };
+
+        var validator = new CreateCustomerCommandValidator();
+
+        var errors = validator.Validate(command).ToList();
+
+        Assert.Contains(errors, error => error.PropertyName == nameof(command.Email));
+    }
+
+    [Fact]
     public void CreateCustomerCommand_PropertiesTest()
     {
         // Arrange

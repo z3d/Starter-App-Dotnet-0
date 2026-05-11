@@ -3,6 +3,9 @@ namespace StarterApp.AppHost;
 public static class ServiceBusTopology
 {
     public const string DomainEventsTopic = "domain-events";
+    public const bool DomainEventsRequiresDuplicateDetection = true;
+    public static readonly TimeSpan DomainEventsDefaultMessageTimeToLive = TimeSpan.FromHours(1);
+    public static readonly TimeSpan DomainEventsDuplicateDetectionHistoryTimeWindow = TimeSpan.FromMinutes(5);
     public const string EmailNotificationsSubscription = "email-notifications";
     public const string InventoryReservationSubscription = "inventory-reservation";
     public const string OrderCreatedRuleName = "OrderCreatedFilter";

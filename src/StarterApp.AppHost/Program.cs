@@ -2,6 +2,7 @@ using Aspire.Hosting.Azure;
 using StarterApp.AppHost;
 
 var builder = DistributedApplication.CreateBuilder(args);
+var repoRoot = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", ".."));
 
 // Add Seq for centralized logging
 var seq = builder.AddSeq("seq")
@@ -28,7 +29,13 @@ storage.RunAsEmulator(emulator => emulator
 // Topology defined via fluent API so Aspire serializes correlation filters correctly
 var serviceBus = builder.AddAzureServiceBus("servicebus");
 
-var domainEventsTopic = serviceBus.AddServiceBusTopic(ServiceBusTopology.DomainEventsTopic);
+var domainEventsTopic = serviceBus.AddServiceBusTopic(ServiceBusTopology.DomainEventsTopic)
+    .WithProperties(topic =>
+    {
+        topic.DefaultMessageTimeToLive = ServiceBusTopology.DomainEventsDefaultMessageTimeToLive;
+        topic.RequiresDuplicateDetection = ServiceBusTopology.DomainEventsRequiresDuplicateDetection;
+        topic.DuplicateDetectionHistoryTimeWindow = ServiceBusTopology.DomainEventsDuplicateDetectionHistoryTimeWindow;
+    });
 
 domainEventsTopic.AddServiceBusSubscription(ServiceBusTopology.EmailNotificationsSubscription)
     .WithProperties(sub =>
@@ -92,10 +99,19 @@ var api = builder.AddProject<Projects.StarterApp_Api>("api")
        .WaitFor(serviceBus)
        .WaitForCompletion(migrator);
 
-// Add Azure Functions project for Service Bus subscribers
-builder.AddProject<Projects.StarterApp_Functions>("functions")
+// Add Azure Functions container for Service Bus subscribers.
+// Running through the Functions base image keeps AppHost behavior aligned with Docker Compose and avoids a local Azure Functions Core Tools dependency.
+builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Functions/Dockerfile")
        .WithReference(serviceBus)
        .WithReference(payloadArchive)
+       .WithEnvironment("FUNCTIONS_WORKER_RUNTIME", "dotnet-isolated")
+       .WithEnvironment(context =>
+       {
+           ((IResourceWithAzureFunctionsConfig)serviceBus.Resource).ApplyAzureFunctionsConfiguration(context.EnvironmentVariables, "servicebus");
+           ((IResourceWithAzureFunctionsConfig)storage.Resource).ApplyAzureFunctionsConfiguration(context.EnvironmentVariables, "AzureWebJobsStorage");
+       })
+       .WithEnvironment("servicebus", serviceBus.Resource.ConnectionStringExpression)
+       .WithEnvironment("ConnectionStrings__payloadarchive", payloadArchive.Resource.ConnectionStringExpression)
        .WithEnvironment("PayloadCapture__RequireArchiveStore", "true")
        .WithEnvironment("PayloadCapture__FailureMode", "FailClosed")
        .WithEnvironment("PayloadCapture__CleanupCron", "0 0 * * * *")

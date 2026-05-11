@@ -11,8 +11,8 @@ RUN dotnet restore src/StarterApp.Functions/StarterApp.Functions.csproj
 
 COPY src/StarterApp.Functions/ src/StarterApp.Functions/
 COPY src/StarterApp.ServiceDefaults/ src/StarterApp.ServiceDefaults/
-RUN dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Release -o /app/publish
 
-FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0
+FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0
 WORKDIR /home/site/wwwroot
 COPY --from=build /app/publish .

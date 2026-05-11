@@ -13,7 +13,7 @@ public class CreateCustomerCommandValidator : IValidator<CreateCustomerCommand>
             yield return new ValidationError(nameof(request.Email), "Email is required");
         else if (request.Email.Length > Email.MaxEmailLength)
             yield return new ValidationError(nameof(request.Email), $"Email must not exceed {Email.MaxEmailLength} characters");
-        else if (!System.Net.Mail.MailAddress.TryCreate(request.Email, out _))
+        else if (!Email.IsValidAddress(request.Email))
             yield return new ValidationError(nameof(request.Email), "Email must be a valid email address");
     }
 }

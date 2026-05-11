@@ -30,6 +30,23 @@ public class UpdateCustomerCommandHandlerTests
     }
 
     [Fact]
+    public void UpdateCustomerCommandValidator_WithDisplayNameEmail_ShouldReturnValidationError()
+    {
+        var command = new UpdateCustomerCommand
+        {
+            Id = 1,
+            Name = "Updated Name",
+            Email = "Updated Name <updated@example.com>"
+        };
+
+        var validator = new UpdateCustomerCommandValidator();
+
+        var errors = validator.Validate(command).ToList();
+
+        Assert.Contains(errors, error => error.PropertyName == nameof(command.Email));
+    }
+
+    [Fact]
     public void UpdateCustomerCommand_PropertiesTest()
     {
         // Arrange

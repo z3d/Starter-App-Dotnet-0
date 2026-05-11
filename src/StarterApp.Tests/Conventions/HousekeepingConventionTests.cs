@@ -101,6 +101,41 @@ public class HousekeepingConventionTests : ConventionTestBase
         Assert.Contains("azurite:\n        condition: service_healthy", compose);
     }
 
+    [Fact]
+    public void AppHost_MustRunFunctionsWithAzureFunctionsRuntimeContainer()
+    {
+        var root = FindRepoRoot();
+        var appHostProgram = File.ReadAllText(Path.Combine(root, "src", "StarterApp.AppHost", "Program.cs"));
+        var functionsDockerfile = File.ReadAllText(Path.Combine(root, "src", "StarterApp.Functions", "Dockerfile"));
+
+        Assert.Contains("AddDockerfile(\"functions\"", appHostProgram);
+        Assert.Contains("IResourceWithAzureFunctionsConfig", appHostProgram);
+        Assert.Contains("AzureWebJobsStorage", appHostProgram);
+        Assert.Contains("servicebus", appHostProgram);
+        Assert.Contains("ConnectionStrings__payloadarchive", appHostProgram);
+        Assert.Contains("FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0", functionsDockerfile);
+        Assert.Contains("dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Release -o /app/publish", functionsDockerfile);
+        Assert.DoesNotContain("--no-restore", functionsDockerfile);
+    }
+
+    [Fact]
+    public void AppHostSdkVersion_MustMatchAspirePackageVersion()
+    {
+        var root = FindRepoRoot();
+        var centralPackages = XDocument.Load(Path.Combine(root, "Directory.Packages.props"));
+        var expectedVersion = centralPackages.Descendants()
+            .Where(element => element.Name.LocalName == "PackageVersion")
+            .Single(element => (string?)element.Attribute("Include") == "Aspire.Hosting.AppHost")
+            .Attribute("Version")?.Value;
+
+        var appHostProject = XDocument.Load(Path.Combine(root, "src", "StarterApp.AppHost", "StarterApp.AppHost.csproj"));
+        var actualVersion = appHostProject.Root?.Elements()
+            .Single(element => element.Name.LocalName == "Sdk" && (string?)element.Attribute("Name") == "Aspire.AppHost.Sdk")
+            .Attribute("Version")?.Value;
+
+        Assert.Equal(expectedVersion, actualVersion);
+    }
+
     private static IEnumerable<string> EnumerateProjectFiles()
     {
         var root = FindRepoRoot();

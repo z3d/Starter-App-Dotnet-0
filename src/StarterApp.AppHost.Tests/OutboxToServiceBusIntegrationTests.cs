@@ -157,11 +157,18 @@ public class OutboxToServiceBusIntegrationTests
         var productId = product.GetProperty("id").GetInt32();
 
         // Act — create an order (triggers domain event → outbox → Service Bus)
-        var orderResponse = await httpClient.PostAsJsonAsync("/api/v1/orders", new
+        var correlationId = $"order-flow-{Guid.NewGuid():N}";
+        using var orderRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/orders")
         {
-            CustomerId = customerId,
-            Items = new[] { new { ProductId = productId, Quantity = 1 } }
-        });
+            Content = JsonContent.Create(new
+            {
+                CustomerId = customerId,
+                Items = new[] { new { ProductId = productId, Quantity = 1 } }
+            })
+        };
+        orderRequest.Headers.Add("X-Correlation-ID", correlationId);
+
+        var orderResponse = await httpClient.SendAsync(orderRequest);
         await EnsureSuccessWithBodyAsync(orderResponse);
         var order = await orderResponse.Content.ReadFromJsonAsync<JsonElement>(JsonOptions);
         var orderId = order.GetProperty("id").GetGuid();
@@ -178,6 +185,23 @@ public class OutboxToServiceBusIntegrationTests
         Assert.True(outboxRowFound,
             $"OutboxMessages should contain a row with Type = 'order.created.v1' and OrderId = {orderId} in Payload");
         Assert.NotNull(processedOnUtc); // Proves the OutboxProcessor sent this specific event without a publish error
+
+        var storageConnectionString = await app.GetConnectionStringAsync("payloadarchive");
+        Assert.NotNull(storageConnectionString);
+
+        var subscriberCaptureContent = await PollForBlobContentsAsync(
+            storageConnectionString,
+            "payload-observability",
+            "archive/",
+            correlationId,
+            maxAttempts: 30,
+            delayMs: 2000,
+            content => content.Contains("\"operation\":\"OrderConfirmationEmailFunction\"", StringComparison.Ordinal) &&
+                       content.Contains("\"operation\":\"InventoryReservationFunction\"", StringComparison.Ordinal));
+
+        Assert.Contains("\"channel\":\"servicebus\"", subscriberCaptureContent);
+        Assert.Contains("\"operation\":\"OrderConfirmationEmailFunction\"", subscriberCaptureContent);
+        Assert.Contains("\"operation\":\"InventoryReservationFunction\"", subscriberCaptureContent);
     }
 
     [Fact]
@@ -290,6 +314,7 @@ public class OutboxToServiceBusIntegrationTests
         client.DefaultRequestHeaders.Add("X-Authenticated-Principal-Type", "User");
         client.DefaultRequestHeaders.Add("X-Authenticated-Tenant-Id", "apphost-test-tenant");
         client.DefaultRequestHeaders.Add("X-Authenticated-Scopes", "customers:read customers:write orders:read orders:write products:read products:write");
+        client.DefaultRequestHeaders.Add("X-Authenticated-Amr", "mfa pwd");
     }
 
     private static async Task<(string BlobName, string Content)> PollForBlobContentAsync(
@@ -298,7 +323,8 @@ public class OutboxToServiceBusIntegrationTests
         string prefix,
         string expectedCorrelationId,
         int maxAttempts,
-        int delayMs)
+        int delayMs,
+        Func<string, bool>? contentPredicate = null)
     {
         var containerClient = new BlobServiceClient(storageConnectionString).GetBlobContainerClient(containerName);
 
@@ -311,7 +337,8 @@ public class OutboxToServiceBusIntegrationTests
                     var blobClient = containerClient.GetBlobClient(blob.Name);
                     var content = await blobClient.DownloadContentAsync();
                     var text = content.Value.Content.ToString();
-                    if (text.Contains(expectedCorrelationId, StringComparison.Ordinal))
+                    if (text.Contains(expectedCorrelationId, StringComparison.Ordinal) &&
+                        (contentPredicate == null || contentPredicate(text)))
                         return (blob.Name, text);
                 }
             }
@@ -324,6 +351,50 @@ public class OutboxToServiceBusIntegrationTests
         }
 
         throw new TimeoutException($"Blob prefix {prefix} did not contain correlation {expectedCorrelationId} after {maxAttempts} attempts.");
+    }
+
+    private static async Task<string> PollForBlobContentsAsync(
+        string storageConnectionString,
+        string containerName,
+        string prefix,
+        string expectedCorrelationId,
+        int maxAttempts,
+        int delayMs,
+        Func<string, bool> contentPredicate)
+    {
+        var containerClient = new BlobServiceClient(storageConnectionString).GetBlobContainerClient(containerName);
+        var lastMatchCount = 0;
+        var lastCombinedText = string.Empty;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                var matchingContents = new List<string>();
+                await foreach (var blob in containerClient.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, CancellationToken.None))
+                {
+                    var blobClient = containerClient.GetBlobClient(blob.Name);
+                    var content = await blobClient.DownloadContentAsync();
+                    var text = content.Value.Content.ToString();
+                    if (text.Contains(expectedCorrelationId, StringComparison.Ordinal))
+                        matchingContents.Add(text);
+                }
+
+                lastMatchCount = matchingContents.Count;
+                lastCombinedText = string.Join(Environment.NewLine, matchingContents);
+                if (lastMatchCount > 0 && contentPredicate(lastCombinedText))
+                    return lastCombinedText;
+            }
+            catch (Exception) when (attempt < maxAttempts)
+            {
+                // Blob container or emulator may still be coming up.
+            }
+
+            await Task.Delay(delayMs);
+        }
+
+        throw new TimeoutException(
+            $"Blob prefix {prefix} found {lastMatchCount} blob(s) with correlation {expectedCorrelationId}, but not the expected content after {maxAttempts} attempts. Last content: {lastCombinedText}");
     }
 
     private static async Task<(bool Found, string? ProcessedOnUtc)> QueryOutboxForOrderAsync(

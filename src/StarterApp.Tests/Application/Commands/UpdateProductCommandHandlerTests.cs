@@ -46,6 +46,28 @@ public class UpdateProductCommandHandlerTests
         Assert.Contains(errors, error => error.PropertyName == nameof(command.Stock));
     }
 
+    [Theory]
+    [InlineData("US")]
+    [InlineData("USDT")]
+    public void UpdateProductCommandValidator_WithInvalidCurrencyLength_ShouldReturnValidationError(string currency)
+    {
+        var command = new UpdateProductCommand
+        {
+            Id = 1,
+            Name = "Updated Product",
+            Description = "Updated Description",
+            Price = 15.99m,
+            Currency = currency,
+            Stock = 50
+        };
+
+        var validator = new UpdateProductCommandValidator();
+
+        var errors = validator.Validate(command).ToList();
+
+        Assert.Contains(errors, error => error.PropertyName == nameof(command.Currency));
+    }
+
     [Fact]
     public void UpdateProductCommand_PropertiesTest()
     {

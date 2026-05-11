@@ -13,6 +13,9 @@ public class OutboxProcessorOptions
     [Range(1, 100)]
     public int MaxRetries { get; set; } = 3;
 
+    [Range(1, 3600)]
+    public int LockDurationSeconds { get; set; } = 60;
+
     [Required, MinLength(1)]
     public string TopicName { get; set; } = "domain-events";
 }
