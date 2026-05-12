@@ -3,16 +3,22 @@ set -euo pipefail
 
 # Smoke test for StarterApp API — runs against a live deployment.
 # Usage: ./scripts/smoke-test.sh [BASE_URL]
-# Defaults to http://localhost:8080 (Docker Compose).
-# For Aspire: ./scripts/smoke-test.sh https://localhost:7286
+# For Aspire, pass the API URL shown in the dashboard.
 
-BASE_URL="${1:-http://localhost:8080}"
+BASE_URL="${1:-${SMOKE_BASE_URL:-}}"
+if [ -z "$BASE_URL" ]; then
+    echo "Usage: ./scripts/smoke-test.sh <BASE_URL>"
+    echo "Example: ./scripts/smoke-test.sh https://localhost:7286"
+    exit 2
+fi
+
 CURL_OPTS="-sf"
 AUTH_HEADERS=(
     -H "X-Authenticated-Subject: smoke-test-user"
     -H "X-Authenticated-Principal-Type: User"
     -H "X-Authenticated-Tenant-Id: smoke-test-tenant"
     -H "X-Authenticated-Scopes: customers:read customers:write orders:read orders:write products:read products:write"
+    -H "X-Authenticated-Amr: mfa"
 )
 
 # Allow self-signed certs for local HTTPS (Aspire dev certs)
@@ -144,7 +150,7 @@ assert_status "GET /api/v1/orders/status/Pending" 200 GET /api/v1/orders/status/
 assert_status "PUT order status Pending→Confirmed" 200 PUT \
     "/api/v1/orders/$CREATED_ORDER_ID/status" \
     -H "Content-Type: application/json" \
-    -d "{\"orderId\":$CREATED_ORDER_ID,\"status\":\"Confirmed\"}"
+    -d "{\"orderId\":\"$CREATED_ORDER_ID\",\"status\":\"Confirmed\"}"
 
 # --- Validator Tests ---
 
@@ -172,16 +178,17 @@ assert_status "Bad currency length → 400" 400 POST /api/v1/orders \
     -H "Content-Type: application/json" \
     -d "{\"customerId\":$CREATED_CUSTOMER_ID,\"items\":[{\"productId\":$CREATED_PRODUCT_ID,\"quantity\":1,\"unitPriceExcludingGst\":5,\"currency\":\"ABCD\",\"gstRate\":0.10}]}"
 
-# OrderId=0 on UpdateOrderStatus → 400
-assert_status "OrderId=0 → 400" 400 PUT /api/v1/orders/0/status \
+# Empty OrderId on UpdateOrderStatus → 400
+EMPTY_ORDER_ID="00000000-0000-0000-0000-000000000000"
+assert_status "Empty OrderId → 400" 400 PUT "/api/v1/orders/$EMPTY_ORDER_ID/status" \
     -H "Content-Type: application/json" \
-    -d '{"orderId":0,"status":"Confirmed"}'
+    -d "{\"orderId\":\"$EMPTY_ORDER_ID\",\"status\":\"Confirmed\"}"
 
 # Invalid status enum → 400
 assert_status "Invalid status enum → 400" 400 PUT \
     "/api/v1/orders/$CREATED_ORDER_ID/status" \
     -H "Content-Type: application/json" \
-    -d "{\"orderId\":$CREATED_ORDER_ID,\"status\":\"Bogus\"}"
+    -d "{\"orderId\":\"$CREATED_ORDER_ID\",\"status\":\"Bogus\"}"
 
 # --- Conflict Tests (409) ---
 
@@ -192,7 +199,7 @@ echo "Conflicts"
 assert_status "Invalid transition → 409" 409 PUT \
     "/api/v1/orders/$CREATED_ORDER_ID/status" \
     -H "Content-Type: application/json" \
-    -d "{\"orderId\":$CREATED_ORDER_ID,\"status\":\"Delivered\"}"
+    -d "{\"orderId\":\"$CREATED_ORDER_ID\",\"status\":\"Delivered\"}"
 
 # Delete product with existing orders → 409
 assert_status "Delete referenced product → 409" 409 DELETE \

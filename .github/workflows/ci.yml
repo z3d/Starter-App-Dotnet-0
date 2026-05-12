@@ -73,9 +73,6 @@ jobs:
         dotnet dev-certs https --trust || true
         echo "SSL_CERT_DIR=$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs:/etc/ssl/certs" >> "$GITHUB_ENV"
 
-    - name: Install Azure Functions Core Tools
-      run: npm install -g azure-functions-core-tools@4 --unsafe-perm true
-
     - name: Restore dependencies
       run: dotnet restore --force-evaluate
 
@@ -92,10 +89,10 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Build migrator image
-      run: docker compose build migrator
+      run: docker build -f src/StarterApp.DbMigrator/Dockerfile .
 
     - name: Build api image
-      run: docker compose build api
+      run: docker build -f src/StarterApp.Api/Dockerfile .
 
     - name: Build functions image
-      run: docker compose build functions
+      run: docker build -f src/StarterApp.Functions/Dockerfile .

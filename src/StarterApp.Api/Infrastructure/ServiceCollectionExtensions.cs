@@ -101,7 +101,7 @@ public static class ServiceCollectionExtensions
             .Bind(configuration.GetSection(GatewayIdentityOptions.SectionName))
             .ValidateDataAnnotations()
             .Validate(options => IsDevelopmentLike(environment) || options.Mode == GatewayIdentityMode.Required,
-                "GatewayIdentity:Mode=UnsignedDevelopment is only allowed in Development, Testing, or Docker environments.")
+                "GatewayIdentity:Mode=UnsignedDevelopment is only allowed in Development or Testing environments.")
             .Validate(options => options.Mode != GatewayIdentityMode.Required || !string.IsNullOrWhiteSpace(options.SigningKey),
                 "GatewayIdentity:SigningKey is required when GatewayIdentity:Mode=Required.")
             .Validate(options => options.Mode != GatewayIdentityMode.Required ||
@@ -155,8 +155,7 @@ public static class ServiceCollectionExtensions
     private static bool IsDevelopmentLike(IHostEnvironment environment)
     {
         return environment.IsDevelopment() ||
-            environment.EnvironmentName == "Testing" ||
-            environment.EnvironmentName == "Docker";
+            environment.EnvironmentName == "Testing";
     }
 
     public static IServiceCollection AddApiHealthChecks(this IServiceCollection services)

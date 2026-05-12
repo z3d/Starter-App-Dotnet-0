@@ -100,7 +100,7 @@ var api = builder.AddProject<Projects.StarterApp_Api>("api")
        .WaitForCompletion(migrator);
 
 // Add Azure Functions container for Service Bus subscribers.
-// Running through the Functions base image keeps AppHost behavior aligned with Docker Compose and avoids a local Azure Functions Core Tools dependency.
+// Running through the Functions base image keeps local behavior aligned with the deployed worker runtime.
 builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Functions/Dockerfile")
        .WithReference(serviceBus)
        .WithReference(payloadArchive)

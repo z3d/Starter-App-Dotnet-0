@@ -44,7 +44,7 @@ Features implemented:
 - Scalar API reference documentation (OpenAPI)
 - CQRS pattern with EF Core for commands, Dapper for queries
 - Structured logging with Serilog
-- Environment-specific configuration
+- Aspire-injected configuration with standalone development fallbacks
 
 ### 3. Database Migrations (`StarterApp.DbMigrator`)
 - Console application for running database migrations
@@ -71,16 +71,17 @@ dotnet run --project src/StarterApp.AppHost
 
 This will start:
 - SQL Server container
-- API with automatic service discovery
+- Redis, Blob storage, Service Bus emulator, Seq, and the Functions subscriber container
+- API with automatic service discovery and migrated database dependency
 - Aspire dashboard with observability
 
 ## Testing the API
 
 ### Manual Testing
 1. Open the Scalar API Reference at the API URL
-2. Try the GET `/api/products` endpoint
-3. Use POST to create new products
-4. Test PUT and DELETE operations
+2. Try the GET `/api/v1/products` endpoint
+3. Add the required gateway identity headers shown in [API-ENDPOINTS.md](../API-ENDPOINTS.md)
+4. Use POST/PUT/DELETE operations with the matching `*:write` scope and `X-Authenticated-Amr: mfa`
 
 ### Automated Testing
 ```bash
@@ -104,7 +105,7 @@ The test suite includes:
 ### 🔧 Configuration Management
 - Environment-specific `appsettings.json` files
 - Connection string management
-- Docker-specific configuration support
+- Aspire service discovery and connection-string injection
 
 ### 📊 Observability
 - Health checks for application and database

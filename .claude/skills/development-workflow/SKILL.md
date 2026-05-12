@@ -78,22 +78,20 @@ if (gstRate > 1.0m)
 
 ## Docker & Deployment Notes
 
-### Dual-Runtime Requirement
+### Aspire-First Runtime Requirement
 
-The API must work both as a **standalone Docker container** and under **Aspire orchestration**. When making infrastructure changes, always verify both modes:
+Aspire is the supported local orchestration path. Docker remains required for Aspire-managed dependencies, Testcontainers, the Functions runtime container, and deployable image validation. When making infrastructure changes, verify Aspire plus direct image builds:
 
-- **Connection strings**: Standardized on `database` key — Aspire injects this, Docker Compose sets it via environment variable, and `appsettings.Docker.json` provides it as fallback
-- **Health checks**: `app.MapHealthChecks("/health")` must be mapped unconditionally — Aspire's `MapDefaultEndpoints()` only maps in Development environment, which is insufficient for Docker healthchecks
+- **Connection strings**: Standardized on `database` key — Aspire injects this for local orchestration; real container deployments must provide it explicitly
+- **Health checks**: `app.MapHealthChecks("/health")` must be mapped unconditionally — container platforms use readiness/liveness probes outside Development
 - **Service registration**: All DI registrations must work without Aspire service discovery present — use conditional checks or fallback defaults where Aspire provides configuration
+- **Image validation**: CI builds API, DbMigrator, and Functions images with direct `docker build -f ... .` commands
 
 ### Smoke Testing
 
 After deploying or modifying infrastructure, run the smoke test script against the live environment:
 
 ```bash
-# Docker Compose (default: http://localhost:8080)
-./scripts/smoke-test.sh
-
 # Aspire (HTTPS with dev certs)
 ./scripts/smoke-test.sh https://localhost:7286
 
@@ -114,7 +112,7 @@ The Service Bus emulator is the most fragile part of the Aspire stack. These lea
 
 ### NEVER use `WithConfigurationFile()` for emulator topology
 
-`WithConfigurationFile("../../config/servicebus-emulator.json")` causes container mount and networking issues — the emulator container may fail to join the Aspire network, leaving it unable to reach its backing SQL Server. **Always use the fluent API instead:**
+`WithConfigurationFile()` can cause container mount and networking issues — the emulator container may fail to join the Aspire network, leaving it unable to reach its backing SQL Server. **Always use the fluent API instead:**
 
 ```csharp
 var serviceBus = builder.AddAzureServiceBus("servicebus");
@@ -138,7 +136,7 @@ serviceBus.RunAsEmulator(emulator => emulator
     .WithLifetime(ContainerLifetime.Persistent));
 ```
 
-The static `config/servicebus-emulator.json` file is retained for Docker Compose only.
+Do not add a static Service Bus emulator JSON file as a second topology source.
 
 ### NEVER use `WithConfiguration()` with raw JSON for correlation filters
 

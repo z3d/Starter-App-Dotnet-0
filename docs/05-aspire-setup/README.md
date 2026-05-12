@@ -2,7 +2,7 @@
 
 ## Overview
 
-.NET Aspire provides a superior local development experience with built-in observability, service discovery, and configuration management. This step shows how Aspire complements the Docker setup for cloud-native development.
+.NET Aspire provides the supported local orchestration path for this template, with built-in observability, service discovery, dependency startup ordering, and configuration management.
 
 ## Current Status
 
@@ -14,7 +14,7 @@
 - **Redis Integration** - Distributed cache
 - **Azure Blob Storage Emulator** - Payload archive/audit and entity-index artifacts
 - **Azure Service Bus Emulator** - Domain-event messaging with topic + subscriptions
-- **Azure Functions** - Service Bus subscribers running natively via Functions Core Tools
+- **Azure Functions** - Service Bus subscribers running in the Azure Functions Docker runtime
 - **Seq** - Centralized structured logging
 - **DevTunnel (optional)** - Exposes the API to the internet for webhook/mobile testing
 - **Observability Dashboard** - Built-in monitoring and diagnostics
@@ -26,7 +26,7 @@ StarterApp.AppHost (Orchestrator)
 ├── 📊 Aspire Dashboard (Built-in observability)
 ├── 🌐 StarterApp.Api (Enhanced with telemetry)
 ├── 🔄 StarterApp.DbMigrator (Runs DbUp migrations; API waits for completion)
-├── ⚡ StarterApp.Functions (Service Bus subscribers)
+├── ⚡ functions container (StarterApp.Functions Service Bus subscribers)
 ├── 🗄️ SQL Server container (Persistent lifetime)
 ├── 🚀 Redis container (Distributed cache)
 ├── 🧾 Azure Blob Storage emulator (Payload archive/audit)
@@ -35,18 +35,9 @@ StarterApp.AppHost (Orchestrator)
 └── 📈 Service Defaults (Shared configuration)
 ```
 
-## 🆚 Development Approaches Comparison
+## Orchestration Stance
 
-| Aspect | Docker Compose | .NET Aspire | Winner |
-|--------|----------------|-------------|--------|
-| **Configuration** | YAML | C# with IntelliSense | 🥇 Aspire |
-| **Service Discovery** | Manual networking | Automatic resolution | 🥇 Aspire |
-| **Observability** | Requires setup | Built-in dashboard | 🥇 Aspire |
-| **Debugging** | Attach to containers | Native .NET debugging | 🥇 Aspire |
-| **Hot Reload** | Container rebuilds | Instant .NET hot reload | 🥇 Aspire |
-| **Production Parity** | High | Medium | 🥇 Docker |
-| **CI/CD Integration** | Excellent | Good | 🥇 Docker |
-| **Apple Silicon support** | Functions image is amd64-only | Functions runs natively | 🥇 Aspire |
+Aspire is the single local orchestration contract. Docker remains required because Aspire starts containerized dependencies and the Functions runtime image, but this template intentionally avoids a second YAML run path.
 
 ## 🚀 Quick Start with Aspire
 
@@ -123,9 +114,11 @@ var api = builder.AddProject<Projects.StarterApp_Api>("api")
     .WaitFor(db).WaitFor(redis).WaitFor(payloadArchive).WaitFor(serviceBus)
     .WaitForCompletion(migrator);           // API waits for migrator to finish
 
-builder.AddProject<Projects.StarterApp_Functions>("functions")
+builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Functions/Dockerfile")
     .WithReference(serviceBus)
     .WithReference(payloadArchive)
+    .WithEnvironment("FUNCTIONS_WORKER_RUNTIME", "dotnet-isolated")
+    .WithEnvironment("ConnectionStrings__payloadarchive", payloadArchive.Resource.ConnectionStringExpression)
     .WithEnvironment("PayloadCapture__RequireArchiveStore", "true")
     .WithEnvironment("PayloadCapture__FailureMode", "FailClosed")
     .WithEnvironment("PayloadCapture__CleanupCron", "0 0 * * * *")
@@ -169,22 +162,21 @@ See [src/StarterApp.ServiceDefaults/Extensions.cs](../../src/StarterApp.ServiceD
 
 4. **Test Integration** — all services come up together; DB migrated automatically; service discovery just works
 
-### Switching Between Environments
+### Local Orchestration
 
-**Development with Aspire:**
 ```bash
 dotnet run --project src/StarterApp.AppHost
 ```
 
-**Production Testing with Docker:**
+Validate container images directly when you need deployment confidence:
+
 ```bash
-docker compose up --build
+docker build -f src/StarterApp.Api/Dockerfile .
+docker build -f src/StarterApp.DbMigrator/Dockerfile .
+docker build -f src/StarterApp.Functions/Dockerfile .
 ```
 
-> On arm64 Macs, the `functions` service in Docker Compose fails because
-> the Azure Functions isolated-worker image is amd64-only. Aspire runs
-> Functions natively via the Functions Core Tools and has no such issue —
-> another reason to use Aspire for daily development on Apple Silicon.
+> On arm64 Macs, the Azure Functions isolated-worker image is currently published for `linux/amd64`. Docker Desktop can run it through emulation, but it is slower.
 
 ## 🔍 Advanced Features
 
@@ -222,17 +214,17 @@ See [.claude/skills/testing-strategy/SKILL.md](../../.claude/skills/testing-stra
 
 ## 🎯 Best Practices
 
-- Use Aspire for daily development (hot reload, debugger, dashboard)
-- Use Docker Compose for production-parity integration testing
+- Use Aspire for daily development and full-stack integration testing
+- Validate deployable images with direct `docker build -f ... .` commands
 - Deploy production workloads as containers
 - Keep `AddServiceDefaults()` on all new projects for consistent observability
 
 ## 🔗 Related Documentation
 
-- [Docker Setup (Step 3)](../03-docker-setup/README.md) - Docker Compose configuration
+- [Container Images (Step 3)](../03-docker-setup/README.md) - Dockerfiles and image build validation
 - [API Endpoints](../API-ENDPOINTS.md) - Minimal API endpoint reference
 - [.NET Aspire Documentation](https://learn.microsoft.com/en-us/dotnet/aspire/) - Official Microsoft docs
 
 ---
 
-**💡 Tip**: Start your development session with Aspire for the rich debugging experience, then validate with Docker Compose before committing changes.
+**💡 Tip**: Start your development session with Aspire for the rich debugging experience, then validate container image builds before committing deployment-facing changes.

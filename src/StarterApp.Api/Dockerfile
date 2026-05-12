@@ -42,7 +42,6 @@ RUN apt-get update \
 COPY --from=build /app/publish .
 
 # Set environment variables
-ENV ASPNETCORE_ENVIRONMENT=Docker
 ENV ASPNETCORE_URLS=http://+:8080
 
 EXPOSE 8080

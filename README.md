@@ -1,15 +1,15 @@
 # Starter App Project with .NET Aspire
 
-A comprehensive tutorial project demonstrating modern .NET development with Docker, SQL Server, and .NET Aspire orchestration.
+A comprehensive tutorial project demonstrating modern .NET development with .NET Aspire orchestration, SQL Server, and deployable container images.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
-- [Docker Desktop](https://www.docker.com/products/docker-desktop) (**Required** - must be running for integration tests)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) (**Required** - Aspire-managed containers, Testcontainers, and image builds use Docker)
 - Visual Studio Code or Visual Studio 2022
 
-> **⚠️ Important**: Docker Desktop must be installed and running before executing integration tests or using Docker Compose. The integration tests use Testcontainers to spin up SQL Server instances.
+> **⚠️ Important**: Docker Desktop must be installed and running before executing Aspire orchestration or integration tests. Aspire starts the local infrastructure containers, and the integration tests use Testcontainers.
 
 ### Running with .NET Aspire (Recommended for Development)
 ```powershell
@@ -22,15 +22,6 @@ dotnet run
 - **Aspire Dashboard**: Opens automatically at https://localhost:17113
 - **API**: Available at dynamically assigned port (shown in dashboard)
 - **Scalar API Reference**: `https://localhost:<api-port>/scalar/v1`
-
-### Running with Docker Compose (Production-like)
-```powershell
-# From solution root
-docker-compose up --build
-```
-- **API**: http://localhost:8080
-- **Scalar API Reference**: http://localhost:8080/scalar/v1
-- **SQL Server**: localhost:1433
 
 ## 🎯 What This Project Demonstrates
 
@@ -49,8 +40,8 @@ docker-compose up --build
 
 3. **Containerization**
    - Multi-stage Docker builds
-   - Docker Compose orchestration
-   - Readiness/liveness health checks and container dependencies
+   - Direct image build validation for API, DbMigrator, and Functions
+   - Readiness/liveness health checks for container platforms
 
 4. **Cloud-Native Development**
    - .NET Aspire for local orchestration
@@ -60,12 +51,12 @@ docker-compose up --build
 5. **Asynchronous Event Pipeline**
    - Domain events raised inside aggregates, persisted to outbox atomically
    - BackgroundService polls outbox and publishes to Azure Service Bus
-   - Azure Functions subscribe via topic subscriptions with correlation filters
+   - Azure Functions subscribe via topic subscriptions with correlation filters; current sample subscribers capture inbound payloads and log trigger activity
    - Service Bus emulator for local development (Docker + Aspire)
 
 6. **DevOps & CI**
    - GitHub Actions CI pipeline (build, unit tests, integration tests)
-   - Environment-specific configurations (Development, Docker)
+   - Direct Docker image build validation
    - Smoke test script for validating live deployments
 
 ## 📁 Project Structure
@@ -81,10 +72,8 @@ starterapp/
 │   ├── StarterApp.DbMigrator/       # Database migration console app
 │   ├── StarterApp.ServiceDefaults/  # Shared Aspire configuration
 │   └── StarterApp.Tests/            # Unit, convention, integration, fuzzing tests
-├── config/                         # Emulator configuration (Service Bus topology)
 ├── docs/                           # Step-by-step tutorials
-├── scripts/                       # Smoke test script
-└── docker-compose.yml             # Docker orchestration
+└── scripts/                       # Smoke test script
 ```
 
 ## 📚 Step-by-Step Guide
@@ -93,7 +82,7 @@ Follow the numbered directories in the `docs/` folder:
 
 1. **[.NET Setup](docs/01-dotnet-setup/README.md)** - Create the Web API project
 2. **[SQL Server Setup](docs/02-sql-server-setup/README.md)** - Database configuration and migrations
-3. **[Docker Setup](docs/03-docker-setup/README.md)** - Containerization with Docker Compose
+3. **[Container Images](docs/03-docker-setup/README.md)** - Dockerfiles and image build validation
 4. **[Aspire Setup](docs/05-aspire-setup/README.md)** - .NET Aspire orchestration
 
 ## 🧪 Running CI Locally with Act
@@ -132,7 +121,7 @@ act push -n
 act push -v
 ```
 
-> **Note**: The CI workflow filters out integration tests, so Docker-in-Docker is not required. If you encounter .NET SDK issues, use the larger runner image (`catthehacker/ubuntu:full-latest`) which includes more pre-installed tools.
+> **Note**: The GitHub workflow has separate unit, Testcontainers integration, Aspire, and Docker image build jobs. When using `act`, run a targeted job if your local Docker setup cannot support the full workflow.
 
 ## 🛠️ Development Commands
 
@@ -160,12 +149,12 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 - **Distributed Caching**: Redis-backed by-id query caching via mediator pipeline behavior; list queries are intentionally not cached because `IDistributedCache` cannot invalidate by pattern
 - **Cache Safety Conventions**: Convention tests enforce non-empty deterministic cache keys, by-id-only caching, and invalidator injection for non-create mutations on cacheable entities
 - **Outbox Pattern**: Domain events are captured durably and published to Azure Service Bus via BackgroundService
-- **Azure Functions**: Service Bus subscribers for email notifications and inventory reservation
+- **Azure Functions**: Service Bus subscriber samples for email notifications and inventory reservation; they currently archive inbound payloads and log trigger activity
 - **Payload Archive / PII Audit**: Bounded HTTP payload capture plus full Service Bus payload archiving to Blob storage with explicit fail-open/fail-closed policy
 - **Observability**: Distributed tracing, metrics, and structured logging
 - **Configuration Management**: Environment-specific settings with .NET configuration
 - **Database Migrations**: Automated schema updates with DbUp
-- **Container Orchestration**: Both Docker Compose and .NET Aspire support
+- **Local Orchestration**: .NET Aspire is the supported full-stack local run path
 - **Comprehensive Testing**: Unit, convention, integration, property-based (FsCheck), and Aspire end-to-end tests
 
 ## Documentation

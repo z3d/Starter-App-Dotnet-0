@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
 
-**Score: 9.9/10** (63 findings resolved, 1 open)
+**Score: 9.9/10** (65 findings resolved, 1 open)
 
 ---
 
@@ -23,7 +23,7 @@ The project enforces architectural rules through convention tests in the main an
 | `PersistenceConventionTests` | Every entity has a `DbSet`; value objects use `OwnsOne` not `DbSet`; enum properties configured; no static mutable state on `DbContext`; collection properties have private setters; migration scripts follow numbered prefix, are embedded resources, and name constraints explicitly |
 | `DapperConventionTests` | Query handlers must not use `SELECT *` in SQL (IL inspection of compiled string literals) |
 | `CachingConventionTests` | ICacheable queries must have non-empty cache keys, positive durations, and deterministic keys |
-| `HousekeepingConventionTests` | Project files don't reference `bin`/`obj` artifacts; production code avoids regions, XML documentation comments, and historical workaround comments; Docker Compose mirrors Aspire payload-archive storage wiring |
+| `HousekeepingConventionTests` | Project files don't reference `bin`/`obj` artifacts; production code avoids regions, XML documentation comments, and historical workaround comments |
 | `StarterApp.AppHost.Tests` conventions | Service Bus topology/Function trigger alignment plus async/DateTime safety for AppHost, Functions, and ServiceDefaults |
 
 These tests catch entire categories of mistakes at compile time rather than in production.
@@ -101,7 +101,7 @@ Authentication remains gateway-owned, but the API now has an enforceable trust b
 - Sensitive write routes call `SecuredBy2Fa()` and require the gateway-projected `X-Authenticated-Amr` authentication-method set to include `mfa`; callers with valid identity and write scope but no MFA proof receive `403 Forbidden`
 - Customer, Product, and Order rows persist `OwnerSubject` and `TenantId` from the verified gateway identity. Create handlers stamp ownership, query handlers filter by owner scope, and mutation handlers call `IOwnerOnlyPolicy` before changing loaded resources.
 - Cross-owner reads are hidden as `404 Not Found` or empty pages, while cross-owner mutations return `403 Forbidden`. By-id cache keys are owner-scoped so cached resources cannot leak across identities.
-- Local Development/Testing/Docker can use `UnsignedDevelopment`, and startup validation rejects that mode elsewhere
+- Local Development/Testing can use `UnsignedDevelopment`, and startup validation rejects that mode elsewhere
 - Security tests cover missing identity, missing assertion, expired assertion, wrong audience, wrong path, tampered identity/authentication-method headers, missing MFA proof, wrong signing key, and unknown key id
 - Convention tests inspect the mapped endpoint metadata so every `/api/v1` route must carry both gateway identity and gateway scope metadata, regardless of source-file placement. CQRS and persistence conventions now also require owner-scoped resource queries, owner-policy injection, and persisted owner columns on owned aggregates.
 - Rate limiting now partitions protected requests by verified tenant/subject identity, falling back to IP only where no authenticated gateway identity exists
@@ -111,12 +111,12 @@ Authentication remains gateway-owned, but the API now has an enforceable trust b
 - **Aspire orchestration** — `AppHost/Program.cs` wires up API, SQL Server, Redis, Blob storage, Seq, Service Bus emulator, the Azure Functions runtime container, and DbMigrator with proper `WaitFor` dependencies and optional dev tunnel support
 - **Serilog** structured logging with console, file, Seq, and OpenTelemetry sinks
 - **OpenTelemetry** metrics (ASP.NET Core, HTTP, runtime) and tracing via `ServiceDefaults`
-- **Docker** multi-stage build with docker-compose (API + SQL Server + Redis + Azurite + Seq + Service Bus emulator + Functions + dedicated migrator)
+- **Docker** multi-stage image builds for API, DbMigrator, and Functions, with Aspire-owned local dependency containers
 - **CI** pipeline with GitHub Actions (unit tests + integration tests with Testcontainers)
 - **Health checks** at `/health`, `/health/ready`, `/health/live`, and `/alive`
 - **Password masking** in log output — implemented consistently across `Program.cs`, `DatabaseMigrationEngine`, and `DbMigrator`
 - **Payload archive / PII audit** — HTTP request/response bodies, outbound Service Bus payloads, and inbound Function payloads are written as JSONL support artifacts to Azure Blob under date/hour/minute paths. Archive files are correlation-bound (`archive/{date}/{hour}/{minute}/{correlationId}.jsonl`); audit files are time-window streams (`audit/{date}/{hour}/{minute}/payload-audit.jsonl`) that include timestamp, correlation id, archive blob name, payload hash, payload bounds metadata, and the captured payload. HTTP capture is bounded by `MaxPayloadBytes` and content-type allowlist metadata; Service Bus payload capture remains full-fidelity for JSON events. Operational logs use redacted payloads and a convention test blocks direct raw `{Body}` logging.
-- **Dedicated `DbMigrator` service** for migrations across all deployment modes (Aspire, Docker Compose, standalone)
+- **Dedicated `DbMigrator` service** for migrations across all deployment modes (Aspire, container deployments, standalone)
 - **Outbox → Service Bus pipeline** — domain events captured durably in `OutboxMessages` during a single `SaveChangesAsync` (aggregates use client-generated Guid v7 Ids, so creation events carry correct keys before the save). `EnableRetryOnFailure` is safe because no user transaction is needed. `OutboxProcessor` claims rows in a short SQL transaction using `ProcessingId`/`LockedUntilUtc` plus `UPDLOCK, READPAST, ROWLOCK`, releases locks before Blob capture and Service Bus publish, then saves processed/error outcomes afterward. Service Bus topic has duplicate detection enabled (5-minute window, the emulator maximum). Consumed by Azure Functions via topic subscriptions with correlation filters; AppHost runs Functions through the Docker runtime so trigger listeners are active in integration tests. Convention tests enforce subscription filter ↔ domain event contract sync and topology property alignment.
 - **Explicit constraint naming** — all database constraints named via convention (`PK_`, `FK_`, `DF_`, `CK_`, `IX_`), enforced by convention test from script 0012 onward
 
@@ -149,11 +149,18 @@ Good adoption of modern .NET:
 
 These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
 
-Fresh review reconciliation: finding #43 is resolved by the trusted gateway identity boundary and identity-based rate limiting. Findings #57-#59 are resolved by route-level scope enforcement, mapped-endpoint convention coverage, and owner-only resource authorization. Findings #44 and #45 are resolved by the outbox processing-claim redesign and AppHost subscriber-consumption assertion. Finding #56 remains open as an order-state modeling design risk: the enum is acceptable as a compact state label, but workflows should not grow around arbitrary status assignment. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
+Fresh review reconciliation: finding #43 is resolved by the trusted gateway identity boundary and identity-based rate limiting. Findings #57-#59 are resolved by route-level scope enforcement, mapped-endpoint convention coverage, and owner-only resource authorization. Findings #44 and #45 are resolved by the outbox processing-claim redesign and AppHost subscriber-consumption assertion. Finding #64 is resolved by refreshing stale setup/API documentation to match gateway identity, `/api/v1` routing, Functions Docker hosting, CI jobs, and the current sample subscriber behavior. Finding #65 is resolved by removing the duplicate local orchestration path and making Aspire the single local stack while keeping direct image validation. Finding #56 remains open as an order-state modeling design risk: the enum is acceptable as a compact state label, but workflows should not grow around arbitrary status assignment. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
 
 | # | Finding | Impact | Suggested Fix |
 |---|---------|--------|---------------|
 | 56 | Order status API models lifecycle changes as arbitrary state assignment | `OrderStatus` is fine as a finite state label, and the aggregate owns transition validation, but `UpdateOrderStatusCommand.Status` accepts a string and the handler parses it into a generic `UpdateStatus(...)` call. As order behavior grows, this shape encourages state-specific side effects to leak into handlers, as cancellation already needs special stock-restoration handling. | Keep the enum for persistence/API readability, but prefer intent-specific commands and domain methods (`Confirm`, `StartProcessing`, `Ship`, `Deliver`, `Cancel`) over "set status" APIs. Normalize query input to `OrderStatus` before SQL, and keep state-specific side effects behind aggregate/domain-service operations. |
+
+#### Recently resolved (documentation refresh)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~64~~ | Public setup and API docs had drifted from the current template behavior | Refreshed `docs/API-ENDPOINTS.md`, README setup notes, Aspire/Docker setup docs, and the completion guide so they match `/api/v1` routes, gateway identity headers/scopes/MFA, product request shapes, Guid order ids, Functions Docker runtime hosting, CI job split, and the current sample subscriber behavior. Commit: pending. |
+| ~~65~~ | Maintaining two local orchestration paths created drift risk for an AI-maintained template | Removed the duplicate YAML run path, deleted its static Service Bus emulator config and Docker-only appsettings, made AppHost fluent topology the single source of truth, and switched CI to direct image builds. Commit: pending. |
 
 #### Recently resolved (eventing and observability hardening)
 
@@ -161,7 +168,7 @@ Fresh review reconciliation: finding #43 is resolved by the trusted gateway iden
 |---|---------|-----|
 | ~~44~~ | `OutboxProcessor` held SQL update locks while performing Blob capture and Service Bus send network I/O | Added `ProcessingId` and `LockedUntilUtc` outbox claim columns, DbUp migration `0019_AddOutboxProcessingClaims.sql`, EF mapping/index updates, and processor flow that claims rows in a short transaction, publishes outside the lock, and saves outcomes afterward. |
 | ~~45~~ | AppHost eventing test observed `ProcessedOnUtc` but not subscriber consumption | `CreateOrder_ShouldWriteAndProcessOutboxEvent` now sends a known correlation id and waits for both `OrderConfirmationEmailFunction` and `InventoryReservationFunction` inbound Service Bus payload-capture records in Blob storage. AppHost runs Functions via the Azure Functions Docker image and wires `servicebus`, `AzureWebJobsStorage`, and payload archive settings so subscribers consume under the real Functions host. |
-| ~~60~~ | Aspire Service Bus topic duplicate detection was missing/misaligned with Docker/docs | AppHost topic properties now explicitly enable duplicate detection with a 5-minute window, Docker emulator config uses the same window, and `ServiceBusTopologyConventionTests` verifies the emulator JSON matches shared topology constants. |
+| ~~60~~ | Aspire Service Bus topic duplicate detection was missing from the fluent topology | AppHost topic properties now explicitly enable duplicate detection with a 5-minute window and `ServiceBusTopologyConventionTests` verifies the topology constants. |
 | ~~61~~ | Fail-closed payload archive outages could consume outbox retry budget and permanently error rows | Added transient payload archive failure classification and outbox coverage so Azure Blob dependency failures pause the batch with retries intact instead of poisoning messages. |
 | ~~62~~ | Validators and domain guards drifted for email and currency invariants | `Email` and `Money` now expose canonical validation predicates used by command validators; `Money.Create` enforces exactly three-character currency codes; unit/fuzz tests cover the synchronized behavior. |
 | ~~63~~ | Aspire AppHost SDK version was skewed from Aspire package versions | Aligned `Aspire.AppHost.Sdk` to `13.2.3` and added `HousekeepingConventionTests.AppHostSdkVersion_MustMatchAspirePackageVersion`. |
@@ -194,7 +201,7 @@ Fresh review reconciliation: finding #43 is resolved by the trusted gateway iden
 | # | Finding | Fix |
 |---|---------|-----|
 | ~~46~~ | Payload capture had no explicit failure policy, so configured storage outages broke requests while missing storage silently dropped archive rows | Added `PayloadCapture:FailureMode=FailOpen|FailClosed`, `RequireArchiveStore` startup validation, null-store skip logging, and tests for fail-open/fail-closed behavior. Aspire and Docker run production-like payload capture with `RequireArchiveStore=true` and `FailClosed`. |
-| ~~47~~ | Docker Compose did not mirror Aspire's payload archive Blob dependency | Added Azurite to Docker Compose, wired API and Functions `payloadarchive` connection strings, persisted `azurite-data`, and added a convention test that fails if Docker loses this wiring. |
+| ~~47~~ | The former secondary local run path did not mirror Aspire's payload archive Blob dependency | Added Azurite-backed payload archive wiring at the time; this drift class is now closed by making Aspire the only supported local orchestration surface. |
 | ~~48~~ | HTTP payload capture buffered full request/response bodies with no limit | Replaced full response buffering with a bounded tee stream, bounded request reads by `PayloadCapture:MaxPayloadBytes`, added content-type capture rules, and persisted truncation/skip metadata on archive/audit rows. |
 | ~~49~~ | JSON log redaction only matched exact sensitive property names and missed emails inside JSON strings | Redactor now matches normalized sensitive names inside property names (e.g. `customerEmail`, `ownerName`) and redacts email-like substrings inside non-sensitive JSON string values. |
 | ~~50~~ | API console logging was configured twice | Removed the unconditional code-level console sink from `Program.cs`; Serilog sinks now come from configuration. |
@@ -324,13 +331,13 @@ Validators intentionally overlap with domain constructor guards (defense-in-dept
 **Status: Resolved.** Removed `DatabaseMigrator.MigrateDatabase()` call from `Program.cs` and deleted the `DatabaseMigrator.cs` wrapper. Removed the DbMigrator project reference from the API `.csproj`. Migrations are now handled exclusively by the dedicated `DbMigrator` service:
 
 - **Aspire:** `AppHost` runs `DbMigrator` as a standalone service with `WaitFor` dependency on SQL Server
-- **Docker Compose:** New `migrator` service runs before the API via `condition: service_completed_successfully`. The `db` service has a health check so the migrator waits for SQL Server readiness
+- **Container deployments:** run the migrator image/job to completion before starting API replicas
 - **Standalone dev:** Run `dotnet run --project src/StarterApp.DbMigrator` before starting the API
 - **Integration tests:** Unaffected — `TestFixture.RunDbUpMigrations()` runs migrations independently
 
 The API Dockerfile no longer copies the DbMigrator project or its appsettings.json.
 
-**Deployment note:** Any deployment pipeline that targets a real environment must run the migrator to completion before starting the API. The mechanism varies by platform (Kubernetes init container/Job, Azure Container Apps sidecar, AWS ECS essential container dependency with `"condition": "SUCCESS"`, or a CI/CD step running `dotnet run --project src/StarterApp.DbMigrator` with the target connection string). The Docker Compose setup is the reference pattern.
+**Deployment note:** Any deployment pipeline that targets a real environment must run the migrator to completion before starting the API. The mechanism varies by platform (Kubernetes init container/Job, Azure Container Apps sidecar, AWS ECS essential container dependency with `"condition": "SUCCESS"`, or a CI/CD step running `dotnet run --project src/StarterApp.DbMigrator` with the target connection string).
 
 ### ~~9. Money.Subtract Can Produce Negative Amounts~~ FIXED
 

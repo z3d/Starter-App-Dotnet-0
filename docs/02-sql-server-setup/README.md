@@ -1,223 +1,62 @@
-# Step 2: SQL Server Setup with DbUp
+# Step 2: SQL Server and DbUp Migrations
 
 ## Overview
 
-This project uses SQL Server for data persistence with DbUp for database migrations. DbUp is a .NET library that helps deploy database changes in a controlled, versioned manner. It tracks which SQL scripts have been executed and only runs new migrations.
+This project uses SQL Server for persistence and DbUp for deterministic schema migrations. Migrations run through the dedicated `StarterApp.DbMigrator` console app; the API never runs migrations during startup.
 
-## Current Status
+## Current Setup
 
-✅ **Already Configured!** - The database setup is complete with:
+- Aspire starts a SQL Server container and injects the `database` connection string.
+- `StarterApp.AppHost` runs `StarterApp.DbMigrator` and makes the API wait for it to complete.
+- Integration tests run migrations independently through the test fixture.
+- Real deployments must run the migrator to completion before starting API replicas.
 
-- **SQL Server**: Containerized SQL Server 2022
-- **Migration System**: DbUp with embedded SQL scripts
-- **Connection Management**: Environment-specific connection strings
-- **Schema Versioning**: Automatic tracking of applied migrations
-
-## Project Structure
+## Migrator Project
 
 ```
-DockerLearning.DbMigrator/
-├── Program.cs                    # Migration runner console app
-├── DatabaseMigrationEngine.cs    # DbUp configuration
-├── appsettings.json             # Connection strings
-└── Scripts/                     # SQL migration files
-    ├── 0001_CreateProductsTable.sql
-    └── 0002_AddLastUpdatedColumn.sql
+src/StarterApp.DbMigrator/
+├── DatabaseMigrationEngine.cs
+├── Program.cs
+├── Scripts/
+│   ├── 0001_CreateProductsTable.sql
+│   ├── ...
+│   └── 0019_AddOutboxProcessingClaims.sql
+└── StarterApp.DbMigrator.csproj
 ```
 
-## Database Schema
-
-### Products Table (Created by Migration 0001)
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `Id` | `INT IDENTITY(1,1)` | Primary key |
-| `Name` | `NVARCHAR(100)` | Product name |
-| `Description` | `NVARCHAR(500)` | Product description |
-| `PriceAmount` | `DECIMAL(18,2)` | Price amount |
-| `PriceCurrency` | `NVARCHAR(3)` | Currency code (default: USD) |
-| `Stock` | `INT` | Stock quantity |
-| `LastUpdated` | `DATETIME2` | Last update timestamp (added in Migration 0002) |
-
-### Sample Data
-The initial migration includes 3 sample products for testing.
-
-## Connection Strings by Environment
-
-### Local Development (.NET Aspire)
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=127.0.0.1,61430;User ID=sa;Password=Your_password123;TrustServerCertificate=true;Initial Catalog=DockerLearning"
-  }
-}
-```
-
-### Docker Compose
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=db;Database=ProductsDb;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;"
-  }
-}
-```
-
-### Azure (Production)
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=yourserver.database.windows.net;Database=ProductsDb;User Id=yourusername;Password=yourpassword;TrustServerCertificate=True;"
-  }
-}
-```
+Migration scripts are embedded resources and execute once, in filename order. Constraint names are explicit from script `0012` onward so future migrations can reference stable names.
 
 ## Running Migrations
 
-### Option 1: Automatic (with .NET Aspire)
-Migrations run automatically when starting the AppHost:
-```powershell
-cd src\DockerLearning.AppHost
-dotnet run
-```
+### Aspire
 
-### Option 2: Manual Migration Runner
-```powershell
-# Navigate to the migrator project
-cd src\DockerLearning.DbMigrator
-
-# Run migrations manually
-dotnet run
-```
-
-## Testing Database Connection
-
-Test connectivity using SQL Server Management Studio or `sqlcmd`:
 ```bash
-sqlcmd -S localhost -U sa -P "Your_password123" -C -Q "SELECT 1"
+dotnet run --project src/StarterApp.AppHost
 ```
 
-This script will:
-- Test the connection to SQL Server
-- Verify database existence
-- Run a simple query to confirm functionality
+AppHost starts SQL Server, runs the migrator, then starts the API after migration completion.
 
-## Migration Script Examples
+### Standalone
 
-### Current Scripts
-
-**0001_CreateProductsTable.sql**
-```sql
-CREATE TABLE Products (
-    Id INT PRIMARY KEY IDENTITY(1,1),
-    Name NVARCHAR(100) NOT NULL,
-    Description NVARCHAR(500) NULL,
-    PriceAmount DECIMAL(18, 2) NOT NULL,
-    PriceCurrency NVARCHAR(3) NOT NULL DEFAULT 'USD',
-    Stock INT NOT NULL DEFAULT 0
-);
-
-INSERT INTO Products (Name, Description, PriceAmount, PriceCurrency, Stock)
-VALUES 
-    ('Product 1', 'Description for product 1', 10.99, 'USD', 100),
-    ('Product 2', 'Description for product 2', 24.99, 'USD', 50),
-    ('Product 3', 'Description for product 3', 5.99, 'USD', 200);
+```bash
+dotnet run --project src/StarterApp.DbMigrator -- --connection-string "<sql-server-connection-string>"
 ```
 
-**0002_AddLastUpdatedColumn.sql**
-```sql
-ALTER TABLE Products ADD 
-    LastUpdated DATETIME2 NOT NULL DEFAULT GETUTCDATE();
-```
+Use standalone migration runs for one-off local checks or deployment pipelines that execute migrations outside Aspire.
 
-### Adding New Migrations
+## Adding a Migration
 
-To add a new migration:
-
-1. **Create a new SQL file** in `src/DockerLearning.DbMigrator/Scripts/`:
-   ```
-   0003_AddCategoryColumn.sql
-   0004_CreateIndexes.sql
-   ```
-
-2. **Write the migration SQL**:
-   ```sql
-   -- 0003_AddCategoryColumn.sql
-   ALTER TABLE Products ADD 
-       Category NVARCHAR(50) NOT NULL DEFAULT 'General';
-   
-   UPDATE Products SET Category = 'Electronics' WHERE Id IN (1, 2);
-   UPDATE Products SET Category = 'Books' WHERE Id = 3;
-   ```
-
-3. **Set the build action** to `EmbeddedResource` in the `.csproj` file (already configured)
-
-4. **Run migrations** using any of the methods above
-
-## DbUp Features
-
-### ✅ Benefits
-- **Version Control**: All schema changes are in source control
-- **Team Collaboration**: Everyone gets the same database schema
-- **Environment Consistency**: Same scripts run everywhere
-- **Docker Friendly**: Works perfectly in containers
-- **Transactional Safety**: Each script runs in its own transaction
-- **Idempotent**: Safe to run multiple times
-
-### 🔍 How It Works
-1. **Tracking Table**: DbUp creates `__SchemaVersions` to track executed scripts
-2. **Execution Order**: Scripts run in alphabetical order (hence the numbering)
-3. **One-Time Execution**: Each script runs only once per database
-4. **Rollback**: Manual rollback scripts can be created if needed
+1. Add the next numbered `.sql` file under `src/StarterApp.DbMigrator/Scripts/`.
+2. Give every new primary key, foreign key, default, check constraint, and index an explicit deterministic name.
+3. Keep scripts forward-only and idempotency-conscious; DbUp handles one-time execution through its journal table.
+4. Run `dotnet test` so migration embedding and constraint naming conventions are checked.
 
 ## Troubleshooting
 
-### Common Issues
-
-**Connection Timeouts**
-- Ensure SQL Server container is fully started
-- Check port mappings (1433 for Docker, 61430 for Aspire)
-- Verify firewall settings
-
-**Migration Failures**
-- Check SQL syntax in migration files
-- Ensure scripts are set to `EmbeddedResource`
-- Review `__SchemaVersions` table for partial executions
-
-**Database Not Found**
-- Verify connection string format
-- Check database creation in Aspire configuration
-- Ensure SQL Server is running and accessible
-
-### Useful Queries
-
-```sql
--- Check applied migrations
-SELECT * FROM __SchemaVersions ORDER BY Applied;
-
--- Verify table structure
-SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE, IS_NULLABLE 
-FROM INFORMATION_SCHEMA.COLUMNS 
-WHERE TABLE_NAME = 'Products';
-
--- Check sample data
-SELECT * FROM Products;
-```
+- **API cannot connect**: confirm the Aspire dashboard shows SQL Server healthy and the migrator completed successfully.
+- **Migration failed**: inspect migrator logs and the DbUp journal table before editing the script.
+- **Local SQL port changed**: use the Aspire dashboard resource details instead of assuming a fixed SQL host port.
 
 ## Next Step
 
-Continue to **[Step 3: Docker Setup](../03-docker-setup/README.md)** to containerize the application and database using Docker Compose.
--- 0003_AddCategoryColumn.sql
-ALTER TABLE Products ADD 
-    Category NVARCHAR(50) NOT NULL DEFAULT 'General';
-```
-
-## Benefits of DbUp
-
-- ✅ **Version Control**: Migration scripts are stored in source control
-- ✅ **Team Collaboration**: Everyone gets the same database schema
-- ✅ **Environment Consistency**: Same scripts run in dev, test, and production
-- ✅ **Docker Friendly**: Works great in containerized environments
-- ✅ **Rollback Support**: Can create down migration scripts if needed
-
-### Next Step
-Proceed to [Step 3: Docker Setup](../03-docker-setup/README.md) to containerize our application and database.
+Continue to [Step 3: Container Images](../03-docker-setup/README.md) for Dockerfile and image build validation.

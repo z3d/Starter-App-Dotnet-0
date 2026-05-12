@@ -7,9 +7,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-if (builder.Environment.EnvironmentName == "Docker")
-    builder.Configuration.AddJsonFile("appsettings.Docker.json", optional: false);
-
 builder.Host.UseSerilog((context, services, configuration) =>
 {
     configuration
@@ -55,7 +52,7 @@ try
         Log.Information("Database connection configured successfully");
 
     // Middleware pipeline — order matters
-    if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "Docker")
+    if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi();
         app.MapScalarApiReference();

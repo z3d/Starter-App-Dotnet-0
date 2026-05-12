@@ -1,78 +1,100 @@
 # API Endpoints Documentation
 
-This project uses .NET 10 Minimal APIs with a clean architecture pattern. All endpoints are organized using the endpoint definition pattern for better maintainability and testability.
+This project uses .NET 10 Minimal APIs with endpoint-definition auto-discovery. All business endpoints are under `/api/v1` and require the trusted gateway identity contract; health and OpenAPI/Scalar endpoints remain public.
 
-## 🏗️ Architecture Overview
+## Minimal API Structure
 
-### Minimal API Structure
 ```
 src/StarterApp.Api/
 ├── Endpoints/
-│   ├── CustomerEndpoints.cs      # Customer management endpoints
-│   ├── OrderEndpoints.cs         # Order processing endpoints  
-│   ├── ProductEndpoints.cs       # Product catalog endpoints
-│   ├── IEndpointDefinition.cs    # Endpoint definition contract
-│   ├── EndpointExtensions.cs     # Auto-discovery extensions
-│   └── Filters/
-│       └── LoggingFilter.cs      # Request/response logging
-└── Program.cs                    # Application configuration
+│   ├── CustomerEndpoints.cs
+│   ├── OrderEndpoints.cs
+│   ├── ProductEndpoints.cs
+│   ├── IEndpointDefinition.cs
+│   └── EndpointExtensions.cs
+└── Program.cs
 ```
 
-### Key Benefits of Minimal APIs
-- **Performance**: ~30% faster than traditional controllers
-- **Source Generators**: Better AOT compilation support
-- **Simpler**: Less boilerplate code
-- **Modern**: Native .NET 10 integration
-- **Flexible**: Endpoint-specific filters and behaviors
+Endpoint definitions dispatch through the custom mediator. Command handlers use EF Core; query handlers use Dapper.
 
-## 🔌 Available Endpoints
+## Authentication Headers
 
-### Customer Management (`/api/customers`)
+Protected `/api/v1` routes require gateway-projected identity headers:
 
-| Method | Endpoint | Description | Response |
-|--------|----------|-------------|----------|
-| `GET` | `/api/customers` | Get all customers | `200 OK` with customer list |
-| `GET` | `/api/customers/{id}` | Get customer by ID | `200 OK` or `404 Not Found` |
-| `POST` | `/api/customers` | Create new customer | `201 Created` with location header |
-| `PUT` | `/api/customers/{id}` | Update customer | `204 No Content` or `404 Not Found` |
-| `DELETE` | `/api/customers/{id}` | Delete customer | `204 No Content` or `404 Not Found` |
-
-**Example Request**:
 ```http
-POST /api/customers
-Content-Type: application/json
+X-Correlation-ID: demo-correlation-id
+X-Authenticated-Subject: user-123
+X-Authenticated-Principal-Type: User
+X-Authenticated-Tenant-Id: tenant-1
+X-Authenticated-Scopes: products:read products:write customers:read customers:write orders:read orders:write
+X-Authenticated-Amr: mfa
+```
 
+Production-like environments also require a signed `X-Gateway-Assertion`. Local Development, Testing, and Docker can use `GatewayIdentity:Mode=UnsignedDevelopment`; the identity headers are still required.
+
+Write routes require the matching `*:write` scope and `X-Authenticated-Amr` containing `mfa`.
+
+## Product Catalog
+
+Base path: `/api/v1/products`
+
+| Method | Endpoint | Scope | MFA | Response |
+|--------|----------|-------|-----|----------|
+| `GET` | `/api/v1/products?page=1&pageSize=50` | `products:read` | No | `200 OK` with `PagedResponse<ProductReadModel>` |
+| `GET` | `/api/v1/products/{id}` | `products:read` | No | `200 OK` or `404 Not Found` |
+| `POST` | `/api/v1/products` | `products:write` | Yes | `201 Created` |
+| `PUT` | `/api/v1/products/{id}` | `products:write` | Yes | `204 No Content` |
+| `DELETE` | `/api/v1/products/{id}` | `products:write` | Yes | `204 No Content`, `404`, or `409` |
+
+Create/update body:
+
+```json
+{
+  "name": "Gaming Laptop",
+  "description": "High-performance gaming laptop with RTX graphics",
+  "price": 1299.99,
+  "currency": "AUD",
+  "stock": 50
+}
+```
+
+## Customer Management
+
+Base path: `/api/v1/customers`
+
+| Method | Endpoint | Scope | MFA | Response |
+|--------|----------|-------|-----|----------|
+| `GET` | `/api/v1/customers?page=1&pageSize=50` | `customers:read` | No | `200 OK` with `PagedResponse<CustomerReadModel>` |
+| `GET` | `/api/v1/customers/{id}` | `customers:read` | No | `200 OK` or `404 Not Found` |
+| `POST` | `/api/v1/customers` | `customers:write` | Yes | `201 Created` |
+| `PUT` | `/api/v1/customers/{id}` | `customers:write` | Yes | `204 No Content` |
+| `DELETE` | `/api/v1/customers/{id}` | `customers:write` | Yes | `204 No Content`, `404`, or `409` |
+
+Create/update body:
+
+```json
 {
   "name": "John Doe",
   "email": "john.doe@example.com"
 }
 ```
 
-### Order Management (`/api/orders`)
+## Order Management
 
-| Method | Endpoint | Description | Response |
-|--------|----------|-------------|----------|
-| `GET` | `/api/orders/{id}` | Get order with items | `200 OK` or `404 Not Found` |
-| `GET` | `/api/orders/customer/{customerId}` | Get orders by customer | `200 OK` with order list |
-| `GET` | `/api/orders/status/{status}` | Get orders by status | `200 OK` with order list |
-| `POST` | `/api/orders` | Create new order | `201 Created` with location header |
-| `PUT` | `/api/orders/{id}/status` | Update order status | `200 OK` or `404 Not Found` |
-| `POST` | `/api/orders/{id}/cancel` | Cancel order | `200 OK` or `400 Bad Request` |
+Base path: `/api/v1/orders`
 
-### Operational Endpoints
+| Method | Endpoint | Scope | MFA | Response |
+|--------|----------|-------|-----|----------|
+| `GET` | `/api/v1/orders/{id}` | `orders:read` | No | `200 OK` or `404 Not Found` |
+| `GET` | `/api/v1/orders/customer/{customerId}?page=1&pageSize=50` | `orders:read` | No | `200 OK` with `PagedResponse<OrderReadModel>` |
+| `GET` | `/api/v1/orders/status/{status}?page=1&pageSize=50` | `orders:read` | No | `200 OK` with `PagedResponse<OrderReadModel>` |
+| `POST` | `/api/v1/orders` | `orders:write` | Yes | `201 Created` |
+| `PUT` | `/api/v1/orders/{id}/status` | `orders:write` | Yes | `200 OK`, `400`, `404`, or `409` |
+| `POST` | `/api/v1/orders/{id}/cancel` | `orders:write` | Yes | `200 OK`, `404`, or `409` |
 
-| Method | Endpoint | Description | Response |
-|--------|----------|-------------|----------|
-| `GET` | `/health` | Aggregate health status | `200 OK` or `503 Service Unavailable` |
-| `GET` | `/health/ready` | Readiness probe including database connectivity | `200 OK` or `503 Service Unavailable` |
-| `GET` | `/health/live` | Liveness probe for container restarts | `200 OK` or `503 Service Unavailable` |
-| `GET` | `/alive` | Backward-compatible liveness alias | `200 OK` or `503 Service Unavailable` |
+Create order body:
 
-**Example Request**:
-```http
-POST /api/orders
-Content-Type: application/json
-
+```json
 {
   "customerId": 1,
   "items": [
@@ -84,129 +106,67 @@ Content-Type: application/json
 }
 ```
 
-### Product Catalog (`/api/products`)
+Update status body:
 
-| Method | Endpoint | Description | Response |
-|--------|----------|-------------|----------|
-| `GET` | `/api/products` | Get all products | `200 OK` with product list |
-| `GET` | `/api/products/{id}` | Get product by ID | `200 OK` or `404 Not Found` |
-| `POST` | `/api/products` | Create new product | `201 Created` with location header |
-| `PUT` | `/api/products/{id}` | Update product | `204 No Content` or `404 Not Found` |
-| `DELETE` | `/api/products/{id}` | Delete product | `204 No Content` or `404 Not Found` |
-
-**Example Request**:
-```http
-POST /api/products
-Content-Type: application/json
-
+```json
 {
-  "name": "Gaming Laptop",
-  "description": "High-performance gaming laptop with RTX graphics",
-  "priceAmount": 1299.99,
-  "currency": "AUD",
-  "stock": 50
+  "orderId": "0194fd1e-6f72-7c81-9c70-19040a79dd9b",
+  "status": "Confirmed"
 }
 ```
 
-## 🏷️ OpenAPI Tags
+Valid statuses are `Pending`, `Confirmed`, `Processing`, `Shipped`, `Delivered`, and `Cancelled`. The aggregate enforces valid transitions.
 
-Endpoints are organized with OpenAPI tags for better Scalar API reference documentation:
+## Operational Endpoints
 
-- **Customers**: Customer management operations including CRUD functionality
-- **Orders**: Order processing and management including creation, status updates, and cancellation  
-- **Products**: Product catalog management with full CRUD operations for inventory
+| Method | Endpoint | Description | Response |
+|--------|----------|-------------|----------|
+| `GET` | `/health` | Aggregate health status | `200 OK` or `503 Service Unavailable` |
+| `GET` | `/health/ready` | Readiness probe including database connectivity | `200 OK` or `503 Service Unavailable` |
+| `GET` | `/health/live` | Liveness probe for container restarts | `200 OK` |
+| `GET` | `/alive` | Liveness alias | `200 OK` |
 
-## 🔧 Endpoint Filters
+In Development, OpenAPI and Scalar are exposed through `MapOpenApi()` and `MapScalarApiReference()`.
 
-### LoggingFilter
-- **Purpose**: Logs request execution time and details
-- **Applied**: Can be applied to any endpoint or endpoint group
-- **Output**: Structured logs with timing information
+## Response Shapes
 
-### Payload Capture Middleware
-- **Purpose**: Archives inbound and outbound payloads for support investigation while keeping operational logs redacted
-- **Correlation**: Accepts and echoes `X-Correlation-ID`; generated IDs are also propagated through outbox and Service Bus messages
-- **Archive Layout**: `archive/{yyyy-MM-dd}/{HH}/{mm}/{correlationId}.jsonl`
-- **Audit Layout**: `audit/{yyyy-MM-dd}/{HH}/{mm}/payload-audit.jsonl`
-- **Entity Index Layout**: `entity-index/{entityType}/{entityId}/{yyyy-MM-dd}/{HH}/{mm}/{correlationId}.jsonl` pointer rows for support lookups without duplicating full payloads
-- **Bounds**: HTTP capture is limited by `PayloadCapture:MaxPayloadBytes` and `CapturedContentTypes`; archive/audit rows include truncation or skip metadata when capture is bounded
-- **Failure Policy**: `PayloadCapture:FailureMode` controls fail-open vs fail-closed archive writes, and production-like orchestrations require a configured archive store
-- **Retention**: `PayloadArchiveCleanupFunction` runs on `PayloadCapture__CleanupCron` and deletes archive, audit, and entity-index blobs older than `PayloadCapture:RetentionDays`
+List endpoints return:
 
-### Gateway Identity Middleware
-- **Purpose**: Trusts APIM-projected identity headers only after validating the gateway assertion
-- **Protected Groups**: `/api/v1` endpoint groups call `RequireGatewayIdentity()`; health and OpenAPI endpoints remain public
-- **Required Headers**: `X-Authenticated-Subject`, `X-Authenticated-Principal-Type`, `X-Authenticated-Tenant-Id`, `X-Authenticated-Scopes`, `X-Correlation-ID`
-- **Step-Up Header**: `X-Authenticated-Amr` carries gateway-projected authentication methods; write routes require `mfa` through `SecuredBy2Fa()`
-- **Assertion**: `X-Gateway-Assertion` signs the projected headers, including `X-Authenticated-Amr` when present, plus issuer, audience, method, path, and short lifetime in production-like `Required` mode
-- **Scope Enforcement**: Each `/api/v1` route declares a required scope with `RequireScope(...)`; read routes use `products:read`, `customers:read`, or `orders:read`, and write routes use the matching `*:write` scope
-- **Owner Enforcement**: Customers, products, and orders are stamped with `OwnerSubject` and `TenantId` from the gateway identity. Reads are filtered to the current owner; cross-owner single-resource reads return `404`, cross-owner lists return empty pages, and cross-owner mutations return `403`.
-- **Access Pattern**: Application code consumes `ICurrentUser`; raw identity header reads stay inside `Infrastructure/Identity`
-
-### Usage Example
-```csharp
-customers.MapPost("/", CreateCustomer)
-    .RequireScope("customers:write")
-    .SecuredBy2Fa()
-    .AddEndpointFilter<LoggingFilter>();
+```json
+{
+  "data": [],
+  "hasMore": false
+}
 ```
 
-## 📊 Response Formats
+Validation failures return Problem Details with an `errors` extension grouped by property. Business rule conflicts, invalid state transitions, unique-key collisions, and stale concurrency writes map to `409 Conflict`.
 
-### Success Responses
-- `200 OK`: Successful GET/PUT operations
-- `201 Created`: Successful POST operations with location header
-- `204 No Content`: Successful PUT/DELETE operations
+## Payload Capture
 
-### Error Responses
-- `400 Bad Request`: Validation errors or business rule violations
-- `401 Unauthorized`: Missing or invalid gateway identity
-- `403 Forbidden`: Authenticated gateway identity is missing the route's required scope or does not own the mutated resource
-- `404 Not Found`: Resource not found
-- `409 Conflict`: Business rule conflict or state transition violation
-- `429 Too Many Requests`: Rate limit exceeded
-- `500 Internal Server Error`: Unexpected server errors
+The payload capture middleware archives bounded HTTP request/response payloads and full Service Bus payloads to Blob storage:
 
-All error responses follow the Problem Details specification (RFC 7807).
+- Archive: `archive/{yyyy-MM-dd}/{HH}/{mm}/{correlationId}.jsonl`
+- Audit: `audit/{yyyy-MM-dd}/{HH}/{mm}/payload-audit.jsonl`
+- Entity index: `entity-index/{entityType}/{entityId}/{yyyy-MM-dd}/{HH}/{mm}/{correlationId}.jsonl`
 
-## 🔍 Example Usage with curl
+Operational logs remain redacted. Production-like orchestration sets `PayloadCapture:RequireArchiveStore=true` and `PayloadCapture:FailureMode=FailClosed`.
 
-### Create a Customer
+## Example Curl
+
 ```bash
-curl -X POST "https://localhost:7232/api/customers" \
+curl -X POST "http://localhost:8080/api/v1/products" \
   -H "Content-Type: application/json" \
+  -H "X-Correlation-ID: local-demo-1" \
+  -H "X-Authenticated-Subject: user-123" \
+  -H "X-Authenticated-Principal-Type: User" \
+  -H "X-Authenticated-Tenant-Id: tenant-1" \
+  -H "X-Authenticated-Scopes: products:write" \
+  -H "X-Authenticated-Amr: mfa" \
   -d '{
-    "name": "John Doe",
-    "email": "john.doe@example.com"
+    "name": "Gaming Laptop",
+    "description": "High-performance gaming laptop with RTX graphics",
+    "price": 1299.99,
+    "currency": "AUD",
+    "stock": 50
   }'
 ```
-
-### Get Customer Orders
-```bash
-curl -X GET "https://localhost:7232/api/orders/customer/1"
-```
-
-### Update Order Status
-```bash
-curl -X PUT "https://localhost:7232/api/orders/1/status" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "orderId": 1,
-    "status": "Shipped"
-  }'
-```
-
-## 🧪 Testing
-
-Integration tests automatically test all endpoints:
-```bash
-dotnet test
-```
-
-The tests use Testcontainers to spin up SQL Server instances, ensuring isolated and reliable testing.
-
-## 📚 Further Reading
-
-- [.NET Minimal APIs Documentation](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis)
-- [Endpoint Filters](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/middleware)
-- [OpenAPI in .NET 10](https://docs.microsoft.com/en-us/aspnet/core/web-api/openapi)

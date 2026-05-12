@@ -168,7 +168,7 @@ K6_BASE_URL=http://localhost:8080 k6 run tests/k6/load.js
 
 ## Verification
 
-1. Start the API via Docker Compose (`docker-compose up --build`) or Aspire
+1. Start the API via Aspire (`dotnet run --project src/StarterApp.AppHost`)
 2. Run `k6 run tests/k6/smoke.js` -- all checks should pass, zero errors
 3. Run `k6 run tests/k6/load.js` -- all thresholds should pass against a fresh database
 4. Verify k6 output shows per-endpoint metrics via tags

@@ -87,21 +87,6 @@ public class HousekeepingConventionTests : ConventionTestBase
     }
 
     [Fact]
-    public void DockerCompose_MustWirePayloadArchiveStorageLikeAppHost()
-    {
-        var composePath = Path.Combine(FindRepoRoot(), "docker-compose.yml");
-        var compose = File.ReadAllText(composePath);
-
-        Assert.Contains("azurite:", compose);
-        Assert.Contains("ConnectionStrings__payloadarchive=UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite", compose);
-        Assert.Contains("PayloadCapture__RequireArchiveStore=true", compose);
-        Assert.Contains("PayloadCapture__FailureMode=FailClosed", compose);
-        Assert.Contains("AzureWebJobsStorage=UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite", compose);
-        Assert.Contains("azurite-data:", compose);
-        Assert.Contains("azurite:\n        condition: service_healthy", compose);
-    }
-
-    [Fact]
     public void AppHost_MustRunFunctionsWithAzureFunctionsRuntimeContainer()
     {
         var root = FindRepoRoot();
