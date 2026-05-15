@@ -1,6 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
-using StarterApp.Api.Data;
-using StarterApp.Api.Infrastructure;
 
 namespace StarterApp.Tests.Infrastructure.Persistence;
 

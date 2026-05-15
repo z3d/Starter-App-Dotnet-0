@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Moq;
-using StarterApp.Api.Infrastructure.Mediator;
 using System.Text.Json;
 
 namespace StarterApp.Tests.Infrastructure.Caching;

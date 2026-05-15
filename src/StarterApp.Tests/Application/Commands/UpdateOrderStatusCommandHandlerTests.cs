@@ -1,5 +1,3 @@
-using Microsoft.EntityFrameworkCore;
-using StarterApp.Api.Data;
 using System.Text.Json;
 
 namespace StarterApp.Tests.Application.Commands;

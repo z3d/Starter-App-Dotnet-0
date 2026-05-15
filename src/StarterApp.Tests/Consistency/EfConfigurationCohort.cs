@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 
 namespace StarterApp.Tests.Consistency;
 

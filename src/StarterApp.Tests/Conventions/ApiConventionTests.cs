@@ -1,11 +1,3 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
-using StarterApp.Api.Endpoints;
-using StarterApp.Api.Infrastructure.Mediator;
-using StarterApp.Api.Infrastructure.Validation;
-
 namespace StarterApp.Tests.Conventions;
 
 public class ApiConventionTests : ConventionTestBase

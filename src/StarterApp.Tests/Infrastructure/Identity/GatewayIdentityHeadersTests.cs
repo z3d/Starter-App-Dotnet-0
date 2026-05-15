@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using StarterApp.ServiceDefaults.Payloads;
 

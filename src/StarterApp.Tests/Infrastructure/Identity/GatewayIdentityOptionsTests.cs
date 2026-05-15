@@ -1,9 +1,7 @@
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using StarterApp.Api.Infrastructure;
 
 namespace StarterApp.Tests.Infrastructure.Identity;
 

@@ -1,7 +1,3 @@
-using StarterApp.Api.Data;
-using StarterApp.Api.Infrastructure.Mediator;
-using StarterApp.Api.Infrastructure.Validation;
-
 namespace StarterApp.Tests.Conventions;
 
 public class CqrsConventionTests : ConventionTestBase

@@ -4,7 +4,13 @@ global using Conventional;
 global using Conventional.Conventions;
 global using DbUp;
 // Microsoft ASP.NET Core
+global using Microsoft.AspNetCore.Builder;
+global using Microsoft.AspNetCore.Http;
 global using Microsoft.AspNetCore.Mvc;
+global using Microsoft.AspNetCore.Routing;
+global using Microsoft.EntityFrameworkCore;
+global using Microsoft.EntityFrameworkCore.Metadata;
+global using Microsoft.Extensions.DependencyInjection;
 // Logging with Serilog
 global using Serilog;
 global using Serilog.Events;
@@ -14,8 +20,14 @@ global using StarterApp.Api.Application.Commands;
 global using StarterApp.Api.Application.DTOs;
 global using StarterApp.Api.Application.Interfaces;
 global using StarterApp.Api.Application.ReadModels;
+global using StarterApp.Api.Data;
+global using StarterApp.Api.Endpoints;
+global using StarterApp.Api.Infrastructure;
 global using StarterApp.Api.Infrastructure.Caching;
 global using StarterApp.Api.Infrastructure.Identity;
+global using StarterApp.Api.Infrastructure.Mediator;
+global using StarterApp.Api.Infrastructure.Validation;
+global using StarterApp.DbMigrator;
 // Domain references
 global using StarterApp.Domain.Abstractions;
 global using StarterApp.Domain.Entities;
@@ -30,9 +42,11 @@ global using System.Net;
 global using System.Net.Http;
 global using System.Net.Http.Json;
 global using System.Reflection;
+global using System.Text.RegularExpressions;
 global using System.Threading;
 global using System.Threading.Tasks;
+global using System.Xml;
+global using System.Xml.Linq;
 // Testing frameworks
 global using Xunit;
 global using Xunit.Abstractions;
-

@@ -12,7 +12,7 @@ Architectural convention tests using [Best.Conventional](https://github.com/andr
 | `CqrsConventionTests.cs` | CQRS data-access separation, command/query handler wiring, validator coverage, marker/request interface pairing |
 | `DapperConventionTests.cs` | SQL literal inspection for `SELECT *` prevention and Dapper retry-policy usage |
 | `DomainConventionTests.cs` | Domain encapsulation, constructors, value-object equality, async safety, `DateTime` safety, aggregate creation-event rules |
-| `HousekeepingConventionTests.cs` | No direct `bin`/`obj` project references; no regions/XML docs/historical workaround comments in production code |
+| `HousekeepingConventionTests.cs` | GlobalUsings reuse; no direct `bin`/`obj` project references; no regions/XML docs/historical workaround comments in production code |
 | `NamingConventionTests.cs` | Naming suffixes plus namespace locality for commands, queries, validators, handlers, DTOs, and read models |
 | `PersistenceConventionTests.cs` | Entity registration, value-object mapping, enum string conversions, DbContext state, collection setters, migration script safety and embedding |
 | `TypeExtensions.cs` | Open-generic type discovery helper from the Conventional.Samples pattern |
@@ -60,6 +60,8 @@ AppHost-specific conventions live in `src/StarterApp.AppHost.Tests`:
 - Production code does not call `DateTime.Now`, `DateTime.Today`, or `DateTime.UtcNow`
 - Project files do not reference build-output artifacts from `bin`/`obj`
 - Production app code does not use regions, XML documentation comments, or historical workaround comments
+- Source files do not repeat namespaces already imported by their project `GlobalUsings.cs`
+- Convention tests add shared imports to `src/StarterApp.Tests/GlobalUsings.cs`, not per-file using directives
 
 ## Adding a New Convention
 

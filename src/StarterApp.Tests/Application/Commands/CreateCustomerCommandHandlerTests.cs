@@ -1,6 +1,4 @@
-using Microsoft.EntityFrameworkCore;
 using StarterApp.Api.Application.Validators;
-using StarterApp.Api.Data;
 
 namespace StarterApp.Tests.Application.Commands;
 

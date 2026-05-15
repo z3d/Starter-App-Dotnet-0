@@ -1,6 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
-using StarterApp.Api.Infrastructure.Mediator;
-using StarterApp.Api.Infrastructure.Validation;
 using MediatorImpl = StarterApp.Api.Infrastructure.Mediator.Mediator;
 
 namespace StarterApp.Tests.Infrastructure.Mediator;

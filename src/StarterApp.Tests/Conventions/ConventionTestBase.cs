@@ -1,6 +1,3 @@
-using StarterApp.Api.Infrastructure;
-using StarterApp.DbMigrator;
-
 namespace StarterApp.Tests.Conventions;
 
 public abstract class ConventionTestBase

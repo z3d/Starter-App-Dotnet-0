@@ -1,8 +1,3 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata;
-using StarterApp.Api.Data;
-using StarterApp.DbMigrator;
-
 namespace StarterApp.Tests.Conventions;
 
 public class PersistenceConventionTests : ConventionTestBase

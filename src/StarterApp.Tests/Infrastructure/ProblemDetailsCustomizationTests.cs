@@ -1,9 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using StarterApp.Api.Infrastructure;
-using StarterApp.Api.Infrastructure.Validation;
 
 namespace StarterApp.Tests.Infrastructure;
 

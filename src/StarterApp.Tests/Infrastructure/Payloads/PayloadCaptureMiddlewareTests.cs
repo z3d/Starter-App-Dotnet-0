@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using StarterApp.Api.Infrastructure.Payloads;
 using StarterApp.ServiceDefaults.Payloads;

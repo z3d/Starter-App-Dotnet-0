@@ -1,11 +1,10 @@
-using System.Text.RegularExpressions;
-using System.Xml;
-using System.Xml.Linq;
-
 namespace StarterApp.Tests.Conventions;
 
 public class HousekeepingConventionTests : ConventionTestBase
 {
+    private static readonly Regex GlobalUsingDirectiveRegex = new(@"^global\s+using\s+(?<namespace>[A-Za-z_][A-Za-z0-9_.]*);$", RegexOptions.Compiled);
+    private static readonly Regex SimpleUsingDirectiveRegex = new(@"^using\s+(?<namespace>[A-Za-z_][A-Za-z0-9_.]*);$", RegexOptions.Compiled);
+
     [Fact]
     public void ProjectFiles_MustNotReferenceBinOrObjArtifacts()
     {
@@ -87,6 +86,65 @@ public class HousekeepingConventionTests : ConventionTestBase
     }
 
     [Fact]
+    public void SourceFiles_MustNotRepeatProjectGlobalUsings()
+    {
+        var failures = new List<string>();
+
+        foreach (var projectDirectory in EnumerateProjectDirectories())
+        {
+            var globalUsingsPath = Path.Combine(projectDirectory, "GlobalUsings.cs");
+            if (!File.Exists(globalUsingsPath))
+                continue;
+
+            var globalNamespaces = ReadGlobalUsingNamespaces(globalUsingsPath)
+                .ToHashSet(StringComparer.Ordinal);
+
+            foreach (var file in Directory.EnumerateFiles(projectDirectory, "*.cs", SearchOption.AllDirectories)
+                         .Where(file => !IsInIgnoredDirectory(file))
+                         .Where(file => !Path.GetFileName(file).Equals("GlobalUsings.cs", StringComparison.Ordinal)))
+            {
+                var lineNumber = 0;
+                foreach (var line in File.ReadLines(file))
+                {
+                    lineNumber++;
+                    if (!TryParseSimpleUsingDirective(line, out var usingNamespace))
+                        continue;
+
+                    if (globalNamespaces.Contains(usingNamespace))
+                        failures.Add($"{FormatPath(file)}:{lineNumber} '{usingNamespace}' is already in {FormatPath(globalUsingsPath)}. Remove the local using directive.");
+                }
+            }
+        }
+
+        Assert.True(failures.Count == 0,
+            "Source files must rely on project GlobalUsings.cs for globally imported namespaces:\n" +
+            string.Join("\n", failures));
+    }
+
+    [Fact]
+    public void ConventionTestFiles_MustUseGlobalUsings()
+    {
+        var conventionRoot = Path.Combine(FindRepoRoot(), "src", "StarterApp.Tests", "Conventions");
+        var failures = new List<string>();
+
+        foreach (var file in Directory.EnumerateFiles(conventionRoot, "*.cs", SearchOption.AllDirectories)
+                     .Where(file => !IsInIgnoredDirectory(file)))
+        {
+            var lineNumber = 0;
+            foreach (var line in File.ReadLines(file))
+            {
+                lineNumber++;
+                if (IsUsingDirective(line))
+                    failures.Add($"{FormatPath(file)}:{lineNumber} move this using directive to src/StarterApp.Tests/GlobalUsings.cs.");
+            }
+        }
+
+        Assert.True(failures.Count == 0,
+            "Convention tests share one import surface. Add convention-test imports to GlobalUsings.cs instead of individual files:\n" +
+            string.Join("\n", failures));
+    }
+
+    [Fact]
     public void AppHost_MustRunFunctionsWithAzureFunctionsRuntimeContainer()
     {
         var root = FindRepoRoot();
@@ -121,6 +179,18 @@ public class HousekeepingConventionTests : ConventionTestBase
         Assert.Equal(expectedVersion, actualVersion);
     }
 
+    private static IEnumerable<string> EnumerateProjectDirectories()
+    {
+        var srcRoot = Path.Combine(FindRepoRoot(), "src");
+        foreach (var projectFile in Directory.EnumerateFiles(srcRoot, "*.csproj", SearchOption.AllDirectories)
+                     .Where(file => !IsInIgnoredDirectory(file)))
+        {
+            var projectDirectory = Path.GetDirectoryName(projectFile);
+            if (projectDirectory != null)
+                yield return projectDirectory;
+        }
+    }
+
     private static IEnumerable<string> EnumerateProjectFiles()
     {
         var root = FindRepoRoot();
@@ -136,6 +206,34 @@ public class HousekeepingConventionTests : ConventionTestBase
         return Directory.EnumerateFiles(Path.Combine(FindRepoRoot(), "src"), "*.cs", SearchOption.AllDirectories)
             .Where(file => !IsInIgnoredDirectory(file))
             .Where(file => !file.Contains(".Tests" + Path.DirectorySeparatorChar, StringComparison.Ordinal));
+    }
+
+    private static IEnumerable<string> ReadGlobalUsingNamespaces(string globalUsingsPath)
+    {
+        foreach (var line in File.ReadLines(globalUsingsPath))
+        {
+            var match = GlobalUsingDirectiveRegex.Match(line.TrimStart('\uFEFF'));
+            if (match.Success)
+                yield return match.Groups["namespace"].Value;
+        }
+    }
+
+    private static bool TryParseSimpleUsingDirective(string line, out string usingNamespace)
+    {
+        usingNamespace = string.Empty;
+        var match = SimpleUsingDirectiveRegex.Match(line);
+        if (!match.Success)
+            return false;
+
+        usingNamespace = match.Groups["namespace"].Value;
+        return true;
+    }
+
+    private static bool IsUsingDirective(string line)
+    {
+        return line.StartsWith("using ", StringComparison.Ordinal) &&
+               !line.StartsWith("using var ", StringComparison.Ordinal) &&
+               !line.StartsWith("using (", StringComparison.Ordinal);
     }
 
     private static bool ReferencesBinOrObjArtifact(string value)

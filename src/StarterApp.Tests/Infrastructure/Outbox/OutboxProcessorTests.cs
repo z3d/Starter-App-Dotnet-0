@@ -1,11 +1,8 @@
 using Azure;
 using Azure.Messaging.ServiceBus;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using StarterApp.Api.Data;
 using StarterApp.Api.Infrastructure.Outbox;
 using StarterApp.ServiceDefaults.Payloads;
 

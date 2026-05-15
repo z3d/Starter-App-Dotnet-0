@@ -1,5 +1,3 @@
-using StarterApp.Api.Infrastructure.Mediator;
-
 namespace StarterApp.Tests.Conventions;
 
 public class CachingConventionTests : ConventionTestBase
