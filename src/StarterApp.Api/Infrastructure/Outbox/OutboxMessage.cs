@@ -1,6 +1,6 @@
-using StarterApp.ServiceDefaults.Payloads;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Api.Infrastructure.Outbox;
 

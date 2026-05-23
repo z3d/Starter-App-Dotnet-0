@@ -1,6 +1,6 @@
-using StarterApp.Functions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using StarterApp.Functions;
 
 namespace StarterApp.AppHost.Tests;
 

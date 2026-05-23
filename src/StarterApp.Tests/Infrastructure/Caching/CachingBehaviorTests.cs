@@ -1,7 +1,7 @@
+using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Text.Json;
 
 namespace StarterApp.Tests.Infrastructure.Caching;
 

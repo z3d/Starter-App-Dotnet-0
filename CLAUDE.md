@@ -140,7 +140,8 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 
 ### Centralized Configuration (Directory.Build.props)
 - Target: .NET 10.0, nullable reference types, implicit usings
-- Treat warnings as errors, global analyzers enabled
+- Treat warnings as errors, global analyzers enabled, and code style enforced during build
+- XML documentation output is enabled only to allow build-time `IDE0005` unused-using enforcement; missing XML comment warnings stay suppressed because app code should not add XML doc comments
 - Package lock files for reproducible builds (`RestorePackagesWithLockFile=true`)
 
 ### Central Package Management (Directory.Packages.props)
@@ -157,6 +158,7 @@ Never put `Version=` on a `<PackageReference>` — CPM will error on the downgra
 - 180 char line length, file-scoped namespaces, system usings first
 - StyleCop rules: SA1200, SA1209, SA1210, SA1211
 - Prefer `GlobalUsings.cs` per project over per-file using directives
+- CI runs `dotnet format --verify-no-changes --verbosity minimal --no-restore` before build
 
 ## Commit Discipline
 

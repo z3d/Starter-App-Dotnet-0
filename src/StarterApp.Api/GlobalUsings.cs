@@ -1,5 +1,8 @@
 // Essential .NET namespaces
 // Third-party libraries
+global using System.Data;
+global using System.Reflection;
+global using System.Threading.RateLimiting;
 global using Dapper;
 global using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 // Microsoft namespaces
@@ -27,6 +30,3 @@ global using StarterApp.Domain.Abstractions;
 global using StarterApp.Domain.Entities;
 global using StarterApp.Domain.Enums;
 global using StarterApp.Domain.ValueObjects;
-global using System.Data;
-global using System.Reflection;
-global using System.Threading.RateLimiting;

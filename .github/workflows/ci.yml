@@ -23,6 +23,9 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore --force-evaluate
 
+    - name: Verify formatting
+      run: dotnet format --verify-no-changes --verbosity minimal --no-restore
+
     - name: Build
       run: dotnet build --no-restore --configuration Release
 

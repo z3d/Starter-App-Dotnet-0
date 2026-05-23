@@ -1,6 +1,6 @@
-using StarterApp.ServiceDefaults.Payloads;
 using System.Security.Cryptography;
 using System.Text;
+using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Api.Infrastructure.Identity;
 

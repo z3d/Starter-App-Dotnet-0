@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace StarterApp.ServiceDefaults.Payloads;
 

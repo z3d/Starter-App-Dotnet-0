@@ -1,10 +1,10 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Aspire.Hosting.Testing;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.Data.SqlClient;
-using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
 
 namespace StarterApp.AppHost.Tests;
 

@@ -1,5 +1,5 @@
-using Azure;
 using System.Net.Sockets;
+using Azure;
 
 namespace StarterApp.ServiceDefaults.Payloads;
 

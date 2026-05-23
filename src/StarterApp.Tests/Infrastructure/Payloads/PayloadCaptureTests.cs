@@ -1,7 +1,7 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StarterApp.ServiceDefaults.Payloads;
-using System.Text.Json;
 
 namespace StarterApp.Tests.Infrastructure.Payloads;
 

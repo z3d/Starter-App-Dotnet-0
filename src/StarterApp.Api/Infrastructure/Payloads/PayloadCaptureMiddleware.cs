@@ -1,7 +1,7 @@
+using System.Text;
 using Microsoft.Extensions.Options;
 using Serilog.Context;
 using StarterApp.ServiceDefaults.Payloads;
-using System.Text;
 
 namespace StarterApp.Api.Infrastructure.Payloads;
 

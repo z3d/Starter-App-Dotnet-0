@@ -1,6 +1,6 @@
+using System.Reflection;
 using StarterApp.Domain.Abstractions;
 using StarterApp.Functions;
-using System.Reflection;
 
 namespace StarterApp.AppHost.Tests;
 

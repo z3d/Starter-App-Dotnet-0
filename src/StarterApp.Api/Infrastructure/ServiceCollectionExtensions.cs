@@ -1,9 +1,9 @@
+using System.Text;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Scalar.AspNetCore;
 using StarterApp.Api.Infrastructure.HealthChecks;
 using StarterApp.Api.Infrastructure.Outbox;
-using System.Text;
 
 namespace StarterApp.Api.Infrastructure;
 
