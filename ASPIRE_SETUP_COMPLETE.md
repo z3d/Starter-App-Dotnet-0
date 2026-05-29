@@ -47,5 +47,5 @@ docker build -f src/StarterApp.Functions/Dockerfile .
 ## Documentation
 
 - [Aspire Setup](docs/05-aspire-setup/README.md)
-- [Container Images](docs/03-docker-setup/README.md)
+- [Container Images and Docker Dependencies](docs/03-docker-setup/README.md)
 - [API Endpoints](docs/API-ENDPOINTS.md)

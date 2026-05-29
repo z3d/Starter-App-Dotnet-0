@@ -59,4 +59,4 @@ Use standalone migration runs for one-off local checks or deployment pipelines t
 
 ## Next Step
 
-Continue to [Step 3: Container Images](../03-docker-setup/README.md) for Dockerfile and image build validation.
+Continue to [Step 3: Container Images and Docker Dependencies](../03-docker-setup/README.md) for Aspire-managed container dependencies, Dockerfiles, and image build validation.
