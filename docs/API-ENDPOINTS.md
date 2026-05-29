@@ -30,7 +30,7 @@ X-Authenticated-Scopes: products:read products:write customers:read customers:wr
 X-Authenticated-Amr: mfa
 ```
 
-Production-like environments also require a signed `X-Gateway-Assertion`. Local Development, Testing, and Docker can use `GatewayIdentity:Mode=UnsignedDevelopment`; the identity headers are still required.
+Production-like environments also require a signed `X-Gateway-Assertion`. Local Development and Testing can use `GatewayIdentity:Mode=UnsignedDevelopment`; the identity headers are still required.
 
 Write routes require the matching `*:write` scope and `X-Authenticated-Amr` containing `mfa`.
 

@@ -1,15 +1,15 @@
 # Starter App Project with .NET Aspire
 
-A comprehensive tutorial project demonstrating modern .NET development with .NET Aspire orchestration, SQL Server, and deployable container images.
+A comprehensive tutorial project demonstrating modern .NET development with .NET Aspire orchestration, SQL Server, Docker-backed local dependencies, and deployable container images.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
-- [Docker Desktop](https://www.docker.com/products/docker-desktop) (**Required** - Aspire-managed containers, Testcontainers, and image builds use Docker)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) (**Required** - Aspire-managed dependencies, the Functions runtime container, Testcontainers, and image builds use Docker)
 - Visual Studio Code or Visual Studio 2022
 
-> **⚠️ Important**: Docker Desktop must be installed and running before executing Aspire orchestration or integration tests. Aspire starts the local infrastructure containers, and the integration tests use Testcontainers.
+> **⚠️ Important**: Docker Desktop must be installed and running before executing Aspire orchestration or integration tests. Aspire is the supported local run path; Docker provides the local infrastructure containers underneath it.
 
 ### Running with .NET Aspire (Recommended for Development)
 ```powershell
@@ -38,10 +38,11 @@ dotnet run
    - Database migrations with DbUp
    - Connection string management across environments
 
-3. **Containerization**
-   - Multi-stage Docker builds
+3. **Container Images and Runtime Dependencies**
+   - Multi-stage Dockerfiles for deployable workloads
    - Direct image build validation for API, DbMigrator, and Functions
    - Readiness/liveness health checks for container platforms
+   - No separate Docker Compose local stack; Aspire owns local orchestration
 
 4. **Cloud-Native Development**
    - .NET Aspire for local orchestration
@@ -52,7 +53,7 @@ dotnet run
    - Domain events raised inside aggregates, persisted to outbox atomically
    - BackgroundService polls outbox and publishes to Azure Service Bus
    - Azure Functions subscribe via topic subscriptions with correlation filters; current sample subscribers capture inbound payloads and log trigger activity
-   - Service Bus emulator for local development (Docker + Aspire)
+   - Service Bus emulator for local development, started by Aspire through Docker
 
 6. **DevOps & CI**
    - GitHub Actions CI pipeline (build, unit tests, integration tests)
@@ -82,7 +83,7 @@ Follow the numbered directories in the `docs/` folder:
 
 1. **[.NET Setup](docs/01-dotnet-setup/README.md)** - Create the Web API project
 2. **[SQL Server Setup](docs/02-sql-server-setup/README.md)** - Database configuration and migrations
-3. **[Container Images](docs/03-docker-setup/README.md)** - Dockerfiles and image build validation
+3. **[Container Images and Docker Dependencies](docs/03-docker-setup/README.md)** - Dockerfiles, Aspire-managed container dependencies, and image build validation
 4. **[Aspire Setup](docs/05-aspire-setup/README.md)** - .NET Aspire orchestration
 
 ## 🧪 Running CI Locally with Act
@@ -134,10 +135,10 @@ dotnet run
 cd src\StarterApp.Api
 dotnet run
 
-# Run tests (requires Docker Desktop to be running)
+# Run all tests (integration and Aspire tests require Docker Desktop to be running)
 dotnet test
 
-# Run only unit tests (no Docker required)
+# Run only non-integration tests (no Docker required)
 dotnet test --filter "FullyQualifiedName!~Integration"
 ```
 
@@ -168,7 +169,7 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 
 This project serves as a practical example for learning:
 - Modern .NET development practices
-- Docker containerization strategies
+- Container image and deployment validation strategies
 - Database migration patterns
 - Cloud-native application development
 - CI/CD pipeline design with GitHub Actions

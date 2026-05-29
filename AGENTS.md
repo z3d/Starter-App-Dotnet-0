@@ -34,7 +34,6 @@ Solution Root/
 │   ├── [ProjectName].ServiceDefaults/  # Shared Aspire Service Configuration
 │   ├── [ProjectName].DbMigrator/       # Database Migration Tool
 │   └── [ProjectName].Tests/            # Unit, Convention, Integration, Fuzzing Tests
-├── config/                             # Emulator configuration (Service Bus topology)
 └── docs/                               # Documentation
     └── API-ENDPOINTS.md
 ```

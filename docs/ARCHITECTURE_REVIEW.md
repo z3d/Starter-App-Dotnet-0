@@ -200,12 +200,12 @@ Fresh review reconciliation: finding #43 is resolved by the trusted gateway iden
 
 | # | Finding | Fix |
 |---|---------|-----|
-| ~~46~~ | Payload capture had no explicit failure policy, so configured storage outages broke requests while missing storage silently dropped archive rows | Added `PayloadCapture:FailureMode=FailOpen|FailClosed`, `RequireArchiveStore` startup validation, null-store skip logging, and tests for fail-open/fail-closed behavior. Aspire and Docker run production-like payload capture with `RequireArchiveStore=true` and `FailClosed`. |
+| ~~46~~ | Payload capture had no explicit failure policy, so configured storage outages broke requests while missing storage silently dropped archive rows | Added `PayloadCapture:FailureMode=FailOpen|FailClosed`, `RequireArchiveStore` startup validation, null-store skip logging, and tests for fail-open/fail-closed behavior. Aspire runs production-like payload capture with `RequireArchiveStore=true` and `FailClosed`; standalone development can intentionally fail open or use the null store. |
 | ~~47~~ | The former secondary local run path did not mirror Aspire's payload archive Blob dependency | Added Azurite-backed payload archive wiring at the time; this drift class is now closed by making Aspire the only supported local orchestration surface. |
 | ~~48~~ | HTTP payload capture buffered full request/response bodies with no limit | Replaced full response buffering with a bounded tee stream, bounded request reads by `PayloadCapture:MaxPayloadBytes`, added content-type capture rules, and persisted truncation/skip metadata on archive/audit rows. |
 | ~~49~~ | JSON log redaction only matched exact sensitive property names and missed emails inside JSON strings | Redactor now matches normalized sensitive names inside property names (e.g. `customerEmail`, `ownerName`) and redacts email-like substrings inside non-sensitive JSON string values. |
 | ~~50~~ | API console logging was configured twice | Removed the unconditional code-level console sink from `Program.cs`; Serilog sinks now come from configuration. |
-| ~~51~~ | `PayloadCaptureOptions.CleanupCron` was exposed but the Function timer was hardcoded | `PayloadArchiveCleanupFunction` now uses the `PayloadCapture__CleanupCron` app setting; local, Docker, and AppHost configurations provide the default hourly schedule. |
+| ~~51~~ | `PayloadCaptureOptions.CleanupCron` was exposed but the Function timer was hardcoded | `PayloadArchiveCleanupFunction` now uses the `PayloadCapture__CleanupCron` app setting; AppHost and local Functions settings provide the default hourly schedule. |
 
 #### Recently resolved (retry and concurrency hardening)
 

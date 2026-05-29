@@ -221,7 +221,7 @@ See [.claude/skills/testing-strategy/SKILL.md](../../.claude/skills/testing-stra
 
 ## 🔗 Related Documentation
 
-- [Container Images (Step 3)](../03-docker-setup/README.md) - Dockerfiles and image build validation
+- [Container Images and Docker Dependencies (Step 3)](../03-docker-setup/README.md) - Dockerfiles, Aspire-managed container dependencies, and image build validation
 - [API Endpoints](../API-ENDPOINTS.md) - Minimal API endpoint reference
 - [.NET Aspire Documentation](https://learn.microsoft.com/en-us/dotnet/aspire/) - Official Microsoft docs
 
