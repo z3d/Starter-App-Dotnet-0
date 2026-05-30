@@ -4,7 +4,7 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and PostgreSQL.
 
-**Score: 9.1/10** (67 prior findings resolved, 4 open)
+**Score: 9.6/10** (69 findings resolved, 2 open)
 
 ---
 
@@ -147,32 +147,14 @@ Good adoption of modern .NET:
 
 ### Open Findings
 
-Fresh architecture review on 2026-05-30 found four open issues. The core architecture remains strong, but these gaps should be fixed before returning the template to a clean 10/10 state.
+Fresh architecture review on 2026-05-30 found four open issues. Follow-up fixes resolved #67 and #68 with focused regression coverage; #69 and #70 remain open.
 
 Fresh review reconciliation: finding #43 is resolved by the trusted gateway identity boundary and identity-based rate limiting. Findings #57-#59 are resolved by route-level scope enforcement, mapped-endpoint convention coverage, and owner-only resource authorization. Findings #44 and #45 are resolved by the outbox processing-claim redesign and AppHost subscriber-consumption assertion. Finding #64 is resolved by refreshing stale setup/API documentation to match gateway identity, `/api/v1` routing, Functions Docker hosting, CI jobs, and the current sample subscriber behavior. Finding #65 is resolved by removing the duplicate local orchestration path and making Aspire the single local stack while keeping direct image validation. Finding #56 is resolved by keeping status input typed as `OrderStatus` and routing lifecycle changes through intent-specific aggregate methods. Finding #66 is resolved by completing the PostgreSQL persistence port and removing the previous provider/runtime compatibility path. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
 
 | # | Finding | Impact | Suggested Fix |
 |---|---------|--------|---------------|
-| 67 | PostgreSQL integrity violations still fall through to 500 | Database safety-net constraints can surface as server errors under races or direct persistence failures | Extend `DbUpdateExceptionExtensions` and exception-handler coverage for PostgreSQL foreign-key and check violations |
-| 68 | Currency validation accepts non-letter three-character values despite advertising ISO codes | Invalid currency data such as `12!` can pass both validator and domain guards | Make `Money.IsValidCurrencyCode` enforce ASCII letters, normalize casing intentionally, and add validator/domain tests |
 | 69 | Inventory reservation subscriber wording conflicts with synchronous stock reservation | A future implementation of the TODO could reserve stock twice or blur which component owns inventory mutation | Rename/clarify the subscriber as notification/projection-only, or move stock reservation ownership fully behind the event path |
 | 70 | Default `.http` scratch request targets removed weatherforecast endpoint | New developers get a dead first request that does not reflect gateway identity or current routes | Replace it with `/health/live` or a protected `/api/v1` request containing the required gateway headers |
-
-#### 67. PostgreSQL integrity violations still fall through to 500
-
-**Severity: Medium** | Files: `src/StarterApp.Api/Infrastructure/WebApplicationExtensions.cs:31`, `src/StarterApp.Api/Infrastructure/DbUpdateExceptionExtensions.cs:7`, `src/StarterApp.DbMigrator/Scripts/0001_CreatePostgresSchema.sql:44`
-
-`UseExceptionHandling()` maps uniqueness to `409` and string truncation to `400`, but PostgreSQL foreign-key and check-constraint violations are not classified. The schema intentionally keeps final safety-net constraints such as `fk_orders_customer_id`, `fk_order_items_product_id`, `ck_products_stock_non_negative`, and order-item checks; if one fires because of a race or stale write, the API currently falls through to `500 Internal Server Error`.
-
-**Fix**: Add helpers for `PostgresErrorCodes.ForeignKeyViolation` and `PostgresErrorCodes.CheckViolation`, map them centrally to `409 Conflict` or `400 Bad Request` by constraint family, and add ProblemDetails/integration coverage for at least one FK-race and one check-constraint path.
-
-#### 68. Currency validation accepts non-letter three-character values despite advertising ISO codes
-
-**Severity: Medium** | Files: `src/StarterApp.Domain/ValueObjects/Money.cs:28`, `src/StarterApp.Api/Application/Validators/CreateProductCommandValidator.cs:20`, `src/StarterApp.Api/Application/Validators/UpdateProductCommandValidator.cs:27`
-
-`Money.IsValidCurrencyCode()` only checks non-empty length 3, while the product validators tell clients that currency must be a "3-letter ISO code." That means values like `12!` satisfy both API validation and the domain guard, then persist into `price_currency` / `currency` columns.
-
-**Fix**: Make the domain helper enforce exactly three ASCII letters, decide whether to normalize to uppercase at the boundary or in `Money.Create`, and update product validator plus unit/fuzz tests so validator and domain guards stay synchronized.
 
 #### 69. Inventory reservation subscriber wording conflicts with synchronous stock reservation
 
@@ -189,6 +171,13 @@ Fresh review reconciliation: finding #43 is resolved by the trusted gateway iden
 The checked-in HTTP scratch file still calls `/weatherforecast/`, which is not part of the current Minimal API surface. For a starter template, the first sample request should reinforce the current `/api/v1` and gateway identity contract rather than point at deleted template code.
 
 **Fix**: Replace the request with `/health/live` for a public smoke test, or add a protected `/api/v1/products` example including `X-Correlation-ID`, gateway identity headers, scopes, and MFA.
+
+#### Recently resolved (2026-05-30 review follow-up)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~67~~ | PostgreSQL integrity violations still fell through to 500 | Added PostgreSQL foreign-key, check-constraint, and not-null violation helpers; routed FK violations to `409 Conflict` and check/not-null violations to `400 Bad Request` through the centralized exception status selector; added focused regression tests for status mapping and constraint-name matching. |
+| ~~68~~ | Currency validation accepted non-letter three-character values despite advertising ISO codes | `Money.IsValidCurrencyCode` now requires exactly three ASCII letters and `Money.Create` normalizes to uppercase; product validators reuse the domain predicate; domain, fuzz, validator, and ProblemDetails tests cover non-letter rejection. |
 
 #### Recently resolved (PostgreSQL port and lifecycle tightening)
 
@@ -460,7 +449,7 @@ A well-engineered starter template that gets the hard things right: architecture
 
 Issues #1–#14 and #16–#66 remain resolved. Recent hardening addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, cancellation restores reserved stock through every exposed cancellation path, order lifecycle changes route through intent-specific aggregate methods, the outbox persists events transactionally, rate limiting is enforced globally by verified identity where available, validation failures return structured field errors, domain dependency isolation is convention-guarded, mixed-currency orders are rejected at the domain level, APIM-projected identity headers now require a signed gateway assertion in production-like mode, route scopes are enforced, and resource access is owner-scoped for Customer, Product, and Order. The Service Bus integration was hardened with proper resource disposal, retry logic for transient failures, validated configuration, PostgreSQL row claiming, and optimized database indexing. The app persistence stack is now PostgreSQL-only.
 
-The 2026-05-30 review found four new open issues: incomplete PostgreSQL integrity-error HTTP mapping, loose currency-code validation, misleading inventory-reservation subscriber wording, and a stale `.http` sample. These are targeted fixes rather than structural rewrites; addressing them should return the template close to its previous 10/10 posture.
+The 2026-05-30 review found four new issues. Follow-up work resolved incomplete PostgreSQL integrity-error HTTP mapping and loose currency-code validation with focused regression tests; the remaining items are misleading inventory-reservation subscriber wording and a stale `.http` sample.
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 

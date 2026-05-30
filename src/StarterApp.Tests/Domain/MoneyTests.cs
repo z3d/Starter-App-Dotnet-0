@@ -22,7 +22,7 @@ public class MoneyTests
         Log.Debug("Attempting to create money with currency {Currency} that exceeds max length", currency);
         var exception = Assert.Throws<ArgumentException>(() =>
             Money.Create(amount, currency));
-        Assert.Contains($"Currency code must be exactly {Money.MaxCurrencyLength} characters", exception.Message);
+        Assert.Contains("Currency code must be a three-letter ISO code", exception.Message);
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);
     }
 
@@ -54,9 +54,26 @@ public class MoneyTests
             // Act & Assert - Should throw for invalid currency codes
             Log.Debug("Attempting to create money with invalid currency length: {Currency}", currency);
             var exception = Assert.Throws<ArgumentException>(() => Money.Create(amount, currency));
-            Assert.Contains($"Currency code must be exactly {Money.MaxCurrencyLength} characters", exception.Message);
+            Assert.Contains("Currency code must be a three-letter ISO code", exception.Message);
             Log.Information("Exception correctly thrown for invalid currency: {Currency}", currency);
         }
+    }
+
+    [Theory]
+    [InlineData("12!")]
+    [InlineData("US1")]
+    [InlineData("A$D")]
+    public void Create_WithNonLetterCurrency_ShouldThrowArgumentException(string currency)
+    {
+        var exception = Assert.Throws<ArgumentException>(() => Money.Create(10.99m, currency));
+        Assert.Contains("Currency code must be a three-letter ISO code", exception.Message);
+    }
+
+    [Fact]
+    public void Create_WithLowercaseCurrency_ShouldNormalizeToUppercase()
+    {
+        var money = Money.Create(10.99m, "aud");
+        Assert.Equal("AUD", money.Currency);
     }
 
     [Fact]
@@ -213,5 +230,4 @@ public class MoneyTests
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);
     }
 }
-
 

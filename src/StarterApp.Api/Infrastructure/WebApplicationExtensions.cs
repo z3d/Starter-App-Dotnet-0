@@ -25,22 +25,7 @@ public static class WebApplicationExtensions
     {
         app.UseExceptionHandler(new ExceptionHandlerOptions
         {
-            StatusCodeSelector = ex => ex switch
-            {
-                OperationCanceledException => 499,
-                DbUpdateConcurrencyException => StatusCodes.Status409Conflict,
-                DbUpdateException dbUpdateException when dbUpdateException.IsUniqueConstraintViolation() => StatusCodes.Status409Conflict,
-                DbUpdateException dbUpdateException when dbUpdateException.IsStringTruncationViolation() => StatusCodes.Status400BadRequest,
-                ValidationException => StatusCodes.Status400BadRequest,
-                ForbiddenAccessException => StatusCodes.Status403Forbidden,
-                UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
-                ArgumentNullException => StatusCodes.Status400BadRequest,
-                ArgumentOutOfRangeException => StatusCodes.Status400BadRequest,
-                ArgumentException => StatusCodes.Status400BadRequest,
-                KeyNotFoundException => StatusCodes.Status404NotFound,
-                InvalidOperationException => StatusCodes.Status409Conflict,
-                _ => StatusCodes.Status500InternalServerError
-            }
+            StatusCodeSelector = ResolveExceptionStatusCode
         });
 
         app.UseStatusCodePages();
@@ -52,5 +37,28 @@ public static class WebApplicationExtensions
     {
         app.UseMiddleware<GatewayIdentityMiddleware>();
         return app;
+    }
+
+    internal static int ResolveExceptionStatusCode(Exception ex)
+    {
+        return ex switch
+        {
+            OperationCanceledException => 499,
+            DbUpdateConcurrencyException => StatusCodes.Status409Conflict,
+            DbUpdateException dbUpdateException when dbUpdateException.IsUniqueConstraintViolation() => StatusCodes.Status409Conflict,
+            DbUpdateException dbUpdateException when dbUpdateException.IsForeignKeyViolation() => StatusCodes.Status409Conflict,
+            DbUpdateException dbUpdateException when dbUpdateException.IsStringTruncationViolation() => StatusCodes.Status400BadRequest,
+            DbUpdateException dbUpdateException when dbUpdateException.IsCheckConstraintViolation() => StatusCodes.Status400BadRequest,
+            DbUpdateException dbUpdateException when dbUpdateException.IsNotNullViolation() => StatusCodes.Status400BadRequest,
+            ValidationException => StatusCodes.Status400BadRequest,
+            ForbiddenAccessException => StatusCodes.Status403Forbidden,
+            UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
+            ArgumentNullException => StatusCodes.Status400BadRequest,
+            ArgumentOutOfRangeException => StatusCodes.Status400BadRequest,
+            ArgumentException => StatusCodes.Status400BadRequest,
+            KeyNotFoundException => StatusCodes.Status404NotFound,
+            InvalidOperationException => StatusCodes.Status409Conflict,
+            _ => StatusCodes.Status500InternalServerError
+        };
     }
 }

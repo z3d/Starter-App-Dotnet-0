@@ -27,7 +27,9 @@ public class CreateProductCommandHandlerTests
     [Theory]
     [InlineData("US")]
     [InlineData("USDT")]
-    public void CreateProductCommandValidator_WithInvalidCurrencyLength_ShouldReturnValidationError(string currency)
+    [InlineData("12!")]
+    [InlineData("US1")]
+    public void CreateProductCommandValidator_WithInvalidCurrencyCode_ShouldReturnValidationError(string currency)
     {
         var command = new CreateProductCommand
         {

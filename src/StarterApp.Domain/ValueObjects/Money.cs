@@ -19,15 +19,24 @@ public class Money : IEquatable<Money>
 
         ArgumentException.ThrowIfNullOrWhiteSpace(currency);
 
-        if (currency.Length != MaxCurrencyLength)
-            throw new ArgumentException($"Currency code must be exactly {MaxCurrencyLength} characters", nameof(currency));
+        if (!IsValidCurrencyCode(currency))
+            throw new ArgumentException("Currency code must be a three-letter ISO code", nameof(currency));
 
-        return new Money(amount, currency);
+        return new Money(amount, currency.ToUpperInvariant());
     }
 
     public static bool IsValidCurrencyCode(string? currency)
     {
-        return !string.IsNullOrWhiteSpace(currency) && currency.Length == MaxCurrencyLength;
+        if (string.IsNullOrWhiteSpace(currency) || currency.Length != MaxCurrencyLength)
+            return false;
+
+        foreach (var character in currency)
+        {
+            if (character is not (>= 'A' and <= 'Z' or >= 'a' and <= 'z'))
+                return false;
+        }
+
+        return true;
     }
 
     public static Money FromDecimal(decimal amount)
@@ -74,5 +83,3 @@ public class Money : IEquatable<Money>
         return $"{Amount} {Currency}";
     }
 }
-
-

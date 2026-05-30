@@ -304,6 +304,29 @@ public class ProblemDetailsTests : IAsyncLifetime
         _output.WriteLine($"Problem Details response: {JsonSerializer.Serialize(problemDetails, new JsonSerializerOptions { WriteIndented = true })}");
     }
 
+    [Fact]
+    public async Task CreateProduct_WithNonLetterCurrency_ShouldReturnProblemDetails()
+    {
+        var invalidProduct = new CreateProductCommand
+        {
+            Name = "Test Product",
+            Description = "Test Description",
+            Price = 10.99m,
+            Currency = "12!",
+            Stock = 100
+        };
+
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/products", invalidProduct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problemDetails);
+        Assert.Equal(400, problemDetails.Status);
+        Assert.Equal("Bad Request", problemDetails.Title);
+        AssertValidationError(problemDetails, nameof(CreateProductCommand.Currency), "Currency must be a 3-letter ISO code");
+    }
+
     private static void AssertValidationError(ProblemDetails problemDetails, string propertyName, string errorMessage)
     {
         Assert.True(problemDetails.Extensions.TryGetValue("errors", out var errorsValue),
@@ -316,4 +339,3 @@ public class ProblemDetailsTests : IAsyncLifetime
         Assert.Contains(propertyErrors.EnumerateArray(), error => error.GetString() == errorMessage);
     }
 }
-
