@@ -3,6 +3,7 @@ WORKDIR /src
 
 COPY Directory.Build.props .
 COPY Directory.Packages.props .
+COPY .editorconfig .
 COPY src/StarterApp.Functions/StarterApp.Functions.csproj src/StarterApp.Functions/
 COPY src/StarterApp.Functions/packages.lock.json src/StarterApp.Functions/
 COPY src/StarterApp.ServiceDefaults/StarterApp.ServiceDefaults.csproj src/StarterApp.ServiceDefaults/
