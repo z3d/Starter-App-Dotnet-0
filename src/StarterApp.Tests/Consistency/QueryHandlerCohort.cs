@@ -26,6 +26,7 @@ public class QueryHandlerCohort : ICohortDefinition<QueryHandlerFingerprint>
     [
         "GetProductByIdQueryHandler",
         "GetAllProductsQueryHandler",
+        "GetOrdersByCustomerQueryHandler",
         "GetOrderByIdQueryHandler"
     ];
 
@@ -39,24 +40,25 @@ public class QueryHandlerCohort : ICohortDefinition<QueryHandlerFingerprint>
             .ToList();
     }
 
-    public QueryHandlerFingerprint Extract(Type handlerType)
+    public QueryHandlerFingerprint Extract(Type type)
     {
-        var ctor = handlerType.GetConstructors().FirstOrDefault();
+        var ctor = type.GetConstructors().FirstOrDefault();
         var ctorParams = ctor?.GetParameters() ?? [];
 
-        var (queryType, responseType) = ResolveRequestHandlerTypes(handlerType);
+        var (queryType, responseType) = ResolveRequestHandlerTypes(type);
 
         return new QueryHandlerFingerprint
         {
-            TypeName = handlerType.Name,
-            IlByteSize = IlInspector.SumIlByteSize(handlerType),
+            TypeName = type.Name,
+            IlByteSize = IlInspector.SumIlByteSize(type),
             ConstructorDependencyCount = ctorParams.Length,
             HasPagination = HasPaginationShape(queryType, responseType),
             IsCacheable = queryType is not null && typeof(ICacheable).IsAssignableFrom(queryType),
             ReturnsList = ReturnsListShape(responseType),
-            JoinCount = IlInspector.CountSubstringInStringLiterals(handlerType, "JOIN")
-                + IlInspector.CountSubstringInStringLiterals(handlerType, "APPLY"),
-            SqlStatementCount = IlInspector.CountSubstringInStringLiterals(handlerType, "SELECT")
+            JoinCount = IlInspector.CountSubstringInStringLiterals(type, "JOIN")
+                + IlInspector.CountSubstringInStringLiterals(type, "APPLY")
+                + IlInspector.CountSubstringInStringLiterals(type, "LATERAL"),
+            SqlStatementCount = IlInspector.CountSubstringInStringLiterals(type, "SELECT")
         };
     }
 

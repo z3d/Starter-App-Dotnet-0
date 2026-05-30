@@ -26,20 +26,20 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, I
 
         var sqlQuery = @"
             SELECT
-                Id,
-                Name,
-                Description,
-                PriceAmount,
-                PriceCurrency,
-                Stock,
-                LastUpdated
-            FROM Products
-            WHERE OwnerSubject = @OwnerSubject
-              AND TenantId = @TenantId
-            ORDER BY Id
-            OFFSET @Offset ROWS FETCH NEXT @FetchSize ROWS ONLY";
+                id AS ""Id"",
+                name AS ""Name"",
+                description AS ""Description"",
+                price_amount AS ""PriceAmount"",
+                price_currency AS ""PriceCurrency"",
+                stock AS ""Stock"",
+                last_updated AS ""LastUpdated""
+            FROM products
+            WHERE owner_subject = @OwnerSubject
+              AND tenant_id = @TenantId
+            ORDER BY id
+            LIMIT @FetchSize OFFSET @Offset";
 
-        return await SqlRetryPolicy.ExecuteAsync(
+        return await PostgresRetryPolicy.ExecuteAsync(
             ct => _connection.QueryAsync<ProductReadModel>(
                 new CommandDefinition(sqlQuery,
                     new { ownerScope.OwnerSubject, ownerScope.TenantId, Offset = offset, FetchSize = query.PageSize + 1 },

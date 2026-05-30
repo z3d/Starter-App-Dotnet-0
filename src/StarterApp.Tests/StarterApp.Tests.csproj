@@ -9,25 +9,27 @@
     <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-8xfc-gm6g-vgpv" />
     <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-m44j-cfrm-g8qc" />
     <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-v435-xc8x-wvr9" />
-  </ItemGroup>  <ItemGroup>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Best.Conventional" />
     <PackageReference Include="coverlet.collector" />
     <PackageReference Include="FsCheck" />
     <PackageReference Include="FsCheck.Xunit" />
-    <PackageReference Include="dbup-sqlserver" />
+    <PackageReference Include="dbup-postgresql" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Respawn" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="Serilog.Sinks.XUnit" />
-    <PackageReference Include="System.Data.SqlClient" />
-    <PackageReference Include="Testcontainers.MsSql" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>

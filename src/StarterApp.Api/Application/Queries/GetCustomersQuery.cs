@@ -26,18 +26,18 @@ public class GetCustomersQueryHandler : IRequestHandler<GetCustomersQuery, IEnum
 
         var sqlQuery = @"
             SELECT
-                Id,
-                Name,
-                Email,
-                DateCreated,
-                IsActive
-            FROM Customers
-            WHERE OwnerSubject = @OwnerSubject
-              AND TenantId = @TenantId
-            ORDER BY Id
-            OFFSET @Offset ROWS FETCH NEXT @FetchSize ROWS ONLY";
+                id AS ""Id"",
+                name AS ""Name"",
+                email AS ""Email"",
+                date_created AS ""DateCreated"",
+                is_active AS ""IsActive""
+            FROM customers
+            WHERE owner_subject = @OwnerSubject
+              AND tenant_id = @TenantId
+            ORDER BY id
+            LIMIT @FetchSize OFFSET @Offset";
 
-        return await SqlRetryPolicy.ExecuteAsync(
+        return await PostgresRetryPolicy.ExecuteAsync(
             ct => _connection.QueryAsync<CustomerReadModel>(
                 new CommandDefinition(sqlQuery,
                     new { ownerScope.OwnerSubject, ownerScope.TenantId, Offset = offset, FetchSize = query.PageSize + 1 },

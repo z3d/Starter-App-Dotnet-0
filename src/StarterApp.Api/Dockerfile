@@ -29,7 +29,7 @@ RUN dotnet build "StarterApp.Api.csproj" -c Release -o /app/build
 RUN dotnet publish "StarterApp.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime image — lightweight, no ODBC tools needed
-# (The API uses Microsoft.Data.SqlClient, not ODBC. For sqlcmd debugging, use the db container.)
+# The API uses the Npgsql managed driver; database inspection should happen from the PostgreSQL container or psql-capable tooling.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 
 WORKDIR /app

@@ -100,7 +100,7 @@ private class MyCustomConvention : ConventionSpecification
 
 ### StarterApp.Tests — WebApplicationFactory + Testcontainers
 
-The main test project uses `WebApplicationFactory<IApiMarker>` with Testcontainers for SQL Server and Respawn for per-test cleanup. This is the workhorse for API endpoint testing:
+The main test project uses `WebApplicationFactory<IApiMarker>` with Testcontainers for PostgreSQL and Respawn for per-test cleanup. This is the workhorse for API endpoint testing:
 
 - **Speed**: In-process execution, no container orchestration overhead per test run
 - **Test isolation**: Respawn resets the database in milliseconds between tests
@@ -109,7 +109,7 @@ The main test project uses `WebApplicationFactory<IApiMarker>` with Testcontaine
 
 ### StarterApp.AppHost.Tests — Aspire DistributedApplicationTestingBuilder
 
-A separate test project for end-to-end distributed system testing. Spins up the full AppHost (SQL Server, Service Bus emulator, API, Functions, DbMigrator) using `DistributedApplicationTestingBuilder`:
+A separate test project for end-to-end distributed system testing. Spins up the full AppHost (PostgreSQL, Service Bus emulator, API, Functions, DbMigrator) using `DistributedApplicationTestingBuilder`:
 
 - **When to use**: Testing cross-service communication (API → outbox → Service Bus → Functions)
 - **Lifecycle**: `DistributedApplicationTestingBuilder` manages all container lifecycle — no manual Docker setup
@@ -154,12 +154,12 @@ var httpClient = app.CreateHttpClient("api");
 ```csharp
 public class ApiTestFixture : IAsyncLifetime
 {
-    private readonly MsSqlContainer _msSqlContainer;
+    private readonly PostgreSqlContainer _postgresContainer;
     private WebApplicationFactory<Program> _factory;
 
     public async Task InitializeAsync()
     {
-        await _msSqlContainer.StartAsync();
+        await _postgresContainer.StartAsync();
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
@@ -167,7 +167,7 @@ public class ApiTestFixture : IAsyncLifetime
                 {
                     services.Configure<ConnectionStrings>(options =>
                     {
-                        options.DefaultConnection = _msSqlContainer.GetConnectionString();
+                        options.DefaultConnection = _postgresContainer.GetConnectionString();
                     });
                 });
             });

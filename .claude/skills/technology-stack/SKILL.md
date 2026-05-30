@@ -10,15 +10,16 @@ user-invocable: false
 
 ### Framework & Hosting
 - **.NET 10.0**: Latest framework
-- **Aspire.Hosting.AppHost** (13.1.0+): Service orchestration
-- **Aspire.Hosting.SqlServer** (13.1.0+): Database container management
-- **Aspire.Hosting.Seq** (13.1.0+): Structured logging
-- **Aspire.Hosting.DevTunnels** (13.1.0+): Expose local services to internet
+- **Aspire.Hosting.AppHost** (13.2.3+): Service orchestration
+- **Aspire.Hosting.PostgreSQL** (13.2.3+): Database container management
+- **Aspire.Hosting.Seq** (13.2.3+): Structured logging
+- **Aspire.Hosting.DevTunnels** (13.2.3+): Expose local services to internet
 
 ### Data Access
-- **Entity Framework Core 10.0.3+**: Write operations
+- **Entity Framework Core 10.0.8+**: Write operations
+- **Npgsql.EntityFrameworkCore.PostgreSQL 10.0.2+**: EF Core PostgreSQL provider
+- **Npgsql 10.0.3+**: PostgreSQL connectivity
 - **Dapper 2.1.35+**: Optimized read operations
-- **Microsoft.Data.SqlClient**: SQL Server connectivity
 
 ### Logging & Observability
 - **Serilog.AspNetCore 10.0.0+**: Structured logging
@@ -32,7 +33,7 @@ user-invocable: false
 ### Testing
 - **xUnit**: Primary testing framework
 - **FsCheck 2.16.6 + FsCheck.Xunit**: Property-based (fuzz) testing
-- **Testcontainers.MsSql**: Database integration testing
+- **Testcontainers.PostgreSql**: Database integration testing
 - **Microsoft.AspNetCore.Mvc.Testing**: API integration testing
 - **Moq**: Mocking framework
 - **Best.Conventional**: Architectural rule enforcement

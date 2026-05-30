@@ -46,19 +46,15 @@ public class DbUpApiTests : IAsyncLifetime
 
         // Use DbUp to directly insert data - directly inserting values
         var insertScript = $@"
-            SET IDENTITY_INSERT Products ON;
-            
-            INSERT INTO Products (Id, Name, Description, PriceAmount, PriceCurrency, Stock, LastUpdated, OwnerSubject, TenantId)
-            VALUES ({productId}, '{productName.Replace("'", "''")}', '{productDescription.Replace("'", "''")}', {price.ToString().Replace(',', '.')}, 'USD', {stock}, GETUTCDATE(), '{TestGatewayIdentity.DefaultSubject}', '{TestGatewayIdentity.DefaultTenantId}');
-            
-            SET IDENTITY_INSERT Products OFF;
+            INSERT INTO products (id, name, description, price_amount, price_currency, stock, last_updated, owner_subject, tenant_id)
+            VALUES ({productId}, '{productName.Replace("'", "''")}', '{productDescription.Replace("'", "''")}', {price.ToString(System.Globalization.CultureInfo.InvariantCulture)}, 'USD', {stock}, now(), '{TestGatewayIdentity.DefaultSubject}', '{TestGatewayIdentity.DefaultTenantId}');
         ";
 
         // Configure DbUp to use a custom journal table name with JournalTo
         var upgradeEngine = DeployChanges.To
-            .SqlDatabase(_fixture.ConnectionString)
+            .PostgresqlDatabase(_fixture.ConnectionString)
             .WithScript("InsertTestProduct", insertScript)
-            .JournalToSqlTable("dbo", "__CustomSchemaVersions")  // Use a different journal table for these tests
+            .JournalToPostgresqlTable("public", "custom_schema_versions")
             .WithTransaction()
             .Build();
 
@@ -81,7 +77,7 @@ public class DbUpApiTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ShouldCreateProductViaApi_ThenVerifyWithSqlQuery()
+    public async Task ShouldCreateProductViaApi_ThenVerifyWithPostgresQuery()
     {
         // Arrange
         var newProduct = new CreateProductCommand
@@ -100,12 +96,12 @@ public class DbUpApiTests : IAsyncLifetime
         Assert.NotNull(createdProduct);
 
         // Assert - Verify directly in database using SQL with parameterized query
-        using var connection = new SqlConnection(_fixture.ConnectionString);
+        using var connection = new NpgsqlConnection(_fixture.ConnectionString);
         await connection.OpenAsync();
 
         // Use parameterized query instead of string interpolation
-        using var command = new SqlCommand(
-            "SELECT COUNT(*) FROM Products WHERE Id = @Id AND Name = @Name",
+        using var command = new NpgsqlCommand(
+            "SELECT COUNT(*) FROM products WHERE id = @Id AND name = @Name",
             connection);
 
         command.Parameters.AddWithValue("@Id", createdProduct.Id);
@@ -122,25 +118,25 @@ public class DbUpApiTests : IAsyncLifetime
     {
         // Step 1: Create test table using DbUp
         var createTableScript = @"
-            CREATE TABLE TestTable (
-                Id INT PRIMARY KEY,
-                Name NVARCHAR(100) NOT NULL,
-                CreatedAt DATETIME NOT NULL DEFAULT GETUTCDATE()
+            CREATE TABLE test_table (
+                id integer CONSTRAINT pk_test_table PRIMARY KEY,
+                name varchar(100) NOT NULL,
+                created_at timestamptz NOT NULL CONSTRAINT df_test_table_created_at DEFAULT now()
             )
         ";
 
         var insertDataScript = @"
-            INSERT INTO TestTable (Id, Name) VALUES (1, 'Test Item 1');
-            INSERT INTO TestTable (Id, Name) VALUES (2, 'Test Item 2');
-            INSERT INTO TestTable (Id, Name) VALUES (3, 'Test Item 3');
+            INSERT INTO test_table (id, name) VALUES (1, 'Test Item 1');
+            INSERT INTO test_table (id, name) VALUES (2, 'Test Item 2');
+            INSERT INTO test_table (id, name) VALUES (3, 'Test Item 3');
         ";
 
         // Run script with DbUp and use a custom journal table to avoid conflicts
         var upgradeEngine = DeployChanges.To
-            .SqlDatabase(_fixture.ConnectionString)
+            .PostgresqlDatabase(_fixture.ConnectionString)
             .WithScript("CreateTestTable", createTableScript)
             .WithScript("InsertTestData", insertDataScript)
-            .JournalToSqlTable("dbo", "__CustomSchemaVersions")  // Use a different journal table for these tests
+            .JournalToPostgresqlTable("public", "custom_schema_versions")
             .WithTransaction()
             .Build();
 
@@ -148,22 +144,22 @@ public class DbUpApiTests : IAsyncLifetime
         Assert.True(dbUpResult.Successful, $"DbUp script execution failed: {dbUpResult.Error}");
 
         // Step 2: Verify table and data exists using parameterized query
-        using var connection = new SqlConnection(_fixture.ConnectionString);
+        using var connection = new NpgsqlConnection(_fixture.ConnectionString);
         await connection.OpenAsync();
 
-        using var command = new SqlCommand("SELECT COUNT(*) FROM TestTable", connection);
+        using var command = new NpgsqlCommand("SELECT COUNT(*) FROM test_table", connection);
         var queryResult = await command.ExecuteScalarAsync();
         var count = queryResult != null ? Convert.ToInt32(queryResult) : 0;
 
         Assert.Equal(3, count);
 
         // Step 3: Clean up (drop the test table)
-        var dropTableScript = "DROP TABLE TestTable";
+        var dropTableScript = "DROP TABLE test_table";
 
         var cleanupEngine = DeployChanges.To
-            .SqlDatabase(_fixture.ConnectionString)
+            .PostgresqlDatabase(_fixture.ConnectionString)
             .WithScript("DropTestTable", dropTableScript)
-            .JournalToSqlTable("dbo", "__CustomSchemaVersions")  // Use the same custom journal table
+            .JournalToPostgresqlTable("public", "custom_schema_versions")
             .WithTransaction()
             .Build();
 
@@ -171,14 +167,14 @@ public class DbUpApiTests : IAsyncLifetime
         Assert.True(cleanupResult.Successful, $"DbUp cleanup script execution failed: {cleanupResult.Error}");
 
         // Step 4: Verify table was dropped using parameterized query
-        using var connection2 = new SqlConnection(_fixture.ConnectionString);
+        using var connection2 = new NpgsqlConnection(_fixture.ConnectionString);
         await connection2.OpenAsync();
 
-        using var command2 = new SqlCommand(
-            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = @TableName",
+        using var command2 = new NpgsqlCommand(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = @TableName",
             connection2);
 
-        command2.Parameters.AddWithValue("@TableName", "TestTable");
+        command2.Parameters.AddWithValue("@TableName", "test_table");
 
         var dropQueryResult = await command2.ExecuteScalarAsync();
         var tableExists = dropQueryResult != null ? Convert.ToInt32(dropQueryResult) : 0;
@@ -186,5 +182,3 @@ public class DbUpApiTests : IAsyncLifetime
         Assert.Equal(0, tableExists);
     }
 }
-
-

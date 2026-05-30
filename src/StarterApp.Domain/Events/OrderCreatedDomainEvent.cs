@@ -18,7 +18,7 @@ public sealed class OrderCreatedDomainEvent : IDomainEvent
         TotalExcludingGst = order.GetTotalExcludingGst().Amount;
         TotalIncludingGst = order.GetTotalIncludingGst().Amount;
         TotalGstAmount = order.GetTotalGstAmount().Amount;
-        Currency = order.Items.FirstOrDefault()?.UnitPriceExcludingGst.Currency ?? "USD";
+        Currency = order.Items.Count > 0 ? order.Items[0].UnitPriceExcludingGst.Currency : "USD";
         OccurredOnUtc = DateTimeOffset.UtcNow;
     }
 

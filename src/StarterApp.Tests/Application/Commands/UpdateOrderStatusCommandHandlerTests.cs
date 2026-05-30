@@ -26,7 +26,7 @@ public class UpdateOrderStatusCommandHandlerTests
         await context.SaveChangesAsync();
 
         var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
-        var command = new UpdateOrderStatusCommand { OrderId = order.Id, Status = "Confirmed" };
+        var command = new UpdateOrderStatusCommand { OrderId = order.Id, Status = OrderStatus.Confirmed };
 
         // Act
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -55,7 +55,7 @@ public class UpdateOrderStatusCommandHandlerTests
         var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
 
         // Act
-        await handler.HandleAsync(new UpdateOrderStatusCommand { OrderId = order.Id, Status = "Confirmed" }, CancellationToken.None);
+        await handler.HandleAsync(new UpdateOrderStatusCommand { OrderId = order.Id, Status = OrderStatus.Confirmed }, CancellationToken.None);
 
         // Assert
         var outboxMessage = await context.OutboxMessages
@@ -106,7 +106,7 @@ public class UpdateOrderStatusCommandHandlerTests
         await using var context = new ApplicationDbContext(options);
 
         var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
-        var command = new UpdateOrderStatusCommand { OrderId = Guid.NewGuid(), Status = "Confirmed" };
+        var command = new UpdateOrderStatusCommand { OrderId = Guid.NewGuid(), Status = OrderStatus.Confirmed };
 
         // Act & Assert
         await Assert.ThrowsAsync<KeyNotFoundException>(() =>
@@ -129,7 +129,7 @@ public class UpdateOrderStatusCommandHandlerTests
         await context.SaveChangesAsync();
 
         var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
-        var command = new UpdateOrderStatusCommand { OrderId = order.Id, Status = "Delivered" };
+        var command = new UpdateOrderStatusCommand { OrderId = order.Id, Status = OrderStatus.Delivered };
 
         // Act & Assert — Pending → Delivered is not a valid transition
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -163,7 +163,7 @@ public class UpdateOrderStatusCommandHandlerTests
 
         // Act
         var result = await handler.HandleAsync(
-            new UpdateOrderStatusCommand { OrderId = orderDto.Id, Status = "Cancelled" },
+            new UpdateOrderStatusCommand { OrderId = orderDto.Id, Status = OrderStatus.Cancelled },
             CancellationToken.None);
 
         // Assert

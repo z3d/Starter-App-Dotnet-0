@@ -72,7 +72,7 @@ public class EmbeddingSimilarityScorerTests
     {
         var embedder = new SourceTokenEmbedder();
         var cohort = new CommandHandlerCohort();
-        var handler = cohort.DiscoverTypes().First();
+        var handler = cohort.DiscoverTypes()[0];
 
         var embedding1 = embedder.Embed(handler);
         var embedding2 = embedder.Embed(handler);

@@ -46,3 +46,63 @@ dotnet_diagnostic.SA1211.severity = warning
 # Additional IDE diagnostics
 dotnet_diagnostic.IDE0065.severity = warning
 dotnet_diagnostic.IDE0073.severity = warning
+
+# AnalysisMode=All policy
+# Keep high-signal correctness and clarity analyzers active by default. Lower rules that
+# conflict with this template's Minimal API/CQRS/test conventions or require broad churn.
+dotnet_diagnostic.CA1002.severity = none
+dotnet_diagnostic.CA1030.severity = none
+dotnet_diagnostic.CA1031.severity = suggestion
+dotnet_diagnostic.CA1032.severity = none
+dotnet_diagnostic.CA1040.severity = none
+dotnet_diagnostic.CA1056.severity = none
+dotnet_diagnostic.CA1062.severity = suggestion
+dotnet_diagnostic.CA1303.severity = none
+dotnet_diagnostic.CA1305.severity = suggestion
+dotnet_diagnostic.CA1308.severity = none
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA1711.severity = none
+dotnet_diagnostic.CA1716.severity = none
+dotnet_diagnostic.CA1724.severity = none
+dotnet_diagnostic.CA1819.severity = none
+dotnet_diagnostic.CA1848.severity = suggestion
+dotnet_diagnostic.CA1859.severity = suggestion
+dotnet_diagnostic.CA1873.severity = suggestion
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.CA2227.severity = none
+
+[src/StarterApp.Api/Infrastructure/Payloads/PayloadCaptureMiddleware.cs]
+# BoundedCaptureStream forwards to the ASP.NET response body but does not own it.
+dotnet_diagnostic.CA2213.severity = none
+
+[src/StarterApp.Tests/**/*.cs]
+# Tests intentionally use BDD-style underscore names, fixture/helper types discovered by
+# reflection, and disposable lifetimes owned by xUnit/Testcontainers harnesses.
+dotnet_diagnostic.CA1034.severity = none
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1307.severity = none
+dotnet_diagnostic.CA1310.severity = none
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1812.severity = none
+dotnet_diagnostic.CA1852.severity = none
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA1869.severity = none
+dotnet_diagnostic.CA2000.severity = none
+dotnet_diagnostic.CA2234.severity = none
+
+[src/StarterApp.AppHost.Tests/**/*.cs]
+# AppHost tests follow the same naming/reflection/resource-lifetime conventions as the
+# main test project.
+dotnet_diagnostic.CA1307.severity = none
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1869.severity = none
+dotnet_diagnostic.CA2000.severity = none
+dotnet_diagnostic.CA2234.severity = none
+
+[src/StarterApp.AppHost.Tests/*.cs]
+# Root-level AppHost test files use the same conventions as nested test files.
+dotnet_diagnostic.CA1307.severity = none
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1869.severity = none
+dotnet_diagnostic.CA2000.severity = none
+dotnet_diagnostic.CA2234.severity = none

@@ -43,7 +43,7 @@ public class OrderStateMachineFuzzTests
                 {
                     order.UpdateStatus(status);
                 }
-                return Enum.IsDefined(typeof(OrderStatus), order.Status);
+                return Enum.IsDefined(order.Status);
             });
     }
 
@@ -64,7 +64,7 @@ public class OrderStateMachineFuzzTests
             .ToArbitrary();
 
         return Prop.ForAll(scenario,
-            pair =>
+            (ValueTuple<OrderStatus, OrderStatus> pair) =>
             {
                 var (current, target) = pair;
                 var order = Order.Reconstitute(Guid.CreateVersion7(), 1, DateTimeOffset.UtcNow, current, DateTimeOffset.UtcNow, []);

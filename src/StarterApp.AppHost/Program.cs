@@ -8,11 +8,11 @@ var repoRoot = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "..
 var seq = builder.AddSeq("seq")
                  .WithLifetime(ContainerLifetime.Persistent);
 
-// Add SQL Server with persistent lifetime
-var sql = builder.AddSqlServer("sql")
-                 .WithLifetime(ContainerLifetime.Persistent);
+// Add PostgreSQL with persistent lifetime
+var postgres = builder.AddPostgres("postgres")
+                      .WithLifetime(ContainerLifetime.Persistent);
 
-var db = sql.AddDatabase("database");
+var db = postgres.AddDatabase("database");
 
 // Add Redis for distributed caching
 var redis = builder.AddRedis("redis")

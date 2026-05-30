@@ -2,13 +2,13 @@ using StarterApp.Api.Infrastructure.Persistence;
 
 namespace StarterApp.Tests.Infrastructure.Persistence;
 
-public class SqlRetryPolicyTests
+public class PostgresRetryPolicyTests
 {
     [Fact]
     public async Task ExecuteAsync_ReturnsResult_OnSuccessFirstAttempt()
     {
         var callCount = 0;
-        var result = await SqlRetryPolicy.ExecuteAsync(_ =>
+        var result = await PostgresRetryPolicy.ExecuteAsync(_ =>
         {
             callCount++;
             return Task.FromResult(42);
@@ -19,12 +19,12 @@ public class SqlRetryPolicyTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_DoesNotRetry_WhenExceptionIsNotTransientSqlException()
+    public async Task ExecuteAsync_DoesNotRetry_WhenExceptionIsNotTransientPostgresException()
     {
         var callCount = 0;
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            SqlRetryPolicy.ExecuteAsync<int>(_ =>
+            PostgresRetryPolicy.ExecuteAsync<int>(_ =>
             {
                 callCount++;
                 throw new InvalidOperationException("not transient");
@@ -34,7 +34,7 @@ public class SqlRetryPolicyTests
     }
 
     // The overload below takes an explicit predicate so the test can simulate transient
-    // behaviour without fabricating a SqlException (which has no public constructors).
+    // behaviour without fabricating provider-specific exceptions.
 
     [Fact]
     public async Task ExecuteAsync_RetriesUpToMaxAttempts_WhenPredicateMatches()
@@ -42,7 +42,7 @@ public class SqlRetryPolicyTests
         var callCount = 0;
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            SqlRetryPolicy.ExecuteAsync<int>(
+            PostgresRetryPolicy.ExecuteAsync<int>(
                 _ => { callCount++; throw new InvalidOperationException(); },
                 _ => true,
                 maxRetries: 3,
@@ -57,7 +57,7 @@ public class SqlRetryPolicyTests
     {
         var callCount = 0;
 
-        var result = await SqlRetryPolicy.ExecuteAsync(
+        var result = await PostgresRetryPolicy.ExecuteAsync(
             _ =>
             {
                 callCount++;
@@ -79,7 +79,7 @@ public class SqlRetryPolicyTests
         var callCount = 0;
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            SqlRetryPolicy.ExecuteAsync<int>(
+            PostgresRetryPolicy.ExecuteAsync<int>(
                 _ => { callCount++; throw new InvalidOperationException("not classified transient"); },
                 _ => false,
                 maxRetries: 6,
@@ -94,7 +94,7 @@ public class SqlRetryPolicyTests
         using var cts = new CancellationTokenSource();
         var callCount = 0;
 
-        var task = SqlRetryPolicy.ExecuteAsync<int>(
+        var task = PostgresRetryPolicy.ExecuteAsync<int>(
             _ =>
             {
                 callCount++;
@@ -110,28 +110,27 @@ public class SqlRetryPolicyTests
     }
 
     [Theory]
-    [InlineData(40613)] // Azure SQL: Database not currently available
-    [InlineData(40501)] // Azure SQL: Service busy
-    [InlineData(40197)] // Azure SQL: Service error
-    [InlineData(10928)] // Resource limit reached
-    [InlineData(10929)] // Resource limit reached (session count)
-    [InlineData(-2)]    // Timeout
-    [InlineData(4060)]  // Cannot open database
-    [InlineData(233)]   // Connection broken
-    public void IsTransientErrorNumber_RecognizesKnownTransientCodes(int errorNumber)
+    [InlineData("40001")] // serialization_failure
+    [InlineData("40P01")] // deadlock_detected
+    [InlineData("55P03")] // lock_not_available
+    [InlineData("08000")] // connection_exception
+    [InlineData("08006")] // connection_failure
+    [InlineData("57P03")] // cannot_connect_now
+    [InlineData("53300")] // too_many_connections
+    public void IsTransientSqlState_RecognizesKnownTransientCodes(string sqlState)
     {
-        Assert.True(SqlRetryPolicy.IsTransientErrorNumber(errorNumber),
-            $"Error number {errorNumber} should be classified as transient (matches EF's SqlServerRetryingExecutionStrategy).");
+        Assert.True(PostgresRetryPolicy.IsTransientSqlStateForTesting(sqlState),
+            $"SQLSTATE {sqlState} should be classified as transient.");
     }
 
     [Theory]
-    [InlineData(2627)]  // UNIQUE KEY violation — not transient
-    [InlineData(547)]   // Foreign key constraint — not transient
-    [InlineData(8152)]  // String would be truncated — not transient
-    [InlineData(0)]     // Unknown
-    public void IsTransientErrorNumber_RejectsNonTransientCodes(int errorNumber)
+    [InlineData("23505")] // unique_violation
+    [InlineData("23503")] // foreign_key_violation
+    [InlineData("22001")] // string_data_right_truncation
+    [InlineData("00000")] // successful_completion
+    public void IsTransientSqlState_RejectsNonTransientCodes(string sqlState)
     {
-        Assert.False(SqlRetryPolicy.IsTransientErrorNumber(errorNumber),
-            $"Error number {errorNumber} must not be classified as transient — retrying would mask a real logical error.");
+        Assert.False(PostgresRetryPolicy.IsTransientSqlStateForTesting(sqlState),
+            $"SQLSTATE {sqlState} must not be classified as transient; retrying would mask a real logical error.");
     }
 }

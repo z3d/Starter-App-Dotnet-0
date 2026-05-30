@@ -2,7 +2,6 @@
 // Application libraries
 global using System;
 global using System.Collections.Generic;
-global using System.Data.SqlClient;
 global using System.Linq;
 global using System.Net;
 global using System.Net.Http;
@@ -24,6 +23,7 @@ global using Microsoft.AspNetCore.Routing;
 global using Microsoft.EntityFrameworkCore;
 global using Microsoft.EntityFrameworkCore.Metadata;
 global using Microsoft.Extensions.DependencyInjection;
+global using Npgsql;
 // Logging with Serilog
 global using Serilog;
 global using Serilog.Events;

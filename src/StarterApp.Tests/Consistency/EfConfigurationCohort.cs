@@ -33,21 +33,21 @@ public class EfConfigurationCohort : ICohortDefinition<EfConfigurationFingerprin
             .ToList();
     }
 
-    public EfConfigurationFingerprint Extract(Type configType)
+    public EfConfigurationFingerprint Extract(Type type)
     {
-        var configureMethod = configType.GetMethod(
+        var configureMethod = type.GetMethod(
             "Configure",
             BindingFlags.Public | BindingFlags.Instance,
             binder: null,
             types: [typeof(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<>)
-                .MakeGenericType(ResolveEntityType(configType))],
+                .MakeGenericType(ResolveEntityType(type))],
             modifiers: null) ?? throw new InvalidOperationException(
-                $"Could not locate Configure method on {configType.Name}");
+                $"Could not locate Configure method on {type.Name}");
 
         return new EfConfigurationFingerprint
         {
-            TypeName = configType.Name,
-            IlByteSize = IlInspector.SumIlByteSize(configType),
+            TypeName = type.Name,
+            IlByteSize = IlInspector.SumIlByteSize(type),
             OwnsOneCount = IlInspector.CountMethodCallsByName(configureMethod, "OwnsOne"),
             HasIndexCount = IlInspector.CountMethodCallsByName(configureMethod, "HasIndex"),
             PropertyConfigCount = IlInspector.CountMethodCallsByName(configureMethod, "Property"),

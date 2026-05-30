@@ -44,7 +44,7 @@ public class Email : IEquatable<Email>
 
     public override int GetHashCode()
     {
-        return Value.GetHashCode();
+        return Value.GetHashCode(StringComparison.Ordinal);
     }
 
     public static bool operator ==(Email? left, Email? right) => Equals(left, right);
@@ -55,5 +55,4 @@ public class Email : IEquatable<Email>
         return Value;
     }
 }
-
 

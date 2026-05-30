@@ -4,11 +4,11 @@ namespace StarterApp.Tests.Infrastructure.Persistence;
 public class PersistenceRegistrationTests
 {
     [Fact]
-    public void AddPersistence_EnablesRetryOnFailure_ForTransientAzureSqlFaults()
+    public void AddPersistence_EnablesRetryOnFailure_ForTransientPostgresFaults()
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddPersistence("Server=.;Database=Test;Integrated Security=true;TrustServerCertificate=true");
+        services.AddPersistence("Host=localhost;Database=test;Username=postgres;Password=postgres");
 
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
@@ -17,6 +17,6 @@ public class PersistenceRegistrationTests
         var strategy = dbContext.Database.CreateExecutionStrategy();
 
         Assert.True(strategy.RetriesOnFailure,
-            "EnableRetryOnFailure must be configured — Azure SQL throttling and failover cause transient connection errors.");
+            "EnableRetryOnFailure must be configured — PostgreSQL failovers and transient network faults should be retried.");
     }
 }

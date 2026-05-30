@@ -2,9 +2,9 @@
 
 ## Overview
 
-A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and SQL Server.
+A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and PostgreSQL.
 
-**Score: 9.9/10** (65 findings resolved, 1 open)
+**Score: 10.0/10** (67 findings resolved, 0 open)
 
 ---
 
@@ -108,7 +108,7 @@ Authentication remains gateway-owned, but the API now has an enforceable trust b
 
 ### DevOps and Observability
 
-- **Aspire orchestration** — `AppHost/Program.cs` wires up API, SQL Server, Redis, Blob storage, Seq, Service Bus emulator, the Azure Functions runtime container, and DbMigrator with proper `WaitFor` dependencies and optional dev tunnel support
+- **Aspire orchestration** — `AppHost/Program.cs` wires up API, PostgreSQL, Redis, Blob storage, Seq, Service Bus emulator, the Azure Functions runtime container, and DbMigrator with proper `WaitFor` dependencies and optional dev tunnel support
 - **Serilog** structured logging with console, file, Seq, and OpenTelemetry sinks
 - **OpenTelemetry** metrics (ASP.NET Core, HTTP, runtime) and tracing via `ServiceDefaults`
 - **Docker** multi-stage image builds for API, DbMigrator, and Functions, with Aspire-owned local dependency containers
@@ -117,8 +117,8 @@ Authentication remains gateway-owned, but the API now has an enforceable trust b
 - **Password masking** in log output — implemented consistently across `Program.cs`, `DatabaseMigrationEngine`, and `DbMigrator`
 - **Payload archive / PII audit** — HTTP request/response bodies, outbound Service Bus payloads, and inbound Function payloads are written as JSONL support artifacts to Azure Blob under date/hour/minute paths. Archive files are correlation-bound (`archive/{date}/{hour}/{minute}/{correlationId}.jsonl`); audit files are time-window streams (`audit/{date}/{hour}/{minute}/payload-audit.jsonl`) that include timestamp, correlation id, archive blob name, payload hash, payload bounds metadata, and the captured payload. HTTP capture is bounded by `MaxPayloadBytes` and content-type allowlist metadata; Service Bus payload capture remains full-fidelity for JSON events. Operational logs use redacted payloads and a convention test blocks direct raw `{Body}` logging.
 - **Dedicated `DbMigrator` service** for migrations across all deployment modes (Aspire, container deployments, standalone)
-- **Outbox → Service Bus pipeline** — domain events captured durably in `OutboxMessages` during a single `SaveChangesAsync` (aggregates use client-generated Guid v7 Ids, so creation events carry correct keys before the save). `EnableRetryOnFailure` is safe because no user transaction is needed. `OutboxProcessor` claims rows in a short SQL transaction using `ProcessingId`/`LockedUntilUtc` plus `UPDLOCK, READPAST, ROWLOCK`, releases locks before Blob capture and Service Bus publish, then saves processed/error outcomes afterward. Service Bus topic has duplicate detection enabled (5-minute window, the emulator maximum). Consumed by Azure Functions via topic subscriptions with correlation filters; AppHost runs Functions through the Docker runtime so trigger listeners are active in integration tests. Convention tests enforce subscription filter ↔ domain event contract sync and topology property alignment.
-- **Explicit constraint naming** — all database constraints named via convention (`PK_`, `FK_`, `DF_`, `CK_`, `IX_`), enforced by convention test from script 0012 onward
+- **Outbox → Service Bus pipeline** — domain events captured durably in `outbox_messages` during a single `SaveChangesAsync` (aggregates use client-generated Guid v7 Ids, so creation events carry correct keys before the save). `EnableRetryOnFailure` is safe because no user transaction is needed. `OutboxProcessor` claims rows in a short PostgreSQL transaction using `processing_id`/`locked_until_utc` plus `FOR UPDATE SKIP LOCKED`, releases locks before Blob capture and Service Bus publish, then saves processed/error outcomes afterward. Service Bus topic has duplicate detection enabled (5-minute window, the emulator maximum). Consumed by Azure Functions via topic subscriptions with correlation filters; AppHost runs Functions through the Docker runtime so trigger listeners are active in integration tests. Convention tests enforce subscription filter ↔ domain event contract sync and topology property alignment.
+- **Explicit constraint naming** — all database constraints named via convention (`pk_`, `fk_`, `df_`, `ck_`, `ix_`), enforced by convention test from the first PostgreSQL migration onward
 
 ### Build Quality
 
@@ -147,13 +147,20 @@ Good adoption of modern .NET:
 
 ### Open Findings
 
-These are unresolved issues identified across multiple agent review sessions. When fixing an item, mark it as resolved with a strikethrough and note the commit.
+No unresolved issues are currently tracked. When future reviews identify an issue, add it here first, then move it to the resolved sections after the fix lands.
 
-Fresh review reconciliation: finding #43 is resolved by the trusted gateway identity boundary and identity-based rate limiting. Findings #57-#59 are resolved by route-level scope enforcement, mapped-endpoint convention coverage, and owner-only resource authorization. Findings #44 and #45 are resolved by the outbox processing-claim redesign and AppHost subscriber-consumption assertion. Finding #64 is resolved by refreshing stale setup/API documentation to match gateway identity, `/api/v1` routing, Functions Docker hosting, CI jobs, and the current sample subscriber behavior. Finding #65 is resolved by removing the duplicate local orchestration path and making Aspire the single local stack while keeping direct image validation. Finding #56 remains open as an order-state modeling design risk: the enum is acceptable as a compact state label, but workflows should not grow around arbitrary status assignment. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
+Fresh review reconciliation: finding #43 is resolved by the trusted gateway identity boundary and identity-based rate limiting. Findings #57-#59 are resolved by route-level scope enforcement, mapped-endpoint convention coverage, and owner-only resource authorization. Findings #44 and #45 are resolved by the outbox processing-claim redesign and AppHost subscriber-consumption assertion. Finding #64 is resolved by refreshing stale setup/API documentation to match gateway identity, `/api/v1` routing, Functions Docker hosting, CI jobs, and the current sample subscriber behavior. Finding #65 is resolved by removing the duplicate local orchestration path and making Aspire the single local stack while keeping direct image validation. Finding #56 is resolved by keeping status input typed as `OrderStatus` and routing lifecycle changes through intent-specific aggregate methods. Finding #66 is resolved by completing the PostgreSQL persistence port and removing the previous provider/runtime compatibility path. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
 
 | # | Finding | Impact | Suggested Fix |
 |---|---------|--------|---------------|
-| 56 | Order status API models lifecycle changes as arbitrary state assignment | `OrderStatus` is fine as a finite state label, and the aggregate owns transition validation, but `UpdateOrderStatusCommand.Status` accepts a string and the handler parses it into a generic `UpdateStatus(...)` call. As order behavior grows, this shape encourages state-specific side effects to leak into handlers, as cancellation already needs special stock-restoration handling. | Keep the enum for persistence/API readability, but prefer intent-specific commands and domain methods (`Confirm`, `StartProcessing`, `Ship`, `Deliver`, `Cancel`) over "set status" APIs. Normalize query input to `OrderStatus` before SQL, and keep state-specific side effects behind aggregate/domain-service operations. |
+| _None_ | _No open findings._ | _n/a_ | _n/a_ |
+
+#### Recently resolved (PostgreSQL port and lifecycle tightening)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~56~~ | Order status API modeled lifecycle changes as arbitrary state assignment | `UpdateOrderStatusCommand.Status` is now typed as `OrderStatus?`, route/query input is normalized to the enum before handler/SQL execution, and the handler routes transitions through explicit aggregate methods (`Confirm`, `StartProcessing`, `Ship`, `Deliver`, `Cancel`) instead of generic string parsing and status assignment. |
+| ~~66~~ | Persistence stack was still coupled to the previous provider behavior and T-SQL dialect assumptions | Replaced the old database packages with Aspire PostgreSQL, Npgsql EF Core, Npgsql, DbUp PostgreSQL, and Testcontainers PostgreSQL; rebuilt migrations as a PostgreSQL baseline; mapped concurrency to PostgreSQL `xmin`; converted Dapper SQL to PostgreSQL syntax; switched outbox claims to `FOR UPDATE SKIP LOCKED`; and updated conventions/tests/docs to make PostgreSQL the only supported app database path. |
 
 #### Recently resolved (documentation refresh)
 
@@ -212,16 +219,16 @@ Fresh review reconciliation: finding #43 is resolved by the trusted gateway iden
 | # | Finding | Fix |
 |---|---------|-----|
 | ~~41~~ | `CreateOrderCommandHandler` generated a fresh order id inside the execution-strategy retry delegate, so a commit-unknown retry could create a second order and reserve stock twice | The handler now generates one stable order id before the retry delegate and checks for that id at the start of each retry before reserving stock. `Order` has an internal explicit-id constructor for this retry-safe path. |
-| ~~42~~ | Cancellation restored stock with no stale-write gate, allowing concurrent cancellation/status changes to double-restore or overwrite inventory | `Order` and `Product` now have SQL Server `rowversion` concurrency tokens configured with `IsRowVersion()`, and `DbUpdateConcurrencyException` maps to `409 Conflict`. A convention test keeps those tokens in place. |
+| ~~42~~ | Cancellation restored stock with no stale-write gate, allowing concurrent cancellation/status changes to double-restore or overwrite inventory | `Order` and `Product` now map PostgreSQL `xmin` concurrency tokens through `uint RowVersion` properties configured with `IsRowVersion()`, and `DbUpdateConcurrencyException` maps to `409 Conflict`. A convention test keeps those tokens in place. |
 
-#### Recently resolved (Azure SQL transient retry)
+#### Recently resolved (PostgreSQL transient retry)
 
 | # | Finding | Fix |
 |---|---------|-----|
 | ~~40~~ | Conventional.Samples comparison exposed convention coverage gaps around migration embedding, serializer-friendly response contracts, namespace locality, collection materialization, bin/obj project references, comment hygiene, and async/time scan scope | Added focused convention tests for these rules in `StarterApp.Tests` and `StarterApp.AppHost.Tests`; converted existing production XML documentation comments to short ordinary comments; left EF value-object default-constructor initialization intentionally out of scope. |
 | ~~39~~ | No advisory consistency layer for structural drift across common file shapes | Added `StarterApp.Tests/Consistency/` with command-handler, query-handler, and EF-configuration cohorts; added pinned exemplar docs under `docs/exemplars/`; extracted EF mappings into per-entity `IEntityTypeConfiguration<T>` classes so mapping shape is measurable outside `ApplicationDbContext`. |
-| ~~36~~ | No transient-failure retry on `DbContext` for Azure SQL throttling / failover | `Order` aggregate now uses client-generated `Guid.CreateVersion7()` IDs. This lets `RecordCreation()` run BEFORE `SaveChanges` (events already know their Ids), keeping outbox capture inside a single `SaveChanges` — no user transaction needed. `EnableRetryOnFailure(6, 30s)` is re-enabled in `AddPersistence`. `CreateOrderCommandHandler` (the one handler that still needs a user-managed transaction for atomic stock-reservation + order-save) wraps itself in `Database.CreateExecutionStrategy().ExecuteAsync(...)` and calls `ChangeTracker.Clear()` at the top of each attempt so retries start from a clean state. New convention test enforces: any `AggregateRoot` overriding `RecordCreation()` must have a `Guid Id` — if a future aggregate tries to raise creation events from an IDENTITY PK, the build fails. Migration `0014_ConvertOrderIdToGuid.sql` converts existing `Orders.Id` and `OrderItems.OrderId` to `UNIQUEIDENTIFIER`. |
-| ~~38~~ | Dapper query handlers had no transient-fault retry — `EnableRetryOnFailure` only covers the EF `DbContext`; Dapper creates its own `SqlCommand` with `RetryLogicProvider = null`, so a mid-query failover or throttling event on Azure SQL would surface as a 500 while writes are transparently retried | New `SqlRetryPolicy.ExecuteAsync` helper at `Infrastructure/Persistence/SqlRetryPolicy.cs` retries transient `SqlException`s with exponential backoff (6 attempts, 30s cap, base 1s) using the same transient-error numbers as EF's `SqlServerRetryingExecutionStrategy`. All 7 query handlers (`GetAllProducts`, `GetProductById`, `GetCustomer`, `GetCustomers`, `GetOrderById`, `GetOrdersByStatus`, `GetOrdersByCustomer`) now wrap their Dapper calls in the helper. New convention test `DapperConventionTests.QueryHandlers_MustUseSqlRetryPolicy` scans IL and fails the build if any future `*QueryHandler` with an `IDbConnection` field forgets to go through the helper. |
+| ~~36~~ | No transient-failure retry on `DbContext` for database throttling / failover | `Order` aggregate now uses client-generated `Guid.CreateVersion7()` IDs. This lets `RecordCreation()` run BEFORE `SaveChanges` (events already know their Ids), keeping outbox capture inside a single `SaveChanges` — no user transaction needed. Npgsql `EnableRetryOnFailure(6, 30s)` is enabled in `AddPersistence`. `CreateOrderCommandHandler` (the one handler that still needs a user-managed transaction for atomic stock-reservation + order-save) wraps itself in `Database.CreateExecutionStrategy().ExecuteAsync(...)` and calls `ChangeTracker.Clear()` at the top of each attempt so retries start from a clean state. A convention test enforces: any `AggregateRoot` overriding `RecordCreation()` must have a `Guid Id` so future creation events have stable keys before save. |
+| ~~38~~ | Dapper query handlers had no transient-fault retry — `EnableRetryOnFailure` only covers the EF `DbContext`; Dapper uses its own connection path, so mid-query database failover or throttling could surface as a 500 while writes are transparently retried | `PostgresRetryPolicy.ExecuteAsync` at `Infrastructure/Persistence/PostgresRetryPolicy.cs` retries transient Npgsql exceptions and SQLSTATEs with exponential backoff (6 attempts, 30s cap, base 1s). All query handlers wrap Dapper calls in the helper. `DapperConventionTests.QueryHandlers_MustUsePostgresRetryPolicy` scans IL and fails the build if any future `*QueryHandler` with an `IDbConnection` field forgets to go through the helper. |
 
 #### Recently resolved (outbox publish resilience)
 
@@ -233,8 +240,8 @@ Fresh review reconciliation: finding #43 is resolved by the trusted gateway iden
 
 | # | Finding | Fix |
 |---|---------|-----|
-| ~~28~~ | OrderCreatedDomainEvent captures pre-persist OrderId (always 0) | Record creation events AFTER first SaveChanges when IDENTITY values are assigned |
-| ~~29~~ | Outbox rows can be published more than once (no locking, no dedup) | Row-level locking (UPDLOCK, READPAST, ROWLOCK) + transaction in OutboxProcessor; duplicate detection enabled on Service Bus topic |
+| ~~28~~ | OrderCreatedDomainEvent captures pre-persist OrderId (always 0) | Aggregates that raise creation events use client-generated Guid v7 IDs before `SaveChanges`, so outbox capture remains atomic and creation events carry stable keys. |
+| ~~29~~ | Outbox rows can be published more than once (no locking, no dedup) | PostgreSQL row claiming with `FOR UPDATE SKIP LOCKED` plus `ProcessingId`/`LockedUntilUtc`; duplicate detection enabled on Service Bus topic |
 | ~~30~~ | Event routing coupled to CLR type names — rename breaks routing silently | Convention test validates subscription filter EventType values against actual IDomainEvent class names |
 | ~~31~~ | Aspire integration test doesn't verify eventing path | Added `CreateOrder_ShouldWriteAndProcessOutboxEvent` — queries OutboxMessages directly via SQL, asserts row exists with `order.created.v1` type and polls until `ProcessedOnUtc` is non-null (proves outbox processor published to Service Bus) |
 
@@ -330,7 +337,7 @@ Validators intentionally overlap with domain constructor guards (defense-in-dept
 
 **Status: Resolved.** Removed `DatabaseMigrator.MigrateDatabase()` call from `Program.cs` and deleted the `DatabaseMigrator.cs` wrapper. Removed the DbMigrator project reference from the API `.csproj`. Migrations are now handled exclusively by the dedicated `DbMigrator` service:
 
-- **Aspire:** `AppHost` runs `DbMigrator` as a standalone service with `WaitFor` dependency on SQL Server
+- **Aspire:** `AppHost` runs `DbMigrator` as a standalone service with `WaitFor` dependency on PostgreSQL
 - **Container deployments:** run the migrator image/job to completion before starting API replicas
 - **Standalone dev:** Run `dotnet run --project src/StarterApp.DbMigrator` before starting the API
 - **Integration tests:** Unaffected — `TestFixture.RunDbUpMigrations()` runs migrations independently
@@ -381,7 +388,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 ## Minor Issues
 
-- ~~**Dockerfile installs SQL Server ODBC tools in production image**~~ — resolved. Removed ODBC tools and `mssql-tools18` from the runtime stage. The API uses `Microsoft.Data.SqlClient` (not ODBC); for `sqlcmd` debugging, use the `db` container directly.
+- ~~**Dockerfile installs database vendor CLI tools in production image**~~ — resolved. Removed ODBC tools and `mssql-tools18` from the runtime stage; the API now uses Npgsql and does not need database CLI tools in the runtime image.
 - ~~**CI pipeline skips integration tests**~~ — resolved. A separate `integration` job now runs Testcontainers-based tests after the unit test job passes.
 - ~~**CORS is fully permissive in development**~~ — resolved. Added comment clarifying intent: dev is permissive for local frontend testing; production blocks all browser cross-origin by default (secure for API-only use). To allow a browser SPA, configure `AllowedOrigins` in appsettings.
 - ~~**`Email.IsValidEmail` uses try/catch for flow control**~~ — resolved. Now uses `MailAddress.TryCreate()` (available since .NET 8) to avoid exception-based flow control.
@@ -404,7 +411,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 | Convention tests | 6 classes | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping, Dapper SQL quality, DateTimeOffset enforcement, constraint naming enforcement, event routing contract validation, domain third-party dependency isolation |
 | Application tests | 9 | All command handlers tested with in-memory DbContext |
 | Infrastructure tests | 3 | OutboxMessage mutation tests, OutboxProcessor batch processing with Moq ServiceBusSender, ProblemDetails validation-error customization |
-| Integration tests | 4+ | Full API endpoint testing with Testcontainers SQL Server, DbUp migrations, ProblemDetails responses |
+| Integration tests | 4+ | Full API endpoint testing with Testcontainers PostgreSQL, DbUp migrations, ProblemDetails responses |
 | Aspire integration tests | 4 | End-to-end pipeline testing via DistributedApplicationTestingBuilder: health endpoints, CRUD path, stock decrement, outbox-to-Service-Bus eventing verification |
 | Test builders | 3 | Fluent builders for Customer, Product, Order |
 
@@ -416,7 +423,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention via IL inspection), proper CQRS separation with zero violations, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
-Issues #1–#14, #16–#43, #46–#55, and #57–#59 have all been resolved. Recent hardening addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, cancellation restores reserved stock through every exposed cancellation path, the outbox persists events transactionally, rate limiting is enforced globally by verified identity where available, validation failures return structured field errors, domain dependency isolation is convention-guarded, mixed-currency orders are rejected at the domain level, APIM-projected identity headers now require a signed gateway assertion in production-like mode, route scopes are enforced, and resource access is owner-scoped for Customer, Product, and Order. The Service Bus integration was hardened with proper resource disposal, retry logic for transient failures, validated configuration, and optimized database indexing. Open work is now concentrated in outbox lock duration during publish, consumer-observable AppHost eventing tests, and keeping order lifecycle changes intent-based instead of generic status assignment.
+Issues #1–#14 and #16–#66 have all been resolved. Recent hardening addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, cancellation restores reserved stock through every exposed cancellation path, order lifecycle changes route through intent-specific aggregate methods, the outbox persists events transactionally, rate limiting is enforced globally by verified identity where available, validation failures return structured field errors, domain dependency isolation is convention-guarded, mixed-currency orders are rejected at the domain level, APIM-projected identity headers now require a signed gateway assertion in production-like mode, route scopes are enforced, and resource access is owner-scoped for Customer, Product, and Order. The Service Bus integration was hardened with proper resource disposal, retry logic for transient failures, validated configuration, PostgreSQL row claiming, and optimized database indexing. The app persistence stack is now PostgreSQL-only.
 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 

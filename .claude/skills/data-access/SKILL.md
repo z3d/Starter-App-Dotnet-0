@@ -14,14 +14,14 @@ user-invocable: false
 // Product configuration
 modelBuilder.Entity<Product>()
     .OwnsOne(p => p.Price, priceBuilder => {
-        priceBuilder.Property(m => m.Amount).HasColumnName("PriceAmount");
-        priceBuilder.Property(m => m.Currency).HasColumnName("PriceCurrency");
+        priceBuilder.Property(m => m.Amount).HasColumnName("price_amount");
+        priceBuilder.Property(m => m.Currency).HasColumnName("price_currency");
     });
 
 // Customer configuration
 modelBuilder.Entity<Customer>()
     .OwnsOne(c => c.Email, emailBuilder => {
-        emailBuilder.Property(e => e.Value).HasColumnName("Email");
+        emailBuilder.Property(e => e.Value).HasColumnName("email");
     });
 ```
 
@@ -43,10 +43,11 @@ This lets the aggregate root own the collection privately (`_items` backing fiel
 
 **Optimistic Concurrency**:
 
-Use SQL Server `rowversion` for entities whose stale writes can corrupt state or inventory. `Order` and `Product` expose a `RowVersion` property with a private setter and their EF configurations must call `.IsRowVersion()`. `DbUpdateConcurrencyException` maps to `409 Conflict` at the API boundary.
+Use PostgreSQL `xmin` concurrency tokens for entities whose stale writes can corrupt state or inventory. `Order` and `Product` expose a `uint RowVersion` property with a private setter and their EF configurations map it to the `xmin` system column with `.IsRowVersion()`. `DbUpdateConcurrencyException` maps to `409 Conflict` at the API boundary.
 
 ```csharp
 builder.Property(o => o.RowVersion)
+    .HasColumnName("xmin")
     .IsRowVersion();
 ```
 
@@ -58,26 +59,26 @@ builder.Property(o => o.RowVersion)
 - Automatic execution on startup with error handling
 - Separate migration service for clean separation
 
-**Constraint Naming Convention** (enforced by convention test from script 0012 onward):
+**Constraint Naming Convention** (enforced by convention test from the first PostgreSQL migration onward):
 
 Every constraint must be explicitly named. Anonymous/system-generated names require dynamic SQL to discover and drop, which is fragile and non-deterministic.
 
 | Prefix | Type | Example |
 |--------|------|---------|
-| `PK_` | Primary Key | `CONSTRAINT PK_Orders PRIMARY KEY (Id)` |
-| `FK_` | Foreign Key | `CONSTRAINT FK_Orders_CustomerId FOREIGN KEY (CustomerId) REFERENCES Customers(Id)` |
-| `DF_` | Default | `CONSTRAINT DF_Orders_Status DEFAULT 'Pending'` |
-| `CK_` | Check | `CONSTRAINT CK_Products_Stock_NonNegative CHECK (Stock >= 0)` |
-| `IX_` | Index | `CREATE INDEX IX_Orders_OrderDate ON Orders (OrderDate DESC)` |
+| `pk_` | Primary Key | `CONSTRAINT pk_orders PRIMARY KEY (id)` |
+| `fk_` | Foreign Key | `CONSTRAINT fk_orders_customer_id FOREIGN KEY (customer_id) REFERENCES customers(id)` |
+| `df_` | Default | `CONSTRAINT df_orders_status DEFAULT 'Pending'` |
+| `ck_` | Check | `CONSTRAINT ck_products_stock_non_negative CHECK (stock >= 0)` |
+| `ix_` | Index | `CREATE INDEX ix_orders_order_date ON orders (order_date DESC)` |
 
 In `ALTER TABLE ... ADD` statements, use the `ADD CONSTRAINT` form:
 ```sql
-ALTER TABLE Orders ADD CONSTRAINT DF_Orders_OrderDate DEFAULT SYSDATETIMEOFFSET() FOR OrderDate;
+ALTER TABLE orders ADD CONSTRAINT ck_orders_status CHECK (status IN ('Pending', 'Confirmed', 'Processing', 'Shipped', 'Delivered', 'Cancelled'));
 ```
 
 ## Connection String Resolution
 
-Priority order: `database` → `DockerLearning` → `sqlserver` → `DefaultConnection`
+Priority order: `database` → `DockerLearning` → `postgres` → `DefaultConnection`
 
 ## Aspire Configuration
 
@@ -93,9 +94,9 @@ Priority order: `database` → `DockerLearning` → `sqlserver` → `DefaultConn
 ```csharp
 var builder = DistributedApplication.CreateBuilder(args);
 
-var sql = builder.AddSqlServer("sql")
-                 .WithLifetime(ContainerLifetime.Persistent);
-var database = sql.AddDatabase("database");
+var postgres = builder.AddPostgres("postgres")
+                      .WithLifetime(ContainerLifetime.Persistent);
+var database = postgres.AddDatabase("database");
 
 var api = builder.AddProject<Projects.StarterApp_Api>("api")
                  .WithReference(database)

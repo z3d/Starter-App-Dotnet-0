@@ -162,7 +162,7 @@ public class PersistenceConventionTests : ConventionTestBase
         }
 
         Assert.True(failures.Count == 0,
-            "Concurrency-critical entities must use SQL rowversion tokens:\n" + string.Join("\n", failures));
+            "Concurrency-critical entities must use PostgreSQL xmin row version tokens:\n" + string.Join("\n", failures));
     }
 
     [Fact]
@@ -236,8 +236,7 @@ public class PersistenceConventionTests : ConventionTestBase
     [Fact]
     public void MigrationScripts_MustNameAllConstraintsExplicitly()
     {
-        // Scripts 0001–0011 predate this rule. Enforce from 0012 onward.
-        const int firstEnforcedScript = 12;
+        const int firstEnforcedScript = 1;
 
         var scriptsDir = ResolveScriptsDirectory();
         if (scriptsDir == null)
@@ -287,6 +286,15 @@ public class PersistenceConventionTests : ConventionTestBase
 
             foreach (System.Text.RegularExpressions.Match match in defaultMatches)
             {
+                var lineStart = stripped.LastIndexOf('\n', Math.Max(0, match.Index - 1));
+                var lineEnd = stripped.IndexOf('\n', match.Index);
+                if (lineEnd < 0)
+                    lineEnd = stripped.Length;
+
+                var line = stripped[(lineStart + 1)..lineEnd];
+                if (System.Text.RegularExpressions.Regex.IsMatch(line, @"GENERATED\s+BY\s+DEFAULT\s+AS\s+IDENTITY", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                    continue;
+
                 // Allow ADD CONSTRAINT DF_xxx DEFAULT (the CONSTRAINT keyword comes before the name, not before DEFAULT)
                 // Check the broader context: look back for CONSTRAINT keyword
                 var preceding = stripped[..match.Index];

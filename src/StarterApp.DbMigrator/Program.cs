@@ -29,10 +29,10 @@ try
     // Use the same connection string priority logic as the API
     var databaseConnection = configuration.GetConnectionString("database");
     var dockerLearningConnection = configuration.GetConnectionString("DockerLearning");
-    var sqlserverConnection = configuration.GetConnectionString("sqlserver");
+    var postgresConnection = configuration.GetConnectionString("postgres");
     var defaultConnection = configuration.GetConnectionString("DefaultConnection");
 
-    var connectionString = databaseConnection ?? dockerLearningConnection ?? sqlserverConnection ?? defaultConnection;
+    var connectionString = databaseConnection ?? dockerLearningConnection ?? postgresConnection ?? defaultConnection;
 
     if (string.IsNullOrEmpty(connectionString))
     {
@@ -80,7 +80,6 @@ static string MaskConnectionStringPassword(string connectionString)
         "$1=***MASKED***",
         System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 }
-
 
 
 

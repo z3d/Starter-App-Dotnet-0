@@ -78,7 +78,7 @@ public class OrderApiTests : IAsyncLifetime
     private async Task UpdateOrderStatusAndAssertAsync(Guid orderId, OrderStatus status)
     {
         var response = await _fixture.Client.PutAsJsonAsync($"/api/v1/orders/{orderId}/status",
-            new UpdateOrderStatusCommand { OrderId = orderId, Status = status.ToString() });
+            new UpdateOrderStatusCommand { OrderId = orderId, Status = status });
 
         if (!response.IsSuccessStatusCode)
         {
@@ -336,7 +336,7 @@ public class OrderApiTests : IAsyncLifetime
         var updateCommand = new UpdateOrderStatusCommand
         {
             OrderId = createdOrder.Id,
-            Status = OrderStatus.Confirmed.ToString()
+            Status = OrderStatus.Confirmed
         };
 
         // Act
@@ -367,7 +367,7 @@ public class OrderApiTests : IAsyncLifetime
         var updateCommand = new UpdateOrderStatusCommand
         {
             OrderId = nonExistentOrderId,
-            Status = OrderStatus.Processing.ToString()
+            Status = OrderStatus.Processing
         };
 
         // Act
@@ -386,7 +386,7 @@ public class OrderApiTests : IAsyncLifetime
         var updateCommand = new UpdateOrderStatusCommand
         {
             OrderId = bodyId,
-            Status = OrderStatus.Processing.ToString()
+            Status = OrderStatus.Processing
         };
 
         // Act - URL ID doesn't match command ID
@@ -575,10 +575,10 @@ public class OrderApiTests : IAsyncLifetime
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
         Assert.NotNull(createdOrder);
 
-        var updateCommand = new UpdateOrderStatusCommand
+        var updateCommand = new
         {
-            OrderId = createdOrder.Id,
-            Status = "InvalidStatus"
+            orderId = createdOrder.Id,
+            status = "InvalidStatus"
         };
 
         // Act
@@ -609,10 +609,10 @@ public class OrderApiTests : IAsyncLifetime
 
         var response = await _fixture.Client.PutAsJsonAsync(
             $"/api/v1/orders/{createdOrder.Id}/status",
-            new UpdateOrderStatusCommand
+            new
             {
-                OrderId = createdOrder.Id,
-                Status = "confirmed"
+                orderId = createdOrder.Id,
+                status = "confirmed"
             });
 
         response.EnsureSuccessStatusCode();
@@ -640,7 +640,7 @@ public class OrderApiTests : IAsyncLifetime
         var invalidUpdateCommand = new UpdateOrderStatusCommand
         {
             OrderId = createdOrder.Id,
-            Status = OrderStatus.Pending.ToString()
+            Status = OrderStatus.Pending
         };
 
         // Act

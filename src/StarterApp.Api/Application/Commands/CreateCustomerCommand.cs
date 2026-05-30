@@ -36,7 +36,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         {
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException ex) when (ex.IsUniqueConstraintViolation("IX_Customers_TenantId_OwnerSubject_Email"))
+        catch (DbUpdateException ex) when (ex.IsUniqueConstraintViolation("ix_customers_tenant_id_owner_subject_email"))
         {
             throw new InvalidOperationException("A customer with that email already exists", ex);
         }

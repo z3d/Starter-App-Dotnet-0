@@ -9,11 +9,11 @@ public static class DatabaseMigrationEngine
         Console.WriteLine($"Starting database migration with connection: {maskedConnectionString}");
 
         // Ensure database exists
-        EnsureDatabase.For.SqlDatabase(connectionString);
+        EnsureDatabase.For.PostgresqlDatabase(connectionString);
 
         // Configure DbUp to use standard journal (default "__SchemaVersions" table)
         var upgrader = DeployChanges.To
-            .SqlDatabase(connectionString)
+            .PostgresqlDatabase(connectionString)
             .WithScriptsEmbeddedInAssembly(scriptsAssembly)
             .WithTransaction()
             .LogToNowhere() // Don't log to console to avoid exposing connection strings
@@ -52,6 +52,5 @@ public static class DatabaseMigrationEngine
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 }
-
 
 

@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="dbup-sqlserver" />
+    <PackageReference Include="dbup-postgresql" />
     <PackageReference Include="Microsoft.Extensions.Configuration" />
     <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />

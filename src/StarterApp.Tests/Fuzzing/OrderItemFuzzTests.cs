@@ -55,7 +55,7 @@ public class OrderItemFuzzTests
             {
                 var unitPrice = Money.Create(10m, "USD");
                 try
-                { new OrderItem(TestOrderId, 1, "Product", 1, unitPrice, gstRate); return false; }
+                { _ = new OrderItem(TestOrderId, 1, "Product", 1, unitPrice, gstRate); return false; }
                 catch (ArgumentOutOfRangeException) { return true; }
             });
     }
@@ -69,7 +69,7 @@ public class OrderItemFuzzTests
             {
                 var unitPrice = Money.Create(10m, "USD");
                 try
-                { new OrderItem(TestOrderId, productId, "Product", 1, unitPrice); return false; }
+                { _ = new OrderItem(TestOrderId, productId, "Product", 1, unitPrice); return false; }
                 catch (ArgumentOutOfRangeException) { return true; }
             });
     }
@@ -91,7 +91,7 @@ public class OrderItemFuzzTests
             {
                 var unitPrice = Money.Create(10m, "USD");
                 try
-                { new OrderItem(TestOrderId, 1, "Product", qty, unitPrice); return false; }
+                { _ = new OrderItem(TestOrderId, 1, "Product", qty, unitPrice); return false; }
                 catch (ArgumentOutOfRangeException) { return true; }
             });
     }
