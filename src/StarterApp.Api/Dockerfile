@@ -6,6 +6,7 @@ WORKDIR /src
 # (CPM requires Directory.Packages.props at restore time)
 COPY ["Directory.Build.props", "Directory.Build.props"]
 COPY ["Directory.Packages.props", "Directory.Packages.props"]
+COPY [".editorconfig", ".editorconfig"]
 
 # Copy csproj + packages.lock.json files first for better layer caching
 COPY ["src/StarterApp.Api/StarterApp.Api.csproj", "src/StarterApp.Api/"]
