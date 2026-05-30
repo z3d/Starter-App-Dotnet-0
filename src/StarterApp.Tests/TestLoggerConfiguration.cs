@@ -2,7 +2,7 @@ namespace StarterApp.Tests;
 
 public static class TestLoggerConfiguration
 {
-    private static bool _isConfigured = false;
+    private static bool _isConfigured;
 
     public static void ConfigureStaticLogging(LogEventLevel minimumLevel = LogEventLevel.Debug)
     {
@@ -52,6 +52,5 @@ public static class TestLoggerConfiguration
             .CreateLogger();
     }
 }
-
 
 

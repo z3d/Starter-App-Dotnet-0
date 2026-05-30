@@ -114,7 +114,7 @@ public class ProductionAssemblyConventionTests
 
     private static bool IsCompilerGenerated(Type type)
     {
-        return type.GetCustomAttributes(typeof(CompilerGeneratedAttribute), false).Any() ||
+        return type.GetCustomAttributes(typeof(CompilerGeneratedAttribute), false).Length != 0 ||
                type.Name.Contains('<') ||
                type.Name.Contains('>') ||
                type.Name.StartsWith("<>", StringComparison.Ordinal) ||

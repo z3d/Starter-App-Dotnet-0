@@ -10,7 +10,7 @@
 
 - **AppHost Project** (`StarterApp.AppHost`) - Orchestrates all services
 - **Service Defaults** (`StarterApp.ServiceDefaults`) - Shared configuration and observability
-- **SQL Server Integration** - Containerized DB with automatic setup and migration
+- **PostgreSQL Integration** - Containerized DB with automatic setup and migration
 - **Redis Integration** - Distributed cache
 - **Azure Blob Storage Emulator** - Payload archive/audit and entity-index artifacts
 - **Azure Service Bus Emulator** - Domain-event messaging with topic + subscriptions
@@ -27,7 +27,7 @@ StarterApp.AppHost (Orchestrator)
 ├── 🌐 StarterApp.Api (Enhanced with telemetry)
 ├── 🔄 StarterApp.DbMigrator (Runs DbUp migrations; API waits for completion)
 ├── ⚡ functions container (StarterApp.Functions Service Bus subscribers)
-├── 🗄️ SQL Server container (Persistent lifetime)
+├── 🗄️ PostgreSQL container (Persistent lifetime)
 ├── 🚀 Redis container (Distributed cache)
 ├── 🧾 Azure Blob Storage emulator (Payload archive/audit)
 ├── 📬 Azure Service Bus emulator (Topic: domain-events with 2 subscriptions)
@@ -75,8 +75,8 @@ The real topology — simplified for readability:
 var builder = DistributedApplication.CreateBuilder(args);
 
 var seq = builder.AddSeq("seq").WithLifetime(ContainerLifetime.Persistent);
-var sql = builder.AddSqlServer("sql").WithLifetime(ContainerLifetime.Persistent);
-var db = sql.AddDatabase("database");
+var postgres = builder.AddPostgres("postgres").WithLifetime(ContainerLifetime.Persistent);
+var db = postgres.AddDatabase("database");
 var redis = builder.AddRedis("redis").WithLifetime(ContainerLifetime.Persistent);
 var storage = builder.AddAzureStorage("storage");
 var payloadArchive = storage.AddBlobs("payloadarchive");
@@ -198,7 +198,7 @@ Pass `--devtunnel` or set `ENABLE_DEV_TUNNEL=true` to publish the API via a tunn
 
 ## 🧪 Testing Integration
 
-Aspire end-to-end tests live in `StarterApp.AppHost.Tests` and use `DistributedApplicationTestingBuilder` to spin up the full distributed app (SQL Server, Service Bus emulator, API, Functions) and validate the end-to-end pipeline. Tag slow tests with `[Trait("Category", "Aspire")]`.
+Aspire end-to-end tests live in `StarterApp.AppHost.Tests` and use `DistributedApplicationTestingBuilder` to spin up the full distributed app (PostgreSQL, Service Bus emulator, API, Functions) and validate the end-to-end pipeline. Tag slow tests with `[Trait("Category", "Aspire")]`.
 
 See [.claude/skills/testing-strategy/SKILL.md](../../.claude/skills/testing-strategy/SKILL.md) for details.
 
@@ -206,7 +206,7 @@ See [.claude/skills/testing-strategy/SKILL.md](../../.claude/skills/testing-stra
 
 **Service won't start** — Check the dashboard logs tab for the failing resource; verify all `WaitFor()` dependencies are healthy.
 
-**Database connection issues** — Confirm the SQL Server container is healthy in the dashboard; verify the migrator completed successfully (the API waits for it).
+**Database connection issues** — Confirm the PostgreSQL container is healthy in the dashboard; verify the migrator completed successfully (the API waits for it).
 
 **Service Bus emulator not ready** — The emulator has a longer start-up than the API; `WaitFor(serviceBus)` ensures ordering.
 

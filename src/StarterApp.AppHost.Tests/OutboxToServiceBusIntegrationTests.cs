@@ -4,7 +4,7 @@ using System.Text.Json;
 using Aspire.Hosting.Testing;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 
 namespace StarterApp.AppHost.Tests;
 
@@ -402,15 +402,15 @@ public class OutboxToServiceBusIntegrationTests
         string expectedType,
         Guid expectedOrderId)
     {
-        await using var connection = new SqlConnection(connectionString);
+        await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync();
 
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT Type, ProcessedOnUtc, Payload
-            FROM OutboxMessages
-            WHERE Type = @Type
-            ORDER BY OccurredOnUtc DESC
+            SELECT type, processed_on_utc, payload
+            FROM outbox_messages
+            WHERE type = @Type
+            ORDER BY occurred_on_utc DESC
             """;
         command.Parameters.AddWithValue("@Type", expectedType);
 
@@ -422,7 +422,9 @@ public class OutboxToServiceBusIntegrationTests
             if (doc.RootElement.TryGetProperty("OrderId", out var orderIdProp) &&
                 orderIdProp.GetGuid() == expectedOrderId)
             {
-                var processedOnUtc = reader.IsDBNull(1) ? null : reader.GetDateTimeOffset(1).ToString("O");
+                var processedOnUtc = await reader.IsDBNullAsync(1)
+                    ? null
+                    : (await reader.GetFieldValueAsync<DateTimeOffset>(1)).ToString("O");
                 return (true, processedOnUtc);
             }
         }

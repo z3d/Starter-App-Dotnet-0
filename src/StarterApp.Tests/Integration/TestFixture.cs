@@ -1,6 +1,3 @@
-using DotNet.Testcontainers.Builders;
-using DotNet.Testcontainers.Configurations;
-using DotNet.Testcontainers.Containers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -11,72 +8,25 @@ using Microsoft.Extensions.Logging;
 using Respawn;
 using Respawn.Graph;
 using StarterApp.ServiceDefaults.Payloads;
-using Testcontainers.MsSql;
+using Testcontainers.PostgreSql;
 
 namespace StarterApp.Tests.Integration;
 
-// Custom wait strategy class
-public class WaitUntil : IWaitUntil
-{
-    private readonly Func<IContainer, Task<bool>> _condition;
-    private readonly TimeSpan _interval;
-
-    public WaitUntil(Func<IContainer, Task<bool>> condition, TimeSpan interval)
-    {
-        _condition = condition;
-        _interval = interval;
-    }
-
-    public async Task<bool> UntilAsync(IContainer container)
-    {
-        return await _condition(container);
-    }
-
-    public TimeSpan Interval => _interval;
-}
-
 public class TestDatabaseFixture : IAsyncLifetime
 {
-    private readonly MsSqlContainer _sqlContainer;
+    private readonly PostgreSqlContainer _postgresContainer;
     public string ConnectionString { get; private set; } = null!;
     private Respawner _respawner = null!;
-    private const string DbName = "TestDb";
-    private const string DbPassword = "Password@123";
+    private const string DbName = "starterapp_tests";
+    private const string DbUsername = "postgres";
+    private const string DbPassword = "postgres";
 
     public TestDatabaseFixture()
     {
-        // Configure SQL Server container with more specific settings
-        _sqlContainer = new MsSqlBuilder()
-            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+        _postgresContainer = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase(DbName)
+            .WithUsername(DbUsername)
             .WithPassword(DbPassword)
-            .WithPortBinding(1433, true) // Use a random port to avoid conflicts
-            .WithEnvironment("ACCEPT_EULA", "Y")
-            .WithEnvironment("MSSQL_PID", "Developer")
-            .WithWaitStrategy(
-                Wait.ForUnixContainer()
-                    .UntilPortIsAvailable(1433)
-                    .AddCustomWaitStrategy(new WaitUntil(
-                        async (container) =>
-                        {
-                            try
-                            {
-                                // Try to connect to the database directly
-                                var connString = $"Server=127.0.0.1,{container.GetMappedPublicPort(1433)};Database=master;User Id=sa;Password={DbPassword};TrustServerCertificate=True;Connection Timeout=5";
-                                using var connection = new SqlConnection(connString);
-                                await connection.OpenAsync();
-                                using var cmd = new SqlCommand("SELECT 1", connection);
-                                await cmd.ExecuteScalarAsync();
-                                return true;
-                            }
-                            catch
-                            {
-                                // If connection fails, container is not ready
-                                return false;
-                            }
-                        },
-                        TimeSpan.FromSeconds(2) // Check every 2 seconds
-                    ))
-            )
             .Build();
     }
 
@@ -84,31 +34,16 @@ public class TestDatabaseFixture : IAsyncLifetime
     {
         try
         {
-            Console.WriteLine("Starting SQL Server container...");
-            // Start SQL Server container
-            await _sqlContainer.StartAsync();
-            Console.WriteLine($"SQL Server container started on port {_sqlContainer.GetMappedPublicPort(1433)}");
-
-            // Get base connection string first (points to master database)
-            var masterConnectionString = $"Server=127.0.0.1,{_sqlContainer.GetMappedPublicPort(1433)};Database=master;User Id=sa;Password={DbPassword};TrustServerCertificate=True";
-            Console.WriteLine($"Master connection string: {masterConnectionString}");
-
-            // Create a test database
-            using var connection = new SqlConnection(masterConnectionString);
-            await connection.OpenAsync();
-            var createDbCommand = new SqlCommand($"IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '{DbName}') CREATE DATABASE {DbName}", connection);
-            await createDbCommand.ExecuteNonQueryAsync();
-            Console.WriteLine($"Created test database '{DbName}'");
-
-            // Build connection string to the test database
-            ConnectionString = masterConnectionString.Replace("Database=master", $"Database={DbName}");
+            Console.WriteLine("Starting PostgreSQL container...");
+            await _postgresContainer.StartAsync();
+            ConnectionString = _postgresContainer.GetConnectionString();
             Console.WriteLine($"Using connection string: {ConnectionString}");
 
             // Run DbUp migrations on the test database
             Console.WriteLine("Applying database migrations using DbUp...");
             if (!RunDbUpMigrations(ConnectionString))
             {
-                throw new Exception("Failed to apply database migrations");
+                throw new InvalidOperationException("Failed to apply database migrations");
             }
             Console.WriteLine("Database migrations applied successfully");
 
@@ -123,7 +58,7 @@ public class TestDatabaseFixture : IAsyncLifetime
         }
     }
 
-    private bool RunDbUpMigrations(string connectionString)
+    private static bool RunDbUpMigrations(string connectionString)
     {
         try
         {
@@ -131,7 +66,7 @@ public class TestDatabaseFixture : IAsyncLifetime
             var migratorAssembly = Assembly.Load("StarterApp.DbMigrator");
 
             var upgrader = DeployChanges.To
-                .SqlDatabase(connectionString)
+                .PostgresqlDatabase(connectionString)
                 .WithScriptsEmbeddedInAssembly(migratorAssembly) // Use embedded scripts from the DbMigrator assembly
                 .LogToConsole()
                 .WithTransaction()
@@ -158,12 +93,12 @@ public class TestDatabaseFixture : IAsyncLifetime
     {
         try
         {
-            await _sqlContainer.DisposeAsync();
-            Console.WriteLine("SQL Server container disposed");
+            await _postgresContainer.DisposeAsync();
+            Console.WriteLine("PostgreSQL container disposed");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error disposing SQL container: {ex}");
+            Console.WriteLine($"Error disposing PostgreSQL container: {ex}");
         }
     }
 
@@ -171,13 +106,13 @@ public class TestDatabaseFixture : IAsyncLifetime
     {
         try
         {
-            using var connection = new SqlConnection(ConnectionString);
+            using var connection = new NpgsqlConnection(ConnectionString);
             await connection.OpenAsync();
             _respawner = await Respawner.CreateAsync(connection, new RespawnerOptions
             {
-                DbAdapter = DbAdapter.SqlServer,
-                SchemasToInclude = new[] { "dbo" },
-                TablesToIgnore = new Table[] { new Table("SchemaVersions") } // DbUp's version tracking table
+                DbAdapter = DbAdapter.Postgres,
+                SchemasToInclude = new[] { "public" },
+                TablesToIgnore = new Table[] { new Table("schemaversions") }
             });
         }
         catch (Exception ex)
@@ -192,11 +127,10 @@ public class TestDatabaseFixture : IAsyncLifetime
         try
         {
             Console.WriteLine("Resetting database for test");
-            using var connection = new SqlConnection(ConnectionString);
+            using var connection = new NpgsqlConnection(ConnectionString);
             await connection.OpenAsync();
 
-            // We don't need to manually handle SchemaVersions now
-            // DbUp manages it, and we configured Respawner to ignore it
+            // DbUp manages its schema journal, and Respawn leaves it alone between tests.
             await _respawner.ResetAsync(connection);
 
             Console.WriteLine("Database reset complete");

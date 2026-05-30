@@ -4,7 +4,7 @@ This project is now Aspire-first: `StarterApp.AppHost` is the supported local or
 
 ## What's Included
 
-- `StarterApp.AppHost` orchestrates the API, DbMigrator, Functions container, SQL Server, Redis, Azurite, Service Bus emulator, and Seq.
+- `StarterApp.AppHost` orchestrates the API, DbMigrator, Functions container, PostgreSQL, Redis, Azurite, Service Bus emulator, and Seq.
 - `StarterApp.ServiceDefaults` provides shared observability and service configuration.
 - The API uses health checks, OpenTelemetry, structured logging, Redis caching, Service Bus publishing, and payload capture.
 - The Functions worker runs through the Azure Functions Docker runtime so local subscriber behavior matches the deployed worker shape.
@@ -31,7 +31,7 @@ docker build -f src/StarterApp.Functions/Dockerfile .
 
 ## What the Dashboard Shows
 
-- **Services**: API, SQL Server, Redis, Blob storage emulator, Service Bus emulator, Functions container, DbMigrator, Seq
+- **Services**: API, PostgreSQL, Redis, Blob storage emulator, Service Bus emulator, Functions container, DbMigrator, Seq
 - **Traces**: HTTP requests, database queries, Service Bus publishes, and subscriber activity
 - **Metrics**: Request duration, error rates, throughput, and runtime metrics
 - **Logs**: Structured logs with correlation IDs

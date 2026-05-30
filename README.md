@@ -1,6 +1,6 @@
 # Starter App Project with .NET Aspire
 
-A comprehensive tutorial project demonstrating modern .NET development with .NET Aspire orchestration, SQL Server, Docker-backed local dependencies, and deployable container images.
+A comprehensive tutorial project demonstrating modern .NET development with .NET Aspire orchestration, PostgreSQL, Docker-backed local dependencies, and deployable container images.
 
 ## 🚀 Quick Start
 
@@ -34,7 +34,7 @@ dotnet run
    - Distributed caching with Redis for by-id queries (mediator pipeline behavior)
 
 2. **Database Management**
-   - SQL Server with Entity Framework Core
+   - PostgreSQL with Entity Framework Core and Npgsql
    - Database migrations with DbUp
    - Connection string management across environments
 
@@ -82,7 +82,7 @@ starterapp/
 Follow the numbered directories in the `docs/` folder:
 
 1. **[.NET Setup](docs/01-dotnet-setup/README.md)** - Create the Web API project
-2. **[SQL Server Setup](docs/02-sql-server-setup/README.md)** - Database configuration and migrations
+2. **[PostgreSQL Setup](docs/02-postgres-setup/README.md)** - Database configuration and migrations
 3. **[Container Images and Docker Dependencies](docs/03-docker-setup/README.md)** - Dockerfiles, Aspire-managed container dependencies, and image build validation
 4. **[Aspire Setup](docs/05-aspire-setup/README.md)** - .NET Aspire orchestration
 

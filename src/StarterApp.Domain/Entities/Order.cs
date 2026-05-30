@@ -18,7 +18,7 @@ public class Order : AggregateRoot
         private set { } // Required by EF Core property detection; data loaded via _items backing field (see ApplicationDbContext HasMany config with PropertyAccessMode.Field)
     }
     public DateTimeOffset LastUpdated { get; private set; }
-    public byte[] RowVersion { get; private set; } = [];
+    public uint RowVersion { get; private set; }
 
     protected Order()
     {
@@ -135,6 +135,21 @@ public class Order : AggregateRoot
             throw new InvalidOperationException("Cannot confirm an order with no items");
 
         UpdateStatus(OrderStatus.Confirmed);
+    }
+
+    public void StartProcessing()
+    {
+        UpdateStatus(OrderStatus.Processing);
+    }
+
+    public void Ship()
+    {
+        UpdateStatus(OrderStatus.Shipped);
+    }
+
+    public void Deliver()
+    {
+        UpdateStatus(OrderStatus.Delivered);
     }
 
     public void Cancel()

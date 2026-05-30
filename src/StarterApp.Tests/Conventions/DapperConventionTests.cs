@@ -21,12 +21,10 @@ public class DapperConventionTests : ConventionTestBase
     }
 
     [Fact]
-    public void QueryHandlers_MustUseSqlRetryPolicy()
+    public void QueryHandlers_MustUsePostgresRetryPolicy()
     {
-        // Dapper reads must go through SqlRetryPolicy.ExecuteAsync so transient Azure SQL
-        // faults (failover, throttling, network blips) are retried symmetrically with EF
-        // writes (which use EnableRetryOnFailure). A plain _connection.Query* call would
-        // surface a single transient fault as a 500 to the client.
+        // Dapper reads must go through PostgresRetryPolicy.ExecuteAsync so transient
+        // PostgreSQL faults are retried symmetrically with EF writes.
         var queryHandlers = ApiAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.Name.EndsWith("QueryHandler") &&
@@ -41,15 +39,15 @@ public class DapperConventionTests : ConventionTestBase
         foreach (var handler in queryHandlers)
         {
             var methods = GetAllMethodsIncludingStateMachines(handler);
-            var usesRetryPolicy = methods.Any(m => IlReferencesType(m, "SqlRetryPolicy"));
+            var usesRetryPolicy = methods.Any(m => IlReferencesType(m, "PostgresRetryPolicy"));
 
             if (!usesRetryPolicy)
                 failures.Add($"{handler.Name} uses IDbConnection but no method (or its async state machine) " +
-                             "references SqlRetryPolicy. Wrap Dapper calls in SqlRetryPolicy.ExecuteAsync.");
+                             "references PostgresRetryPolicy. Wrap Dapper calls in PostgresRetryPolicy.ExecuteAsync.");
         }
 
         Assert.True(failures.Count == 0,
-            "Query handlers must wrap Dapper calls in SqlRetryPolicy.ExecuteAsync:\n" +
+            "Query handlers must wrap Dapper calls in PostgresRetryPolicy.ExecuteAsync:\n" +
             string.Join("\n", failures));
     }
 
@@ -60,7 +58,7 @@ public class DapperConventionTests : ConventionTestBase
     }
 
     // Scan IL for call/callvirt opcodes whose target method's DeclaringType matches the given name.
-    // Catches both direct calls (SqlRetryPolicy.ExecuteAsync) and references inside compiler-
+    // Catches both direct calls (PostgresRetryPolicy.ExecuteAsync) and references inside compiler-
     // generated async state machines (where the real work lives after `async` lowering).
     private static bool IlReferencesType(MethodInfo method, string typeName)
     {

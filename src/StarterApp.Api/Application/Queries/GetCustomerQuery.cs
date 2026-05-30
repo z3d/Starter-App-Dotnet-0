@@ -30,17 +30,17 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
 
         var sqlQuery = @"
             SELECT
-                Id,
-                Name,
-                Email,
-                DateCreated,
-                IsActive
-            FROM Customers
-            WHERE Id = @Id
-              AND OwnerSubject = @OwnerSubject
-              AND TenantId = @TenantId";
+                id AS ""Id"",
+                name AS ""Name"",
+                email AS ""Email"",
+                date_created AS ""DateCreated"",
+                is_active AS ""IsActive""
+            FROM customers
+            WHERE id = @Id
+              AND owner_subject = @OwnerSubject
+              AND tenant_id = @TenantId";
 
-        return await SqlRetryPolicy.ExecuteAsync(
+        return await PostgresRetryPolicy.ExecuteAsync(
             ct => _connection.QueryFirstOrDefaultAsync<CustomerReadModel>(
                 new CommandDefinition(sqlQuery,
                     new { query.Id, ownerScope.OwnerSubject, ownerScope.TenantId },

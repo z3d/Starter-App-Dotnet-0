@@ -108,7 +108,7 @@ public sealed class PayloadCaptureMiddleware
         {
             ["method"] = context.Request.Method,
             ["path"] = context.Request.Path.Value ?? string.Empty,
-            ["statusCode"] = context.Response.StatusCode.ToString()
+            ["statusCode"] = context.Response.StatusCode.ToString(CultureInfo.InvariantCulture)
         };
 
         if (!ShouldCaptureContentType(context.Response.ContentType))

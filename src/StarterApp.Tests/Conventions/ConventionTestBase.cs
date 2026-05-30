@@ -15,9 +15,9 @@ public abstract class ConventionTestBase
 
     protected static bool IsCompilerGenerated(Type type)
     {
-        return type.GetCustomAttributes(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false).Any() ||
-               type.Name.Contains("<") ||
-               type.Name.Contains(">") ||
+        return type.GetCustomAttributes(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false).Length != 0 ||
+               type.Name.Contains('<') ||
+               type.Name.Contains('>') ||
                type.Name.StartsWith("<>") ||
                type.Name.Contains("d__") ||
                type.Name.Contains("c__DisplayClass") ||

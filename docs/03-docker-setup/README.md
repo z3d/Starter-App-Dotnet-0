@@ -6,7 +6,7 @@ This template is Aspire-first. Docker is still required for Aspire-managed depen
 
 ## What Docker Is Used For
 
-- SQL Server, Redis, Azurite, Service Bus emulator, and Seq containers started by `StarterApp.AppHost`
+- PostgreSQL, Redis, Azurite, Service Bus emulator, and Seq containers started by `StarterApp.AppHost`
 - The Azure Functions runtime container built from [src/StarterApp.Functions/Dockerfile](../../src/StarterApp.Functions/Dockerfile)
 - Testcontainers-based integration tests
 - Direct image builds for API, DbMigrator, and Functions in CI

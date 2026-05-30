@@ -182,7 +182,7 @@ public class DomainConventionTests : ConventionTestBase
         // Aggregates whose RecordCreation() captures their Id into a creation event must use
         // client-generated Guid IDs. This is what keeps outbox capture inside a single
         // SaveChanges call — events are built BEFORE SaveChanges, so retry (EnableRetryOnFailure)
-        // is safe. Int IDENTITY PKs would require a round-trip BEFORE RecordCreation, which
+        // is safe. Database-generated integer PKs would require a round-trip BEFORE RecordCreation, which
         // breaks the single-SaveChanges model and prohibits retry.
         var aggregateTypes = DomainAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(AggregateRoot)))

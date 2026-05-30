@@ -112,7 +112,7 @@ The Service Bus emulator is the most fragile part of the Aspire stack. These lea
 
 ### NEVER use `WithConfigurationFile()` for emulator topology
 
-`WithConfigurationFile()` can cause container mount and networking issues — the emulator container may fail to join the Aspire network, leaving it unable to reach its backing SQL Server. **Always use the fluent API instead:**
+`WithConfigurationFile()` can cause container mount and networking issues — the emulator container may fail to join the Aspire network, leaving it unable to reach its backing database container. **Always use the fluent API instead:**
 
 ```csharp
 var serviceBus = builder.AddAzureServiceBus("servicebus");
@@ -144,7 +144,7 @@ Aspire's `WithConfiguration(doc => { ... })` serializer maps `CorrelationFilter`
 
 ### Memory pressure with the emulator
 
-The Service Bus emulator runs its own backing SQL Server container (`servicebus-mssql`). On machines with limited Docker memory (e.g. 8 GB default WSL2 on a 16 GB machine), two SQL Server instances plus the emulator can OOM (exit code 139). Symptoms:
+The Service Bus emulator runs its own backing database container (`servicebus-mssql`). On machines with limited Docker memory (e.g. 8 GB default WSL2 on a 16 GB machine), the emulator stack can OOM (exit code 139). Symptoms:
 - Emulator starts, creates topics/subscriptions, then dies with `Out of memory`
 - Container shows `Exited (139)` — SIGKILL from OOM killer
 

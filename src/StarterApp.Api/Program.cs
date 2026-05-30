@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Scalar.AspNetCore;
 using Serilog.Enrichers.Sensitive;
 using StarterApp.Api.Endpoints;
@@ -29,6 +30,8 @@ else
     builder.Services.AddDistributedMemoryCache();
 
 builder.Services.AddApiProblemDetails();
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddApiOpenApi();
 builder.Services.AddPersistence(connectionString);

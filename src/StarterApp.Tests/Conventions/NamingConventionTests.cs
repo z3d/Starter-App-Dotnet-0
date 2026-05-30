@@ -109,8 +109,8 @@ public class NamingConventionTests : ConventionTestBase
         var testTypes = Assembly.GetExecutingAssembly().GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.GetMethods().Any(m =>
-                       m.GetCustomAttributes(typeof(FactAttribute), false).Any() ||
-                       (propertyAttributeType != null && m.GetCustomAttributes(propertyAttributeType, false).Any())));
+                       m.GetCustomAttributes(typeof(FactAttribute), false).Length != 0 ||
+                       (propertyAttributeType != null && m.GetCustomAttributes(propertyAttributeType, false).Length != 0)));
 
         testTypes
             .MustConformTo(Convention.NameMustEndWith("Tests").Or(Convention.NameMustEndWith("Test")))

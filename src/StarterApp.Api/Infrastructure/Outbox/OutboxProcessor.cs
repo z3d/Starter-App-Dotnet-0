@@ -195,19 +195,21 @@ public class OutboxProcessor : BackgroundService
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        // On SQL Server: UPDLOCK prevents concurrent processors from reading the same rows,
-        // READPAST skips rows already locked by another processor, ROWLOCK minimizes lock scope.
+        // PostgreSQL's FOR UPDATE SKIP LOCKED lets concurrent processors claim different rows
+        // without waiting on locks held by another worker.
         if (dbContext.Database.IsRelational())
         {
             return await dbContext.OutboxMessages
                 .FromSqlRaw(
                     """
-                    SELECT TOP ({0}) *
-                    FROM OutboxMessages WITH (UPDLOCK, READPAST, ROWLOCK)
-                    WHERE ProcessedOnUtc IS NULL
-                      AND Error IS NULL
-                      AND (LockedUntilUtc IS NULL OR LockedUntilUtc <= {1})
-                    ORDER BY OccurredOnUtc
+                    SELECT *
+                    FROM outbox_messages
+                    WHERE processed_on_utc IS NULL
+                      AND error IS NULL
+                      AND (locked_until_utc IS NULL OR locked_until_utc <= {1})
+                    ORDER BY occurred_on_utc
+                    LIMIT {0}
+                    FOR UPDATE SKIP LOCKED
                     """,
                     _options.BatchSize,
                     now)

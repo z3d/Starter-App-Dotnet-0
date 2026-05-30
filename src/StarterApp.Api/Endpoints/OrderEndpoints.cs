@@ -96,7 +96,13 @@ public class OrderEndpoints : IEndpointDefinition
 
     private static async Task<IResult> GetOrdersByStatus(string status, IMediator mediator, int page = 1, int pageSize = 50)
     {
-        var query = new GetOrdersByStatusQuery { Status = status, Page = page, PageSize = pageSize };
+        if (!Enum.TryParse<OrderStatus>(status, ignoreCase: true, out var orderStatus))
+        {
+            var validStatuses = string.Join(", ", Enum.GetNames<OrderStatus>());
+            return Results.BadRequest($"Invalid status '{status}'. Valid values: {validStatuses}");
+        }
+
+        var query = new GetOrdersByStatusQuery { Status = orderStatus, Page = page, PageSize = pageSize };
         var items = (await mediator.SendAsync(query)).ToList();
         var hasMore = items.Count > pageSize;
         if (hasMore)

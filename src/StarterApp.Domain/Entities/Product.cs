@@ -14,7 +14,7 @@ public class Product
     public string TenantId { get; private set; } = string.Empty;
     public int Stock { get; private set; }
     public DateTimeOffset LastUpdated { get; private set; }
-    public byte[] RowVersion { get; private set; } = [];
+    public uint RowVersion { get; private set; }
 
     // Protected constructor for EF Core
     protected Product()

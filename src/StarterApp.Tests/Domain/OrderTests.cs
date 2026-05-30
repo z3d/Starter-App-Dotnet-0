@@ -97,7 +97,7 @@ public class OrderTests
 
         // Assert
         Assert.Single(order.Items);
-        Assert.Equal(3, order.Items.First().Quantity);
+        Assert.Equal(3, order.Items[0].Quantity);
         Assert.DoesNotContain(firstItem, order.Items);
         Assert.Contains(secondItem, order.Items);
     }
@@ -343,6 +343,6 @@ public class OrderTests
         Assert.Equal(OrderStatus.Confirmed, order.Status);
         Assert.Equal(lastUpdated, order.LastUpdated);
         Assert.Single(order.Items);
-        Assert.Equal("Product 1", order.Items.First().ProductName);
+        Assert.Equal("Product 1", order.Items[0].ProductName);
     }
 }

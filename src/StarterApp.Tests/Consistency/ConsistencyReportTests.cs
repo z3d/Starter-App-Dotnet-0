@@ -134,10 +134,10 @@ public class ConsistencyReportTests
         var structuralOutliers = report.StructuralScores.Where(s => s.Distance > avgDist + 2 * stdDev).ToList();
 
         var avgShingle = report.ShingleScores.Average(s => s.AverageSimilarity);
-        var minShingle = report.ShingleScores.First();
+        var minShingle = report.ShingleScores[0];
 
         var avgEmbedding = report.EmbeddingScores.Average(s => s.CosineSimilarity);
-        var minEmbedding = report.EmbeddingScores.First();
+        var minEmbedding = report.EmbeddingScores[0];
 
         _output.WriteLine($"\n=== {report.CohortName} SUMMARY ===");
         _output.WriteLine($"Total members: {report.Fingerprints.Count}");

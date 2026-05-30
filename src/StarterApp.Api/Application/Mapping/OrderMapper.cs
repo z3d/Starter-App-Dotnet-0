@@ -26,7 +26,7 @@ public static class OrderMapper
             TotalIncludingGst = order.GetTotalIncludingGst().Amount,
             TotalGstAmount = order.GetTotalGstAmount().Amount,
             // All items share one currency — enforced by Money.Add/Subtract which reject mixed currencies
-            Currency = order.Items.FirstOrDefault()?.UnitPriceExcludingGst.Currency ?? "USD",
+            Currency = order.Items.Count > 0 ? order.Items[0].UnitPriceExcludingGst.Currency : "USD",
             LastUpdated = order.LastUpdated
         };
     }

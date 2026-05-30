@@ -1,12 +1,12 @@
-# Step 2: SQL Server and DbUp Migrations
+# Step 2: PostgreSQL and DbUp Migrations
 
 ## Overview
 
-This project uses SQL Server for persistence and DbUp for deterministic schema migrations. Migrations run through the dedicated `StarterApp.DbMigrator` console app; the API never runs migrations during startup.
+This project uses PostgreSQL for persistence and DbUp for deterministic schema migrations. Migrations run through the dedicated `StarterApp.DbMigrator` console app; the API never runs migrations during startup.
 
 ## Current Setup
 
-- Aspire starts a SQL Server container and injects the `database` connection string.
+- Aspire starts a PostgreSQL container and injects the `database` connection string.
 - `StarterApp.AppHost` runs `StarterApp.DbMigrator` and makes the API wait for it to complete.
 - Integration tests run migrations independently through the test fixture.
 - Real deployments must run the migrator to completion before starting API replicas.
@@ -18,13 +18,11 @@ src/StarterApp.DbMigrator/
 ├── DatabaseMigrationEngine.cs
 ├── Program.cs
 ├── Scripts/
-│   ├── 0001_CreateProductsTable.sql
-│   ├── ...
-│   └── 0019_AddOutboxProcessingClaims.sql
+│   └── 0001_CreatePostgresSchema.sql
 └── StarterApp.DbMigrator.csproj
 ```
 
-Migration scripts are embedded resources and execute once, in filename order. Constraint names are explicit from script `0012` onward so future migrations can reference stable names.
+Migration scripts are embedded resources and execute once, in filename order. Constraint names are explicit from the first PostgreSQL baseline so future migrations can reference stable names.
 
 ## Running Migrations
 
@@ -34,12 +32,12 @@ Migration scripts are embedded resources and execute once, in filename order. Co
 dotnet run --project src/StarterApp.AppHost
 ```
 
-AppHost starts SQL Server, runs the migrator, then starts the API after migration completion.
+AppHost starts PostgreSQL, runs the migrator, then starts the API after migration completion.
 
 ### Standalone
 
 ```bash
-dotnet run --project src/StarterApp.DbMigrator -- --connection-string "<sql-server-connection-string>"
+dotnet run --project src/StarterApp.DbMigrator -- --connection-string "<postgres-connection-string>"
 ```
 
 Use standalone migration runs for one-off local checks or deployment pipelines that execute migrations outside Aspire.
@@ -53,9 +51,9 @@ Use standalone migration runs for one-off local checks or deployment pipelines t
 
 ## Troubleshooting
 
-- **API cannot connect**: confirm the Aspire dashboard shows SQL Server healthy and the migrator completed successfully.
+- **API cannot connect**: confirm the Aspire dashboard shows PostgreSQL healthy and the migrator completed successfully.
 - **Migration failed**: inspect migrator logs and the DbUp journal table before editing the script.
-- **Local SQL port changed**: use the Aspire dashboard resource details instead of assuming a fixed SQL host port.
+- **Local PostgreSQL port changed**: use the Aspire dashboard resource details instead of assuming a fixed database host port.
 
 ## Next Step
 

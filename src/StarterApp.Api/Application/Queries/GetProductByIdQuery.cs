@@ -30,19 +30,19 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
 
         var sqlQuery = @"
             SELECT
-                Id,
-                Name,
-                Description,
-                PriceAmount,
-                PriceCurrency,
-                Stock,
-                LastUpdated
-            FROM Products
-            WHERE Id = @Id
-              AND OwnerSubject = @OwnerSubject
-              AND TenantId = @TenantId";
+                id AS ""Id"",
+                name AS ""Name"",
+                description AS ""Description"",
+                price_amount AS ""PriceAmount"",
+                price_currency AS ""PriceCurrency"",
+                stock AS ""Stock"",
+                last_updated AS ""LastUpdated""
+            FROM products
+            WHERE id = @Id
+              AND owner_subject = @OwnerSubject
+              AND tenant_id = @TenantId";
 
-        return await SqlRetryPolicy.ExecuteAsync(
+        return await PostgresRetryPolicy.ExecuteAsync(
             ct => _connection.QueryFirstOrDefaultAsync<ProductReadModel>(
                 new CommandDefinition(sqlQuery,
                     new { query.Id, ownerScope.OwnerSubject, ownerScope.TenantId },

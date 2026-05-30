@@ -1,29 +1,32 @@
+using Npgsql;
+
 namespace StarterApp.Api.Infrastructure;
 
 public static class DbUpdateExceptionExtensions
 {
     public static bool IsUniqueConstraintViolation(this DbUpdateException exception, string? constraintName = null)
     {
-        var sqlException = FindSqlException(exception);
-        if (sqlException == null || (sqlException.Number != 2601 && sqlException.Number != 2627))
+        var postgresException = FindPostgresException(exception);
+        if (postgresException?.SqlState != PostgresErrorCodes.UniqueViolation)
             return false;
 
         return string.IsNullOrWhiteSpace(constraintName)
-            || sqlException.Message.Contains(constraintName, StringComparison.OrdinalIgnoreCase);
+            || string.Equals(postgresException.ConstraintName, constraintName, StringComparison.OrdinalIgnoreCase)
+            || postgresException.MessageText.Contains(constraintName, StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool IsStringTruncationViolation(this DbUpdateException exception)
     {
-        var sqlException = FindSqlException(exception);
-        return sqlException is { Number: 2628 or 8152 };
+        var postgresException = FindPostgresException(exception);
+        return postgresException?.SqlState == PostgresErrorCodes.StringDataRightTruncation;
     }
 
-    private static Microsoft.Data.SqlClient.SqlException? FindSqlException(Exception exception)
+    private static PostgresException? FindPostgresException(Exception exception)
     {
         for (Exception? current = exception; current != null; current = current.InnerException)
         {
-            if (current is Microsoft.Data.SqlClient.SqlException sqlException)
-                return sqlException;
+            if (current is PostgresException postgresException)
+                return postgresException;
         }
 
         return null;

@@ -34,21 +34,21 @@ public class CommandHandlerCohort : ICohortDefinition<HandlerFingerprint>
             .ToList();
     }
 
-    public HandlerFingerprint Extract(Type handlerType)
+    public HandlerFingerprint Extract(Type type)
     {
-        var ctor = handlerType.GetConstructors().FirstOrDefault();
+        var ctor = type.GetConstructors().FirstOrDefault();
         var ctorParams = ctor?.GetParameters() ?? [];
 
-        var allMethods = IlInspector.GetAllMethodsIncludingStateMachines(handlerType);
-        var declaredMethods = handlerType.GetMethods(
+        var allMethods = IlInspector.GetAllMethodsIncludingStateMachines(type);
+        var declaredMethods = type.GetMethods(
             BindingFlags.Public | BindingFlags.NonPublic |
             BindingFlags.Instance | BindingFlags.Static |
             BindingFlags.DeclaredOnly);
 
         return new HandlerFingerprint
         {
-            TypeName = handlerType.Name,
-            IlByteSize = IlInspector.SumIlByteSize(handlerType),
+            TypeName = type.Name,
+            IlByteSize = IlInspector.SumIlByteSize(type),
             ConstructorDependencyCount = ctorParams.Length,
             HasLogger = HasSerilogCalls(allMethods),
             HasCacheInvalidator = ctorParams.Any(p =>

@@ -39,7 +39,7 @@ public record Money(decimal Amount, string Currency = "USD");
 ### 2. Web API (`StarterApp.Api`)
 Features implemented:
 - RESTful API with full CRUD operations
-- Entity Framework Core with SQL Server
+- Entity Framework Core with PostgreSQL
 - Health checks for monitoring
 - Scalar API reference documentation (OpenAPI)
 - CQRS pattern with EF Core for commands, Dapper for queries
@@ -70,7 +70,7 @@ dotnet run --project src/StarterApp.AppHost
 ```
 
 This will start:
-- SQL Server container
+- PostgreSQL container
 - Redis, Blob storage, Service Bus emulator, Seq, and the Functions subscriber container
 - API with automatic service discovery and migrated database dependency
 - Aspire dashboard with observability
@@ -123,4 +123,4 @@ The test suite includes:
 
 The foundation is complete! Continue to:
 
-**Next Step:** [Step 2: SQL Server Setup](../02-sql-server-setup/README.md) to understand the database configuration and migration strategy.
+**Next Step:** [Step 2: PostgreSQL Setup](../02-postgres-setup/README.md) to understand the database configuration and migration strategy.

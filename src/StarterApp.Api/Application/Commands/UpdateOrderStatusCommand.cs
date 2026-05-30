@@ -3,7 +3,7 @@ namespace StarterApp.Api.Application.Commands;
 public class UpdateOrderStatusCommand : ICommand, IRequest<OrderDto>
 {
     public Guid OrderId { get; set; }
-    public string Status { get; set; } = string.Empty;
+    public OrderStatus? Status { get; set; }
 }
 
 public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatusCommand, OrderDto>
@@ -21,8 +21,6 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
     {
         Log.Information("Handling UpdateOrderStatusCommand to return OrderDto for order {OrderId}", command.OrderId);
 
-        var status = Enum.Parse<OrderStatus>(command.Status, ignoreCase: true);
-
         var order = await _dbContext.Orders.Include(o => o.Items)
             .FirstOrDefaultAsync(o => o.Id == command.OrderId, cancellationToken);
         if (order == null)
@@ -33,13 +31,36 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
 
         _ownerOnlyPolicy.Authorize(order.OwnerSubject, order.TenantId);
 
+        var status = command.Status!.Value;
         if (status == OrderStatus.Cancelled)
             await OrderCancellationService.CancelAndRestoreStockAsync(_dbContext, order, cancellationToken);
         else
-            order.UpdateStatus(status);
+            ApplyLifecycleTransition(order, status);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return OrderMapper.ToDto(order);
+    }
+
+    private static void ApplyLifecycleTransition(Order order, OrderStatus status)
+    {
+        switch (status)
+        {
+            case OrderStatus.Confirmed:
+                order.Confirm();
+                break;
+            case OrderStatus.Processing:
+                order.StartProcessing();
+                break;
+            case OrderStatus.Shipped:
+                order.Ship();
+                break;
+            case OrderStatus.Delivered:
+                order.Deliver();
+                break;
+            default:
+                order.UpdateStatus(status);
+                break;
+        }
     }
 }

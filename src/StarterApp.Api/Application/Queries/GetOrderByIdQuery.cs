@@ -22,35 +22,43 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
         var ownerScope = _ownerOnlyPolicy.GetRequiredScope();
 
         const string orderSql = @"
-            SELECT o.Id, o.CustomerId, o.OrderDate, o.Status,
-                   ISNULL(t.TotalExcludingGst, 0) AS TotalExcludingGst,
-                   ISNULL(t.TotalIncludingGst, 0) AS TotalIncludingGst,
-                   ISNULL(t.TotalGstAmount, 0) AS TotalGstAmount,
-                   ISNULL(t.Currency, 'USD') AS Currency,
-                   o.LastUpdated
-            FROM Orders o
-            OUTER APPLY (
-                SELECT SUM(UnitPriceExcludingGst * Quantity) AS TotalExcludingGst,
-                       SUM(UnitPriceExcludingGst * Quantity * (1 + GstRate)) AS TotalIncludingGst,
-                       SUM(UnitPriceExcludingGst * Quantity * GstRate) AS TotalGstAmount,
-                       MIN(Currency) AS Currency
-                FROM OrderItems
-                WHERE OrderId = o.Id
-            ) t
-            WHERE o.Id = @Id
-              AND o.OwnerSubject = @OwnerSubject
-              AND o.TenantId = @TenantId";
+            SELECT o.id AS ""Id"",
+                   o.customer_id AS ""CustomerId"",
+                   o.order_date AS ""OrderDate"",
+                   o.status AS ""Status"",
+                   COALESCE(t.total_excluding_gst, 0) AS ""TotalExcludingGst"",
+                   COALESCE(t.total_including_gst, 0) AS ""TotalIncludingGst"",
+                   COALESCE(t.total_gst_amount, 0) AS ""TotalGstAmount"",
+                   COALESCE(t.currency, 'USD') AS ""Currency"",
+                   o.last_updated AS ""LastUpdated""
+            FROM orders o
+            LEFT JOIN LATERAL (
+                SELECT SUM(unit_price_excluding_gst * quantity) AS total_excluding_gst,
+                       SUM(unit_price_excluding_gst * quantity * (1 + gst_rate)) AS total_including_gst,
+                       SUM(unit_price_excluding_gst * quantity * gst_rate) AS total_gst_amount,
+                       MIN(currency) AS currency
+                FROM order_items
+                WHERE order_id = o.id
+            ) t ON TRUE
+            WHERE o.id = @Id
+              AND o.owner_subject = @OwnerSubject
+              AND o.tenant_id = @TenantId";
 
         const string itemsSql = @"
-            SELECT OrderId, ProductId, ProductName, Quantity, UnitPriceExcludingGst,
-                   UnitPriceExcludingGst * (1 + GstRate) AS UnitPriceIncludingGst,
-                   UnitPriceExcludingGst * Quantity AS TotalPriceExcludingGst,
-                   UnitPriceExcludingGst * Quantity * (1 + GstRate) AS TotalPriceIncludingGst,
-                   GstRate, Currency
-            FROM OrderItems
-            WHERE OrderId = @Id";
+            SELECT order_id AS ""OrderId"",
+                   product_id AS ""ProductId"",
+                   product_name AS ""ProductName"",
+                   quantity AS ""Quantity"",
+                   unit_price_excluding_gst AS ""UnitPriceExcludingGst"",
+                   unit_price_excluding_gst * (1 + gst_rate) AS ""UnitPriceIncludingGst"",
+                   unit_price_excluding_gst * quantity AS ""TotalPriceExcludingGst"",
+                   unit_price_excluding_gst * quantity * (1 + gst_rate) AS ""TotalPriceIncludingGst"",
+                   gst_rate AS ""GstRate"",
+                   currency AS ""Currency""
+            FROM order_items
+            WHERE order_id = @Id";
 
-        var order = await SqlRetryPolicy.ExecuteAsync(
+        var order = await PostgresRetryPolicy.ExecuteAsync(
             ct => _connection.QuerySingleOrDefaultAsync<OrderWithItemsReadModel>(
                 new CommandDefinition(orderSql,
                     new { query.Id, ownerScope.OwnerSubject, ownerScope.TenantId },
@@ -60,7 +68,7 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
         if (order == null)
             return null;
 
-        var items = await SqlRetryPolicy.ExecuteAsync(
+        var items = await PostgresRetryPolicy.ExecuteAsync(
             ct => _connection.QueryAsync<OrderItemReadModel>(
                 new CommandDefinition(itemsSql, new { Id = query.Id }, cancellationToken: ct)),
             cancellationToken);
