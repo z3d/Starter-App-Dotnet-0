@@ -8,6 +8,8 @@ A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern
 
 > **Fresh review 2026-06-01 (independent re-read by a new model).** Verified the prior claims against the code rather than trusting them. Closed both previously-open findings (#69, #70) and hardened three areas (owner-policy *invocation* now enforced, optimistic-concurrency behaviour now tested, outbox ids aligned to Guid v7). The review also corrected two over-stated "critical" candidates that do not hold (a claimed product-stock race is covered by the `xmin` token; a claimed cross-owner stock-restore bypass is unreachable because order creation owner-scopes its product lookup). Three new **low-severity** test-coverage gaps were found and recorded below (#71–#73). Independent fresh-eyes score on a stricter scale: ~9.0 — the gap from 9.6 is almost entirely test-coverage breadth and a few convention tests that assert *presence* rather than *behaviour*, not runtime defects.
 
+> **Rerun 2026-06-01 (after pulling `origin/main` to `fc93601`).** Reviewed the seven June 1 commits and reran local verification. No new architecture findings were found; score remains 9.6/10 with low-severity findings #71–#73 open.
+
 ---
 
 ## Strengths
@@ -163,11 +165,11 @@ Fresh review reconciliation: finding #43 is resolved by the trusted gateway iden
 
 These are quality/coverage gaps, not runtime defects. The owner-policy *invocation* gap from the same review was closed (IL-scan convention test); the remaining items above are recorded so future work can extend coverage. None block correctness today — the owner-scoped behaviour they would protect is currently correct and partially covered by `OwnerOnlyPolicyIntegrationTests` and the new `OptimisticConcurrencyIntegrationTests`.
 
-#### Process / environment notes (2026-06-01, not architecture findings)
+#### Verification rerun (2026-06-01, not an architecture finding)
 
-- The `PreToolUse` commit gate runs the full `dotnet test` (including the ~7–9 min Aspire `AppHost.Tests`) under a 300 s timeout, so it cannot pass on this machine for any commit — it both exceeds the timeout and hits the next item. Consider scoping the gate's `dotnet test` to exclude `[Trait("Category","Aspire")]`/`AppHost.Tests` (run those in CI instead) or raising the timeout.
-- `AppHost.Tests.OutboxToServiceBusIntegrationTests.CreateOrder_ShouldWriteAndProcessOutboxEvent` fails locally: the order publishes to Service Bus but neither Functions subscriber's inbound capture lands (the Functions Docker runtime is not consuming from the SB emulator in this environment). Confirmed pre-existing on unmodified `main`.
-- A stale Azure DevOps PAT in the user-level `NuGet.Config` for the private `MMSG.Integration.APITestsHelper` feed returns 401, which breaks any fresh `dotnet restore`/`dotnet format`. Refresh the PAT.
+- `dotnet restore --locked-mode`, `dotnet format --verify-no-changes --verbosity minimal --no-restore`, `dotnet build --no-restore`, and `dotnet test --no-build` all passed locally after pulling `fc93601`.
+- `StarterApp.Tests`: 525 passed in 1m31s. `StarterApp.AppHost.Tests`: 11 passed in 3m55s.
+- The earlier local notes about a stale NuGet PAT, a failing AppHost subscriber test, and the `PreToolUse` commit gate being unable to finish inside 300 s did not reproduce during this rerun. The hook still runs close enough to its timeout that slower machines may want a larger timeout or a narrower local test scope.
 
 #### Recently resolved (fresh review, 2026-06-01)
 
