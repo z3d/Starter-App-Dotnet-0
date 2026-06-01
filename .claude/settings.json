@@ -1,8 +1,18 @@
 {
   "hooks": {
-    "PreCommit": [
+    "PreToolUse": [
       {
-        "command": "cd /Users/z3d/dev/Starter-App-Dotnet-0 && dotnet format --verify-no-changes && dotnet build --no-restore && dotnet test --no-build"
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "if": "Bash(git commit*)",
+            "timeout": 300,
+            "statusMessage": "Pre-commit: format, build, test",
+            "command": "if grep -q 'git commit'; then dotnet format --verify-no-changes --verbosity minimal --no-restore && dotnet build --no-restore && dotnet test --no-build || exit 2; fi"
+          }
+        ]
       }
     ]
   }
