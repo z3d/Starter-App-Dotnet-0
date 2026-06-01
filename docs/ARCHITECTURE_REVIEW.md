@@ -4,7 +4,9 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and PostgreSQL.
 
-**Score: 9.6/10** (69 findings resolved, 2 open)
+**Score: 9.6/10** (71 findings resolved, 3 new low-severity findings open)
+
+> **Fresh review 2026-06-01 (independent re-read by a new model).** Verified the prior claims against the code rather than trusting them. Closed both previously-open findings (#69, #70) and hardened three areas (owner-policy *invocation* now enforced, optimistic-concurrency behaviour now tested, outbox ids aligned to Guid v7). The review also corrected two over-stated "critical" candidates that do not hold (a claimed product-stock race is covered by the `xmin` token; a claimed cross-owner stock-restore bypass is unreachable because order creation owner-scopes its product lookup). Three new **low-severity** test-coverage gaps were found and recorded below (#71–#73). Independent fresh-eyes score on a stricter scale: ~9.0 — the gap from 9.6 is almost entirely test-coverage breadth and a few convention tests that assert *presence* rather than *behaviour*, not runtime defects.
 
 ---
 
@@ -147,30 +149,36 @@ Good adoption of modern .NET:
 
 ### Open Findings
 
-Fresh architecture review on 2026-05-30 found four open issues. Follow-up fixes resolved #67 and #68 with focused regression coverage; #69 and #70 remain open.
+The 2026-05-30 review's open items (#69, #70) are now resolved (see the 2026-06-01 table below). The 2026-06-01 fresh review found three new **low-severity** findings, all about test-coverage breadth rather than runtime defects.
 
 Fresh review reconciliation: finding #43 is resolved by the trusted gateway identity boundary and identity-based rate limiting. Findings #57-#59 are resolved by route-level scope enforcement, mapped-endpoint convention coverage, and owner-only resource authorization. Findings #44 and #45 are resolved by the outbox processing-claim redesign and AppHost subscriber-consumption assertion. Finding #64 is resolved by refreshing stale setup/API documentation to match gateway identity, `/api/v1` routing, Functions Docker hosting, CI jobs, and the current sample subscriber behavior. Finding #65 is resolved by removing the duplicate local orchestration path and making Aspire the single local stack while keeping direct image validation. Finding #56 is resolved by keeping status input typed as `OrderStatus` and routing lifecycle changes through intent-specific aggregate methods. Finding #66 is resolved by completing the PostgreSQL persistence port and removing the previous provider/runtime compatibility path. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
 
 | # | Finding | Impact | Suggested Fix |
 |---|---------|--------|---------------|
-| 69 | Inventory reservation subscriber wording conflicts with synchronous stock reservation | A future implementation of the TODO could reserve stock twice or blur which component owns inventory mutation | Rename/clarify the subscriber as notification/projection-only, or move stock reservation ownership fully behind the event path |
-| 70 | Default `.http` scratch request targets removed weatherforecast endpoint | New developers get a dead first request that does not reflect gateway identity or current routes | Replace it with `/health/live` or a protected `/api/v1` request containing the required gateway headers |
+| 71 | Several command/query endpoints lack dedicated integration tests (Customer update/delete, Product update/delete are exercised only as helpers) | Mutation paths not covered end-to-end against real PostgreSQL; constraint/owner behaviour for those routes is asserted only indirectly | Add focused integration tests per mutation endpoint, mirroring `OrderApiTests` |
+| 72 | Many application-layer unit tests use EF Core InMemory, which does not enforce unique/FK/check constraints or row-version concurrency | A handler change that relies on a DB constraint can pass unit tests yet fail in production | Move data-access-sensitive handler tests onto the Testcontainers PostgreSQL fixture |
+| 73 | Some convention tests assert presence rather than behaviour (e.g. `ResourceQueries_MustBeOwnerScoped` only checks the interface; gateway-header isolation is a source-text scan) | A handler can satisfy the convention while omitting the owner `WHERE` clause; header isolation is bypassable via variables/constants | Extend the IL/SQL-scan approach (as done for owner-policy invocation in #69-followup) to assert the owner filter and header access at the IL level |
 
-#### 69. Inventory reservation subscriber wording conflicts with synchronous stock reservation
+#### 71-73. Test-coverage breadth (Severity: Low)
 
-**Severity: Medium** | Files: `src/StarterApp.Functions/InventoryReservationFunction.cs:21`, `src/StarterApp.Functions/InventoryReservationFunction.cs:53`, `src/StarterApp.Api/Application/Commands/CreateOrderCommand.cs:131`
+These are quality/coverage gaps, not runtime defects. The owner-policy *invocation* gap from the same review was closed (IL-scan convention test); the remaining items above are recorded so future work can extend coverage. None block correctness today — the owner-scoped behaviour they would protect is currently correct and partially covered by `OwnerOnlyPolicyIntegrationTests` and the new `OptimisticConcurrencyIntegrationTests`.
 
-`CreateOrderCommandHandler` already owns catalog stock reservation through an atomic `UPDATE ... WHERE stock >= quantity`, but the Service Bus subscription is named `inventory-reservation` and the function TODO says to "reserve inventory." The current function only captures/logs the message, so runtime behavior is safe today, but the template points future agents toward a duplicate reservation path.
+#### Process / environment notes (2026-06-01, not architecture findings)
 
-**Fix**: Rename the function/subscription to a notification/projection name, or clarify the TODO that the handler must not mutate catalog stock. If inventory reservation should be event-owned instead, move the synchronous reservation out of `CreateOrderCommandHandler` and redesign order creation around eventual consistency.
+- The `PreToolUse` commit gate runs the full `dotnet test` (including the ~7–9 min Aspire `AppHost.Tests`) under a 300 s timeout, so it cannot pass on this machine for any commit — it both exceeds the timeout and hits the next item. Consider scoping the gate's `dotnet test` to exclude `[Trait("Category","Aspire")]`/`AppHost.Tests` (run those in CI instead) or raising the timeout.
+- `AppHost.Tests.OutboxToServiceBusIntegrationTests.CreateOrder_ShouldWriteAndProcessOutboxEvent` fails locally: the order publishes to Service Bus but neither Functions subscriber's inbound capture lands (the Functions Docker runtime is not consuming from the SB emulator in this environment). Confirmed pre-existing on unmodified `main`.
+- A stale Azure DevOps PAT in the user-level `NuGet.Config` for the private `MMSG.Integration.APITestsHelper` feed returns 401, which breaks any fresh `dotnet restore`/`dotnet format`. Refresh the PAT.
 
-#### 70. Default `.http` scratch request targets removed weatherforecast endpoint
+#### Recently resolved (fresh review, 2026-06-01)
 
-**Severity: Low** | Files: `src/StarterApp.Api/StarterApp.Api.http:3`
-
-The checked-in HTTP scratch file still calls `/weatherforecast/`, which is not part of the current Minimal API surface. For a starter template, the first sample request should reinforce the current `/api/v1` and gateway identity contract rather than point at deleted template code.
-
-**Fix**: Replace the request with `/health/live` for a public smoke test, or add a protected `/api/v1/products` example including `X-Correlation-ID`, gateway identity headers, scopes, and MFA.
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~69~~ | Inventory reservation subscriber wording conflicted with synchronous stock reservation | Reworded the log message and TODO in `InventoryReservationFunction` to state stock is reserved synchronously and atomically by `CreateOrderCommandHandler` (the single owner of catalog-stock mutation) and that the subscriber is notification/projection-only and must not mutate stock. Subscription name left unchanged to avoid a breaking topology change. Commit `3dc282c`. |
+| ~~70~~ | Default `.http` scratch request targeted the removed weatherforecast endpoint | Replaced with a public `/health/live` smoke test plus a documented `/api/v1/products` example carrying the gateway identity header contract. Commit `7df18f2`. |
+| New | Owner-policy convention tests verified injection but not invocation (a handler could inject `IOwnerOnlyPolicy` and never call it) | Added `CommandHandlers_MustInvokeOwnerOnlyPolicy` and `QueryHandlers_MustInvokeOwnerOnlyPolicy` IL-scan tests; promoted shared IL helpers to `ConventionTestBase`. Commit `e898004`. |
+| New | `xmin` optimistic-concurrency token was configuration-checked but its runtime behaviour was untested | Added `OptimisticConcurrencyIntegrationTests` proving a stale write throws `DbUpdateConcurrencyException` (→ 409) against real PostgreSQL. Commit `55f7f58`. |
+| New | `OutboxMessage` ids used random `Guid.NewGuid()` against the repo's Guid v7 convention | Switched to `Guid.CreateVersion7()` for time-ordered ids. Commit `b54de10`. |
+| New | Four orphaned `src/StarterApp.Modules.*` directories (no source, not in the solution, stale net9.0 artifacts) | Deleted from disk (gitignored, no commit). |
 
 #### Recently resolved (2026-05-30 review follow-up)
 
