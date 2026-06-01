@@ -69,7 +69,7 @@ public class OutboxMessage
 
         return new OutboxMessage
         {
-            Id = Guid.NewGuid(),
+            Id = Guid.CreateVersion7(),
             OccurredOnUtc = domainEvent.OccurredOnUtc,
             Type = domainEvent.EventType,
             CorrelationId = CorrelationContext.GetOrCreate(),
