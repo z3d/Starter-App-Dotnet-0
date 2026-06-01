@@ -20,6 +20,16 @@ public class DbUpdateExceptionExtensionsTests
     }
 
     [Fact]
+    public void ResolveExceptionStatusCode_WithConcurrencyException_ShouldReturnConflict()
+    {
+        var exception = new DbUpdateConcurrencyException("Stale row version");
+
+        var statusCode = WebApplicationExtensions.ResolveExceptionStatusCode(exception);
+
+        Assert.Equal(StatusCodes.Status409Conflict, statusCode);
+    }
+
+    [Fact]
     public void IsForeignKeyViolation_WithConstraintName_ShouldMatchCaseInsensitively()
     {
         var exception = CreateDbUpdateException(PostgresErrorCodes.ForeignKeyViolation, "fk_orders_customer_id");

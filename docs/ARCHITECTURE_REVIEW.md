@@ -169,7 +169,7 @@ These are quality/coverage gaps, not runtime defects. The owner-policy *invocati
 
 - `dotnet restore --locked-mode`, `dotnet format --verify-no-changes --verbosity minimal --no-restore`, `dotnet build --no-restore`, and `dotnet test --no-build` all passed locally after pulling `fc93601`.
 - `StarterApp.Tests`: 525 passed in 1m31s. `StarterApp.AppHost.Tests`: 11 passed in 3m55s.
-- The earlier local notes about a stale NuGet PAT, a failing AppHost subscriber test, and the `PreToolUse` commit gate being unable to finish inside 300 s did not reproduce during this rerun. The hook still runs close enough to its timeout that slower machines may want a larger timeout or a narrower local test scope.
+- The earlier local notes about a stale NuGet PAT, a failing AppHost subscriber test, and the `PreToolUse` commit gate being unable to finish inside 300 s did not reproduce during this rerun. Follow-up review action raised the hook timeout to 900 s and added a direct regression test that maps `DbUpdateConcurrencyException` to `409 Conflict`.
 
 #### Recently resolved (fresh review, 2026-06-01)
 

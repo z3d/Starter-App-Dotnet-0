@@ -8,7 +8,7 @@
             "type": "command",
             "shell": "bash",
             "if": "Bash(git commit*)",
-            "timeout": 300,
+            "timeout": 900,
             "statusMessage": "Pre-commit: format, build, test",
             "command": "if grep -q 'git commit'; then dotnet format --verify-no-changes --verbosity minimal --no-restore && dotnet build --no-restore && dotnet test --no-build || exit 2; fi"
           }
