@@ -1,6 +1,6 @@
 namespace StarterApp.Tests.Conventions;
 
-public class CqrsConventionTests : ConventionTestBase
+public partial class CqrsConventionTests : ConventionTestBase
 {
     // === Data Access Separation ===
 
@@ -42,6 +42,31 @@ public class CqrsConventionTests : ConventionTestBase
         Assert.True(queryTypes.Count == 0,
             "Resource queries must implement IOwnerScopedRequest so reads cannot drift back to global visibility:\n" +
             string.Join("\n", queryTypes));
+    }
+
+    [Fact]
+    public void OwnerScopedQueryHandlers_MustFilterSqlByOwnerScope()
+    {
+        var handlers = GetOwnerScopedQueryHandlers().ToList();
+        Assert.NotEmpty(handlers);
+
+        var failures = handlers
+            .Select(handler => new
+            {
+                Handler = handler,
+                Sql = string.Join("\n", ExtractStringLiterals(handler)
+                    .Where(literal => literal.Contains("SELECT", StringComparison.OrdinalIgnoreCase)))
+            })
+            .Where(item =>
+                !OwnerSubjectPredicateRegex().IsMatch(item.Sql) ||
+                !TenantPredicateRegex().IsMatch(item.Sql))
+            .Select(item => $"{item.Handler.FullName} must include owner_subject = @OwnerSubject and tenant_id = @TenantId in its Dapper SQL.")
+            .OrderBy(message => message)
+            .ToList();
+
+        Assert.True(failures.Count == 0,
+            "Owner-scoped query handlers must enforce owner filters in SQL, not just implement IOwnerScopedRequest:\n" +
+            string.Join("\n", failures));
     }
 
     [Fact]
@@ -127,6 +152,22 @@ public class CqrsConventionTests : ConventionTestBase
             "injecting the policy without invoking it provides no owner authorization:\n" +
             string.Join("\n", violations));
     }
+
+    private static IEnumerable<Type> GetOwnerScopedQueryHandlers()
+    {
+        return ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("QueryHandler", StringComparison.Ordinal))
+            .Where(handler => handler.GetInterfaces().Any(i =>
+                i.IsGenericType &&
+                i.GetGenericTypeDefinition() == typeof(IRequestHandler<,>) &&
+                typeof(IOwnerScopedRequest).IsAssignableFrom(i.GetGenericArguments()[0])));
+    }
+
+    [GeneratedRegex(@"\b(?:\w+\.)?owner_subject\s*=\s*@OwnerSubject\b", RegexOptions.IgnoreCase)]
+    private static partial Regex OwnerSubjectPredicateRegex();
+
+    [GeneratedRegex(@"\b(?:\w+\.)?tenant_id\s*=\s*@TenantId\b", RegexOptions.IgnoreCase)]
+    private static partial Regex TenantPredicateRegex();
 
     // === Handler Wiring ===
 

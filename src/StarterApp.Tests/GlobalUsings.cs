@@ -47,6 +47,7 @@ global using StarterApp.Domain.Entities;
 global using StarterApp.Domain.Enums;
 global using StarterApp.Domain.Events;
 global using StarterApp.Domain.ValueObjects;
+global using StarterApp.Tests.Integration;
 // Testing frameworks
 global using Xunit;
 global using Xunit.Abstractions;

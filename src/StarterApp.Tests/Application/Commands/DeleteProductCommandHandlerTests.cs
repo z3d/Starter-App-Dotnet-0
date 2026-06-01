@@ -1,12 +1,13 @@
 
 namespace StarterApp.Tests.Application.Commands;
 
-public class DeleteProductCommandHandlerTests
+[Collection("Integration Tests")]
+public class DeleteProductCommandHandlerTests : PostgresCommandHandlerTestBase
 {
-    private static DbContextOptions<ApplicationDbContext> CreateInMemoryOptions() =>
-        new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
+    public DeleteProductCommandHandlerTests(ApiTestFixture fixture)
+        : base(fixture)
+    {
+    }
 
     [Fact]
     public void DeleteProductCommand_PropertiesTest()
@@ -22,8 +23,7 @@ public class DeleteProductCommandHandlerTests
     public async Task Handle_WithExistingProduct_ShouldDeleteProduct()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 50);
         context.Products.Add(product);
@@ -44,8 +44,7 @@ public class DeleteProductCommandHandlerTests
     public async Task Handle_WithNonExistentProduct_ShouldThrowKeyNotFoundException()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var handler = new DeleteProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var command = new DeleteProductCommand(999);
@@ -59,8 +58,7 @@ public class DeleteProductCommandHandlerTests
     public async Task Handle_WithProductReferencedByOrder_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
         var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);

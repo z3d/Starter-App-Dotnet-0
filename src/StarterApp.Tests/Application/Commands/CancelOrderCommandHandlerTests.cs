@@ -2,19 +2,19 @@ using System.Text.Json;
 
 namespace StarterApp.Tests.Application.Commands;
 
-public class CancelOrderCommandHandlerTests
+[Collection("Integration Tests")]
+public class CancelOrderCommandHandlerTests : PostgresCommandHandlerTestBase
 {
-    private static DbContextOptions<ApplicationDbContext> CreateInMemoryOptions() =>
-        new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
+    public CancelOrderCommandHandlerTests(ApiTestFixture fixture)
+        : base(fixture)
+    {
+    }
 
     [Fact]
     public async Task Handle_ShouldCancelOrderAndReturnDto()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
         context.Customers.Add(customer);
@@ -39,8 +39,7 @@ public class CancelOrderCommandHandlerTests
     public async Task Handle_WithNonExistentOrder_ShouldThrowKeyNotFoundException()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var handler = new CancelOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         var command = new CancelOrderCommand { OrderId = Guid.NewGuid() };
@@ -54,8 +53,7 @@ public class CancelOrderCommandHandlerTests
     public async Task Handle_ShouldRestoreProductStock()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
         var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);
@@ -92,8 +90,7 @@ public class CancelOrderCommandHandlerTests
     public async Task Handle_ShouldPersistCancelledStatusOutboxMessage()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
         var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);

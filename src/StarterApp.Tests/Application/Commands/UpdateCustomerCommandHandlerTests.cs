@@ -2,12 +2,13 @@ using StarterApp.Api.Application.Validators;
 
 namespace StarterApp.Tests.Application.Commands;
 
-public class UpdateCustomerCommandHandlerTests
+[Collection("Integration Tests")]
+public class UpdateCustomerCommandHandlerTests : PostgresCommandHandlerTestBase
 {
-    private static DbContextOptions<ApplicationDbContext> CreateInMemoryOptions() =>
-        new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
+    public UpdateCustomerCommandHandlerTests(ApiTestFixture fixture)
+        : base(fixture)
+    {
+    }
 
     [Fact]
     public void UpdateCustomerCommandValidator_WithValidData_ShouldPassValidation()
@@ -65,8 +66,7 @@ public class UpdateCustomerCommandHandlerTests
     public async Task Handle_WithValidCommand_ShouldUpdateCustomerAndReturnDto()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Original Name", Email.Create("original@example.com"));
         context.Customers.Add(customer);
@@ -101,8 +101,7 @@ public class UpdateCustomerCommandHandlerTests
     public async Task Handle_WithNonExistentCustomer_ShouldThrowKeyNotFoundException()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var handler = new UpdateCustomerCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var command = new UpdateCustomerCommand

@@ -2,26 +2,28 @@ using System.Text.Json;
 
 namespace StarterApp.Tests.Application.Commands;
 
-public class UpdateOrderStatusCommandHandlerTests
+[Collection("Integration Tests")]
+public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBase
 {
-    private static DbContextOptions<ApplicationDbContext> CreateInMemoryOptions() =>
-        new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
+    public UpdateOrderStatusCommandHandlerTests(ApiTestFixture fixture)
+        : base(fixture)
+    {
+    }
 
     [Fact]
     public async Task Handle_ShouldUpdateStatusAndReturnDto()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product = new Product("Product A", "Description", Money.Create(10m, "USD"), 10);
         context.Customers.Add(customer);
+        context.Products.Add(product);
         await context.SaveChangesAsync();
 
         var order = new Order(customer.Id);
-        order.AddItem(1, "Product A", 1, Money.Create(10m, "USD"), 0.1m);
+        order.AddItem(product.Id, product.Name, 1, Money.Create(10m, "USD"), 0.1m);
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
@@ -40,15 +42,16 @@ public class UpdateOrderStatusCommandHandlerTests
     public async Task Handle_ShouldPersistStatusChangedOutboxMessage()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product = new Product("Product A", "Description", Money.Create(10m, "USD"), 10);
         context.Customers.Add(customer);
+        context.Products.Add(product);
         await context.SaveChangesAsync();
 
         var order = new Order(customer.Id);
-        order.AddItem(1, "Product A", 1, Money.Create(10m, "USD"), 0.1m);
+        order.AddItem(product.Id, product.Name, 1, Money.Create(10m, "USD"), 0.1m);
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
@@ -73,15 +76,16 @@ public class UpdateOrderStatusCommandHandlerTests
     public async Task SavingNewOrder_ShouldPersistOrderCreatedOutboxMessageWithoutHandlerOptIn()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product = new Product("Product A", "Description", Money.Create(10m, "USD"), 10);
         context.Customers.Add(customer);
+        context.Products.Add(product);
         await context.SaveChangesAsync();
 
         var order = new Order(customer.Id);
-        order.AddItem(1, "Product A", 2, Money.Create(10m, "USD"), 0.1m);
+        order.AddItem(product.Id, product.Name, 2, Money.Create(10m, "USD"), 0.1m);
         context.Orders.Add(order);
 
         // Act
@@ -102,8 +106,7 @@ public class UpdateOrderStatusCommandHandlerTests
     public async Task Handle_WithNonExistentOrder_ShouldThrowKeyNotFoundException()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
         var command = new UpdateOrderStatusCommand { OrderId = Guid.NewGuid(), Status = OrderStatus.Confirmed };
@@ -117,8 +120,7 @@ public class UpdateOrderStatusCommandHandlerTests
     public async Task Handle_WithInvalidTransition_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
         context.Customers.Add(customer);
@@ -140,8 +142,7 @@ public class UpdateOrderStatusCommandHandlerTests
     public async Task Handle_WhenCancelling_ShouldRestoreProductStock()
     {
         // Arrange
-        var options = CreateInMemoryOptions();
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
         var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);

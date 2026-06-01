@@ -3,8 +3,14 @@ using StarterApp.Api.Application.Validators;
 
 namespace StarterApp.Tests.Application.Commands;
 
-public class CreateOrderCommandHandlerTests
+[Collection("Integration Tests")]
+public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
 {
+    public CreateOrderCommandHandlerTests(ApiTestFixture fixture)
+        : base(fixture)
+    {
+    }
+
     [Fact]
     public void CreateOrderCommandValidator_WithValidData_ShouldPassValidation()
     {
@@ -81,11 +87,7 @@ public class CreateOrderCommandHandlerTests
     public async Task Handle_WithValidCommand_ShouldCreateOrderAndReturnDto()
     {
         // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         // Create test customer and product first
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
@@ -138,11 +140,7 @@ public class CreateOrderCommandHandlerTests
     public async Task Handle_WithInsufficientStock_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
         var product = new Product("Low Stock Product", "Description", Money.Create(10.00m, "USD"), 1);
@@ -173,11 +171,7 @@ public class CreateOrderCommandHandlerTests
     public async Task Handle_WithValidCommand_ShouldDecrementProductStock()
     {
         // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
         var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 50);
@@ -209,11 +203,7 @@ public class CreateOrderCommandHandlerTests
     public async Task Handle_WithSecondProductInsufficientStock_ShouldNotDecrementFirstProductStock()
     {
         // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
         var product1 = new Product("Product A", "Description", Money.Create(10.00m, "USD"), 100);
@@ -240,7 +230,7 @@ public class CreateOrderCommandHandlerTests
             () => handler.HandleAsync(command, CancellationToken.None));
 
         // Assert — first product's stock should be unchanged (SaveChanges never called)
-        await using var verifyContext = new ApplicationDbContext(options);
+        await using var verifyContext = CreateContext();
         var p1 = await verifyContext.Products.FindAsync(product1.Id);
         Assert.Equal(100, p1!.Stock);
     }
@@ -249,11 +239,7 @@ public class CreateOrderCommandHandlerTests
     public async Task Handle_ShouldUseCatalogValuesForOrderItems()
     {
         // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
         var product = new Product("Test Product", "Description", Money.Create(24.50m, "AUD"), 10);
@@ -290,11 +276,7 @@ public class CreateOrderCommandHandlerTests
     public async Task Handle_ShouldPersistOrderCreatedOutboxMessage()
     {
         // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
         var product = new Product("Test Product", "Description", Money.Create(19.99m, "USD"), 20);
@@ -328,11 +310,7 @@ public class CreateOrderCommandHandlerTests
     public async Task Handle_WithDuplicateProductIds_ShouldThrowValidationException()
     {
         // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         var customer = new Customer("Test Customer", Email.Create("test@example.com"));
         var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);

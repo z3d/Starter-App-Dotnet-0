@@ -75,15 +75,23 @@ public class ApiConventionTests : ConventionTestBase
     [Fact]
     public void GatewayIdentityHeaders_MustOnlyBeReadByIdentityInfrastructure()
     {
-        var apiRoot = Path.Combine(FindRepoRoot(), "src", "StarterApp.Api");
-        var identityRoot = Path.Combine(apiRoot, "Infrastructure", "Identity");
-        var failures = Directory.EnumerateFiles(apiRoot, "*.cs", SearchOption.AllDirectories)
-            .Where(file => !file.StartsWith(identityRoot, StringComparison.Ordinal))
-            .SelectMany(file => File.ReadLines(file)
-                .Select((line, index) => new { File = file, Line = line, LineNumber = index + 1 })
-                .Where(item => item.Line.Contains("X-Authenticated-", StringComparison.Ordinal) ||
-                               item.Line.Contains("X-Gateway-Assertion", StringComparison.Ordinal))
-                .Select(item => $"{FormatPath(item.File)}:{item.LineNumber} raw gateway identity headers must stay behind ICurrentUser/GatewayIdentity infrastructure."))
+        var gatewayHeaderLiteralFailures = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !IsCompilerGenerated(t) && !IsIdentityInfrastructure(t))
+            .SelectMany(type => ExtractStringLiterals(type)
+                .Where(IsGatewayIdentityHeaderLiteral)
+                .Select(literal => $"{type.FullName} embeds gateway identity header literal '{FormatHeaderLiteral(literal)}'."))
+            .ToList();
+
+        var gatewayHeaderTypeFailures = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !IsCompilerGenerated(t) && !IsIdentityInfrastructure(t))
+            .Where(type => GetAllMethodsIncludingStateMachines(type)
+                .Any(method => IlReferencesType(method, nameof(GatewayIdentityHeaders))))
+            .Select(type => $"{type.FullName} references {nameof(GatewayIdentityHeaders)} directly.")
+            .ToList();
+
+        var failures = gatewayHeaderLiteralFailures
+            .Concat(gatewayHeaderTypeFailures)
+            .OrderBy(message => message, StringComparer.Ordinal)
             .ToList();
 
         Assert.True(failures.Count == 0,
@@ -295,33 +303,20 @@ public class ApiConventionTests : ConventionTestBase
         return $"{name}<{string.Join(", ", type.GetGenericArguments().Select(FormatTypeName))}>";
     }
 
-    private static string FindRepoRoot()
+    private static bool IsIdentityInfrastructure(Type type)
     {
-        var candidates = new[]
-        {
-            Directory.GetCurrentDirectory(),
-            AppContext.BaseDirectory
-        };
-
-        foreach (var candidate in candidates)
-        {
-            var directory = new DirectoryInfo(candidate);
-            while (directory != null)
-            {
-                if (File.Exists(Path.Combine(directory.FullName, "StarterApp.slnx")) ||
-                    File.Exists(Path.Combine(directory.FullName, "Directory.Packages.props")))
-                    return directory.FullName;
-
-                directory = directory.Parent;
-            }
-        }
-
-        throw new InvalidOperationException("Could not locate repository root.");
+        return type.Namespace?.StartsWith("StarterApp.Api.Infrastructure.Identity", StringComparison.Ordinal) == true;
     }
 
-    private static string FormatPath(string file)
+    private static bool IsGatewayIdentityHeaderLiteral(string literal)
     {
-        return Path.GetRelativePath(FindRepoRoot(), file);
+        return literal.Contains("X-Authenticated-", StringComparison.Ordinal) ||
+               literal.Contains("X-Gateway-Assertion", StringComparison.Ordinal);
+    }
+
+    private static string FormatHeaderLiteral(string literal)
+    {
+        return literal.Length <= 80 ? literal : literal[..77] + "...";
     }
 
     private static WebApplication BuildEndpointMetadataApp()

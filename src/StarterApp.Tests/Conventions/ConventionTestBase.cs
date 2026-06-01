@@ -38,8 +38,8 @@ public abstract class ConventionTestBase
                 .SelectMany(nested => nested.GetMethods(flags)));
     }
 
-    // Scan IL for call/callvirt opcodes whose target method's DeclaringType matches the given name.
-    // Catches both direct calls and references inside compiler-generated async state machines.
+    // Scan IL for method/field opcodes whose target member's DeclaringType matches the given name.
+    // Catches both direct references and references inside compiler-generated async state machines.
     internal static bool IlReferencesType(MethodInfo method, string typeName)
     {
         var body = method.GetMethodBody();
@@ -54,8 +54,8 @@ public abstract class ConventionTestBase
 
         for (var i = 0; i < il.Length - 4; i++)
         {
-            // call = 0x28, callvirt = 0x6F — both followed by a 4-byte metadata token.
-            if (il[i] is not (0x28 or 0x6F))
+            // call/callvirt plus field access opcodes — each followed by a 4-byte metadata token.
+            if (il[i] is not (0x28 or 0x6F or 0x7B or 0x7C or 0x7D or 0x7E or 0x7F or 0x80))
                 continue;
 
             var token = BitConverter.ToInt32(il, i + 1);
@@ -74,5 +74,46 @@ public abstract class ConventionTestBase
         }
 
         return false;
+    }
+
+    internal static IEnumerable<string> ExtractStringLiterals(Type type)
+    {
+        return GetAllMethodsIncludingStateMachines(type)
+            .SelectMany(ExtractStringLiterals);
+    }
+
+    internal static IEnumerable<string> ExtractStringLiterals(MethodInfo method)
+    {
+        var body = method.GetMethodBody();
+        if (body == null)
+            yield break;
+
+        var il = body.GetILAsByteArray();
+        if (il == null || il.Length < 5)
+            yield break;
+
+        var module = method.Module;
+
+        for (var i = 0; i < il.Length - 4; i++)
+        {
+            if (il[i] != 0x72)
+                continue;
+
+            var token = BitConverter.ToInt32(il, i + 1);
+            string? resolved = null;
+            try
+            {
+                resolved = module.ResolveString(token);
+            }
+            catch
+            {
+                // Not a valid string token — skip.
+            }
+
+            if (resolved != null)
+                yield return resolved;
+
+            i += 4;
+        }
     }
 }

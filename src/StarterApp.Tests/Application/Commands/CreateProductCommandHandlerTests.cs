@@ -2,8 +2,14 @@ using StarterApp.Api.Application.Validators;
 
 namespace StarterApp.Tests.Application.Commands;
 
-public class CreateProductCommandHandlerTests
+[Collection("Integration Tests")]
+public class CreateProductCommandHandlerTests : PostgresCommandHandlerTestBase
 {
+    public CreateProductCommandHandlerTests(ApiTestFixture fixture)
+        : base(fixture)
+    {
+    }
+
     [Fact]
     public void CreateProductCommandValidator_WithValidData_ShouldPassValidation()
     {
@@ -72,11 +78,7 @@ public class CreateProductCommandHandlerTests
     public async Task Handle_WithValidCommand_ShouldCreateProductAndReturnDto()
     {
         // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
         var handler = new CreateProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
 
         var command = new CreateProductCommand

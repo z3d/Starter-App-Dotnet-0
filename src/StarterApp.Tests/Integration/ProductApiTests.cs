@@ -231,6 +231,48 @@ public class ProductApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdateProduct_WithMismatchedIds_ShouldReturnBadRequestAndPreserveExistingValues()
+    {
+        var newProduct = new CreateProductCommand
+        {
+            Name = "Product to Preserve on Mismatch",
+            Description = "Original description",
+            Price = 39.99m,
+            Currency = "USD",
+            Stock = 75
+        };
+
+        var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/products", newProduct);
+        createResponse.EnsureSuccessStatusCode();
+        var createdProduct = await createResponse.Content.ReadFromJsonAsync<ProductDto>();
+        Assert.NotNull(createdProduct);
+
+        var response = await _fixture.Client.PutAsJsonAsync(
+            $"/api/v1/products/{createdProduct.Id}",
+            new UpdateProductCommand
+            {
+                Id = createdProduct.Id + 1,
+                Name = "Mismatched Product Name",
+                Description = "Should not persist",
+                Price = 49.99m,
+                Currency = "USD",
+                Stock = 50
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var getResponse = await _fixture.Client.GetAsync($"/api/v1/products/{createdProduct.Id}");
+        getResponse.EnsureSuccessStatusCode();
+        var persistedProduct = await getResponse.Content.ReadFromJsonAsync<ProductReadModel>();
+
+        Assert.NotNull(persistedProduct);
+        Assert.Equal(newProduct.Name, persistedProduct.Name);
+        Assert.Equal(newProduct.Description, persistedProduct.Description);
+        Assert.Equal(newProduct.Price, persistedProduct.PriceAmount);
+        Assert.Equal(newProduct.Stock, persistedProduct.Stock);
+    }
+
+    [Fact]
     public async Task DeleteProduct_WithValidId_ShouldRemoveProduct()
     {
         // Arrange
@@ -258,6 +300,44 @@ public class ProductApiTests : IAsyncLifetime
         var getResponse = await _fixture.Client.GetAsync($"/api/v1/products/{createdProduct.Id}");
         Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
     }
-}
 
+    [Fact]
+    public async Task DeleteProduct_WithExistingOrderItems_ShouldReturnConflict()
+    {
+        var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", new CreateCustomerCommand
+        {
+            Name = "Product Reference Customer",
+            Email = "product-reference@example.com"
+        });
+        customerResponse.EnsureSuccessStatusCode();
+        var customer = await customerResponse.Content.ReadFromJsonAsync<CustomerDto>();
+        Assert.NotNull(customer);
+
+        var productResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/products", new CreateProductCommand
+        {
+            Name = "Referenced Product",
+            Description = "This product is referenced by an order.",
+            Price = 15.99m,
+            Currency = "USD",
+            Stock = 30
+        });
+        productResponse.EnsureSuccessStatusCode();
+        var product = await productResponse.Content.ReadFromJsonAsync<ProductDto>();
+        Assert.NotNull(product);
+
+        var orderResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", new CreateOrderCommand
+        {
+            CustomerId = customer.Id,
+            Items = [new() { ProductId = product.Id, Quantity = 1 }]
+        });
+        orderResponse.EnsureSuccessStatusCode();
+
+        var deleteResponse = await _fixture.Client.DeleteAsync($"/api/v1/products/{product.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, deleteResponse.StatusCode);
+
+        var getResponse = await _fixture.Client.GetAsync($"/api/v1/products/{product.Id}");
+        getResponse.EnsureSuccessStatusCode();
+    }
+}
 

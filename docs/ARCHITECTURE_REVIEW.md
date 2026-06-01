@@ -4,11 +4,13 @@
 
 A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern DevOps practices across an e-commerce domain (Products, Customers, Orders) with Aspire orchestration and PostgreSQL.
 
-**Score: 9.6/10** (71 findings resolved, 3 new low-severity findings open)
+**Score: 9.7/10** (74 findings resolved, no open findings)
 
 > **Fresh review 2026-06-01 (independent re-read by a new model).** Verified the prior claims against the code rather than trusting them. Closed both previously-open findings (#69, #70) and hardened three areas (owner-policy *invocation* now enforced, optimistic-concurrency behaviour now tested, outbox ids aligned to Guid v7). The review also corrected two over-stated "critical" candidates that do not hold (a claimed product-stock race is covered by the `xmin` token; a claimed cross-owner stock-restore bypass is unreachable because order creation owner-scopes its product lookup). Three new **low-severity** test-coverage gaps were found and recorded below (#71–#73). Independent fresh-eyes score on a stricter scale: ~9.0 — the gap from 9.6 is almost entirely test-coverage breadth and a few convention tests that assert *presence* rather than *behaviour*, not runtime defects.
 
 > **Rerun 2026-06-01 (after pulling `origin/main` to `fc93601`).** Reviewed the seven June 1 commits and reran local verification. No new architecture findings were found; score remains 9.6/10 with low-severity findings #71–#73 open.
+
+> **Coverage follow-up 2026-06-01.** Closed findings #71-#73 by adding dedicated customer/product mutation integration coverage, moving data-access-sensitive command-handler tests onto the shared Testcontainers PostgreSQL fixture, and strengthening convention tests from presence/source scans to behaviour-oriented IL/SQL checks. Score raised conservatively to 9.7/10 because the remaining risk is general starter-template breadth rather than known open findings.
 
 ---
 
@@ -21,9 +23,9 @@ The project enforces architectural rules through convention tests in the main an
 | Test Class | What It Enforces |
 |------------|-----------------|
 | `NamingConventionTests` | Endpoints, DTOs, commands, queries, handlers, validators, services, and test classes follow naming conventions; application contracts and handlers live in mechanically discoverable namespaces |
-| `CqrsConventionTests` | Command handlers don't touch `IDbConnection`; query handlers don't touch `DbContext`; every command/query has a handler; dual interface enforcement (`ICommand` + `IRequest<T>`) |
+| `CqrsConventionTests` | Command handlers don't touch `IDbConnection`; query handlers don't touch `DbContext`; owner-scoped query handlers include owner filters in Dapper SQL; every command/query has a handler; dual interface enforcement (`ICommand` + `IRequest<T>`) |
 | `DomainConventionTests` | Private property setters on entities; immutable value objects; public getters on DTOs; non-public default constructors; `Equals`/`GetHashCode` overrides; async suffix; no async void; no `DateTime.Now`; aggregate creation-event safety |
-| `ApiConventionTests` | Endpoints don't access DB directly; protected API groups require gateway identity metadata; raw gateway identity headers stay behind infrastructure abstractions; validators are pure; DTOs have no instance methods; API contract shapes are serializer-friendly; collection properties are materialized; mappers are static; handlers don't dispatch to other handlers; domain doesn't reference API or third-party packages |
+| `ApiConventionTests` | Endpoints don't access DB directly; protected API groups require gateway identity metadata; raw gateway identity headers stay behind infrastructure abstractions with IL literal/type-reference checks; validators are pure; DTOs have no instance methods; API contract shapes are serializer-friendly; collection properties are materialized; mappers are static; handlers don't dispatch to other handlers; domain doesn't reference API or third-party packages |
 | `PersistenceConventionTests` | Every entity has a `DbSet`; value objects use `OwnsOne` not `DbSet`; enum properties configured; no static mutable state on `DbContext`; collection properties have private setters; migration scripts follow numbered prefix, are embedded resources, and name constraints explicitly |
 | `DapperConventionTests` | Query handlers must not use `SELECT *` in SQL (IL inspection of compiled string literals) |
 | `CachingConventionTests` | ICacheable queries must have non-empty cache keys, positive durations, and deterministic keys |
@@ -151,25 +153,24 @@ Good adoption of modern .NET:
 
 ### Open Findings
 
-The 2026-05-30 review's open items (#69, #70) are now resolved (see the 2026-06-01 table below). The 2026-06-01 fresh review found three new **low-severity** findings, all about test-coverage breadth rather than runtime defects.
+No open findings are currently recorded.
 
 Fresh review reconciliation: finding #43 is resolved by the trusted gateway identity boundary and identity-based rate limiting. Findings #57-#59 are resolved by route-level scope enforcement, mapped-endpoint convention coverage, and owner-only resource authorization. Findings #44 and #45 are resolved by the outbox processing-claim redesign and AppHost subscriber-consumption assertion. Finding #64 is resolved by refreshing stale setup/API documentation to match gateway identity, `/api/v1` routing, Functions Docker hosting, CI jobs, and the current sample subscriber behavior. Finding #65 is resolved by removing the duplicate local orchestration path and making Aspire the single local stack while keeping direct image validation. Finding #56 is resolved by keeping status input typed as `OrderStatus` and routing lifecycle changes through intent-specific aggregate methods. Finding #66 is resolved by completing the PostgreSQL persistence port and removing the previous provider/runtime compatibility path. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
 
-| # | Finding | Impact | Suggested Fix |
-|---|---------|--------|---------------|
-| 71 | Several command/query endpoints lack dedicated integration tests (Customer update/delete, Product update/delete are exercised only as helpers) | Mutation paths not covered end-to-end against real PostgreSQL; constraint/owner behaviour for those routes is asserted only indirectly | Add focused integration tests per mutation endpoint, mirroring `OrderApiTests` |
-| 72 | Many application-layer unit tests use EF Core InMemory, which does not enforce unique/FK/check constraints or row-version concurrency | A handler change that relies on a DB constraint can pass unit tests yet fail in production | Move data-access-sensitive handler tests onto the Testcontainers PostgreSQL fixture |
-| 73 | Some convention tests assert presence rather than behaviour (e.g. `ResourceQueries_MustBeOwnerScoped` only checks the interface; gateway-header isolation is a source-text scan) | A handler can satisfy the convention while omitting the owner `WHERE` clause; header isolation is bypassable via variables/constants | Extend the IL/SQL-scan approach (as done for owner-policy invocation in #69-followup) to assert the owner filter and header access at the IL level |
-
-#### 71-73. Test-coverage breadth (Severity: Low)
-
-These are quality/coverage gaps, not runtime defects. The owner-policy *invocation* gap from the same review was closed (IL-scan convention test); the remaining items above are recorded so future work can extend coverage. None block correctness today — the owner-scoped behaviour they would protect is currently correct and partially covered by `OwnerOnlyPolicyIntegrationTests` and the new `OptimisticConcurrencyIntegrationTests`.
-
 #### Verification rerun (2026-06-01, not an architecture finding)
 
-- `dotnet restore --locked-mode`, `dotnet format --verify-no-changes --verbosity minimal --no-restore`, `dotnet build --no-restore`, and `dotnet test --no-build` all passed locally after pulling `fc93601`.
-- `StarterApp.Tests`: 525 passed in 1m31s. `StarterApp.AppHost.Tests`: 11 passed in 3m55s.
+- `dotnet restore --locked-mode`, `dotnet format --verbosity minimal --no-restore`, `dotnet build --no-restore`, and `dotnet test --no-build` all passed locally after the coverage follow-up.
+- Targeted coverage-follow-up run passed 146 tests across conventions, command handlers, and customer/product integration tests.
+- Full suite: `StarterApp.Tests` 533 passed in 1m33s; `StarterApp.AppHost.Tests` 11 passed in 4m11s.
 - The earlier local notes about a stale NuGet PAT, a failing AppHost subscriber test, and the `PreToolUse` commit gate being unable to finish inside 300 s did not reproduce during this rerun. Follow-up review action raised the hook timeout to 900 s and added a direct regression test that maps `DbUpdateConcurrencyException` to `409 Conflict`.
+
+#### Recently resolved (coverage follow-up, 2026-06-01)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| ~~71~~ | Several command/query endpoints lacked dedicated integration tests for customer/product mutations | Added `CustomerApiTests` covering update/delete success, ID mismatch preservation, and delete conflict with existing orders; extended `ProductApiTests` with ID mismatch preservation and delete conflict with existing order items. |
+| ~~72~~ | Data-access-sensitive application handler tests used EF Core InMemory, which does not enforce PostgreSQL constraints or row-version behaviour | Added `PostgresCommandHandlerTestBase` backed by the shared Testcontainers PostgreSQL fixture and moved command-handler persistence tests onto `UseNpgsql`, leaving InMemory only in infrastructure tests that intentionally exercise the outbox processor fallback path. |
+| ~~73~~ | Some convention tests asserted marker presence or source text instead of behaviour | Added SQL literal checks requiring owner-scoped Dapper queries to include `owner_subject = @OwnerSubject` and `tenant_id = @TenantId`; changed gateway-header isolation to inspect compiled IL string literals and `GatewayIdentityHeaders` type references outside identity infrastructure. |
 
 #### Recently resolved (fresh review, 2026-06-01)
 

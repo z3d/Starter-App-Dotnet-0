@@ -2,8 +2,14 @@ using StarterApp.Api.Application.Validators;
 
 namespace StarterApp.Tests.Application.Commands;
 
-public class UpdateProductCommandHandlerTests
+[Collection("Integration Tests")]
+public class UpdateProductCommandHandlerTests : PostgresCommandHandlerTestBase
 {
+    public UpdateProductCommandHandlerTests(ApiTestFixture fixture)
+        : base(fixture)
+    {
+    }
+
     [Fact]
     public void UpdateProductCommandValidator_WithValidData_ShouldPassValidation()
     {
@@ -95,11 +101,7 @@ public class UpdateProductCommandHandlerTests
     public async Task Handle_WithValidCommand_ShouldUpdateProductAndReturnDto()
     {
         // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
 
         // Create test product first
         var originalProduct = new Product("Original Product", "Original Description", Money.Create(10.99m, "USD"), 100);
@@ -144,11 +146,7 @@ public class UpdateProductCommandHandlerTests
     public async Task Handle_WithNonExistentProduct_ShouldThrowKeyNotFoundException()
     {
         // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        await using var context = new ApplicationDbContext(options);
+        await using var context = CreateContext();
         var handler = new UpdateProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
 
         var command = new UpdateProductCommand
