@@ -79,6 +79,35 @@ public class CachingConventionTests : ConventionTestBase
     }
 
     [Fact]
+    public void MutationHandlers_OnCacheableEntities_MustInvokeCacheInvalidator()
+    {
+        // Injecting ICacheInvalidator is necessary but not sufficient — a handler that injects it and
+        // never calls it leaves stale entity reads in the distributed cache after a write. Scan handler
+        // IL (including async state machines) for an actual call to a member declared on ICacheInvalidator,
+        // closing the gap where MustInjectCacheInvalidator passes for an inject-and-forget handler.
+        var handlers = ApiAssembly
+            .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
+            .Concat(ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<>)))
+            .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
+            .Where(InjectsCacheInvalidator)
+            .ToList();
+
+        Assert.NotEmpty(handlers);
+
+        var violations = handlers
+            .Where(handler => !GetAllMethodsIncludingStateMachines(handler)
+                .Any(method => IlReferencesType(method, nameof(ICacheInvalidator))))
+            .Select(handler => handler.FullName ?? handler.Name)
+            .OrderBy(name => name)
+            .ToList();
+
+        Assert.True(violations.Count == 0,
+            "Command handlers that inject ICacheInvalidator must actually call it after SaveChangesAsync — " +
+            "injecting the invalidator without invoking it leaves stale entity reads in the distributed cache:\n" +
+            string.Join("\n", violations));
+    }
+
+    [Fact]
     public void ListQueries_MustNotBeCacheable()
     {
         var violations = ApiAssembly.GetTypes()
@@ -95,6 +124,10 @@ public class CachingConventionTests : ConventionTestBase
             "because IDistributedCache has no pattern-based invalidation. Offenders:\n" +
             string.Join("\n", violations));
     }
+
+    private static bool InjectsCacheInvalidator(Type handler) =>
+        handler.GetConstructors()
+            .Any(ctor => ctor.GetParameters().Any(parameter => parameter.ParameterType == typeof(ICacheInvalidator)));
 
     private static ICacheable CreateDefaultInstance(Type type) => CreateInstance(type, identity: 1);
 
