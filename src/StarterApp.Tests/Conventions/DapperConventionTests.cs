@@ -57,45 +57,6 @@ public class DapperConventionTests : ConventionTestBase
             .Any(f => f.FieldType == typeof(System.Data.IDbConnection));
     }
 
-    // Scan IL for call/callvirt opcodes whose target method's DeclaringType matches the given name.
-    // Catches both direct calls (PostgresRetryPolicy.ExecuteAsync) and references inside compiler-
-    // generated async state machines (where the real work lives after `async` lowering).
-    private static bool IlReferencesType(MethodInfo method, string typeName)
-    {
-        var body = method.GetMethodBody();
-        if (body == null)
-            return false;
-
-        var il = body.GetILAsByteArray();
-        if (il == null)
-            return false;
-
-        var module = method.Module;
-
-        for (var i = 0; i < il.Length - 4; i++)
-        {
-            // call = 0x28, callvirt = 0x6F — both followed by a 4-byte metadata token.
-            if (il[i] is not (0x28 or 0x6F))
-                continue;
-
-            var token = BitConverter.ToInt32(il, i + 1);
-            try
-            {
-                var member = module.ResolveMember(token);
-                if (member?.DeclaringType?.Name == typeName)
-                    return true;
-            }
-            catch
-            {
-                // Unresolvable generic instantiation — skip.
-            }
-
-            i += 4;
-        }
-
-        return false;
-    }
-
     /// <summary>
     /// Ensures Dapper query handlers never use SELECT * — columns must be explicitly listed.
     /// Inspects IL string literals in both the handler methods and compiler-generated async
@@ -123,17 +84,6 @@ public class DapperConventionTests : ConventionTestBase
 
             return ConventionResult.Satisfied(type.FullName!);
         }
-    }
-
-    private static IEnumerable<MethodInfo> GetAllMethodsIncludingStateMachines(Type type)
-    {
-        const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic |
-                                   BindingFlags.Instance | BindingFlags.Static |
-                                   BindingFlags.DeclaredOnly;
-
-        return type.GetMethods(flags)
-            .Concat(type.GetNestedTypes(BindingFlags.NonPublic)
-                .SelectMany(nested => nested.GetMethods(flags)));
     }
 
     /// <summary>

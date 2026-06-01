@@ -76,6 +76,58 @@ public class CqrsConventionTests : ConventionTestBase
             string.Join("\n", violations));
     }
 
+    // Injecting IOwnerOnlyPolicy is necessary but not sufficient — a handler that injects it and
+    // never calls it provides zero owner authorization. These tests scan handler IL (including async
+    // state machines) for an actual call to a member declared on IOwnerOnlyPolicy, closing the gap
+    // where the injection tests above could pass for an inject-and-forget handler.
+
+    [Fact]
+    public void CommandHandlers_MustInvokeOwnerOnlyPolicy()
+    {
+        var handlers = ApiAssembly
+            .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
+            .Concat(ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<>)))
+            .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
+            .Where(InjectsOwnerOnlyPolicy)
+            .ToList();
+
+        AssertInvokesOwnerOnlyPolicy(handlers, "Command");
+    }
+
+    [Fact]
+    public void QueryHandlers_MustInvokeOwnerOnlyPolicy()
+    {
+        var handlers = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("QueryHandler", StringComparison.Ordinal))
+            .Where(InjectsOwnerOnlyPolicy)
+            .ToList();
+
+        AssertInvokesOwnerOnlyPolicy(handlers, "Query");
+    }
+
+    private static bool InjectsOwnerOnlyPolicy(Type handler)
+    {
+        return handler.GetConstructors()
+            .Any(ctor => ctor.GetParameters().Any(parameter => parameter.ParameterType == typeof(IOwnerOnlyPolicy)));
+    }
+
+    private static void AssertInvokesOwnerOnlyPolicy(IReadOnlyCollection<Type> handlers, string kind)
+    {
+        Assert.NotEmpty(handlers);
+
+        var violations = handlers
+            .Where(handler => !GetAllMethodsIncludingStateMachines(handler)
+                .Any(method => IlReferencesType(method, nameof(IOwnerOnlyPolicy))))
+            .Select(handler => handler.FullName ?? handler.Name)
+            .OrderBy(name => name)
+            .ToList();
+
+        Assert.True(violations.Count == 0,
+            $"{kind} handlers that inject IOwnerOnlyPolicy must actually call it (Authorize/GetRequiredScope) — " +
+            "injecting the policy without invoking it provides no owner authorization:\n" +
+            string.Join("\n", violations));
+    }
+
     // === Handler Wiring ===
 
     [Fact]
