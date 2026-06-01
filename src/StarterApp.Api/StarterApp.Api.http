@@ -1,6 +1,22 @@
 @StarterApp_Api_HostAddress = http://localhost:5164
 
-GET {{StarterApp_Api_HostAddress}}/weatherforecast/
+### Public liveness smoke test (no gateway identity required)
+GET {{StarterApp_Api_HostAddress}}/health/live
 Accept: application/json
+
+###
+
+# Protected /api/v1 routes run behind a trusted gateway (APIM). The gateway projects the
+# normalized identity headers below and, in production-like mode, a signed X-Gateway-Assertion.
+# Calling these routes directly from this scratch file will return 401 unless those headers are
+# present and valid. This example documents the required contract; supply real gateway-issued
+# values (or run via the gateway) to exercise it.
+GET {{StarterApp_Api_HostAddress}}/api/v1/products
+Accept: application/json
+X-Correlation-ID: 11111111-1111-1111-1111-111111111111
+X-Authenticated-Subject: sample-subject
+X-Authenticated-Principal-Type: user
+X-Authenticated-Tenant-Id: sample-tenant
+X-Authenticated-Scopes: products:read
 
 ###
