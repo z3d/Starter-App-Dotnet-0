@@ -12,6 +12,8 @@ A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern
 
 > **Coverage follow-up 2026-06-01.** Closed findings #71-#73 by adding dedicated customer/product mutation integration coverage, moving data-access-sensitive command-handler tests onto the shared Testcontainers PostgreSQL fixture, and strengthening convention tests from presence/source scans to behaviour-oriented IL/SQL checks. Score raised conservatively to 9.7/10 because the remaining risk is general starter-template breadth rather than known open findings.
 
+> **Comprehensive multi-agent review 2026-06-02.** A four-agent parallel review (security/auth, CQRS/domain/data-access, eventing/outbox/payload-capture, build/CI/test-coverage) re-read the code against CLAUDE.md. Two agent-reported "HIGH/CRITICAL" findings were verified to be false positives and dismissed: a claimed stock double-restore on cancel does not hold because `OrderCancellationService` calls `order.Cancel()` first and the `Cancelled → Cancelled` transition is rejected by the state machine before any stock loop runs; a claimed `Money.Subtract` negative-value escape does not hold because `Subtract` routes through `Create()`, which throws on negative. No runtime vulnerabilities or correctness defects were found. Three hardening items (A–C below) were fixed and one accepted limitation (D) recorded. Score held at 9.7/10 — the review confirmed robustness rather than revealing defects, and the fixes are reproducibility/test-coverage hardening.
+
 ---
 
 ## Strengths
@@ -154,6 +156,18 @@ Good adoption of modern .NET:
 ### Open Findings
 
 No open findings are currently recorded.
+
+**Accepted limitation (not a defect) — D: outbox delivery is at-least-once.** If the processor crashes between the Service Bus publish and the `ProcessedOnUtc` mark, the row is reclaimed after `LockedUntilUtc` expires and republished. This is inherent to the outbox pattern and intentionally mitigated by Service Bus duplicate detection (5-minute window) plus the `ProcessingId` concurrency token (which blocks concurrent double-publish by a second processor). Subscribers must remain idempotent. No code change; recorded so future reviews do not re-raise it as a defect.
+
+#### Recently resolved (comprehensive multi-agent review, 2026-06-02)
+
+| # | Finding | Fix |
+|---|---------|-----|
+| A | CI restored with `dotnet restore --force-evaluate`, which recomputes and rewrites the dependency graph every run, silently defeating the committed `packages.lock.json` files and the reproducible-build guarantee even though `RestoreLockedMode` is set under CI. | Switched all three CI jobs to `dotnet restore --locked-mode` so CI fails loudly when lock files drift from project files. Commit `ba43e9f`. |
+| B | `CachingConventionTests` verified `ICacheInvalidator` was *injected* into cacheable mutation handlers but not *invoked* — an inject-and-forget handler would pass while leaving stale entity reads in the distributed cache after a write (the same presence-vs-behaviour gap closed earlier for `IOwnerOnlyPolicy`). | Added `MutationHandlers_OnCacheableEntities_MustInvokeCacheInvalidator`, an IL invocation scan (including async state machines) mirroring `CommandHandlers_MustInvokeOwnerOnlyPolicy`. Commit `c880de6`. |
+| C | Two CLAUDE.md invariants had no convention backing: (1) the single-`SaveChanges` outbox pattern relies on every EF write entry point funnelling through domain-event capture, and (2) every inbound Service Bus payload must be archived. Either could regress silently. | Added `ApplicationDbContextSaveChanges_MustCaptureDomainEventsIntoOutbox` (scans the actual `SaveChanges`/`SaveChangesAsync` override IL — including ldftn method-group references — for the capture call, discovered by behaviour rather than name) and `ServiceBusTriggeredFunctions_MustCaptureInboundPayload` (every `[ServiceBusTrigger]` Function must invoke `IPayloadCaptureSink`; the timer-only cleanup function is naturally excluded). Commit `0b62b9d`. |
+
+Note: B and C are regression guards — the current handlers and Functions already satisfy them, so the tests pass on landing rather than fixing a live bug.
 
 Fresh review reconciliation: finding #43 is resolved by the trusted gateway identity boundary and identity-based rate limiting. Findings #57-#59 are resolved by route-level scope enforcement, mapped-endpoint convention coverage, and owner-only resource authorization. Findings #44 and #45 are resolved by the outbox processing-claim redesign and AppHost subscriber-consumption assertion. Finding #64 is resolved by refreshing stale setup/API documentation to match gateway identity, `/api/v1` routing, Functions Docker hosting, CI jobs, and the current sample subscriber behavior. Finding #65 is resolved by removing the duplicate local orchestration path and making Aspire the single local stack while keeping direct image validation. Finding #56 is resolved by keeping status input typed as `OrderStatus` and routing lifecycle changes through intent-specific aggregate methods. Finding #66 is resolved by completing the PostgreSQL persistence port and removing the previous provider/runtime compatibility path. The other fresh-eyes findings were fixed in commit `5285814` and recorded below as #52-#55.
 
