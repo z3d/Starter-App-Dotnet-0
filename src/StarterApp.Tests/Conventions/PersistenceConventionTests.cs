@@ -2,6 +2,145 @@ namespace StarterApp.Tests.Conventions;
 
 public class PersistenceConventionTests : ConventionTestBase
 {
+    // === Outbox Capture Wiring ===
+    // The single-SaveChanges outbox pattern only holds if every EF write entry point funnels through
+    // the domain-event capture step. A handler calling SaveChanges that bypassed capture would silently
+    // drop domain events with no compile error. This scans the actual SaveChanges overrides' IL.
+
+    [Fact]
+    public void ApplicationDbContextSaveChanges_MustCaptureDomainEventsIntoOutbox()
+    {
+        var contextType = typeof(ApplicationDbContext);
+
+        // Discover the capture method by behaviour rather than name: whichever instance method
+        // materializes OutboxMessage rows. Renaming the private helper must not silently disable this test.
+        var captureMethodNames = GetAllMethodsIncludingStateMachines(contextType)
+            .Where(ReferencesOutboxMessage)
+            .Select(method => method.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.True(captureMethodNames.Count > 0,
+            "ApplicationDbContext must contain a method that captures domain events into OutboxMessage rows.");
+
+        var entryPoints = new[]
+        {
+            ("SaveChanges(bool)", contextType.GetMethod(nameof(DbContext.SaveChanges), [typeof(bool)])),
+            ("SaveChangesAsync(bool, CancellationToken)",
+                contextType.GetMethod(nameof(DbContext.SaveChangesAsync), [typeof(bool), typeof(CancellationToken)])),
+        };
+
+        var violations = new List<string>();
+        foreach (var (description, method) in entryPoints)
+        {
+            if (method is null || method.DeclaringType != contextType)
+            {
+                violations.Add($"{description} is not overridden on ApplicationDbContext; EF could persist aggregates without capturing their domain events.");
+                continue;
+            }
+
+            if (!SelfAndStateMachine(method).Any(scannable => IlCallsMethodNamed(scannable, captureMethodNames)))
+                violations.Add($"{description} does not call the outbox-capture method before persisting; domain events would be silently dropped.");
+        }
+
+        Assert.True(violations.Count == 0,
+            "Every EF SaveChanges entry point on ApplicationDbContext must capture domain events into the outbox:\n" +
+            string.Join("\n", violations));
+    }
+
+    // OutboxMessage.Create is referenced as a method group (`.Select(OutboxMessage.Create)`), which the
+    // compiler emits as ldftn rather than call/callvirt. Scan the token-bearing member opcodes that can
+    // carry an OutboxMessage reference: call, callvirt, newobj, and the two-byte ldftn/ldvirtftn.
+    private static bool ReferencesOutboxMessage(MethodInfo method)
+    {
+        var body = method.GetMethodBody();
+        if (body == null)
+            return false;
+
+        var il = body.GetILAsByteArray();
+        if (il == null)
+            return false;
+
+        var module = method.Module;
+
+        for (var i = 0; i < il.Length - 4; i++)
+        {
+            int tokenOffset;
+            if (il[i] is 0x28 or 0x6F or 0x73)
+            {
+                tokenOffset = i + 1;
+            }
+            else if (il[i] == 0xFE && i + 1 < il.Length && il[i + 1] is 0x06 or 0x07)
+            {
+                tokenOffset = i + 2;
+            }
+            else
+            {
+                continue;
+            }
+
+            if (tokenOffset + 4 > il.Length)
+                break;
+
+            var token = BitConverter.ToInt32(il, tokenOffset);
+            try
+            {
+                if (module.ResolveMember(token)?.DeclaringType?.Name == nameof(OutboxMessage))
+                    return true;
+            }
+            catch
+            {
+                // Unresolvable generic instantiation — not an OutboxMessage reference.
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<MethodInfo> SelfAndStateMachine(MethodInfo method)
+    {
+        yield return method;
+
+        // For async methods the body that actually issues the calls lives in the generated state machine.
+        var stateMachine = method.GetCustomAttribute<AsyncStateMachineAttribute>()?.StateMachineType;
+        var moveNext = stateMachine?.GetMethod("MoveNext", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        if (moveNext != null)
+            yield return moveNext;
+    }
+
+    private static bool IlCallsMethodNamed(MethodInfo method, IReadOnlySet<string> methodNames)
+    {
+        var body = method.GetMethodBody();
+        if (body == null)
+            return false;
+
+        var il = body.GetILAsByteArray();
+        if (il == null)
+            return false;
+
+        var module = method.Module;
+
+        for (var i = 0; i < il.Length - 4; i++)
+        {
+            if (il[i] is not (0x28 or 0x6F))
+                continue;
+
+            var token = BitConverter.ToInt32(il, i + 1);
+            try
+            {
+                if (module.ResolveMember(token) is MethodBase called && methodNames.Contains(called.Name))
+                    return true;
+            }
+            catch
+            {
+                // Unresolvable generic instantiation — not the method we are looking for.
+            }
+
+            i += 4;
+        }
+
+        return false;
+    }
+
     // === Entity Configuration ===
 
     [Fact]

@@ -1,5 +1,4 @@
 using System.Text.Json;
-using StarterApp.Api.Infrastructure.Outbox;
 
 namespace StarterApp.Tests.Infrastructure.Outbox;
 

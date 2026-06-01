@@ -3,7 +3,6 @@ using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using StarterApp.Api.Infrastructure.Outbox;
 using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Tests.Infrastructure.Outbox;
