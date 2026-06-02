@@ -2,6 +2,10 @@
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
+    <!-- Lock-file exemption: references StarterApp.AppHost, which transitively pulls the Aspire
+         SDK's host-RID-specific Direct packages. Locking them is not reproducible cross-platform
+         and broke Linux CI under locked-mode restore. See CLAUDE.md, Build Configuration. -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
   </PropertyGroup>
 
   <ItemGroup>

@@ -155,6 +155,8 @@ All NuGet package versions are pinned in `Directory.Packages.props` at the repo 
 
 Never put `Version=` on a `<PackageReference>` — CPM will error on the downgrade/mismatch. Never duplicate a `<PackageVersion>` across multiple entries for the same package. The analyzer `<GlobalPackageReference>` also lives in `Directory.Packages.props` (CPM requires it there, not in `Directory.Build.props`).
 
+**Lock-file exemption for Aspire host projects (`StarterApp.AppHost`, `StarterApp.AppHost.Tests`):** these two projects set `<RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>` and have **no** `packages.lock.json` (also git-ignored). The Aspire SDK injects host-RID-specific *Direct* packages (`Aspire.Dashboard.Sdk.<rid>`, `Aspire.Hosting.Orchestration.<rid>`) chosen by whichever machine runs `restore` — so a committed lock file gets `osx-arm64` from a Mac, `win-x64` from Windows, `linux-x64` in CI. No single lock file satisfies `dotnet restore --locked-mode` on all platforms, which caused **recurring CI churn**: every developer's restore flipped the RID and broke Linux CI. Exempting only these two projects (the other six lock files are RID-agnostic and stay locked) ends the churn while preserving reproducible locked restore everywhere else. Do **not** re-add lock files to these projects or switch CI back to `--force-evaluate` to "fix" a future occurrence — the exemption is the fix.
+
 ### Code Formatting (.editorconfig)
 - 180 char line length, file-scoped namespaces, system usings first
 - StyleCop rules: SA1200, SA1209, SA1210, SA1211

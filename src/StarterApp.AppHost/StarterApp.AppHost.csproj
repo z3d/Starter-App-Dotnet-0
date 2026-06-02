@@ -4,6 +4,12 @@
     <OutputType>Exe</OutputType>
     <IsAspireHost>true</IsAspireHost>
     <UserSecretsId>93a225fa-bb6e-4555-ad81-8cec2527f21d</UserSecretsId>
+    <!-- Lock-file exemption: the Aspire SDK injects host-RID-specific Direct packages
+         (Aspire.Dashboard.Sdk and Aspire.Hosting.Orchestration, per RID). A single committed
+         packages.lock.json can never satisfy locked-mode restore across win/osx/linux, so it
+         churned with every developer's restore and broke Linux CI. See CLAUDE.md, Build
+         Configuration, Central Package Management for the rationale. -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.AppHost" />
