@@ -200,12 +200,32 @@ public class DomainConventionTests : ConventionTestBase
 
             var idProperty = type.GetProperty("Id", BindingFlags.Instance | BindingFlags.Public);
             if (idProperty == null || idProperty.PropertyType != typeof(Guid))
+            {
                 failures.Add($"{type.Name} overrides RecordCreation but its Id is {idProperty?.PropertyType.Name ?? "missing"}. " +
                              "Aggregates that raise creation events must use client-generated Guid IDs (e.g. Guid.CreateVersion7() in the constructor).");
+                continue;
+            }
+
+            // Guid type alone is not enough: a regression to Guid.NewGuid() would still pass the type
+            // check above but lose the time-ordered insert locality that Guid v7 guarantees (CLAUDE.md
+            // mandates Guid.CreateVersion7() specifically). At least one PUBLIC constructor must mint the
+            // Id via Guid.CreateVersion7(); internal/explicit-id constructors are exempt because they exist
+            // for the retry-safe path where the caller pre-generates the v7 Id (see CreateOrderCommandHandler).
+            var publicCtorMintsVersion7 = type
+                .GetConstructors(BindingFlags.Instance | BindingFlags.Public)
+                .Any(ctor =>
+                {
+                    var il = ctor.GetMethodBody()?.GetILAsByteArray();
+                    return il != null && ContainsCallToMethod(il, ctor.Module, "CreateVersion7");
+                });
+
+            if (!publicCtorMintsVersion7)
+                failures.Add($"{type.Name} overrides RecordCreation but no public constructor calls Guid.CreateVersion7(). " +
+                             "Use Guid.CreateVersion7() (not Guid.NewGuid()) so client-assigned creation-event ids stay time-ordered.");
         }
 
         Assert.True(failures.Count == 0,
-            "Aggregates overriding RecordCreation must have Guid Id:\n" + string.Join("\n", failures));
+            "Aggregates overriding RecordCreation must have a Guid Id minted via Guid.CreateVersion7():\n" + string.Join("\n", failures));
     }
 
     [Fact]

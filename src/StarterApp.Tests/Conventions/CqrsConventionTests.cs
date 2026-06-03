@@ -28,6 +28,39 @@ public partial class CqrsConventionTests : ConventionTestBase
             .WithFailureAssertion(Assert.Fail);
     }
 
+    // The negative tests above stop a command handler from reaching for Dapper or a query handler from
+    // reaching for the DbContext, but neither asserts the POSITIVE side of the CQRS split: a command
+    // handler that injects neither (e.g. one written against IDbConnection-free Dapper helpers, or a
+    // pure pass-through) would silently route writes off the EF Core path while passing every other
+    // convention. This test closes that gap mechanically — every command handler must take the write
+    // path through ApplicationDbContext.
+    [Fact]
+    public void CommandHandlers_MustDependOnApplicationDbContext()
+    {
+        var commandHandlers = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract &&
+                   t.Name.EndsWith("CommandHandler", StringComparison.Ordinal) &&
+                   !IsCompilerGenerated(t))
+            .ToList();
+
+        // Guard against a vacuous pass: if the discovery filter ever stops matching handlers
+        // (renamed suffix, moved assembly) the violation check below would silently pass.
+        Assert.NotEmpty(commandHandlers);
+
+        var violations = commandHandlers
+            .Where(t => !t.GetConstructors()
+                .Any(ctor => ctor.GetParameters().Any(p => p.ParameterType == typeof(ApplicationDbContext))))
+            .Select(t => t.FullName ?? t.Name)
+            .OrderBy(name => name)
+            .ToList();
+
+        Assert.True(violations.Count == 0,
+            "Command handlers must inject ApplicationDbContext — writes flow through EF Core, not Dapper " +
+            "(CQRS: Commands → EF Core → DTOs). A handler injecting neither data-access type would otherwise " +
+            "pass CommandHandlers_MustNotDependOnIDbConnection while silently bypassing the write path:\n" +
+            string.Join("\n", violations));
+    }
+
     [Fact]
     public void ResourceQueries_MustBeOwnerScoped()
     {
