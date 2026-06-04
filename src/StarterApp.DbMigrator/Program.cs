@@ -28,11 +28,10 @@ try
     // Get connection string from configuration
     // Use the same connection string priority logic as the API
     var databaseConnection = configuration.GetConnectionString("database");
-    var dockerLearningConnection = configuration.GetConnectionString("DockerLearning");
     var postgresConnection = configuration.GetConnectionString("postgres");
     var defaultConnection = configuration.GetConnectionString("DefaultConnection");
 
-    var connectionString = databaseConnection ?? dockerLearningConnection ?? postgresConnection ?? defaultConnection;
+    var connectionString = databaseConnection ?? postgresConnection ?? defaultConnection;
 
     if (string.IsNullOrEmpty(connectionString))
     {
