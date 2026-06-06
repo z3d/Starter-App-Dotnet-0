@@ -2,7 +2,7 @@
 
 ## Prerequisites
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
-- Visual Studio Code or Visual Studio 2022
+- Visual Studio Code or Visual Studio 2026
 - Git (for version control)
 
 ## Project Overview

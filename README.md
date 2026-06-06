@@ -7,7 +7,7 @@ A comprehensive tutorial project demonstrating modern .NET development with .NET
 ### Prerequisites
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
 - [Docker Desktop](https://www.docker.com/products/docker-desktop) (**Required** - Aspire-managed dependencies, the Functions runtime container, Testcontainers, and image builds use Docker)
-- Visual Studio Code or Visual Studio 2022
+- Visual Studio Code or Visual Studio 2026
 
 > **⚠️ Important**: Docker Desktop must be installed and running before executing Aspire orchestration or integration tests. Aspire is the supported local run path; Docker provides the local infrastructure containers underneath it.
 
