@@ -8,6 +8,8 @@ namespace StarterApp.ServiceDefaults.Payloads;
 
 public sealed class PayloadCaptureSink : IPayloadCaptureSink
 {
+    private const string RedactedValue = "[REDACTED]";
+
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IPayloadArchiveStore _store;
@@ -76,7 +78,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
             PayloadSizeBytes = payloadSizeBytes,
             CapturedPayloadBytes = capturedPayloadBytes,
             PayloadSkipReason = request.PayloadSkipReason,
-            Metadata = request.Metadata,
+            Metadata = BuildArchiveMetadata(request.Metadata),
             EntityReferences = entityReferences.ToList()
         };
 
@@ -160,6 +162,54 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
         return metadata
             .Where(pair => !IsSensitiveMetadataKey(pair.Key))
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+    }
+
+    // The archive/audit record is the full-fidelity support artifact and may intentionally contain PII in the
+    // payload body. The query string, however, can carry bearer secrets (token/password/secret/authorization),
+    // and the equivalent request headers are never captured. The entity index drops queryString entirely because
+    // it is a pointer-only cross-correlation index; the archive keeps benign params (e.g. page/pageSize) but
+    // masks the values of sensitive parameters so debugging context survives without leaking secrets.
+    private Dictionary<string, string> BuildArchiveMetadata(Dictionary<string, string> metadata)
+    {
+        return metadata.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Key.Equals("queryString", StringComparison.OrdinalIgnoreCase)
+                ? RedactSensitiveQueryStringValues(pair.Value)
+                : pair.Value,
+            StringComparer.Ordinal);
+    }
+
+    private string RedactSensitiveQueryStringValues(string queryString)
+    {
+        if (string.IsNullOrEmpty(queryString))
+            return queryString;
+
+        var hasLeadingQuestionMark = queryString.StartsWith('?');
+        var body = hasLeadingQuestionMark ? queryString[1..] : queryString;
+        if (body.Length == 0)
+            return queryString;
+
+        var pairs = body.Split('&');
+        for (var index = 0; index < pairs.Length; index++)
+        {
+            var pair = pairs[index];
+            var separatorIndex = pair.IndexOf('=', StringComparison.Ordinal);
+            if (separatorIndex <= 0)
+                continue;
+
+            var name = pair[..separatorIndex];
+            if (IsSensitiveParameterName(name))
+                pairs[index] = string.Concat(name, "=", RedactedValue);
+        }
+
+        var rebuilt = string.Join('&', pairs);
+        return hasLeadingQuestionMark ? string.Concat("?", rebuilt) : rebuilt;
+    }
+
+    private bool IsSensitiveParameterName(string name)
+    {
+        var decodedName = Uri.UnescapeDataString(name);
+        return _options.SensitivePropertyNames.Any(sensitiveName => decodedName.Contains(sensitiveName, StringComparison.OrdinalIgnoreCase));
     }
 
     private bool IsSensitiveMetadataKey(string key)

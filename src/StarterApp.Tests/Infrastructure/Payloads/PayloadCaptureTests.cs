@@ -186,6 +186,48 @@ public class PayloadCaptureTests
     }
 
     [Fact]
+    public async Task CaptureAsync_ShouldMaskSensitiveQueryStringValuesInArchiveMetadataButKeepBenignParams()
+    {
+        var store = new InMemoryPayloadArchiveStore();
+        var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
+        var sink = CreateSink(store, timestamp);
+
+        await sink.CaptureAsync(new PayloadCaptureRequest
+        {
+            CorrelationId = "case-123",
+            Direction = "inbound",
+            Channel = "http",
+            Operation = "GET /api/v1/products",
+            ContentType = "application/json",
+            Payload = """{"ok":true}""",
+            Metadata = new Dictionary<string, string>
+            {
+                ["method"] = "GET",
+                ["path"] = "/api/v1/products",
+                ["queryString"] = "?page=2&pageSize=50&token=secret-abc-123&email=ada@example.com"
+            }
+        }, CancellationToken.None);
+
+        var archiveEntry = store.Lines.Single(pair => pair.Key == "archive/2026-05-03/04/07/case-123.jsonl");
+        var auditEntry = store.Lines.Single(pair => pair.Key == "audit/2026-05-03/04/07/payload-audit.jsonl");
+        var archiveLine = archiveEntry.Value.Single();
+
+        using var archiveJson = JsonDocument.Parse(archiveLine);
+        var queryString = archiveJson.RootElement.GetProperty("metadata").GetProperty("queryString").GetString();
+
+        Assert.NotNull(queryString);
+        Assert.Contains("page=2", queryString);
+        Assert.Contains("pageSize=50", queryString);
+        Assert.Contains("token=[REDACTED]", queryString);
+        Assert.Contains("email=[REDACTED]", queryString);
+
+        // Sensitive values must not survive anywhere in the archive or audit blob metadata.
+        Assert.DoesNotContain("secret-abc-123", archiveLine);
+        Assert.DoesNotContain("ada@example.com", archiveLine);
+        Assert.DoesNotContain("secret-abc-123", auditEntry.Value.Single());
+    }
+
+    [Fact]
     public async Task CaptureAsync_ShouldWriteEntityIndexWithPointersOnly()
     {
         var store = new InMemoryPayloadArchiveStore();
