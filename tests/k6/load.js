@@ -1,5 +1,5 @@
 import { sleep } from 'k6';
-import { uniqueSuffix } from './lib/config.js';
+import { ENDPOINTS, randomInt, randomItem } from './lib/config.js';
 import {
   createCustomer,
   getCustomer,
@@ -48,10 +48,10 @@ export const options = {
     http_req_duration: ['p(95)<500', 'p(99)<1500'],
     http_req_failed: ['rate<0.01'],
     checks: ['rate>0.99'],
-    'http_req_duration{endpoint:list_customers}': ['p(95)<300'],
-    'http_req_duration{endpoint:list_products}': ['p(95)<300'],
-    'http_req_duration{endpoint:create_order}': ['p(95)<800'],
-    'http_req_duration{endpoint:get_order}': ['p(95)<300'],
+    [`http_req_duration{endpoint:${ENDPOINTS.LIST_CUSTOMERS}}`]: ['p(95)<300'],
+    [`http_req_duration{endpoint:${ENDPOINTS.LIST_PRODUCTS}}`]: ['p(95)<300'],
+    [`http_req_duration{endpoint:${ENDPOINTS.CREATE_ORDER}}`]: ['p(95)<800'],
+    [`http_req_duration{endpoint:${ENDPOINTS.GET_ORDER}}`]: ['p(95)<300'],
   },
 };
 
@@ -84,32 +84,27 @@ export function setup() {
   return { customerIds, productIds };
 }
 
-function randomItem(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+const BROWSE_ACTIONS = [
+  (data) => listCustomers(1, 20),
+  (data) => listProducts(1, 20),
+  (data) => getCustomer(randomItem(data.customerIds)),
+  (data) => getProduct(randomItem(data.productIds)),
+  (data) => getOrdersByCustomer(randomItem(data.customerIds), 1, 20),
+];
 
 export function browseScenario(data) {
-  const actions = [
-    () => listCustomers(1, 20),
-    () => listProducts(1, 20),
-    () => getCustomer(randomItem(data.customerIds)),
-    () => getProduct(randomItem(data.productIds)),
-    () => getOrdersByCustomer(randomItem(data.customerIds), 1, 20),
-  ];
-
-  const action = randomItem(actions);
-  action();
+  randomItem(BROWSE_ACTIONS)(data);
   sleep(1);
 }
 
 export function orderScenario(data) {
   const customerId = randomItem(data.customerIds);
-  const numItems = 1 + Math.floor(Math.random() * 3);
+  const numItems = randomInt(1, 3);
   const items = [];
   for (let i = 0; i < numItems; i++) {
     items.push({
       productId: randomItem(data.productIds),
-      quantity: 1 + Math.floor(Math.random() * 3),
+      quantity: randomInt(1, 3),
     });
   }
 
