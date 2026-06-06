@@ -205,6 +205,8 @@ Never put `Version=` on a `<PackageReference>` — CPM will error on the downgra
 
 **Health Endpoints**: Expose `/health` for aggregate status, `/health/ready` for readiness (including database connectivity), and `/health/live` plus `/alive` for liveness. Docker and container platforms should use readiness for traffic gating and liveness for restart decisions.
 
+**Security Scanning (DAST)**: `dast/run-dast.sh` runs an OWASP ZAP dynamic scan (`dast/automation.yaml`) — it boots a throwaway PostgreSQL, applies migrations, starts the API in `GatewayIdentity:Mode=UnsignedDevelopment` (injecting the projected gateway identity headers so the protected `/api/v1` surface is reachable), then imports the OpenAPI doc, spiders, and runs passive + active scans, failing the build on any alert at or above `FAIL_RISK` (default `Medium`). Reports land in `dast/reports/` (git-ignored). Requires Docker + .NET SDK + `jq`. ZAP false positives are suppressed narrowly via scoped `alertFilter` entries in the plan (e.g. rules 90022/10023 on `/openapi/v1.json`, whose body contains documented `ProducesProblem(500)` "Internal Server Error" text) — never by widening scan exclusions. See `dast/README.md`.
+
 **Pagination**: List endpoints use `page`/`pageSize` query params with PostgreSQL `LIMIT/OFFSET`. Handlers fetch `pageSize + 1` rows; endpoints trim the extra row and return a `PagedResponse<T>` envelope (`{ data: [...], hasMore: true/false }`). This avoids expensive COUNT queries. Total count is a UI concern — if a frontend needs it, add a separate count endpoint rather than embedding it in every list response.
 
 **Debugging**: Always reproduce with a failing test first, get full stack trace, fix root cause not symptoms. See `.agents/skills/development-workflow/SKILL.md`.

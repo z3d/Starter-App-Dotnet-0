@@ -1,0 +1,121 @@
+# OWASP ZAP Automation Framework plan — DAST scan of the StarterApp API.
+#
+# Run via dast/run-dast.sh, which boots a throwaway PostgreSQL + the API in
+# Development (GatewayIdentity:Mode=UnsignedDevelopment) and points ZAP here.
+#
+# The API trusts a gateway and reads a projected identity from request headers.
+# In UnsignedDevelopment mode the HMAC assertion is skipped, so the `replacer`
+# job below injects the five identity headers — that lets ZAP scan the real
+# protected /api/v1 surface instead of bouncing off 401s at the door.
+
+env:
+  contexts:
+    - name: starterapp-api
+      urls:
+        - "http://host.docker.internal:5164"
+      includePaths:
+        - "http://host.docker.internal:5164/api/.*"
+        - "http://host.docker.internal:5164/health.*"
+        - "http://host.docker.internal:5164/alive"
+      excludePaths:
+        # Static docs surfaces — no value in actively scanning them.
+        - "http://host.docker.internal:5164/scalar.*"
+        - "http://host.docker.internal:5164/openapi.*"
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+
+jobs:
+  # 1. Inject the gateway-projected identity on every request so authenticated
+  #    endpoints are reachable. matchType req_header adds the header if absent.
+  - type: replacer
+    parameters:
+      deleteAllRules: true
+    rules:
+      - description: "Gateway subject"
+        matchType: req_header
+        matchString: "X-Authenticated-Subject"
+        replacementString: "dast-user-01"
+        tokenProcessing: false
+      - description: "Gateway principal type"
+        matchType: req_header
+        matchString: "X-Authenticated-Principal-Type"
+        replacementString: "User"
+        tokenProcessing: false
+      - description: "Gateway tenant"
+        matchType: req_header
+        matchString: "X-Authenticated-Tenant-Id"
+        replacementString: "dast-tenant-01"
+        tokenProcessing: false
+      - description: "Gateway scopes"
+        matchType: req_header
+        matchString: "X-Authenticated-Scopes"
+        replacementString: "customers:read customers:write orders:read orders:write products:read products:write"
+        tokenProcessing: false
+      - description: "Gateway authentication methods (MFA proof)"
+        matchType: req_header
+        matchString: "X-Authenticated-Amr"
+        replacementString: "mfa pwd"
+        tokenProcessing: false
+
+  # 2. Suppress false positives on the OpenAPI document itself.
+  #    The generated /openapi/v1.json declares ProblemDetails 500 responses, so its
+  #    body literally contains the reason phrase "Internal Server Error". ZAP's passive
+  #    rules 90022 (Application Error Disclosure) and 10023 (Debug Error Messages)
+  #    string-match that text and flag the API *documentation* as if it were a runtime
+  #    error — it is not (the endpoint returns 200). The filter is scoped to that one
+  #    URL only, so these rules still fire on every real endpoint (e.g. a genuine 500).
+  - type: alertFilter
+    alertFilters:
+      - ruleId: 90022
+        newRisk: "False Positive"
+        url: "http://host.docker.internal:5164/openapi/v1.json"
+        urlRegex: false
+      - ruleId: 10023
+        newRisk: "False Positive"
+        url: "http://host.docker.internal:5164/openapi/v1.json"
+        urlRegex: false
+
+  # 3. Seed the site tree from the live OpenAPI document.
+  - type: openapi
+    parameters:
+      apiUrl: "http://host.docker.internal:5164/openapi/v1.json"
+      targetUrl: "http://host.docker.internal:5164"
+      context: starterapp-api
+
+  # 4. Crawl to discover anything not in the OpenAPI doc.
+  - type: spider
+    parameters:
+      context: starterapp-api
+      maxDuration: 2
+      maxDepth: 8
+
+  # 5. Let passive rules finish processing everything seen so far.
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+
+  # 6. Active scan — sends crafted attack payloads (injection, etc.).
+  #    Bounded per-rule so a run stays in CI-friendly territory.
+  - type: activeScan
+    parameters:
+      context: starterapp-api
+      policy: "Default Policy"
+      maxRuleDurationInMins: 3
+      maxScanDurationInMins: 20
+
+  # 7. Reports — HTML for humans, JSON for the run-dast.sh pass/fail gate.
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: /zap/wrk/reports
+      reportFile: dast-report
+      reportTitle: "StarterApp API — DAST Report"
+      reportDescription: "OWASP ZAP dynamic scan of the StarterApp API."
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: /zap/wrk/reports
+      reportFile: dast-report
+      reportTitle: "StarterApp API — DAST Report"
