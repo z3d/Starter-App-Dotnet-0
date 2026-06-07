@@ -13,7 +13,13 @@ public class DapperConventionTests : ConventionTestBase
         var queryHandlers = ApiAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.Name.EndsWith("QueryHandler") &&
-                   !IsCompilerGenerated(t));
+                   !IsCompilerGenerated(t))
+            .ToList();
+
+        // Guard against a vacuous pass: MustConformTo over an empty set "conforms" trivially, so if the
+        // QueryHandler discovery filter ever matches zero types (suffix/namespace refactor) this test would
+        // silently go green while checking nothing. Mirrors QueryHandlers_MustUsePostgresRetryPolicy.
+        Assert.NotEmpty(queryHandlers);
 
         queryHandlers
             .MustConformTo(new MustNotUseSelectStarConvention())
