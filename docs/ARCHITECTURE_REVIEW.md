@@ -6,6 +6,11 @@ A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern
 
 **Score: 9.7/10** (84 findings resolved; no open findings from the 2026-06-07 review — plus one reclassified as an accepted limitation)
 
+> **Status statement (factual — read this before trusting the number).** The score above is **self-assessed by the maintaining agents** (this repo is reviewed across sessions by both Claude and Codex) per the CLAUDE.md instruction to "adjust the score" after fixing findings. There is **no external human validator and no defined rubric/denominator** — treat it as a maintenance log, not an independent audit. Cross-model review (Claude + Codex) does add *some* genuine independence and is worth more than a single model re-grading itself, but the structural conflict remains: whichever agent fixes a finding also adjusts the score in the same session. The number is effectively **monotonic** — it dips on discovery and recovers within the same session (e.g. 9.6→9.4→9.5 around #74, and 9.6→9.7 when #78/#79 were fixed-and-closed in one session). Verifiable facts as of this edit:
+> - **9 command handlers, 7 query handlers, 16 validators, 0 CQRS violations** (the "8 query handlers" figure that appeared under *CQRS Implementation* was a miscount and is corrected to 7).
+> - Last genuinely user-visible defect found and fixed: **#74** (stale product-stock cache after order mutations), 2026-06-07. A large share of the "84 resolved" are convention-test hardening, presence→behaviour test upgrades, and doc fixes rather than runtime defects — useful work, but counted equally with real bugs, which inflates the headline.
+> - The **"533 passed" test baseline** cited in older notes is stale (the suite is now substantially larger); re-run `dotnet test` for a current count before relying on it.
+
 > **Fresh review 2026-06-01 (independent re-read by a new model).** Verified the prior claims against the code rather than trusting them. Closed both previously-open findings (#69, #70) and hardened three areas (owner-policy *invocation* now enforced, optimistic-concurrency behaviour now tested, outbox ids aligned to Guid v7). The review also corrected two over-stated "critical" candidates that do not hold (a claimed product-stock race is covered by the `xmin` token; a claimed cross-owner stock-restore bypass is unreachable because order creation owner-scopes its product lookup). Three new **low-severity** test-coverage gaps were found and recorded below (#71–#73). Independent fresh-eyes score on a stricter scale: ~9.0 — the gap from 9.6 is almost entirely test-coverage breadth and a few convention tests that assert *presence* rather than *behaviour*, not runtime defects.
 
 > **Rerun 2026-06-01 (after pulling `origin/main` to `fc93601`).** Reviewed the seven June 1 commits and reran local verification. No new architecture findings were found; score remains 9.6/10 with low-severity findings #71–#73 open.
@@ -60,7 +65,7 @@ The read/write split is cleanly executed:
 - **Queries** flow through Dapper `IDbConnection` for reads, returning `*ReadModel` types
 - A **custom mediator** replaces MediatR, avoiding commercial licensing. It auto-discovers handlers via reflection and integrates validation as a pipeline behavior
 - Convention tests mechanically prevent cross-contamination between read and write paths
-- Zero CQRS violations found across all 9 command handlers and 8 query handlers
+- Zero CQRS violations found across all 9 command handlers and 7 query handlers
 
 ### Rich Domain Models
 

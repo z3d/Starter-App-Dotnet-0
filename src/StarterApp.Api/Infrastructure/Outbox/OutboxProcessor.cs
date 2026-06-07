@@ -123,11 +123,19 @@ public class OutboxProcessor : BackgroundService
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // Dependency-level outages (SB/archive down, throttled, timing out) should not consume
-                // a message's per-message retry budget — otherwise a multi-minute outage poisons
-                // every polled message into a permanent Error state requiring manual requeue.
-                // Keep claimed rows locked until LockedUntilUtc; that gives other processors a
-                // bounded retry delay and avoids repeatedly hammering the failing dependency.
+                // This catch now only sees publish-side faults: payload-capture (archive) failures are
+                // handled by the dedicated inner catch above, which pauses the batch before SendMessageAsync
+                // is reached. IsTransientDependencyError still folds in the payload-capture classifier, but
+                // its Blob/RequestFailedException arm is unreachable here (SendMessageAsync throws
+                // ServiceBusException, not RequestFailedException). It is retained only to cover the rare
+                // transient transport fault (IO/socket/timeout) that the Service Bus SDK does not wrap as a
+                // ServiceBusException — do not narrow it to IsTransientServiceBusError or that net is lost.
+                //
+                // Dependency-level outages (SB down, throttled, timing out) should not consume a message's
+                // per-message retry budget — otherwise a multi-minute outage poisons every polled message
+                // into a permanent Error state requiring manual requeue. Keep claimed rows locked until
+                // LockedUntilUtc; that gives other processors a bounded retry delay and avoids repeatedly
+                // hammering the failing dependency.
                 if (IsTransientDependencyError(ex))
                 {
                     _logger.LogWarning(ex, "Transient dependency error publishing outbox message {MessageId} ({Type}); pausing batch until claim lock expires",
