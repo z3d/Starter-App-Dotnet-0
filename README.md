@@ -1,6 +1,6 @@
 # Starter App Project with .NET Aspire
 
-A comprehensive tutorial project demonstrating modern .NET development with .NET Aspire orchestration, PostgreSQL, Docker-backed local dependencies, and deployable container images.
+A production-grade starter template and reference architecture for modern .NET development with .NET Aspire orchestration, PostgreSQL, Docker-backed local dependencies, and deployable container images.
 
 ## 🚀 Quick Start
 
@@ -73,7 +73,7 @@ starterapp/
 │   ├── StarterApp.DbMigrator/       # Database migration console app
 │   ├── StarterApp.ServiceDefaults/  # Shared Aspire configuration
 │   └── StarterApp.Tests/            # Unit, convention, integration, fuzzing tests
-├── docs/                           # Step-by-step tutorials
+├── docs/                           # Setup and onboarding guides
 └── scripts/                       # Smoke test script
 ```
 
@@ -165,9 +165,9 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 - **[Architectural Guide](CLAUDE.md)**: Comprehensive guide to the Clean Architecture implementation, patterns, and conventions
 - **[Setup Guides](docs/)**: Step-by-step guides for development environment setup and deployment
 
-## Learning Resources
+## Reference Material
 
-This project serves as a practical example for learning:
+This template also serves as a practical reference for:
 - Modern .NET development practices
 - Container image and deployment validation strategies
 - Database migration patterns
