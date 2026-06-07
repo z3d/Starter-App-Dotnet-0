@@ -45,6 +45,14 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
                 request.Channel,
                 request.Operation,
                 CorrelationContext.Sanitize(request.CorrelationId ?? CorrelationContext.GetOrCreate()));
+
+            // Honor FailClosed even when the store is absent: a missing store is the one case that must
+            // not silently fail open. (Production-like config also guards this with RequireArchiveStore
+            // at startup, but the two settings can disagree, so enforce the contract here too.)
+            if (_options.FailureModeFor(request.Channel) == PayloadCaptureFailureMode.FailClosed)
+                throw new InvalidOperationException(
+                    $"Payload capture is FailClosed for channel '{request.Channel}', but no payload archive store is configured; refusing to proceed without an audit record.");
+
             return null;
         }
 
@@ -124,7 +132,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
                 request.PayloadSkipReason ?? "(none)",
                 redactedPayload);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException && _options.FailureMode == PayloadCaptureFailureMode.FailOpen)
+        catch (Exception ex) when (ex is not OperationCanceledException && _options.FailureModeFor(request.Channel) == PayloadCaptureFailureMode.FailOpen)
         {
             _logger.LogError(ex,
                 "Payload capture failed for {Direction} {Channel} {Operation} with correlation {CorrelationId}; continuing because FailureMode is FailOpen",

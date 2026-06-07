@@ -116,12 +116,68 @@ public class PayloadCaptureTests
     }
 
     [Fact]
+    public async Task CaptureAsync_WithNullStore_AndServiceBusFailClosed_ShouldThrow()
+    {
+        // #78: a missing archive store must not silently fail open under FailClosed — the null-store
+        // shortcut must still honor the channel's failure policy.
+        var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
+        var sink = CreateSink(new NullPayloadArchiveStore(), timestamp, new PayloadCaptureOptions
+        {
+            ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed
+        });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => sink.CaptureAsync(new PayloadCaptureRequest
+        {
+            CorrelationId = "case-123",
+            Direction = "outbound",
+            Channel = "servicebus",
+            Operation = "order.created.v1",
+            ContentType = "application/json",
+            Payload = """{"orderId":"1"}"""
+        }, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task CaptureAsync_WhenArchiveWriteFails_FailsOpenForHttpButFailsClosedForServiceBus()
+    {
+        // Per-channel policy: an audit-store outage must not take down synchronous HTTP traffic
+        // (FailOpen), but the background Service Bus/outbox path refuses to proceed (FailClosed).
+        var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
+        var sink = CreateSink(new ThrowingPayloadArchiveStore(), timestamp, new PayloadCaptureOptions
+        {
+            HttpFailureMode = PayloadCaptureFailureMode.FailOpen,
+            ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed
+        });
+
+        var httpResult = await sink.CaptureAsync(new PayloadCaptureRequest
+        {
+            CorrelationId = "case-123",
+            Direction = "inbound",
+            Channel = "http",
+            Operation = "POST /api/v1/customers",
+            ContentType = "application/json",
+            Payload = """{"name":"Ada"}"""
+        }, CancellationToken.None);
+        Assert.Null(httpResult);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => sink.CaptureAsync(new PayloadCaptureRequest
+        {
+            CorrelationId = "case-123",
+            Direction = "outbound",
+            Channel = "servicebus",
+            Operation = "order.created.v1",
+            ContentType = "application/json",
+            Payload = """{"orderId":"1"}"""
+        }, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task CaptureAsync_WhenArchiveWriteFailsAndFailureModeIsFailOpen_ShouldReturnNull()
     {
         var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
         var sink = CreateSink(new ThrowingPayloadArchiveStore(), timestamp, new PayloadCaptureOptions
         {
-            FailureMode = PayloadCaptureFailureMode.FailOpen
+            HttpFailureMode = PayloadCaptureFailureMode.FailOpen
         });
 
         var result = await sink.CaptureAsync(new PayloadCaptureRequest
@@ -143,7 +199,7 @@ public class PayloadCaptureTests
         var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
         var sink = CreateSink(new ThrowingPayloadArchiveStore(), timestamp, new PayloadCaptureOptions
         {
-            FailureMode = PayloadCaptureFailureMode.FailClosed
+            HttpFailureMode = PayloadCaptureFailureMode.FailClosed
         });
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => sink.CaptureAsync(new PayloadCaptureRequest
@@ -162,7 +218,7 @@ public class PayloadCaptureTests
     {
         var store = new InMemoryPayloadArchiveStore();
         var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
-        var options = Options.Create(new PayloadCaptureOptions { FailureMode = PayloadCaptureFailureMode.FailClosed });
+        var options = Options.Create(new PayloadCaptureOptions { HttpFailureMode = PayloadCaptureFailureMode.FailClosed });
         var sink = new PayloadCaptureSink(
             store,
             new ThrowingPayloadRedactor(),

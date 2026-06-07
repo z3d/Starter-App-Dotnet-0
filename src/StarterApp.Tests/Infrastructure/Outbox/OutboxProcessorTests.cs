@@ -254,7 +254,7 @@ public class OutboxProcessorTests
             senderMock.Object,
             maxRetries: 1,
             payloadStore: new ThrowingPayloadArchiveStore(new RequestFailedException(503, "archive unavailable")),
-            payloadCaptureOptions: new PayloadCaptureOptions { FailureMode = PayloadCaptureFailureMode.FailClosed });
+            payloadCaptureOptions: new PayloadCaptureOptions { ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed });
 
         // Act — run the batch many more times than MaxRetries would allow
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -271,6 +271,46 @@ public class OutboxProcessorTests
         Assert.Null(message.ProcessedOnUtc);
         Assert.NotNull(message.ProcessingId);
         Assert.NotNull(message.LockedUntilUtc);
+    }
+
+    [Fact]
+    public async Task ProcessBatch_WhenFailClosedPayloadArchiveHasNonTransientFailure_ShouldNotPoisonMessage()
+    {
+        // #79: under FailClosed a NON-transient capture failure (e.g. a persistent config/serialization
+        // defect, not a transient outage) must NOT consume the message's retry budget or mark it Error —
+        // that would permanently lose the event though Service Bus was healthy. It must pause the batch so
+        // the event is retried once the archive recovers.
+        var dbName = Guid.NewGuid().ToString();
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            setupContext.OutboxMessages.Add(CreateTestMessage());
+            await setupContext.SaveChangesAsync();
+        }
+
+        var senderMock = new Mock<ServiceBusSender>();
+        senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var processor = CreateProcessor(
+            dbName,
+            senderMock.Object,
+            maxRetries: 1,
+            payloadStore: new ThrowingPayloadArchiveStore(new InvalidOperationException("non-transient capture defect")),
+            payloadCaptureOptions: new PayloadCaptureOptions { ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed });
+
+        // Act — run far more times than MaxRetries=1 would allow if it were counting retries
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        for (var i = 0; i < 10; i++)
+            await RunSingleBatchAsync(processor, cts.Token);
+
+        // Assert — never published, never poisoned, retry budget untouched
+        senderMock.Verify(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+
+        await using var verifyContext = CreateDbContext(dbName);
+        var message = await verifyContext.OutboxMessages.FirstAsync();
+        Assert.Equal(0, message.RetryCount);
+        Assert.Null(message.Error);
+        Assert.Null(message.ProcessedOnUtc);
     }
 
     [Fact]

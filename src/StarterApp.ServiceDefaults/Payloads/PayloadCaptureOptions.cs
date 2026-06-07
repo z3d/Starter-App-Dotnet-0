@@ -14,7 +14,22 @@ public class PayloadCaptureOptions
 
     public bool RequireArchiveStore { get; set; }
 
-    public PayloadCaptureFailureMode FailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
+    // Failure policy is per-channel because the trade-offs differ. Payload capture is an audit
+    // sidecar and must NOT take down synchronous user traffic, so HTTP defaults to FailOpen
+    // (a capture failure is logged and the request proceeds). The Service Bus / outbox path runs
+    // in the background, decoupled from users, so it can default safely and be tightened to
+    // FailClosed in production-like config (no event is published without a durable audit record;
+    // OutboxProcessor pauses the batch on capture failure rather than poisoning the message).
+    // Both default to FailOpen in code so standalone dev / tests with no archive store never break;
+    // the AppHost production-like orchestration sets ServiceBusFailureMode=FailClosed.
+    public PayloadCaptureFailureMode HttpFailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
+
+    public PayloadCaptureFailureMode ServiceBusFailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
+
+    public PayloadCaptureFailureMode FailureModeFor(string? channel) =>
+        string.Equals(channel, "http", StringComparison.OrdinalIgnoreCase)
+            ? HttpFailureMode
+            : ServiceBusFailureMode;
 
     [Required, MinLength(1)]
     public string ContainerName { get; set; } = "payload-observability";

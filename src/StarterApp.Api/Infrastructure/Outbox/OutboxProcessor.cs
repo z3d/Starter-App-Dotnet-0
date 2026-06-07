@@ -85,21 +85,36 @@ public class OutboxProcessor : BackgroundService
                 serviceBusMessage.ApplicationProperties["EventType"] = message.Type;
                 serviceBusMessage.ApplicationProperties[CorrelationContext.ApplicationPropertyName] = message.CorrelationId;
 
-                await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
+                try
                 {
-                    CorrelationId = message.CorrelationId,
-                    Direction = "outbound",
-                    Channel = "servicebus",
-                    Operation = message.Type,
-                    ContentType = "application/json",
-                    Payload = message.Payload,
-                    Metadata = new Dictionary<string, string>
+                    await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
                     {
-                        ["messageId"] = message.Id.ToString(),
-                        ["subject"] = message.Type,
-                        ["topic"] = _options.TopicName
-                    }
-                }, cancellationToken);
+                        CorrelationId = message.CorrelationId,
+                        Direction = "outbound",
+                        Channel = "servicebus",
+                        Operation = message.Type,
+                        ContentType = "application/json",
+                        Payload = message.Payload,
+                        Metadata = new Dictionary<string, string>
+                        {
+                            ["messageId"] = message.Id.ToString(),
+                            ["subject"] = message.Type,
+                            ["topic"] = _options.TopicName
+                        }
+                    }, cancellationToken);
+                }
+                catch (Exception captureEx) when (captureEx is not OperationCanceledException)
+                {
+                    // Capture runs before publish. Under FailClosed a capture (audit) failure throws —
+                    // whether transient or not. Do NOT consume the message's retry budget or mark it
+                    // Error: that would permanently lose the event even though Service Bus was healthy.
+                    // Pause the batch so the not-yet-published event is retried cleanly once the archive
+                    // store recovers; publishing without a durable audit record would violate FailClosed.
+                    _logger.LogWarning(captureEx,
+                        "Payload capture failed for outbox message {MessageId} ({Type}) before publish; pausing batch until the archive store recovers (retry budget untouched)",
+                        message.Id, message.Type);
+                    break;
+                }
 
                 await _sender.SendMessageAsync(serviceBusMessage, cancellationToken);
 
