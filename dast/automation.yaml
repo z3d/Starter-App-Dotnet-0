@@ -1,5 +1,10 @@
 # OWASP ZAP Automation Framework plan — DAST scan of the StarterApp API.
 #
+# This is a TEMPLATE: run-dast.sh renders __API_PORT__ to the real port (derived
+# from TARGET_URL / API_PORT) into dast/reports/automation.rendered.yaml before
+# handing it to ZAP — so the port lives in one place (the script), never here.
+# Don't run this file directly; run dast/run-dast.sh.
+#
 # Run via dast/run-dast.sh, which boots a throwaway PostgreSQL + the API in
 # Development (GatewayIdentity:Mode=UnsignedDevelopment) and points ZAP here.
 #
@@ -12,15 +17,15 @@ env:
   contexts:
     - name: starterapp-api
       urls:
-        - "http://host.docker.internal:5164"
+        - "http://host.docker.internal:__API_PORT__"
       includePaths:
-        - "http://host.docker.internal:5164/api/.*"
-        - "http://host.docker.internal:5164/health.*"
-        - "http://host.docker.internal:5164/alive"
+        - "http://host.docker.internal:__API_PORT__/api/.*"
+        - "http://host.docker.internal:__API_PORT__/health.*"
+        - "http://host.docker.internal:__API_PORT__/alive"
       excludePaths:
         # Static docs surfaces — no value in actively scanning them.
-        - "http://host.docker.internal:5164/scalar.*"
-        - "http://host.docker.internal:5164/openapi.*"
+        - "http://host.docker.internal:__API_PORT__/scalar.*"
+        - "http://host.docker.internal:__API_PORT__/openapi.*"
   parameters:
     failOnError: true
     failOnWarning: false
@@ -70,18 +75,18 @@ jobs:
     alertFilters:
       - ruleId: 90022
         newRisk: "False Positive"
-        url: "http://host.docker.internal:5164/openapi/v1.json"
+        url: "http://host.docker.internal:__API_PORT__/openapi/v1.json"
         urlRegex: false
       - ruleId: 10023
         newRisk: "False Positive"
-        url: "http://host.docker.internal:5164/openapi/v1.json"
+        url: "http://host.docker.internal:__API_PORT__/openapi/v1.json"
         urlRegex: false
 
   # 3. Seed the site tree from the live OpenAPI document.
   - type: openapi
     parameters:
-      apiUrl: "http://host.docker.internal:5164/openapi/v1.json"
-      targetUrl: "http://host.docker.internal:5164"
+      apiUrl: "http://host.docker.internal:__API_PORT__/openapi/v1.json"
+      targetUrl: "http://host.docker.internal:__API_PORT__"
       context: starterapp-api
 
   # 4. Crawl to discover anything not in the OpenAPI doc.

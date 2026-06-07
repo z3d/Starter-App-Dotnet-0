@@ -70,10 +70,14 @@ alerts.
 
 ## CI
 
-The script exits non-zero when the gate trips, so it drops into a pipeline step
-directly. The active scan is bounded (`maxRuleDurationInMins`, `maxScanDurationInMins`
-in `automation.yaml`) to stay CI-friendly. Tune `FAIL_RISK` to set how strict the
-gate is.
+Runs as its own workflow, `.github/workflows/dast.yml` — **nightly** (03:00 UTC)
+and on demand via **workflow_dispatch** (which takes a `fail_risk` input). It is
+deliberately *not* part of the per-PR `ci.yml` pipeline: the bounded-but-still-
+~20-min active scan is too heavy to gate every PR. The script exits non-zero when
+the gate trips, so the scheduled run goes red on a real finding; reports are
+uploaded as the `dast-reports` artifact every run. The active scan is bounded
+(`maxRuleDurationInMins`, `maxScanDurationInMins` in `automation.yaml`). Tune
+`FAIL_RISK` to set how strict the gate is.
 
 ## ⚠️ Safety
 

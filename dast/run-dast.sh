@@ -22,6 +22,15 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # --- configuration ------------------------------------------------------------
 API_PORT="${API_PORT:-5164}"
 TARGET_URL="${TARGET_URL:-http://localhost:${API_PORT}}"
+# Port ZAP targets via host.docker.internal:<port>. Derive it from TARGET_URL so a
+# SKIP_BOOT scan against a custom port stays in sync with the rendered plan; fall
+# back to API_PORT when TARGET_URL carries no explicit numeric port. Strip the
+# scheme and any path/query/fragment before reading the port so a trailing path
+# (e.g. http://host:5164/api) doesn't defeat the parse.
+ZAP_HOSTPORT="${TARGET_URL#*://}"   # drop scheme://
+ZAP_HOSTPORT="${ZAP_HOSTPORT%%/*}"  # drop /path?query#frag
+ZAP_PORT="${ZAP_HOSTPORT##*:}"      # port after last colon (whole string if none)
+[[ "$ZAP_PORT" =~ ^[0-9]+$ ]] || ZAP_PORT="$API_PORT"
 SKIP_BOOT="${SKIP_BOOT:-0}"               # 1 = scan an existing instance, skip DB/API boot
 ZAP_IMAGE="${ZAP_IMAGE:-ghcr.io/zaproxy/zaproxy:stable}"
 PG_IMAGE="${PG_IMAGE:-postgres:16-alpine}"
@@ -109,12 +118,17 @@ log "Running OWASP ZAP ($ZAP_IMAGE)"
 rm -f "$SCRIPT_DIR/reports/dast-report.json" "$SCRIPT_DIR/reports/dast-report.html"
 chmod -R a+rwX "$SCRIPT_DIR/reports" 2>/dev/null || true
 
+# Render the automation template with the real port (single source of truth lives
+# here, not in the YAML). The rendered plan lands under the git-ignored reports dir.
+RENDERED_PLAN="$SCRIPT_DIR/reports/automation.rendered.yaml"
+sed "s/__API_PORT__/${ZAP_PORT}/g" "$SCRIPT_DIR/automation.yaml" > "$RENDERED_PLAN"
+
 # --add-host makes host.docker.internal resolve to the host on Linux too.
 docker run --rm \
   --add-host=host.docker.internal:host-gateway \
   -v "$SCRIPT_DIR:/zap/wrk:rw" \
   "$ZAP_IMAGE" \
-  zap.sh -cmd -autorun /zap/wrk/automation.yaml || true
+  zap.sh -cmd -autorun /zap/wrk/reports/automation.rendered.yaml || true
 
 REPORT_JSON="$SCRIPT_DIR/reports/dast-report.json"
 [[ -f "$REPORT_JSON" ]] || { err "ZAP produced no JSON report at $REPORT_JSON."; exit 1; }

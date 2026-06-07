@@ -1,0 +1,49 @@
+name: DAST
+
+# The OWASP ZAP active scan is bounded at ~20 min, which is too heavy to run on
+# every PR. Run it nightly against main, plus on demand via workflow_dispatch.
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 03:00 UTC daily
+  workflow_dispatch:
+    inputs:
+      fail_risk:
+        description: 'Gate threshold (High | Medium | Low)'
+        required: false
+        default: 'Medium'
+
+jobs:
+  dast:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+        cache: true
+        cache-dependency-path: '**/packages.lock.json'
+
+    - name: Restore dependencies
+      run: dotnet restore --locked-mode
+
+    # Boots a throwaway PostgreSQL + the API, runs the OWASP ZAP scan, and fails
+    # the job on any alert at or above FAIL_RISK. Docker and jq are preinstalled
+    # on ubuntu-latest. See dast/README.md.
+    - name: OWASP ZAP DAST scan
+      run: dast/run-dast.sh
+      env:
+        FAIL_RISK: ${{ github.event.inputs.fail_risk || 'Medium' }}
+
+    - name: Upload DAST reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: dast-reports
+        path: |
+          dast/reports/dast-report.html
+          dast/reports/dast-report.json
+          dast/reports/api.log
+        if-no-files-found: ignore
