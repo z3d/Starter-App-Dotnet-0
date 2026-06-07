@@ -17,6 +17,41 @@ public class OrderItemFuzzTests
     private static Arbitrary<decimal> ValidPrice() =>
         Gen.Choose(0, 9_999_900).Select(i => (decimal)i / 100m).ToArbitrary();
 
+    // Full DECIMAL(5,4) rate range (0..1.0000) so sub-cent GST residues are exercised.
+    private static Arbitrary<decimal> AnyValidGstRate() =>
+        Gen.Choose(0, 10_000).Select(i => (decimal)i / 10_000m).ToArbitrary();
+
+    private static bool IsWholeCents(decimal amount) => amount == decimal.Round(amount, 2);
+
+    [Property]
+    public Property AllComputedMoney_IsAlwaysWholeCents()
+    {
+        return Prop.ForAll(PositiveQuantity(), ValidPrice(), AnyValidGstRate(),
+            (quantity, amount, gstRate) =>
+            {
+                var item = new OrderItem(TestOrderId, 1, "Product", quantity, Money.Create(amount, "USD"), gstRate);
+                return (IsWholeCents(item.GetUnitPriceIncludingGst().Amount)
+                        && IsWholeCents(item.GetTotalPriceExcludingGst().Amount)
+                        && IsWholeCents(item.GetTotalPriceIncludingGst().Amount)
+                        && IsWholeCents(item.GetTotalGstAmount().Amount))
+                    .Label($"Sub-cent value produced for amount={amount}, gstRate={gstRate}, qty={quantity}");
+            });
+    }
+
+    [Property]
+    public Property LineTotalInclusive_EqualsExclusivePlusGst()
+    {
+        return Prop.ForAll(PositiveQuantity(), ValidPrice(), AnyValidGstRate(),
+            (quantity, amount, gstRate) =>
+            {
+                var item = new OrderItem(TestOrderId, 1, "Product", quantity, Money.Create(amount, "USD"), gstRate);
+                var incl = item.GetTotalPriceIncludingGst().Amount;
+                var excl = item.GetTotalPriceExcludingGst().Amount;
+                var gst = item.GetTotalGstAmount().Amount;
+                return (incl == excl + gst).Label($"Incl={incl} != Excl={excl} + Gst={gst}");
+            });
+    }
+
     [Property]
     public Property PriceInvariant_TotalIncGst_Equals_UnitIncGst_Times_Quantity()
     {

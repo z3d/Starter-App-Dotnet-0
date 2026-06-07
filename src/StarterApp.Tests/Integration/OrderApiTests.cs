@@ -695,8 +695,11 @@ public class OrderApiTests : IAsyncLifetime
         Assert.Equal(product.Price, item.UnitPriceExcludingGst);
         Assert.Equal(OrderItem.DefaultGstRate, item.GstRate);
 
+        // GST is computed per unit, rounded to whole cents (review finding #76), then x quantity —
+        // so 19.99 * 0.10 = 1.999 rounds to 2.00 per unit, not 3.998 at the line total.
+        var unitGst = decimal.Round(product.Price * OrderItem.DefaultGstRate, 2, MidpointRounding.AwayFromZero);
         var expectedTotalExcludingGst = product.Price * item.Quantity;
-        var expectedTotalGstAmount = expectedTotalExcludingGst * OrderItem.DefaultGstRate;
+        var expectedTotalGstAmount = unitGst * item.Quantity;
         var expectedTotalIncludingGst = expectedTotalExcludingGst + expectedTotalGstAmount;
 
         // Verify calculations use catalog pricing and server-side GST
@@ -732,8 +735,10 @@ public class OrderApiTests : IAsyncLifetime
 
         // Assert - Read path totals must match write path totals
         Assert.NotNull(retrievedOrder);
+        // GST is computed per unit, rounded to whole cents (review finding #76), then x quantity.
+        var unitGst = decimal.Round(product.Price * OrderItem.DefaultGstRate, 2, MidpointRounding.AwayFromZero);
         var expectedTotalExcludingGst = product.Price * 2;
-        var expectedTotalGstAmount = expectedTotalExcludingGst * OrderItem.DefaultGstRate;
+        var expectedTotalGstAmount = unitGst * 2;
         var expectedTotalIncludingGst = expectedTotalExcludingGst + expectedTotalGstAmount;
 
         Assert.Equal(expectedTotalExcludingGst, retrievedOrder.TotalExcludingGst);

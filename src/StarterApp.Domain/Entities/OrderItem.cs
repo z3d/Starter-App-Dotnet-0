@@ -47,29 +47,30 @@ public class OrderItem
 
     public Money GetUnitPriceIncludingGst()
     {
-        var gstAmount = UnitPriceExcludingGst.Amount * GstRate;
-        var totalAmount = UnitPriceExcludingGst.Amount + gstAmount;
-        return Money.Create(totalAmount, UnitPriceExcludingGst.Currency);
+        return Money.Create(UnitPriceExcludingGst.Amount + GetUnitGstAmount(), UnitPriceExcludingGst.Currency);
     }
 
     public Money GetTotalPriceExcludingGst()
     {
-        var totalAmount = UnitPriceExcludingGst.Amount * Quantity;
-        return Money.Create(totalAmount, UnitPriceExcludingGst.Currency);
+        return Money.Create(UnitPriceExcludingGst.Amount * Quantity, UnitPriceExcludingGst.Currency);
     }
 
     public Money GetTotalPriceIncludingGst()
     {
-        var unitPriceIncGst = GetUnitPriceIncludingGst();
-        var totalAmount = unitPriceIncGst.Amount * Quantity;
-        return Money.Create(totalAmount, UnitPriceExcludingGst.Currency);
+        return Money.Create((UnitPriceExcludingGst.Amount + GetUnitGstAmount()) * Quantity, UnitPriceExcludingGst.Currency);
     }
 
     public Money GetTotalGstAmount()
     {
-        var gstPerUnit = UnitPriceExcludingGst.Amount * GstRate;
-        var totalGst = gstPerUnit * Quantity;
-        return Money.Create(totalGst, UnitPriceExcludingGst.Currency);
+        return Money.Create(GetUnitGstAmount() * Quantity, UnitPriceExcludingGst.Currency);
+    }
+
+    // GST is rounded to whole cents PER UNIT, then multiplied by quantity, so per-unit and per-line
+    // figures stay internally consistent: total GST == unit GST x qty, and total incl == total excl +
+    // total GST. Rounding the line total instead can diverge from unit x qty by a cent at scale.
+    private decimal GetUnitGstAmount()
+    {
+        return decimal.Round(UnitPriceExcludingGst.Amount * GstRate, Money.CurrencyDecimalPlaces, MidpointRounding.AwayFromZero);
     }
 
 }

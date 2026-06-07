@@ -3,6 +3,7 @@ namespace StarterApp.Domain.ValueObjects;
 public class Money : IEquatable<Money>
 {
     public const int MaxCurrencyLength = 3;
+    public const int CurrencyDecimalPlaces = 2;
 
     public decimal Amount { get; private set; }
     public string Currency { get; private set; }
@@ -22,7 +23,11 @@ public class Money : IEquatable<Money>
         if (!IsValidCurrencyCode(currency))
             throw new ArgumentException("Currency code must be a three-letter ISO code", nameof(currency));
 
-        return new Money(amount, currency.ToUpperInvariant());
+        // Money is always whole minor units (cents): quantize to 2 dp so computed values such as
+        // GST and line/order totals never carry sub-cent precision into DTOs or domain events.
+        // AwayFromZero (round-half-up) matches common tax rounding (e.g. Australian GST).
+        var rounded = decimal.Round(amount, CurrencyDecimalPlaces, MidpointRounding.AwayFromZero);
+        return new Money(rounded, currency.ToUpperInvariant());
     }
 
     public static bool IsValidCurrencyCode(string? currency)

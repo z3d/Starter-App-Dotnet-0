@@ -241,6 +241,35 @@ public class OrderItemTests
     }
 
     [Fact]
+    public void GstMath_WithSubCentResidue_ShouldRoundToWholeCents()
+    {
+        // 9.99 * 0.10 = 0.999 GST per unit and 10.989 inclusive — both must quantize to whole cents,
+        // not flow into DTOs/events as sub-cent decimals (review finding #76).
+        var unitPrice = Money.Create(9.99m, "USD");
+        var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 3, unitPrice, 0.10m);
+
+        Assert.Equal(Money.Create(10.99m, "USD"), orderItem.GetUnitPriceIncludingGst());
+        Assert.Equal(Money.Create(3.00m, "USD"), orderItem.GetTotalGstAmount());          // round(0.999)=1.00 * 3
+        Assert.Equal(Money.Create(29.97m, "USD"), orderItem.GetTotalPriceExcludingGst()); // 9.99 * 3
+        Assert.Equal(Money.Create(32.97m, "USD"), orderItem.GetTotalPriceIncludingGst()); // 10.99 * 3
+    }
+
+    [Fact]
+    public void GstMath_LineTotals_ShouldBeInternallyConsistent()
+    {
+        var unitPrice = Money.Create(9.99m, "USD");
+        var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 7, unitPrice, 0.075m);
+
+        // total incl == total excl + total GST, and total GST == unit GST * qty (per-unit rounding)
+        Assert.Equal(
+            orderItem.GetTotalPriceIncludingGst().Amount,
+            orderItem.GetTotalPriceExcludingGst().Amount + orderItem.GetTotalGstAmount().Amount);
+        Assert.Equal(
+            orderItem.GetTotalPriceIncludingGst().Amount,
+            orderItem.GetUnitPriceIncludingGst().Amount * 7);
+    }
+
+    [Fact]
     public void DefaultGstRate_ShouldBeCorrectValue()
     {
         // Assert

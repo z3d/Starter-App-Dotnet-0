@@ -34,8 +34,8 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
             FROM orders o
             LEFT JOIN LATERAL (
                 SELECT SUM(unit_price_excluding_gst * quantity) AS total_excluding_gst,
-                       SUM(unit_price_excluding_gst * quantity * (1 + gst_rate)) AS total_including_gst,
-                       SUM(unit_price_excluding_gst * quantity * gst_rate) AS total_gst_amount,
+                       SUM((unit_price_excluding_gst + round(unit_price_excluding_gst * gst_rate, 2)) * quantity) AS total_including_gst,
+                       SUM(round(unit_price_excluding_gst * gst_rate, 2) * quantity) AS total_gst_amount,
                        MIN(currency) AS currency
                 FROM order_items
                 WHERE order_id = o.id
@@ -50,9 +50,9 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
                    product_name AS ""ProductName"",
                    quantity AS ""Quantity"",
                    unit_price_excluding_gst AS ""UnitPriceExcludingGst"",
-                   unit_price_excluding_gst * (1 + gst_rate) AS ""UnitPriceIncludingGst"",
+                   unit_price_excluding_gst + round(unit_price_excluding_gst * gst_rate, 2) AS ""UnitPriceIncludingGst"",
                    unit_price_excluding_gst * quantity AS ""TotalPriceExcludingGst"",
-                   unit_price_excluding_gst * quantity * (1 + gst_rate) AS ""TotalPriceIncludingGst"",
+                   (unit_price_excluding_gst + round(unit_price_excluding_gst * gst_rate, 2)) * quantity AS ""TotalPriceIncludingGst"",
                    gst_rate AS ""GstRate"",
                    currency AS ""Currency""
             FROM order_items
