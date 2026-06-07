@@ -91,8 +91,13 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
 
   log "Starting API on port $API_PORT (Development / UnsignedDevelopment)"
   : > "$API_LOG"
+  # Bind all interfaces (0.0.0.0), not just loopback: ZAP runs inside a Docker
+  # container and reaches the API via host.docker.internal (the bridge gateway,
+  # e.g. 172.17.0.1 on Linux runners). A localhost-only bind answers the host
+  # readiness probe but refuses the container's connection. The readiness curl
+  # still uses TARGET_URL (localhost), which 0.0.0.0 also serves.
   ASPNETCORE_ENVIRONMENT=Development \
-  ASPNETCORE_URLS="http://localhost:${API_PORT}" \
+  ASPNETCORE_URLS="http://0.0.0.0:${API_PORT}" \
   ConnectionStrings__database="$CONN" \
     dotnet run --project "$REPO_ROOT/src/StarterApp.Api" -c Release --no-launch-profile \
     >"$API_LOG" 2>&1 &
