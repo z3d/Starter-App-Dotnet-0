@@ -8,11 +8,13 @@ public class CancelOrderCommand : ICommand, IRequest<OrderDto>
 public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, OrderDto>
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly ICacheInvalidator _cacheInvalidator;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public CancelOrderCommandHandler(ApplicationDbContext dbContext, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public CancelOrderCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _dbContext = dbContext;
+        _cacheInvalidator = cacheInvalidator;
         _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
@@ -33,6 +35,11 @@ public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, Ord
         await OrderCancellationService.CancelAndRestoreStockAsync(_dbContext, order, cancellationToken);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        // Cancellation restored stock for every line item; purge the cached product read model so
+        // a subsequent GetProductByIdQuery does not serve stale (pre-restore) stock.
+        foreach (var productId in order.Items.Select(item => item.ProductId).Distinct())
+            await _cacheInvalidator.InvalidateProductAsync(productId, cancellationToken);
 
         return OrderMapper.ToDto(order);
     }

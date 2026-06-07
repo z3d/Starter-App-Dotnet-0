@@ -67,7 +67,7 @@ public class DeleteCustomerCommandHandlerTests : PostgresCommandHandlerTestBase
         await context.SaveChangesAsync();
 
         // Create an order for this customer
-        var createHandler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var createHandler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         await createHandler.HandleAsync(new CreateOrderCommand
         {
             CustomerId = customer.Id,

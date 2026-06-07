@@ -24,7 +24,7 @@ public class CancelOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
-        var handler = new CancelOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new CancelOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var command = new CancelOrderCommand { OrderId = order.Id };
 
         // Act
@@ -41,7 +41,7 @@ public class CancelOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         // Arrange
         await using var context = CreateContext();
 
-        var handler = new CancelOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new CancelOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var command = new CancelOrderCommand { OrderId = Guid.NewGuid() };
 
         // Act & Assert
@@ -62,7 +62,7 @@ public class CancelOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         await context.SaveChangesAsync();
 
         // Create order (which decrements stock)
-        var createHandler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var createHandler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var createCommand = new CreateOrderCommand
         {
             CustomerId = customer.Id,
@@ -78,12 +78,41 @@ public class CancelOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         Assert.Equal(85, decrementedProduct!.Stock);
 
         // Act — cancel the order
-        var cancelHandler = new CancelOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var cancelHandler = new CancelOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         await cancelHandler.HandleAsync(new CancelOrderCommand { OrderId = orderDto.Id }, CancellationToken.None);
 
         // Assert — stock should be restored to 100
         var updatedProduct = await context.Products.FindAsync(product.Id);
         Assert.Equal(100, updatedProduct!.Stock);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldInvalidateProductCache_AfterRestoringStock()
+    {
+        // Arrange
+        await using var context = CreateContext();
+
+        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);
+        context.Customers.Add(customer);
+        context.Products.Add(product);
+        await context.SaveChangesAsync();
+
+        var createHandler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
+        var orderDto = await createHandler.HandleAsync(new CreateOrderCommand
+        {
+            CustomerId = customer.Id,
+            Items = [new() { ProductId = product.Id, Quantity = 5 }]
+        }, CancellationToken.None);
+
+        var recordingInvalidator = new RecordingCacheInvalidator();
+        var cancelHandler = new CancelOrderCommandHandler(context, recordingInvalidator, TestOwnerOnlyPolicy.Instance);
+
+        // Act
+        await cancelHandler.HandleAsync(new CancelOrderCommand { OrderId = orderDto.Id }, CancellationToken.None);
+
+        // Assert — cancelling restores stock, so the cached product read model must be purged
+        Assert.Contains(product.Id, recordingInvalidator.InvalidatedProductIds);
     }
 
     [Fact]
@@ -98,14 +127,14 @@ public class CancelOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var createHandler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var createHandler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var createdOrder = await createHandler.HandleAsync(new CreateOrderCommand
         {
             CustomerId = customer.Id,
             Items = [new() { ProductId = product.Id, Quantity = 1 }]
         }, CancellationToken.None);
 
-        var cancelHandler = new CancelOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var cancelHandler = new CancelOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
 
         // Act
         await cancelHandler.HandleAsync(new CancelOrderCommand { OrderId = createdOrder.Id }, CancellationToken.None);

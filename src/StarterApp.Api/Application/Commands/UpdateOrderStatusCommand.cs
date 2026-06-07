@@ -9,11 +9,13 @@ public class UpdateOrderStatusCommand : ICommand, IRequest<OrderDto>
 public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatusCommand, OrderDto>
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly ICacheInvalidator _cacheInvalidator;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public UpdateOrderStatusCommandHandler(ApplicationDbContext dbContext, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public UpdateOrderStatusCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _dbContext = dbContext;
+        _cacheInvalidator = cacheInvalidator;
         _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
@@ -38,6 +40,14 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
             ApplyLifecycleTransition(order, status);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        // Only the cancellation path mutates stock; when it does, purge the cached product read model
+        // so a subsequent GetProductByIdQuery does not serve stale (pre-restore) stock.
+        if (status == OrderStatus.Cancelled)
+        {
+            foreach (var productId in order.Items.Select(item => item.ProductId).Distinct())
+                await _cacheInvalidator.InvalidateProductAsync(productId, cancellationToken);
+        }
 
         return OrderMapper.ToDto(order);
     }

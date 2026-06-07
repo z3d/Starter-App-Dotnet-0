@@ -17,11 +17,13 @@ public class CreateOrderItemCommand
 public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, OrderDto>
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly ICacheInvalidator _cacheInvalidator;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public CreateOrderCommandHandler(ApplicationDbContext dbContext, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public CreateOrderCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _dbContext = dbContext;
+        _cacheInvalidator = cacheInvalidator;
         _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
@@ -98,6 +100,12 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         });
 
         Log.Information("Created order with ID: {OrderId}", savedOrder!.Id);
+
+        // Stock was decremented for each ordered product; purge the cached by-id product read model
+        // (which carries Stock) so a subsequent GetProductByIdQuery does not serve stale stock.
+        foreach (var productId in command.Items.Select(item => item.ProductId).Distinct())
+            await _cacheInvalidator.InvalidateProductAsync(productId, cancellationToken);
+
         return OrderMapper.ToDto(savedOrder);
     }
 

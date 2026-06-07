@@ -27,7 +27,7 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new UpdateOrderStatusCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var command = new UpdateOrderStatusCommand { OrderId = order.Id, Status = OrderStatus.Confirmed };
 
         // Act
@@ -55,7 +55,7 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new UpdateOrderStatusCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
 
         // Act
         await handler.HandleAsync(new UpdateOrderStatusCommand { OrderId = order.Id, Status = OrderStatus.Confirmed }, CancellationToken.None);
@@ -108,7 +108,7 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         // Arrange
         await using var context = CreateContext();
 
-        var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new UpdateOrderStatusCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var command = new UpdateOrderStatusCommand { OrderId = Guid.NewGuid(), Status = OrderStatus.Confirmed };
 
         // Act & Assert
@@ -130,7 +130,7 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new UpdateOrderStatusCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var command = new UpdateOrderStatusCommand { OrderId = order.Id, Status = OrderStatus.Delivered };
 
         // Act & Assert — Pending → Delivered is not a valid transition
@@ -150,7 +150,7 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var createHandler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var createHandler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var orderDto = await createHandler.HandleAsync(new CreateOrderCommand
         {
             CustomerId = customer.Id,
@@ -160,7 +160,7 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         var decrementedProduct = await context.Products.FindAsync(product.Id);
         Assert.Equal(85, decrementedProduct!.Stock);
 
-        var handler = new UpdateOrderStatusCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new UpdateOrderStatusCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
 
         // Act
         var result = await handler.HandleAsync(

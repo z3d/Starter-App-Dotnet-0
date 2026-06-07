@@ -15,13 +15,19 @@ public class Email : IEquatable<Email>
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
 
-        if (value.Length > MaxEmailLength)
+        // Normalize to a canonical lower-case form so the value object, the EF uniqueness query,
+        // and the case-sensitive unique index all agree on identity. ToLowerInvariant (not ToLower)
+        // is required: culture-sensitive casing would make the same address normalize differently
+        // by locale (e.g. the Turkish dotless-i), so two hosts could disagree about collisions.
+        var normalized = value.ToLowerInvariant();
+
+        if (normalized.Length > MaxEmailLength)
             throw new ArgumentException($"Email cannot exceed {MaxEmailLength} characters", nameof(value));
 
-        if (!IsValidAddress(value))
+        if (!IsValidAddress(normalized))
             throw new ArgumentException("Invalid email format", nameof(value));
 
-        return new Email(value);
+        return new Email(normalized);
     }
 
     public static bool IsValidAddress(string? email)

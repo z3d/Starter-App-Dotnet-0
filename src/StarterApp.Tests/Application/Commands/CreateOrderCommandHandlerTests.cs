@@ -97,7 +97,7 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
 
         var command = new CreateOrderCommand
         {
@@ -149,7 +149,7 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
 
         var command = new CreateOrderCommand
         {
@@ -180,7 +180,7 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
 
         var command = new CreateOrderCommand
         {
@@ -200,6 +200,41 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
     }
 
     [Fact]
+    public async Task Handle_ShouldInvalidateProductCache_ForEachOrderedProduct()
+    {
+        // Arrange
+        await using var context = CreateContext();
+
+        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var product1 = new Product("Product A", "Description", Money.Create(10.00m, "USD"), 50);
+        var product2 = new Product("Product B", "Description", Money.Create(20.00m, "USD"), 50);
+
+        context.Customers.Add(customer);
+        context.Products.AddRange(product1, product2);
+        await context.SaveChangesAsync();
+
+        var recordingInvalidator = new RecordingCacheInvalidator();
+        var handler = new CreateOrderCommandHandler(context, recordingInvalidator, TestOwnerOnlyPolicy.Instance);
+
+        var command = new CreateOrderCommand
+        {
+            CustomerId = customer.Id,
+            Items =
+            [
+                new() { ProductId = product1.Id, Quantity = 3 },
+                new() { ProductId = product2.Id, Quantity = 4 }
+            ]
+        };
+
+        // Act
+        await handler.HandleAsync(command, CancellationToken.None);
+
+        // Assert — decrementing stock must purge the cached by-id product read model for each product
+        Assert.Contains(product1.Id, recordingInvalidator.InvalidatedProductIds);
+        Assert.Contains(product2.Id, recordingInvalidator.InvalidatedProductIds);
+    }
+
+    [Fact]
     public async Task Handle_WithSecondProductInsufficientStock_ShouldNotDecrementFirstProductStock()
     {
         // Arrange
@@ -213,7 +248,7 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         context.Products.AddRange(product1, product2);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
 
         var command = new CreateOrderCommand
         {
@@ -248,7 +283,7 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var command = new CreateOrderCommand
         {
             CustomerId = customer.Id,
@@ -285,7 +320,7 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
 
         // Act
         var result = await handler.HandleAsync(new CreateOrderCommand
@@ -319,7 +354,7 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrderCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
         var command = new CreateOrderCommand
         {
             CustomerId = customer.Id,

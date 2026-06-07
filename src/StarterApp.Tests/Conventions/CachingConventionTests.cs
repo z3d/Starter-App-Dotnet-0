@@ -108,6 +108,38 @@ public class CachingConventionTests : ConventionTestBase
     }
 
     [Fact]
+    public void CommandHandlers_MutatingCacheableEntities_MustInvokeCacheInvalidator()
+    {
+        // Cross-entity cache rule. A command handler that changes a cacheable entity's persisted state
+        // must invalidate that entity's cache, even when the mutated entity differs from the entity the
+        // handler is named after — the order handlers decrement/restore Product stock, and Product has a
+        // cacheable by-id read model that carries Stock. The name-based MustInjectCacheInvalidator rule
+        // misses this (it matches by handler name and excludes Create*), so detect the mutation
+        // structurally: scan the handler plus any application helper it delegates to (e.g.
+        // OrderCancellationService) for a Product stock write (Product.UpdateStock or EF ExecuteUpdateAsync).
+        var handlers = ApiAssembly
+            .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
+            .Concat(ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<>)))
+            .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
+            .Where(MutatesProductStock)
+            .ToList();
+
+        Assert.NotEmpty(handlers);
+
+        var violations = handlers
+            .Where(handler => !GetAllMethodsIncludingStateMachines(handler)
+                .Any(method => IlReferencesType(method, nameof(ICacheInvalidator))))
+            .Select(handler => handler.FullName ?? handler.Name)
+            .OrderBy(name => name)
+            .ToList();
+
+        Assert.True(violations.Count == 0,
+            "Command handlers that mutate Product stock (directly or via a delegated service) must invoke " +
+            "ICacheInvalidator to purge the cached product read model — otherwise GetProductByIdQuery serves " +
+            "stale stock for the cache duration:\n" + string.Join("\n", violations));
+    }
+
+    [Fact]
     public void ListQueries_MustNotBeCacheable()
     {
         var violations = ApiAssembly.GetTypes()
@@ -128,6 +160,82 @@ public class CachingConventionTests : ConventionTestBase
     private static bool InjectsCacheInvalidator(Type handler) =>
         handler.GetConstructors()
             .Any(ctor => ctor.GetParameters().Any(parameter => parameter.ParameterType == typeof(ICacheInvalidator)));
+
+    // Distinctive method names that mean "this code wrote product stock": the domain mutation method
+    // (Product.UpdateStock) and the EF bulk-update used by the atomic reservation path (ExecuteUpdateAsync).
+    private static readonly string[] ProductStockMutationMethods = ["UpdateStock", "ExecuteUpdateAsync"];
+
+    private static bool MutatesProductStock(Type handler)
+    {
+        var typesToScan = new HashSet<Type> { handler };
+        foreach (var helper in GetReferencedCommandHelperTypes(handler))
+            typesToScan.Add(helper);
+
+        return typesToScan
+            .SelectMany(GetAllMethodsIncludingStateMachines)
+            .Any(method => ProductStockMutationMethods.Any(name => IlReferencesMethodNamed(method, name)));
+    }
+
+    // Application-layer helper types the handler delegates to (e.g. OrderCancellationService), so a
+    // stock write performed inside a shared service is still attributed to the calling handler.
+    private static IEnumerable<Type> GetReferencedCommandHelperTypes(Type handler)
+    {
+        var helpers = new HashSet<Type>();
+        foreach (var method in GetAllMethodsIncludingStateMachines(handler))
+        {
+            foreach (var member in ResolveCalledMembers(method))
+            {
+                var declaringType = member.DeclaringType;
+                if (declaringType is { Namespace: "StarterApp.Api.Application.Commands" }
+                    && !declaringType.Name.EndsWith("CommandHandler", StringComparison.Ordinal)
+                    && !declaringType.Name.EndsWith("Command", StringComparison.Ordinal))
+                {
+                    helpers.Add(declaringType);
+                }
+            }
+        }
+
+        return helpers;
+    }
+
+    private static bool IlReferencesMethodNamed(MethodInfo method, string methodName) =>
+        ResolveCalledMembers(method).Any(member => member.Name == methodName);
+
+    private static IEnumerable<MemberInfo> ResolveCalledMembers(MethodInfo method)
+    {
+        var body = method.GetMethodBody();
+        if (body == null)
+            yield break;
+
+        var il = body.GetILAsByteArray();
+        if (il == null)
+            yield break;
+
+        var module = method.Module;
+
+        for (var i = 0; i < il.Length - 4; i++)
+        {
+            // call / callvirt, each followed by a 4-byte metadata token.
+            if (il[i] is not (0x28 or 0x6F))
+                continue;
+
+            var token = BitConverter.ToInt32(il, i + 1);
+            MemberInfo? member = null;
+            try
+            {
+                member = module.ResolveMember(token);
+            }
+            catch
+            {
+                // Unresolvable generic instantiation — skip.
+            }
+
+            if (member != null)
+                yield return member;
+
+            i += 4;
+        }
+    }
 
     private static ICacheable CreateDefaultInstance(Type type) => CreateInstance(type, identity: 1);
 

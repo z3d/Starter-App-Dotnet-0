@@ -86,6 +86,29 @@ public class EmailTests
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);
     }
 
+    [Theory]
+    [InlineData("Test@Example.com", "test@example.com")]
+    [InlineData("USER@DOMAIN.ORG", "user@domain.org")]
+    [InlineData("First.Last@Company.Com", "first.last@company.com")]
+    public void Create_ShouldNormalizeToLowerCase(string input, string expected)
+    {
+        // Normalization makes email identity case-insensitive so the value object, the EF
+        // uniqueness query, and the unique index agree — preventing duplicate accounts by case.
+        var email = Email.Create(input);
+
+        Assert.Equal(expected, email.Value);
+    }
+
+    [Fact]
+    public void Equals_WithDifferentCaseEmail_ShouldReturnTrue()
+    {
+        var email1 = Email.Create("Test@Example.com");
+        var email2 = Email.Create("test@example.com");
+
+        Assert.Equal(email1, email2);
+        Assert.Equal(email1.GetHashCode(), email2.GetHashCode());
+    }
+
     [Fact]
     public void Equals_WithSameEmail_ShouldReturnTrue()
     {
