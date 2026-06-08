@@ -15,7 +15,7 @@ public class ProductFuzzTests
         return Prop.ForAll(NonNegativeStock(), smallPositiveInt,
             (initialStock, delta) =>
             {
-                var product = new Product("Test", "Desc", Money.Create(10m), initialStock);
+                var product = TestEntities.Product("Test", "Desc", Money.Create(10m), initialStock);
                 product.UpdateStock(delta);
                 product.UpdateStock(-delta);
                 return product.Stock == initialStock;
@@ -28,7 +28,7 @@ public class ProductFuzzTests
         return Prop.ForAll(NonNegativeStock(),
             initialStock =>
             {
-                var product = new Product("Test", "Desc", Money.Create(10m), initialStock);
+                var product = TestEntities.Product("Test", "Desc", Money.Create(10m), initialStock);
                 var excess = initialStock + 1;
                 try
                 { product.UpdateStock(-excess); return false; }
@@ -45,7 +45,7 @@ public class ProductFuzzTests
         return Prop.ForAll(names, amounts, stocks,
             (name, amount, stock) =>
             {
-                var product = new Product(name, "Desc", Money.Create(amount), stock);
+                var product = TestEntities.Product(name, "Desc", Money.Create(amount), stock);
                 return product.Name == name && product.Stock == stock;
             });
     }

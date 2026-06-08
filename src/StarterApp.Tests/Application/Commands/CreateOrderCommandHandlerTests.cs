@@ -90,8 +90,8 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         await using var context = CreateContext();
 
         // Create test customer and product first
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
-        var product = new Product("Test Product", "Test Description", Money.Create(10.99m, "USD"), 100);
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
+        var product = TestEntities.Product("Test Product", "Test Description", Money.Create(10.99m, "USD"), 100);
 
         context.Customers.Add(customer);
         context.Products.Add(product);
@@ -142,8 +142,8 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
-        var product = new Product("Low Stock Product", "Description", Money.Create(10.00m, "USD"), 1);
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
+        var product = TestEntities.Product("Low Stock Product", "Description", Money.Create(10.00m, "USD"), 1);
 
         context.Customers.Add(customer);
         context.Products.Add(product);
@@ -173,8 +173,8 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
-        var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 50);
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
+        var product = TestEntities.Product("Test Product", "Description", Money.Create(10.00m, "USD"), 50);
 
         context.Customers.Add(customer);
         context.Products.Add(product);
@@ -205,9 +205,9 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
-        var product1 = new Product("Product A", "Description", Money.Create(10.00m, "USD"), 50);
-        var product2 = new Product("Product B", "Description", Money.Create(20.00m, "USD"), 50);
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
+        var product1 = TestEntities.Product("Product A", "Description", Money.Create(10.00m, "USD"), 50);
+        var product2 = TestEntities.Product("Product B", "Description", Money.Create(20.00m, "USD"), 50);
 
         context.Customers.Add(customer);
         context.Products.AddRange(product1, product2);
@@ -240,9 +240,9 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
-        var product1 = new Product("Product A", "Description", Money.Create(10.00m, "USD"), 100);
-        var product2 = new Product("Product B", "Description", Money.Create(20.00m, "USD"), 2);
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
+        var product1 = TestEntities.Product("Product A", "Description", Money.Create(10.00m, "USD"), 100);
+        var product2 = TestEntities.Product("Product B", "Description", Money.Create(20.00m, "USD"), 2);
 
         context.Customers.Add(customer);
         context.Products.AddRange(product1, product2);
@@ -276,8 +276,8 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
-        var product = new Product("Test Product", "Description", Money.Create(24.50m, "AUD"), 10);
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
+        var product = TestEntities.Product("Test Product", "Description", Money.Create(24.50m, "AUD"), 10);
 
         context.Customers.Add(customer);
         context.Products.Add(product);
@@ -313,8 +313,8 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
-        var product = new Product("Test Product", "Description", Money.Create(19.99m, "USD"), 20);
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
+        var product = TestEntities.Product("Test Product", "Description", Money.Create(19.99m, "USD"), 20);
 
         context.Customers.Add(customer);
         context.Products.Add(product);
@@ -347,8 +347,8 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
-        var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
+        var product = TestEntities.Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);
 
         context.Customers.Add(customer);
         context.Products.Add(product);

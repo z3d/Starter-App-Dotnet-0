@@ -68,7 +68,7 @@ public class UpdateCustomerCommandHandlerTests : PostgresCommandHandlerTestBase
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Original Name", Email.Create("original@example.com"));
+        var customer = TestEntities.Customer("Original Name", Email.Create("original@example.com"));
         context.Customers.Add(customer);
         await context.SaveChangesAsync();
 

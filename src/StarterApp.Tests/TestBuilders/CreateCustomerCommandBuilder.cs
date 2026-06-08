@@ -1,19 +1,19 @@
 namespace StarterApp.Tests.TestBuilders;
 
-public class CustomerBuilder
+public class CreateCustomerCommandBuilder
 {
     private string _name = "Test Customer";
     private string _email = "test@example.com";
 
-    public static CustomerBuilder Default() => new();
+    public static CreateCustomerCommandBuilder Default() => new();
 
-    public CustomerBuilder WithName(string name)
+    public CreateCustomerCommandBuilder WithName(string name)
     {
         _name = name;
         return this;
     }
 
-    public CustomerBuilder WithEmail(string email)
+    public CreateCustomerCommandBuilder WithEmail(string email)
     {
         _email = email;
         return this;

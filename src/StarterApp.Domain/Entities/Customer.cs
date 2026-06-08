@@ -19,11 +19,6 @@ public class Customer
         IsActive = true;
     }
 
-    public Customer(string name, Email email)
-        : this(name, email, OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId)
-    {
-    }
-
     public Customer(string name, Email email, string ownerSubject, string tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);

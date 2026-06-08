@@ -38,7 +38,7 @@ public class OrderStateMachineFuzzTests
         return Prop.ForAll(ValidTransitionPath().ToArbitrary(),
             path =>
             {
-                var order = new Order(1);
+                var order = TestEntities.Order(1);
                 foreach (var status in path)
                 {
                     order.UpdateStatus(status);
@@ -114,7 +114,7 @@ public class OrderStateMachineFuzzTests
         return Prop.ForAll(itemsGen.ToArbitrary(),
             itemSpecs =>
             {
-                var order = new Order(1);
+                var order = TestEntities.Order(1);
                 for (var i = 0; i < itemSpecs.Length; i++)
                 {
                     var spec = itemSpecs[i];

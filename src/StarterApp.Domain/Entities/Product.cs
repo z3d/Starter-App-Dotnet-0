@@ -25,12 +25,6 @@ public class Product
         LastUpdated = DateTimeOffset.UtcNow;
     }
 
-    // Public constructor (replacing the factory method)
-    public Product(string name, string? description, Money price, int stock)
-        : this(name, description, price, stock, OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId)
-    {
-    }
-
     public Product(string name, string? description, Money price, int stock, string ownerSubject, string tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);

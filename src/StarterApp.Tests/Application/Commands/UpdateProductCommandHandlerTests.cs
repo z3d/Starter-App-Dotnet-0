@@ -104,7 +104,7 @@ public class UpdateProductCommandHandlerTests : PostgresCommandHandlerTestBase
         await using var context = CreateContext();
 
         // Create test product first
-        var originalProduct = new Product("Original Product", "Original Description", Money.Create(10.99m, "USD"), 100);
+        var originalProduct = TestEntities.Product("Original Product", "Original Description", Money.Create(10.99m, "USD"), 100);
         context.Products.Add(originalProduct);
         await context.SaveChangesAsync();
 

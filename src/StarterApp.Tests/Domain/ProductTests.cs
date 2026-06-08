@@ -1,5 +1,3 @@
-using StarterApp.Tests.TestBuilders;
-
 namespace StarterApp.Tests.Domain;
 
 public class ProductTests
@@ -14,12 +12,7 @@ public class ProductTests
         var stock = 100;
 
         // Act
-        var product = ProductBuilder.AValidProduct()
-            .WithName(name)
-            .WithDescription(description)
-            .WithPrice(price)
-            .WithStock(stock)
-            .Build();
+        var product = TestEntities.Product(name, description, price, stock);
 
         // Assert
         Assert.NotNull(product);
@@ -34,9 +27,7 @@ public class ProductTests
     {
         // Arrange & Act & Assert
         var exception = Assert.Throws<ArgumentException>(() =>
-            ProductBuilder.AValidProduct()
-                .WithName(string.Empty)
-                .Build());
+            TestEntities.Product(name: string.Empty));
 
         Assert.Contains("cannot be an empty string", exception.Message);
     }
@@ -50,9 +41,11 @@ public class ProductTests
         Money? price = null;
         var stock = 10;
 
-        // Act & Assert
+        // Act & Assert — call the owner-aware ctor directly so the null reaches the guard
+        // (TestEntities.Product coalesces a null price to a default for ergonomics).
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new Product(name, description, price!, stock));
+            new Product(name, description, price!, stock,
+                OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId));
 
         Assert.Equal("price", exception.ParamName);
     }
@@ -62,9 +55,7 @@ public class ProductTests
     {
         // Arrange & Act & Assert
         var exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            ProductBuilder.AValidProduct()
-                .WithStock(-1)
-                .Build());
+            TestEntities.Product(stock: -1));
 
         Assert.Contains("must be a non-negative value", exception.Message);
     }
@@ -73,9 +64,7 @@ public class ProductTests
     public void Create_WithNameExceedingMaxLength_ShouldThrowArgumentException()
     {
         var exception = Assert.Throws<ArgumentException>(() =>
-            ProductBuilder.AValidProduct()
-                .WithName(new string('p', Product.MaxNameLength + 1))
-                .Build());
+            TestEntities.Product(name: new string('p', Product.MaxNameLength + 1)));
 
         Assert.Contains($"Product name cannot exceed {Product.MaxNameLength} characters", exception.Message);
     }
@@ -84,11 +73,7 @@ public class ProductTests
     public void UpdateDetails_WithValidInputs_ShouldUpdateProduct()
     {
         // Arrange
-        var product = ProductBuilder.AValidProduct()
-            .WithName("Original Name")
-            .WithDescription("Original Description")
-            .WithPrice(10.99m)
-            .Build();
+        var product = TestEntities.Product("Original Name", "Original Description", Money.Create(10.99m));
 
         var newName = "Updated Name";
         var newDescription = "Updated Description";
@@ -109,7 +94,7 @@ public class ProductTests
     public void UpdateDetails_WithEmptyOrWhitespaceName_ShouldThrowArgumentException(string invalidName)
     {
         // Arrange
-        var product = ProductBuilder.AValidProduct().Build();
+        var product = TestEntities.Product();
 
         // Act & Assert
         Assert.Throws<ArgumentException>(() =>
@@ -120,7 +105,7 @@ public class ProductTests
     public void UpdateDetails_WithNullPrice_ShouldThrowArgumentNullException()
     {
         // Arrange
-        var product = ProductBuilder.AValidProduct().Build();
+        var product = TestEntities.Product();
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
@@ -130,7 +115,7 @@ public class ProductTests
     [Fact]
     public void UpdateDetails_WithDescriptionExceedingMaxLength_ShouldThrowArgumentException()
     {
-        var product = ProductBuilder.AValidProduct().Build();
+        var product = TestEntities.Product();
 
         var exception = Assert.Throws<ArgumentException>(() =>
             product.UpdateDetails("Name", new string('d', Product.MaxDescriptionLength + 1), Money.Create(10.00m)));
@@ -143,9 +128,7 @@ public class ProductTests
     {
         // Arrange
         var initialStock = 100;
-        var product = ProductBuilder.AValidProduct()
-            .WithStock(initialStock)
-            .Build();
+        var product = TestEntities.Product(stock: initialStock);
 
         var quantityToAdd = 50;
         var expectedStock = initialStock + quantityToAdd;
@@ -162,9 +145,7 @@ public class ProductTests
     {
         // Arrange
         var initialStock = 100;
-        var product = ProductBuilder.AValidProduct()
-            .WithStock(initialStock)
-            .Build();
+        var product = TestEntities.Product(stock: initialStock);
 
         var quantityToRemove = -101;
 
@@ -175,5 +156,3 @@ public class ProductTests
         Assert.Contains("Cannot reduce stock below zero", exception.Message);
     }
 }
-
-

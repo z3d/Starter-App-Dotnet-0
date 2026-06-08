@@ -50,6 +50,7 @@ global using StarterApp.Domain.Enums;
 global using StarterApp.Domain.Events;
 global using StarterApp.Domain.ValueObjects;
 global using StarterApp.Tests.Integration;
+global using StarterApp.Tests.TestBuilders;
 // Testing frameworks
 global using Xunit;
 global using Xunit.Abstractions;

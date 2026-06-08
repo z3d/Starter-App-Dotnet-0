@@ -11,7 +11,7 @@ public class OrderTests
         var customerId = 1;
 
         // Act
-        var order = new Order(customerId);
+        var order = TestEntities.Order(customerId);
 
         // Assert
         Assert.Equal(customerId, order.CustomerId);
@@ -27,7 +27,7 @@ public class OrderTests
     {
         var orderId = Guid.CreateVersion7();
 
-        var order = new Order(orderId, 1);
+        var order = TestEntities.Order(orderId, 1);
 
         Assert.Equal(orderId, order.Id);
         Assert.Equal(OrderStatus.Pending, order.Status);
@@ -39,14 +39,14 @@ public class OrderTests
     public void Constructor_WithInvalidCustomerId_ShouldThrowArgumentOutOfRangeException(int customerId)
     {
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => new Order(customerId));
+        Assert.Throws<ArgumentOutOfRangeException>(() => TestEntities.Order(customerId));
     }
 
     [Fact]
     public void AddItem_WithValidItem_ShouldAddItemToOrder()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         var money = Money.Create(10.00m, "USD");
         var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 2, money);
 
@@ -62,7 +62,7 @@ public class OrderTests
     public void AddItem_WithNullItem_ShouldThrowArgumentNullException()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => order.AddItem(null!));
@@ -72,7 +72,7 @@ public class OrderTests
     public void AddItem_WhenOrderIsNotPending_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         order.UpdateStatus(OrderStatus.Confirmed);
         var money = Money.Create(10.00m, "USD");
         var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 2, money);
@@ -86,7 +86,7 @@ public class OrderTests
     public void AddItem_WithSameProductId_ShouldReplaceExistingItem()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         var money = Money.Create(10.00m, "USD");
         var firstItem = new OrderItem(TestOrderId, 1, "Test Product", 2, money);
         var secondItem = new OrderItem(TestOrderId, 1, "Test Product", 3, money);
@@ -106,7 +106,7 @@ public class OrderTests
     public void AddItem_WithMixedCurrency_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         order.AddItem(new OrderItem(TestOrderId, 1, "Product 1", 1, Money.Create(10.00m, "USD")));
 
         // Act & Assert
@@ -120,7 +120,7 @@ public class OrderTests
     public void AddItem_UpToMaxItems_ShouldSucceed()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         var money = Money.Create(10.00m, "USD");
 
         // Act
@@ -135,7 +135,7 @@ public class OrderTests
     public void AddItem_BeyondMaxItems_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         var money = Money.Create(10.00m, "USD");
         for (var productId = 1; productId <= Order.MaxItems; productId++)
             order.AddItem(new OrderItem(TestOrderId, productId, $"Product {productId}", 1, money));
@@ -150,7 +150,7 @@ public class OrderTests
     public void AddItem_ReplacingExistingProductAtMaxItems_ShouldNotThrow()
     {
         // Arrange — the cap bounds distinct products, so replacing one at the limit is allowed
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         var money = Money.Create(10.00m, "USD");
         for (var productId = 1; productId <= Order.MaxItems; productId++)
             order.AddItem(new OrderItem(TestOrderId, productId, $"Product {productId}", 1, money));
@@ -167,7 +167,7 @@ public class OrderTests
     public void RemoveItem_WithValidProductId_ShouldRemoveItem()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         var money = Money.Create(10.00m, "USD");
         var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 2, money);
         order.AddItem(orderItem);
@@ -185,7 +185,7 @@ public class OrderTests
     public void RemoveItem_WithInvalidProductId_ShouldThrowArgumentOutOfRangeException(int productId)
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
 
         // Act & Assert
         Assert.Throws<ArgumentOutOfRangeException>(() => order.RemoveItem(productId));
@@ -195,7 +195,7 @@ public class OrderTests
     public void RemoveItem_WhenOrderIsNotPending_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         order.UpdateStatus(OrderStatus.Confirmed);
 
         // Act & Assert
@@ -207,7 +207,7 @@ public class OrderTests
     public void RemoveItem_WithNonExistentProductId_ShouldNotThrow()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
 
         // Act & Assert - Should not throw
         order.RemoveItem(999);
@@ -230,7 +230,7 @@ public class OrderTests
         OrderStatus currentStatus, OrderStatus newStatus, bool shouldSucceed)
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         if (currentStatus != OrderStatus.Pending)
         {
             // Reconstitute the order in the desired state
@@ -254,7 +254,7 @@ public class OrderTests
     public void Confirm_WithItems_ShouldConfirmOrder()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         var money = Money.Create(10.00m, "USD");
         var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 2, money);
         order.AddItem(orderItem);
@@ -270,7 +270,7 @@ public class OrderTests
     public void Confirm_WithNoItems_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() => order.Confirm());
@@ -281,7 +281,7 @@ public class OrderTests
     public void Cancel_FromPendingStatus_ShouldCancelOrder()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
 
         // Act
         order.Cancel();
@@ -305,7 +305,7 @@ public class OrderTests
     public void GetTotalExcludingGst_WithNoItems_ShouldReturnZero()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
 
         // Act
         var total = order.GetTotalExcludingGst();
@@ -318,7 +318,7 @@ public class OrderTests
     public void GetTotalExcludingGst_WithItems_ShouldCalculateCorrectTotal()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         var money1 = Money.Create(10.00m, "USD");
         var money2 = Money.Create(20.00m, "USD");
         var item1 = new OrderItem(TestOrderId, 1, "Product 1", 2, money1); // 2 * 10.00 = 20.00
@@ -338,7 +338,7 @@ public class OrderTests
     public void GetTotalIncludingGst_WithItems_ShouldCalculateCorrectTotal()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         var money = Money.Create(10.00m, "USD");
         var item = new OrderItem(TestOrderId, 1, "Product 1", 2, money, 0.10m); // 2 * 10.00 * 1.10 = 22.00
 
@@ -355,7 +355,7 @@ public class OrderTests
     public void GetTotalGstAmount_WithItems_ShouldCalculateCorrectGstAmount()
     {
         // Arrange
-        var order = new Order(1);
+        var order = TestEntities.Order(1);
         var money = Money.Create(10.00m, "USD");
         var item = new OrderItem(TestOrderId, 1, "Product 1", 2, money, 0.10m); // 2 * 10.00 * 0.10 = 2.00
 

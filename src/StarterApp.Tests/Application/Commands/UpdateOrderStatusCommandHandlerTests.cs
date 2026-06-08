@@ -16,13 +16,13 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
-        var product = new Product("Product A", "Description", Money.Create(10m, "USD"), 10);
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
+        var product = TestEntities.Product("Product A", "Description", Money.Create(10m, "USD"), 10);
         context.Customers.Add(customer);
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var order = new Order(customer.Id);
+        var order = TestEntities.Order(customer.Id);
         order.AddItem(product.Id, product.Name, 1, Money.Create(10m, "USD"), 0.1m);
         context.Orders.Add(order);
         await context.SaveChangesAsync();
@@ -44,13 +44,13 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
-        var product = new Product("Product A", "Description", Money.Create(10m, "USD"), 10);
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
+        var product = TestEntities.Product("Product A", "Description", Money.Create(10m, "USD"), 10);
         context.Customers.Add(customer);
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var order = new Order(customer.Id);
+        var order = TestEntities.Order(customer.Id);
         order.AddItem(product.Id, product.Name, 1, Money.Create(10m, "USD"), 0.1m);
         context.Orders.Add(order);
         await context.SaveChangesAsync();
@@ -78,13 +78,13 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
-        var product = new Product("Product A", "Description", Money.Create(10m, "USD"), 10);
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
+        var product = TestEntities.Product("Product A", "Description", Money.Create(10m, "USD"), 10);
         context.Customers.Add(customer);
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var order = new Order(customer.Id);
+        var order = TestEntities.Order(customer.Id);
         order.AddItem(product.Id, product.Name, 2, Money.Create(10m, "USD"), 0.1m);
         context.Orders.Add(order);
 
@@ -122,11 +122,11 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
         context.Customers.Add(customer);
         await context.SaveChangesAsync();
 
-        var order = new Order(customer.Id);
+        var order = TestEntities.Order(customer.Id);
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 
@@ -144,8 +144,8 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
-        var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
+        var product = TestEntities.Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);
         context.Customers.Add(customer);
         context.Products.Add(product);
         await context.SaveChangesAsync();

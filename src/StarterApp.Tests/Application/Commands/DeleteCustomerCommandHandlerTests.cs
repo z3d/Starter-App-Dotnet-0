@@ -25,7 +25,7 @@ public class DeleteCustomerCommandHandlerTests : PostgresCommandHandlerTestBase
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("John Doe", Email.Create("john@example.com"));
+        var customer = TestEntities.Customer("John Doe", Email.Create("john@example.com"));
         context.Customers.Add(customer);
         await context.SaveChangesAsync();
 
@@ -60,8 +60,8 @@ public class DeleteCustomerCommandHandlerTests : PostgresCommandHandlerTestBase
         // Arrange
         await using var context = CreateContext();
 
-        var customer = new Customer("Test Customer", Email.Create("test@example.com"));
-        var product = new Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);
+        var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
+        var product = TestEntities.Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);
         context.Customers.Add(customer);
         context.Products.Add(product);
         await context.SaveChangesAsync();

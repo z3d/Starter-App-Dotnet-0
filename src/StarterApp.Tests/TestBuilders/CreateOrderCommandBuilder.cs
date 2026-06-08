@@ -1,19 +1,19 @@
 namespace StarterApp.Tests.TestBuilders;
 
-public class OrderBuilder
+public class CreateOrderCommandBuilder
 {
     private int _customerId = 1;
     private readonly List<CreateOrderItemCommand> _items = [];
 
-    public static OrderBuilder Default() => new();
+    public static CreateOrderCommandBuilder Default() => new();
 
-    public OrderBuilder WithCustomerId(int customerId)
+    public CreateOrderCommandBuilder WithCustomerId(int customerId)
     {
         _customerId = customerId;
         return this;
     }
 
-    public OrderBuilder WithItem(int productId, int quantity)
+    public CreateOrderCommandBuilder WithItem(int productId, int quantity)
     {
         _items.Add(new CreateOrderItemCommand
         {
@@ -33,13 +33,13 @@ public class OrderBuilder
     }
 
     public static CreateOrderCommand SimpleOrder(int customerId = 1, int productId = 1) =>
-        new OrderBuilder()
+        new CreateOrderCommandBuilder()
             .WithCustomerId(customerId)
             .WithItem(productId, 2)
             .Build();
 
     public static CreateOrderCommand MultipleItemsOrder(int customerId = 1, int productId1 = 1, int productId2 = 2) =>
-        new OrderBuilder()
+        new CreateOrderCommandBuilder()
             .WithCustomerId(customerId)
             .WithItem(productId1, 1)
             .WithItem(productId2, 3)

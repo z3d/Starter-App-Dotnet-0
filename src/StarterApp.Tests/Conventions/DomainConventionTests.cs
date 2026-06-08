@@ -2,6 +2,34 @@ namespace StarterApp.Tests.Conventions;
 
 public class DomainConventionTests : ConventionTestBase
 {
+    // === Owner scoping ===
+
+    [Fact]
+    public void OwnerScopedAggregates_MustNotExposeOwnerlessPublicConstructors()
+    {
+        // Order/Customer/Product are owner-scoped. A public constructor that omits owner scope is a
+        // multi-tenant footgun: a handler could create a row stamped with the legacy sentinel owner,
+        // invisible to/uneditable by its real tenant. Pure-reflection check (no IL), so it is
+        // Debug/Release-identical. Tests construct via TestEntities, which supplies owner scope.
+        var aggregates = new[] { typeof(Order), typeof(Customer), typeof(Product) };
+        var failures = new List<string>();
+
+        foreach (var type in aggregates)
+            foreach (var ctor in type.GetConstructors(BindingFlags.Public | BindingFlags.Instance))
+            {
+                var parameters = ctor.GetParameters();
+                var hasOwnerScope = parameters.Any(p => p.Name == "ownerSubject")
+                    && parameters.Any(p => p.Name == "tenantId");
+                if (!hasOwnerScope)
+                    failures.Add($"{type.Name}({string.Join(", ", parameters.Select(p => p.ParameterType.Name))}) " +
+                                 "is a public constructor without owner scope.");
+            }
+
+        Assert.True(failures.Count == 0,
+            "Owner-scoped aggregates must not expose public constructors without owner scope " +
+            "(use the owner-aware constructor; tests use TestEntities):\n" + string.Join("\n", failures));
+    }
+
     // === Encapsulation ===
 
     [Fact]

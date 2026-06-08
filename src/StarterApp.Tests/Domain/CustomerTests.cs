@@ -10,7 +10,7 @@ public class CustomerTests
         var email = Email.Create("john.doe@example.com");
 
         // Act
-        var customer = new Customer(name, email);
+        var customer = TestEntities.Customer(name, email);
 
         // Assert
         Assert.NotNull(customer);
@@ -30,7 +30,7 @@ public class CustomerTests
         var email = Email.Create("test@example.com");
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => new Customer(invalidName, email));
+        var exception = Assert.Throws<ArgumentException>(() => TestEntities.Customer(invalidName, email));
         Assert.Contains("cannot be an empty string", exception.Message);
     }
 
@@ -41,7 +41,7 @@ public class CustomerTests
         var email = Email.Create("test@example.com");
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentNullException>(() => new Customer(null!, email));
+        var exception = Assert.Throws<ArgumentNullException>(() => TestEntities.Customer(null!, email));
         Assert.Equal("name", exception.ParamName);
     }
 
@@ -53,7 +53,7 @@ public class CustomerTests
         Email? email = null;
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentNullException>(() => new Customer(name, email!));
+        var exception = Assert.Throws<ArgumentNullException>(() => TestEntities.Customer(name, email!));
         Assert.Equal("email", exception.ParamName);
     }
 
@@ -63,7 +63,7 @@ public class CustomerTests
         var email = Email.Create("test@example.com");
 
         var exception = Assert.Throws<ArgumentException>(() =>
-            new Customer(new string('c', Customer.MaxNameLength + 1), email));
+            TestEntities.Customer(new string('c', Customer.MaxNameLength + 1), email));
 
         Assert.Contains($"Customer name cannot exceed {Customer.MaxNameLength} characters", exception.Message);
     }
@@ -72,7 +72,7 @@ public class CustomerTests
     public void UpdateDetails_WithValidParameters_ShouldUpdateCustomer()
     {
         // Arrange
-        var customer = new Customer("John Doe", Email.Create("john@example.com"));
+        var customer = TestEntities.Customer("John Doe", Email.Create("john@example.com"));
         var newName = "Jane Doe";
         var newEmail = Email.Create("jane@example.com");
 
@@ -90,7 +90,7 @@ public class CustomerTests
     public void UpdateDetails_WithEmptyOrWhitespaceName_ShouldThrowArgumentException(string invalidName)
     {
         // Arrange
-        var customer = new Customer("John Doe", Email.Create("john@example.com"));
+        var customer = TestEntities.Customer("John Doe", Email.Create("john@example.com"));
         var newEmail = Email.Create("jane@example.com");
 
         // Act & Assert
@@ -101,7 +101,7 @@ public class CustomerTests
     public void UpdateDetails_WithNullEmail_ShouldThrowArgumentNullException()
     {
         // Arrange
-        var customer = new Customer("John Doe", Email.Create("john@example.com"));
+        var customer = TestEntities.Customer("John Doe", Email.Create("john@example.com"));
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => customer.UpdateDetails("Jane Doe", null!));
@@ -111,7 +111,7 @@ public class CustomerTests
     public void Activate_ShouldSetIsActiveToTrue()
     {
         // Arrange
-        var customer = new Customer("John Doe", Email.Create("john@example.com"));
+        var customer = TestEntities.Customer("John Doe", Email.Create("john@example.com"));
         customer.Deactivate();
 
         // Act
@@ -125,7 +125,7 @@ public class CustomerTests
     public void Deactivate_ShouldSetIsActiveToFalse()
     {
         // Arrange
-        var customer = new Customer("John Doe", Email.Create("john@example.com"));
+        var customer = TestEntities.Customer("John Doe", Email.Create("john@example.com"));
 
         // Act
         customer.Deactivate();

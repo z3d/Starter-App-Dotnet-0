@@ -1,5 +1,3 @@
-using StarterApp.Tests.TestBuilders;
-
 namespace StarterApp.Tests.Integration;
 
 [Collection("Integration Tests")]
@@ -44,7 +42,7 @@ public class OrderApiTests : IAsyncLifetime
     private async Task<(CustomerDto customer, ProductDto product)> CreateTestData()
     {
         // Create customer
-        var customerCommand = CustomerBuilder.SimpleCustomer();
+        var customerCommand = CreateCustomerCommandBuilder.SimpleCustomer();
         var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", customerCommand);
         customerResponse.EnsureSuccessStatusCode();
         var customer = await customerResponse.Content.ReadFromJsonAsync<CustomerDto>();
@@ -114,7 +112,7 @@ public class OrderApiTests : IAsyncLifetime
         var (customer, product) = await CreateTestData();
 
         // Create order
-        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var orderCommand = CreateOrderCommandBuilder.SimpleOrder(customer.Id, product.Id);
         var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
@@ -169,8 +167,8 @@ public class OrderApiTests : IAsyncLifetime
         var (customer, product) = await CreateTestData();
 
         // Create multiple orders for the customer
-        var order1 = OrderBuilder.SimpleOrder(customer.Id, product.Id);
-        var order2 = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var order1 = CreateOrderCommandBuilder.SimpleOrder(customer.Id, product.Id);
+        var order2 = CreateOrderCommandBuilder.SimpleOrder(customer.Id, product.Id);
 
         await _fixture.Client.PostAsJsonAsync("/api/v1/orders", order1);
         await _fixture.Client.PostAsJsonAsync("/api/v1/orders", order2);
@@ -193,7 +191,7 @@ public class OrderApiTests : IAsyncLifetime
         var (customer, product) = await CreateTestData();
 
         // Create order
-        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var orderCommand = CreateOrderCommandBuilder.SimpleOrder(customer.Id, product.Id);
         await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
 
         // Act
@@ -223,7 +221,7 @@ public class OrderApiTests : IAsyncLifetime
         // Arrange - Create test data
         var (customer, product) = await CreateTestData();
 
-        var orderCommand = OrderBuilder.Default()
+        var orderCommand = CreateOrderCommandBuilder.Default()
             .WithCustomerId(customer.Id)
             .WithItem(product.Id, 2)
             .Build();
@@ -264,7 +262,7 @@ public class OrderApiTests : IAsyncLifetime
         var product = await productResponse.Content.ReadFromJsonAsync<ProductDto>();
         Assert.NotNull(product);
 
-        var orderCommand = OrderBuilder.SimpleOrder(999999, product.Id); // Non-existent customer
+        var orderCommand = CreateOrderCommandBuilder.SimpleOrder(999999, product.Id); // Non-existent customer
 
         // Act
         var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
@@ -301,7 +299,7 @@ public class OrderApiTests : IAsyncLifetime
         var product2 = await product2Response.Content.ReadFromJsonAsync<ProductDto>();
         Assert.NotNull(product2);
 
-        var orderCommand = OrderBuilder.MultipleItemsOrder(customer.Id, product.Id, product2.Id);
+        var orderCommand = CreateOrderCommandBuilder.MultipleItemsOrder(customer.Id, product.Id, product2.Id);
 
         // Act
         var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
@@ -327,7 +325,7 @@ public class OrderApiTests : IAsyncLifetime
         // Arrange - Create test data and order
         var (customer, product) = await CreateTestData();
 
-        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var orderCommand = CreateOrderCommandBuilder.SimpleOrder(customer.Id, product.Id);
         var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
@@ -402,7 +400,7 @@ public class OrderApiTests : IAsyncLifetime
         // Arrange - Create test data and order
         var (customer, product) = await CreateTestData();
 
-        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var orderCommand = CreateOrderCommandBuilder.SimpleOrder(customer.Id, product.Id);
         var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
@@ -444,13 +442,13 @@ public class OrderApiTests : IAsyncLifetime
     public async Task CreateOrder_WithNonExistentProduct_ShouldReturnNotFound()
     {
         // Arrange - Create customer but use non-existent product
-        var customerCommand = CustomerBuilder.SimpleCustomer();
+        var customerCommand = CreateCustomerCommandBuilder.SimpleCustomer();
         var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", customerCommand);
         customerResponse.EnsureSuccessStatusCode();
         var customer = await customerResponse.Content.ReadFromJsonAsync<CustomerDto>();
         Assert.NotNull(customer);
 
-        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, 999999); // Non-existent product
+        var orderCommand = CreateOrderCommandBuilder.SimpleOrder(customer.Id, 999999); // Non-existent product
 
         // Act
         var response = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
@@ -471,13 +469,13 @@ public class OrderApiTests : IAsyncLifetime
     public async Task CreateOrder_WithEmptyItems_ShouldReturnBadRequest()
     {
         // Arrange - Create customer
-        var customerCommand = CustomerBuilder.SimpleCustomer();
+        var customerCommand = CreateCustomerCommandBuilder.SimpleCustomer();
         var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", customerCommand);
         customerResponse.EnsureSuccessStatusCode();
         var customer = await customerResponse.Content.ReadFromJsonAsync<CustomerDto>();
         Assert.NotNull(customer);
 
-        var orderCommand = OrderBuilder.Default()
+        var orderCommand = CreateOrderCommandBuilder.Default()
             .WithCustomerId(customer.Id)
             .Build(); // No items added - validation rejects this
 
@@ -491,7 +489,7 @@ public class OrderApiTests : IAsyncLifetime
     [Fact]
     public async Task CreateOrder_WithMoreThanMaxItems_ShouldReturnBadRequest()
     {
-        var customerCommand = CustomerBuilder.SimpleCustomer();
+        var customerCommand = CreateCustomerCommandBuilder.SimpleCustomer();
         var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", customerCommand);
         customerResponse.EnsureSuccessStatusCode();
         var customer = await customerResponse.Content.ReadFromJsonAsync<CustomerDto>();
@@ -524,7 +522,7 @@ public class OrderApiTests : IAsyncLifetime
         // Arrange - Create test data
         var (customer, product) = await CreateTestData();
 
-        var orderCommand = OrderBuilder.Default()
+        var orderCommand = CreateOrderCommandBuilder.Default()
             .WithCustomerId(customer.Id)
             .WithItem(product.Id, -1) // Negative quantity
             .Build();
@@ -550,7 +548,7 @@ public class OrderApiTests : IAsyncLifetime
         // Arrange
         var (customer, product) = await CreateTestData();
 
-        var orderCommand = OrderBuilder.Default()
+        var orderCommand = CreateOrderCommandBuilder.Default()
             .WithCustomerId(customer.Id)
             .WithItem(product.Id, 1)
             .WithItem(product.Id, 2)
@@ -569,7 +567,7 @@ public class OrderApiTests : IAsyncLifetime
         // Arrange - Create test data and order
         var (customer, product) = await CreateTestData();
 
-        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var orderCommand = CreateOrderCommandBuilder.SimpleOrder(customer.Id, product.Id);
         var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
@@ -601,7 +599,7 @@ public class OrderApiTests : IAsyncLifetime
     {
         var (customer, product) = await CreateTestData();
 
-        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var orderCommand = CreateOrderCommandBuilder.SimpleOrder(customer.Id, product.Id);
         var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
@@ -628,7 +626,7 @@ public class OrderApiTests : IAsyncLifetime
         // Arrange - Create test data and order, then update to Delivered
         var (customer, product) = await CreateTestData();
 
-        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var orderCommand = CreateOrderCommandBuilder.SimpleOrder(customer.Id, product.Id);
         var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
@@ -656,7 +654,7 @@ public class OrderApiTests : IAsyncLifetime
         // Arrange - Create test data and order, then move to Delivered
         var (customer, product) = await CreateTestData();
 
-        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var orderCommand = CreateOrderCommandBuilder.SimpleOrder(customer.Id, product.Id);
         var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
@@ -677,7 +675,7 @@ public class OrderApiTests : IAsyncLifetime
         // Arrange - Create test data
         var (customer, product) = await CreateTestData();
 
-        var orderCommand = OrderBuilder.Default()
+        var orderCommand = CreateOrderCommandBuilder.Default()
             .WithCustomerId(customer.Id)
             .WithItem(product.Id, 2)
             .Build();
@@ -718,7 +716,7 @@ public class OrderApiTests : IAsyncLifetime
         // Arrange - Create test data
         var (customer, product) = await CreateTestData();
 
-        var orderCommand = OrderBuilder.Default()
+        var orderCommand = CreateOrderCommandBuilder.Default()
             .WithCustomerId(customer.Id)
             .WithItem(product.Id, 2)
             .Build();
@@ -752,7 +750,7 @@ public class OrderApiTests : IAsyncLifetime
         // Arrange - Create test data with one valid product
         var (customer, product) = await CreateTestData();
 
-        var orderCommand = OrderBuilder.Default()
+        var orderCommand = CreateOrderCommandBuilder.Default()
             .WithCustomerId(customer.Id)
             .WithItem(product.Id, 1)       // Valid product
             .WithItem(999999, 1)              // Non-existent product
@@ -778,7 +776,7 @@ public class OrderApiTests : IAsyncLifetime
         var startTime = DateTimeOffset.UtcNow;
 
         // Create order
-        var orderCommand = OrderBuilder.SimpleOrder(customer.Id, product.Id);
+        var orderCommand = CreateOrderCommandBuilder.SimpleOrder(customer.Id, product.Id);
         var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", orderCommand);
         createResponse.EnsureSuccessStatusCode();
         var createdOrder = await createResponse.Content.ReadFromJsonAsync<OrderDto>();

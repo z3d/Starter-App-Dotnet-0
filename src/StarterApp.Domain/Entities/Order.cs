@@ -32,16 +32,6 @@ public class Order : AggregateRoot
         LastUpdated = DateTimeOffset.UtcNow;
     }
 
-    public Order(int customerId)
-        : this(Guid.CreateVersion7(), customerId, OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId)
-    {
-    }
-
-    internal Order(Guid id, int customerId)
-        : this(id, customerId, OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId)
-    {
-    }
-
     public Order(int customerId, string ownerSubject, string tenantId)
         : this(Guid.CreateVersion7(), customerId, ownerSubject, tenantId)
     {
