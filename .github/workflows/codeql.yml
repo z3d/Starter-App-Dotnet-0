@@ -26,18 +26,18 @@ jobs:
       contents: read
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
     # build-mode: none analyzes C# without compiling — no SDK/restore needed, and it sidesteps
     # the locked-restore/RID constraints the build jobs carry. Switch to build-mode: autobuild
     # (or manual) if a future query needs full compilation-based dataflow.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
+      uses: github/codeql-action/init@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3.36.2
       with:
         languages: csharp
         build-mode: none
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
+      uses: github/codeql-action/analyze@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3.36.2
       with:
         category: "/language:csharp"
