@@ -61,8 +61,7 @@ public static class MediatorServiceExtensions
             return false;
 
         var genericTypeDefinition = type.GetGenericTypeDefinition();
-        return genericTypeDefinition == typeof(IRequestHandler<,>) ||
-               genericTypeDefinition == typeof(IRequestHandler<>);
+        return genericTypeDefinition == typeof(IRequestHandler<,>);
     }
 
     private static bool IsValidatorInterface(Type type)

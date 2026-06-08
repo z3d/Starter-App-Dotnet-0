@@ -68,7 +68,11 @@ public static class ServiceCollectionExtensions
         // Dapper reads use this connection. Query handlers wrap their calls in
         // PostgresRetryPolicy.ExecuteAsync so read-side transient faults get the same retry posture
         // as EF Core writes.
-        services.AddScoped<System.Data.IDbConnection>(provider =>
+        // Transient (not scoped): each injecting query handler gets its own NpgsqlConnection, so a
+        // future Task.WhenAll over two query handlers in one request can't collide on a single
+        // connection (Npgsql has no MARS). Queries are read-only with no shared transaction, and
+        // connection pooling reuses the physical sockets, so per-resolution connections are cheap.
+        services.AddTransient<System.Data.IDbConnection>(provider =>
             new Npgsql.NpgsqlConnection(connectionString));
 
         return services;

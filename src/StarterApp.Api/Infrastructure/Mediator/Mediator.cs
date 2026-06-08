@@ -10,7 +10,6 @@ public class Mediator : IMediator
     // plus a strongly-typed virtual call. No MethodInfo.Invoke, no per-call
     // object[] argument allocation, no per-behavior GetMethod lookup.
     private static readonly ConcurrentDictionary<Type, object> RequestHandlerWrappers = new();
-    private static readonly ConcurrentDictionary<Type, VoidRequestHandlerWrapper> VoidRequestHandlerWrappers = new();
     private static readonly ConcurrentDictionary<Type, ValidatorInvoker> ValidatorInvokers = new();
 
     private readonly IServiceProvider _serviceProvider;
@@ -31,20 +30,6 @@ public class Mediator : IMediator
             static (requestType, responseType) =>
                 Activator.CreateInstance(typeof(RequestHandlerWrapperImpl<,>).MakeGenericType(requestType, responseType))!,
             typeof(TResponse));
-
-        return wrapper.HandleAsync(request, _serviceProvider, cancellationToken);
-    }
-
-    public Task SendAsync(IRequest request, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-
-        RunValidators(request);
-
-        var wrapper = VoidRequestHandlerWrappers.GetOrAdd(
-            request.GetType(),
-            static requestType =>
-                (VoidRequestHandlerWrapper)Activator.CreateInstance(typeof(VoidRequestHandlerWrapperImpl<>).MakeGenericType(requestType))!);
 
         return wrapper.HandleAsync(request, _serviceProvider, cancellationToken);
     }
@@ -85,22 +70,6 @@ public class Mediator : IMediator
             }
 
             return pipeline();
-        }
-    }
-
-    private abstract class VoidRequestHandlerWrapper
-    {
-        public abstract Task HandleAsync(IRequest request, IServiceProvider serviceProvider, CancellationToken cancellationToken);
-    }
-
-    private sealed class VoidRequestHandlerWrapperImpl<TRequest> : VoidRequestHandlerWrapper
-        where TRequest : IRequest
-    {
-        public override Task HandleAsync(IRequest request, IServiceProvider serviceProvider, CancellationToken cancellationToken)
-        {
-            var handler = serviceProvider.GetService<IRequestHandler<TRequest>>()
-                ?? throw new InvalidOperationException($"No handler registered for {typeof(TRequest).Name}");
-            return handler.HandleAsync((TRequest)request, cancellationToken);
         }
     }
 

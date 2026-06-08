@@ -18,9 +18,12 @@ public class CancelOrderCommandHandlerTests : PostgresCommandHandlerTestBase
 
         var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
         context.Customers.Add(customer);
+        var product = TestEntities.Product("Test Product", "Description", Money.Create(10.00m, "USD"), 100);
+        context.Products.Add(product);
         await context.SaveChangesAsync();
 
         var order = TestEntities.Order(customer.Id);
+        order.AddItem(product.Id, product.Name, 1, Money.Create(10.00m, "USD"), 0.1m);
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 

@@ -158,7 +158,6 @@ public class NamingConventionTests : ConventionTestBase
         var failures = new List<string>();
 
         var handlerTypes = ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
-            .Concat(ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<>)))
             .Distinct();
 
         foreach (var handler in handlerTypes)
@@ -194,9 +193,7 @@ public class NamingConventionTests : ConventionTestBase
     {
         return handlerType.GetInterfaces()
             .Where(i => i.IsGenericType)
-            .Where(i =>
-                i.GetGenericTypeDefinition() == typeof(IRequestHandler<,>) ||
-                i.GetGenericTypeDefinition() == typeof(IRequestHandler<>))
+            .Where(i => i.GetGenericTypeDefinition() == typeof(IRequestHandler<,>))
             .Select(i => i.GetGenericArguments()[0])
             .FirstOrDefault();
     }

@@ -18,7 +18,9 @@ public sealed class OrderCreatedDomainEvent : IDomainEvent
         TotalExcludingGst = order.GetTotalExcludingGst().Amount;
         TotalIncludingGst = order.GetTotalIncludingGst().Amount;
         TotalGstAmount = order.GetTotalGstAmount().Amount;
-        Currency = order.Items.Count > 0 ? order.Items[0].UnitPriceExcludingGst.Currency : "USD";
+        // Order.RecordCreation guards against zero items, so a created order always has ≥1 item
+        // and a real currency — no fabricated fallback needed.
+        Currency = order.Items[0].UnitPriceExcludingGst.Currency;
         OccurredOnUtc = DateTimeOffset.UtcNow;
     }
 

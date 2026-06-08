@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Application.Commands;
 
-public class DeleteProductCommand : ICommand, IRequest
+public class DeleteProductCommand : ICommand, IRequest<Unit>
 {
     public int Id { get; }
 
@@ -10,7 +10,7 @@ public class DeleteProductCommand : ICommand, IRequest
     }
 }
 
-public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand>
+public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand, Unit>
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly ICacheInvalidator _cacheInvalidator;
@@ -23,7 +23,7 @@ public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand>
         _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
-    public async Task HandleAsync(DeleteProductCommand command, CancellationToken cancellationToken)
+    public async Task<Unit> HandleAsync(DeleteProductCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling DeleteProductCommand for product {Id}", command.Id);
 
@@ -48,5 +48,6 @@ public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand>
         await _cacheInvalidator.InvalidateProductAsync(command.Id, cancellationToken);
 
         Log.Information("Deleted product with ID: {ProductId}", command.Id);
+        return Unit.Value;
     }
 }

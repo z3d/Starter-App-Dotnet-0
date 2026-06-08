@@ -1,11 +1,11 @@
 namespace StarterApp.Api.Application.Commands;
 
-public class DeleteCustomerCommand : ICommand, IRequest
+public class DeleteCustomerCommand : ICommand, IRequest<Unit>
 {
     public int Id { get; set; }
 }
 
-public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerCommand>
+public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerCommand, Unit>
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly ICacheInvalidator _cacheInvalidator;
@@ -18,7 +18,7 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
         _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
-    public async Task HandleAsync(DeleteCustomerCommand command, CancellationToken cancellationToken)
+    public async Task<Unit> HandleAsync(DeleteCustomerCommand command, CancellationToken cancellationToken)
     {
         Log.Information("Handling DeleteCustomerCommand for Customer {CustomerId}", command.Id);
 
@@ -45,6 +45,7 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
         await _cacheInvalidator.InvalidateCustomerAsync(command.Id, cancellationToken);
 
         Log.Information("Deleted customer with ID: {CustomerId}", command.Id);
+        return Unit.Value;
     }
 }
 

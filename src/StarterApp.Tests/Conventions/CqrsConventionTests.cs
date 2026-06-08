@@ -122,7 +122,6 @@ public partial class CqrsConventionTests : ConventionTestBase
     {
         var violations = ApiAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
-            .Concat(ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<>)))
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
             .Where(t => !t.GetConstructors().Any(ctor => ctor.GetParameters().Any(parameter => parameter.ParameterType == typeof(IOwnerOnlyPolicy))))
             .Select(t => t.FullName ?? t.Name)
@@ -144,7 +143,6 @@ public partial class CqrsConventionTests : ConventionTestBase
     {
         var handlers = ApiAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
-            .Concat(ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<>)))
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
             .Where(InjectsOwnerOnlyPolicy)
             .ToList();
@@ -209,7 +207,6 @@ public partial class CqrsConventionTests : ConventionTestBase
     {
         var allHandlers = ApiAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
-            .Concat(ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<>)))
             .Distinct().ToArray();
 
         var commandsWithResponse = ApiAssembly.GetTypes()
@@ -217,19 +214,9 @@ public partial class CqrsConventionTests : ConventionTestBase
                    t.GetInterfaces().Any(i => i == typeof(ICommand)) &&
                    t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>)));
 
-        var commandsVoid = ApiAssembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract &&
-                   t.GetInterfaces().Any(i => i == typeof(ICommand)) &&
-                   t.GetInterfaces().Any(i => i == typeof(IRequest)));
-
         commandsWithResponse
             .MustConformTo(Convention.RequiresACorrespondingImplementationOf(
                 typeof(IRequestHandler<,>), allHandlers))
-            .WithFailureAssertion(Assert.Fail);
-
-        commandsVoid
-            .MustConformTo(Convention.RequiresACorrespondingImplementationOf(
-                typeof(IRequestHandler<>), allHandlers))
             .WithFailureAssertion(Assert.Fail);
     }
 
@@ -313,8 +300,7 @@ public partial class CqrsConventionTests : ConventionTestBase
                    t.Namespace != null && t.Namespace.Contains("Commands") &&
                    !t.Name.EndsWith("Handler") && !IsCompilerGenerated(t) &&
                    t.GetInterfaces().Any(i =>
-                       (i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>)) ||
-                       i == typeof(IRequest)));
+                       i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>)));
         requestsInCommandNs
             .MustConformTo(new MustImplementMarkerInterfaceConvention(typeof(ICommand)))
             .WithFailureAssertion(Assert.Fail);
@@ -347,18 +333,19 @@ public partial class CqrsConventionTests : ConventionTestBase
 
     private class MustImplementRequestInterfaceConvention : ConventionSpecification
     {
-        protected override string FailureMessage => "must implement IRequest<T> or IRequest";
+        protected override string FailureMessage => "must implement IRequest<T>";
 
         public override ConventionResult IsSatisfiedBy(Type type)
         {
+            // IRequest<T> only — the void IRequest path was removed so every command/query flows
+            // through the single behavior-running pipeline; commands with no result use IRequest<Unit>.
             var implementsRequest = type.GetInterfaces().Any(i =>
-                (i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>)) ||
-                i == typeof(IRequest));
+                i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>));
 
             return implementsRequest
                 ? ConventionResult.Satisfied(type.FullName!)
                 : ConventionResult.NotSatisfied(type.FullName!,
-                    $"{type.Name} must implement IRequest<T> or IRequest for mediator dispatch");
+                    $"{type.Name} must implement IRequest<T> for mediator dispatch (use IRequest<Unit> for no result)");
         }
     }
 

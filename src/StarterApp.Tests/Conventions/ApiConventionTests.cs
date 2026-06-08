@@ -355,11 +355,6 @@ public class ApiConventionTests : ConventionTestBase
         {
             throw new NotSupportedException("Endpoint metadata convention tests never invoke handlers.");
         }
-
-        public Task SendAsync(IRequest request, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException("Endpoint metadata convention tests never invoke handlers.");
-        }
     }
 
     private class MustNotUseDateTimePropertiesConvention : ConventionSpecification

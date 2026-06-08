@@ -96,11 +96,11 @@ public class MediatorTests
     }
 
     [Fact]
-    public async Task SendAsync_void_dispatches_to_registered_handler()
+    public async Task SendAsync_unitCommand_dispatches_to_registered_handler()
     {
         var handler = new VoidHandler();
         var mediator = BuildMediator(s =>
-            s.AddSingleton<IRequestHandler<VoidRequest>>(handler));
+            s.AddSingleton<IRequestHandler<VoidRequest, Unit>>(handler));
 
         await mediator.SendAsync(new VoidRequest());
 
@@ -108,13 +108,13 @@ public class MediatorTests
     }
 
     [Fact]
-    public async Task SendAsync_void_runs_validators_and_throws_ValidationException_on_failure()
+    public async Task SendAsync_unitCommand_runs_validators_and_throws_ValidationException_on_failure()
     {
         var handler = new VoidHandler();
         var validator = new VoidRequestValidator();
         var mediator = BuildMediator(s =>
         {
-            s.AddSingleton<IRequestHandler<VoidRequest>>(handler);
+            s.AddSingleton<IRequestHandler<VoidRequest, Unit>>(handler);
             s.AddSingleton<IValidator<VoidRequest>>(validator);
         });
 
@@ -214,15 +214,15 @@ public class MediatorTests
         }
     }
 
-    private sealed record VoidRequest : IRequest;
+    private sealed record VoidRequest : IRequest<Unit>;
 
-    private sealed class VoidHandler : IRequestHandler<VoidRequest>
+    private sealed class VoidHandler : IRequestHandler<VoidRequest, Unit>
     {
         public bool WasCalled { get; private set; }
-        public Task HandleAsync(VoidRequest request, CancellationToken cancellationToken)
+        public Task<Unit> HandleAsync(VoidRequest request, CancellationToken cancellationToken)
         {
             WasCalled = true;
-            return Task.CompletedTask;
+            return Task.FromResult(Unit.Value);
         }
     }
 

@@ -59,7 +59,6 @@ public class CachingConventionTests : ConventionTestBase
 
         var mutationHandlers = ApiAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
-            .Concat(ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<>)))
             .Where(t => t.IsClass && !t.IsAbstract)
             .Where(t => t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
             .Where(t => !t.Name.StartsWith("Create", StringComparison.Ordinal))
@@ -87,7 +86,6 @@ public class CachingConventionTests : ConventionTestBase
         // closing the gap where MustInjectCacheInvalidator passes for an inject-and-forget handler.
         var handlers = ApiAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
-            .Concat(ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<>)))
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
             .Where(InjectsCacheInvalidator)
             .ToList();
@@ -119,7 +117,6 @@ public class CachingConventionTests : ConventionTestBase
         // OrderCancellationService) for a Product stock write (Product.UpdateStock or EF ExecuteUpdateAsync).
         var handlers = ApiAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
-            .Concat(ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<>)))
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
             .Where(MutatesProductStock)
             .ToList();

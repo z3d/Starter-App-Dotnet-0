@@ -164,6 +164,27 @@ public class OrderTests
     }
 
     [Fact]
+    public void RecordCreation_WithNoItems_ShouldThrowInvalidOperationException()
+    {
+        // Domain guard mirroring the empty-order validator rule; fires during persistence capture.
+        var order = TestEntities.Order(1);
+
+        var exception = Assert.Throws<InvalidOperationException>(() => order.RecordCreation());
+        Assert.Equal("Cannot create an order with no items", exception.Message);
+    }
+
+    [Fact]
+    public void RecordCreation_WithItems_ShouldRaiseOrderCreatedEvent()
+    {
+        var order = TestEntities.Order(1);
+        order.AddItem(new OrderItem(TestOrderId, 1, "Test Product", 1, Money.Create(10.00m, "USD")));
+
+        order.RecordCreation();
+
+        Assert.Contains(order.DomainEvents, domainEvent => domainEvent is OrderCreatedDomainEvent);
+    }
+
+    [Fact]
     public void RemoveItem_WithValidProductId_ShouldRemoveItem()
     {
         // Arrange

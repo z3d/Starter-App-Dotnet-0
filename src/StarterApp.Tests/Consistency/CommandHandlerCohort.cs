@@ -28,8 +28,7 @@ public class CommandHandlerCohort : ICohortDefinition<HandlerFingerprint>
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler"))
             .Where(t => t.GetInterfaces().Any(i =>
                 i.IsGenericType &&
-                (i.GetGenericTypeDefinition() == typeof(IRequestHandler<,>) ||
-                 i.GetGenericTypeDefinition() == typeof(IRequestHandler<>))))
+                i.GetGenericTypeDefinition() == typeof(IRequestHandler<,>)))
             .OrderBy(t => t.Name)
             .ToList();
     }

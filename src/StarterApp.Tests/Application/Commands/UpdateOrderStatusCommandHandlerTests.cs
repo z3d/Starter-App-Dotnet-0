@@ -124,9 +124,12 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
 
         var customer = TestEntities.Customer("Test Customer", Email.Create("test@example.com"));
         context.Customers.Add(customer);
+        var product = TestEntities.Product("Product A", "Description", Money.Create(10m, "USD"), 10);
+        context.Products.Add(product);
         await context.SaveChangesAsync();
 
         var order = TestEntities.Order(customer.Id);
+        order.AddItem(product.Id, product.Name, 1, Money.Create(10m, "USD"), 0.1m);
         context.Orders.Add(order);
         await context.SaveChangesAsync();
 

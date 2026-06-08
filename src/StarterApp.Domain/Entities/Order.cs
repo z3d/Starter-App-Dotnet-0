@@ -193,6 +193,13 @@ public class Order : AggregateRoot
 
     internal override void RecordCreation()
     {
+        // Domain guard mirroring CreateOrderCommandValidator's "at least one item" rule
+        // (CLAUDE.md Validator–Domain Guard Sync Rule). Fires during the SaveChanges outbox
+        // capture — after the create handler's add-items loop — so the build-then-add-items
+        // construction flow is unaffected; an order can never be persisted/published empty.
+        if (_items.Count == 0)
+            throw new InvalidOperationException("Cannot create an order with no items");
+
         RaiseDomainEvent(new OrderCreatedDomainEvent(this));
     }
 
