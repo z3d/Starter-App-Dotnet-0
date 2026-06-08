@@ -1,9 +1,10 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:c0790639332692a0d56cdd81ed581cfd24d040d9839764c138994866df89a3b6 AS build
 WORKDIR /src
 
 COPY Directory.Build.props .
 COPY Directory.Packages.props .
 COPY .editorconfig .
+COPY NuGet.config .
 COPY src/StarterApp.Functions/StarterApp.Functions.csproj src/StarterApp.Functions/
 COPY src/StarterApp.Functions/packages.lock.json src/StarterApp.Functions/
 COPY src/StarterApp.ServiceDefaults/StarterApp.ServiceDefaults.csproj src/StarterApp.ServiceDefaults/
@@ -26,6 +27,6 @@ RUN dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Relea
 # is an internal Service-Bus subscriber (not internet-facing) run via AppHost for local
 # integration tests. Harden to non-root as a validated deploy-time step if your platform
 # (Kubernetes runAsNonRoot / OpenShift) requires it.
-FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0
+FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0@sha256:03e965f15c2b1591db5e19ceb8c547f11b2e79a09f2959e0eb8ce1f61d01eb28
 WORKDIR /home/site/wwwroot
 COPY --from=build /app/publish .

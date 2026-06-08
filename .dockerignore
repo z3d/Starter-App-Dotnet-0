@@ -1,0 +1,42 @@
+# Docker does NOT honor .gitignore. Without this file, `COPY src/ src/` and the build
+# context would pull bin/, obj/, and any developer-local config/secrets into the build
+# context and build-stage layers (audit finding L4). Keep the context minimal and free of
+# anything the runtime build does not need.
+#
+# Do NOT add Directory.Build.props, Directory.Packages.props, .editorconfig, NuGet.config,
+# **/*.csproj or **/packages.lock.json here — the Dockerfiles COPY those in to restore.
+
+# Build outputs (regenerated inside the container)
+**/bin/
+**/obj/
+**/out/
+**/publish/
+
+# VCS / CI / editor / agent metadata
+.git/
+.gitignore
+.gitattributes
+.github/
+.vscode/
+.claude/
+.agents/
+.actrc
+.act.env
+
+# Local developer config & secrets (defense in depth — Docker ignores .gitignore)
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/*.user
+**/.env
+**/.env.*
+
+# Docs, security tooling, helper scripts — not part of the app build
+docs/
+dast/
+scripts/
+*.md
+
+# Test and orchestration projects are not needed by the API / DbMigrator / Functions images
+src/StarterApp.Tests/
+src/StarterApp.AppHost/
+src/StarterApp.AppHost.Tests/

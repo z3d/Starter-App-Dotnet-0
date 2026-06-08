@@ -38,8 +38,14 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <!-- Lock file location -->
     <NuGetLockFilePath>$(MSBuildProjectDirectory)/packages.lock.json</NuGetLockFilePath>
-    <!-- Restore locked mode in CI/CD -->
-    <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+    <!-- Locked-mode restore is the default everywhere (not just CI), so a plain local
+         `dotnet restore`/`dotnet build` can no longer silently rewrite packages.lock.json
+         and pull a different transitive closure than the audited, committed one. Intentional
+         package add/upgrade uses `dotnet restore` with the force-evaluate flag, which bypasses
+         locked mode (the documented flow in CLAUDE.md). Override with the RestoreLockedMode=false
+         MSBuild property if needed. Inert on the lock-file-exempt AppHost/AppHost.Tests projects
+         (RestorePackagesWithLockFile=false). -->
+    <RestoreLockedMode Condition="'$(RestoreLockedMode)' == ''">true</RestoreLockedMode>
     
     <!-- Debug Configuration -->
     <DebugType>portable</DebugType>

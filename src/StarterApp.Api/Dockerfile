@@ -1,5 +1,5 @@
 # Use the .NET SDK image to build the application
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:c0790639332692a0d56cdd81ed581cfd24d040d9839764c138994866df89a3b6 AS build
 WORKDIR /src
 
 # Copy Directory.Build.props + Directory.Packages.props for shared configuration
@@ -7,6 +7,7 @@ WORKDIR /src
 COPY ["Directory.Build.props", "Directory.Build.props"]
 COPY ["Directory.Packages.props", "Directory.Packages.props"]
 COPY [".editorconfig", ".editorconfig"]
+COPY ["NuGet.config", "NuGet.config"]
 
 # Copy csproj + packages.lock.json files first for better layer caching
 COPY ["src/StarterApp.Api/StarterApp.Api.csproj", "src/StarterApp.Api/"]
@@ -35,7 +36,7 @@ RUN dotnet publish "StarterApp.Api.csproj" -c Release -o /app/publish /p:UseAppH
 
 # Runtime image — lightweight, no ODBC tools needed
 # The API uses the Npgsql managed driver; database inspection should happen from the PostgreSQL container or psql-capable tooling.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:8c0b6857eab7b2aa57884c839bf4678414606bd7d17370f18a842ac5cf414711 AS final
 
 WORKDIR /app
 

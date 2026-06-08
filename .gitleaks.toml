@@ -1,0 +1,19 @@
+title = "StarterApp gitleaks config"
+
+# Start from gitleaks' built-in ruleset, then add a narrow allowlist for values that are
+# intentionally committed placeholders — NOT real secrets. Keep this list minimal; every
+# entry is a documented non-secret. Real secrets must never be committed (see NuGet.config
+# / .dockerignore hardening and the Secret Scan workflow).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Intentional non-secret placeholders for local dev bootstrap"
+# The sample local-dev connection string password shipped in the appsettings example.
+regexes = [
+  '''Your_password123''',
+]
+# Example/template config files only ever contain placeholder values.
+paths = [
+  '''.*appsettings\.Development\.json\.example$''',
+]
