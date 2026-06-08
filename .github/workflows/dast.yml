@@ -12,6 +12,18 @@ on:
         required: false
         default: 'Medium'
 
+# Least privilege: the scan only reads the repo and uploads an artifact, so the default
+# GITHUB_TOKEN is narrowed to read. (Add security-events: write only if results are ever
+# uploaded to GitHub code scanning as SARIF.)
+permissions:
+  contents: read
+
+# Prevent overlapping scans (e.g. a manual dispatch during the nightly run); each ZAP
+# active scan is ~20 min, so a superseded run is cancelled rather than run in parallel.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   dast:
     runs-on: ubuntu-latest

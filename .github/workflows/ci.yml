@@ -6,6 +6,21 @@ on:
   pull_request:
     branches: [ main ]
 
+# Least privilege: every job only reads the repo (build/test/docker-build/artifact
+# upload). Declaring this here overrides the repository's broader default GITHUB_TOKEN
+# scopes, so compromised build-time code (NuGet packages, analyzers) cannot push commits,
+# alter releases, or publish packages. Grant any future write need on the specific job.
+permissions:
+  contents: read
+
+# Cancel superseded runs: a new push to a branch/PR cancels the prior run on that same
+# ref, so rapid pushes don't pile up parallel runs of the expensive integration/Aspire
+# (Testcontainers) and docker-build jobs. Keyed per-workflow-per-ref, so main and
+# distinct PRs stay independent.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
