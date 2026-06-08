@@ -44,6 +44,23 @@ jobs:
     - name: Build
       run: dotnet build --no-restore --configuration Release
 
+    # DB-backed command/query handler tests share a Testcontainers PostgreSQL fixture even
+    # though they are not named *Integration*, so the unit step also needs the image. Warm
+    # Docker's local cache with a retry loop first: anonymous Docker Hub pulls from shared
+    # GitHub Actions IPs intermittently time out ("context deadline exceeded"), and
+    # Testcontainers' own pull has a short, non-retrying deadline. Pre-pulling here means the
+    # fixture finds the image locally and never touches the registry. Keep the tag in sync
+    # with TestDatabaseFixture's PostgreSqlBuilder image.
+    - name: Pre-pull test container images
+      run: |
+        for attempt in 1 2 3 4 5; do
+          if docker pull postgres:16-alpine; then exit 0; fi
+          echo "::warning::docker pull postgres:16-alpine failed (attempt $attempt/5); retrying in $((attempt * 10))s"
+          sleep $((attempt * 10))
+        done
+        echo "::error::could not pull postgres:16-alpine after 5 attempts"
+        exit 1
+
     - name: Unit tests
       run: dotnet test --no-build --configuration Release --verbosity normal --filter "FullyQualifiedName!~Integration"
 
@@ -66,6 +83,18 @@ jobs:
 
     - name: Build
       run: dotnet build --no-restore --configuration Release
+
+    # See the build job: warm Docker's cache with a retry loop so the Testcontainers
+    # PostgreSQL fixture never depends on a flaky anonymous Docker Hub pull at test time.
+    - name: Pre-pull test container images
+      run: |
+        for attempt in 1 2 3 4 5; do
+          if docker pull postgres:16-alpine; then exit 0; fi
+          echo "::warning::docker pull postgres:16-alpine failed (attempt $attempt/5); retrying in $((attempt * 10))s"
+          sleep $((attempt * 10))
+        done
+        echo "::error::could not pull postgres:16-alpine after 5 attempts"
+        exit 1
 
     - name: Integration tests
       run: dotnet test --no-build --configuration Release --verbosity normal --filter "FullyQualifiedName~Integration & Category!=Aspire"
