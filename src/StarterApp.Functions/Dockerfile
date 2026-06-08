@@ -8,7 +8,10 @@ COPY src/StarterApp.Functions/StarterApp.Functions.csproj src/StarterApp.Functio
 COPY src/StarterApp.Functions/packages.lock.json src/StarterApp.Functions/
 COPY src/StarterApp.ServiceDefaults/StarterApp.ServiceDefaults.csproj src/StarterApp.ServiceDefaults/
 COPY src/StarterApp.ServiceDefaults/packages.lock.json src/StarterApp.ServiceDefaults/
-RUN dotnet restore src/StarterApp.Functions/StarterApp.Functions.csproj
+# --locked-mode: fail the build if the resolved graph diverges from packages.lock.json,
+# matching CI, so the image ships exactly the audited dependency closure. Required here
+# because the RestoreLockedMode MSBuild prop is gated on $(CI), unset inside docker build.
+RUN dotnet restore src/StarterApp.Functions/StarterApp.Functions.csproj --locked-mode
 
 COPY src/StarterApp.Functions/ src/StarterApp.Functions/
 COPY src/StarterApp.ServiceDefaults/ src/StarterApp.ServiceDefaults/

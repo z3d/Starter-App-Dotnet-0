@@ -16,8 +16,12 @@ COPY ["src/StarterApp.Domain/packages.lock.json", "src/StarterApp.Domain/"]
 COPY ["src/StarterApp.ServiceDefaults/StarterApp.ServiceDefaults.csproj", "src/StarterApp.ServiceDefaults/"]
 COPY ["src/StarterApp.ServiceDefaults/packages.lock.json", "src/StarterApp.ServiceDefaults/"]
 
-# Restore dependencies
-RUN dotnet restore "src/StarterApp.Api/StarterApp.Api.csproj"
+# Restore dependencies. --locked-mode makes the image build fail if the resolved graph
+# diverges from packages.lock.json (the lock files are COPY'd in above), matching what CI
+# enforces — so the deployed artifact contains exactly the audited dependency closure and
+# cannot silently pull a different transitive version. (The MSBuild RestoreLockedMode prop
+# is gated on $(CI), which is not set inside docker build, so the flag is required here.)
+RUN dotnet restore "src/StarterApp.Api/StarterApp.Api.csproj" --locked-mode
 
 # Copy the rest of the source code
 COPY src/ src/
