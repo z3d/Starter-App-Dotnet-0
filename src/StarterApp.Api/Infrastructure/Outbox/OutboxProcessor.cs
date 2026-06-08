@@ -162,7 +162,9 @@ public class OutboxProcessor : BackgroundService
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task<List<OutboxMessage>> ClaimBatchInTransactionAsync(
+    // internal (not private) so integration tests can drive the claim path against real PostgreSQL
+    // to verify FOR UPDATE SKIP LOCKED concurrency behaviour, which EF InMemory cannot model.
+    internal async Task<List<OutboxMessage>> ClaimBatchInTransactionAsync(
         ApplicationDbContext dbContext,
         Guid processingId,
         DateTimeOffset now,
@@ -213,7 +215,7 @@ public class OutboxProcessor : BackgroundService
         return IsTransientServiceBusError(ex) || PayloadCaptureFailureClassifier.IsTransientDependencyFailure(ex);
     }
 
-    private async Task<List<OutboxMessage>> ClaimUnprocessedMessagesAsync(
+    internal async Task<List<OutboxMessage>> ClaimUnprocessedMessagesAsync(
         ApplicationDbContext dbContext,
         DateTimeOffset now,
         CancellationToken cancellationToken)
