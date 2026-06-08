@@ -238,13 +238,22 @@ public class OutboxToServiceBusIntegrationTests
         var storageConnectionString = await app.GetConnectionStringAsync("payloadarchive");
         Assert.NotNull(storageConnectionString);
 
-        var (archiveBlobName, archiveContent) = await PollForBlobContentAsync(
+        // Archive blobs are correlation-bound but minute-bucketed (archive/{date}/{HH}/{mm}/{correlationId}.jsonl).
+        // A single request's inbound and outbound captures can straddle a minute boundary and land in two
+        // separate archive blobs, so assert over the union of all archive blobs for this correlation rather
+        // than a single blob — otherwise the test races the clock near a minute rollover.
+        var archiveContent = await PollForBlobContentsAsync(
             storageConnectionString,
             "payload-observability",
             "archive/",
             correlationId,
             maxAttempts: 30,
-            delayMs: 2000);
+            delayMs: 2000,
+            contentPredicate: text =>
+                text.Contains($"{correlationId}@test.com", StringComparison.Ordinal) &&
+                text.Contains("\"direction\":\"inbound\"", StringComparison.Ordinal) &&
+                text.Contains("\"direction\":\"outbound\"", StringComparison.Ordinal));
+        Assert.Contains($"{correlationId}@test.com", archiveContent);
 
         var (auditBlobName, auditContent) = await PollForBlobContentAsync(
             storageConnectionString,
@@ -262,15 +271,42 @@ public class OutboxToServiceBusIntegrationTests
             maxAttempts: 30,
             delayMs: 2000);
 
-        Assert.EndsWith($"/{correlationId}.jsonl", archiveBlobName);
-        Assert.Contains($"{correlationId}@test.com", archiveContent);
-        Assert.Contains("\"direction\":\"inbound\"", archiveContent);
-        Assert.Contains("\"direction\":\"outbound\"", archiveContent);
+        // Audit and entity-index are pointer records. Each must reference a correlation-bound archive blob
+        // (archive/.../{correlationId}.jsonl) — assert the pointer's shape rather than one specific minute
+        // bucket, since the referenced capture may sit in a different minute than the first archive blob.
         Assert.EndsWith("/payload-audit.jsonl", auditBlobName);
-        Assert.Contains($"\"archiveBlobName\":\"{archiveBlobName}\"", auditContent);
+        AssertArchivePointer(auditContent, correlationId);
         Assert.EndsWith($"/{correlationId}.jsonl", entityIndexBlobName);
-        Assert.Contains($"\"archiveBlobName\":\"{archiveBlobName}\"", entityIndexContent);
+        AssertArchivePointer(entityIndexContent, correlationId);
         Assert.DoesNotContain($"{correlationId}@test.com", entityIndexContent);
+    }
+
+    private static void AssertArchivePointer(string content, string correlationId)
+    {
+        // Audit blobs are minute-window JSONL files shared across correlations (e.g. uncorrelated health
+        // probes get auto-generated correlation ids and their own archive pointers). Inspect only the JSONL
+        // row(s) belonging to this correlation, and assert at least one references a correlation-bound
+        // archive blob (archive/.../{correlationId}.jsonl).
+        const string marker = "\"archiveBlobName\":\"";
+        var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var line in lines)
+        {
+            if (!line.Contains(correlationId, StringComparison.Ordinal))
+                continue;
+
+            var start = line.IndexOf(marker, StringComparison.Ordinal);
+            if (start < 0)
+                continue;
+
+            start += marker.Length;
+            var end = line.IndexOf('"', start);
+            var archiveBlobName = line[start..end];
+            if (archiveBlobName.StartsWith("archive/", StringComparison.Ordinal) &&
+                archiveBlobName.EndsWith($"/{correlationId}.jsonl", StringComparison.Ordinal))
+                return;
+        }
+
+        Assert.Fail($"Expected a row referencing a correlation-bound archive pointer (archive/.../{correlationId}.jsonl) in content: {content}");
     }
 
     private static async Task<(bool Found, string? ProcessedOnUtc)> PollForOutboxMessageAsync(
