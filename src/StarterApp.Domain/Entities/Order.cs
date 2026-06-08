@@ -4,6 +4,11 @@ namespace StarterApp.Domain.Entities;
 
 public class Order : AggregateRoot
 {
+    // Aggregate invariant: an order is bounded to MaxItems distinct line items. Enforced here
+    // (last line of defense) and mirrored by CreateOrderCommandValidator, which references this
+    // const so the two cannot drift — see CLAUDE.md "Validator–Domain Guard Sync Rule".
+    public const int MaxItems = 50;
+
     private readonly List<OrderItem> _items = [];
 
     public Guid Id { get; private set; }
@@ -78,6 +83,10 @@ public class Order : AggregateRoot
             // Remove the existing item and add the new one (replacing it)
             _items.Remove(existingItem);
         }
+        else if (_items.Count >= MaxItems)
+        {
+            throw new InvalidOperationException($"An order cannot contain more than {MaxItems} items");
+        }
 
         _items.Add(item);
         LastUpdated = DateTimeOffset.UtcNow;
@@ -96,6 +105,8 @@ public class Order : AggregateRoot
         var existingItem = _items.FirstOrDefault(i => i.ProductId == productId);
         if (existingItem != null)
             _items.Remove(existingItem);
+        else if (_items.Count >= MaxItems)
+            throw new InvalidOperationException($"An order cannot contain more than {MaxItems} items");
 
         var item = new OrderItem(productId, productName, quantity, unitPrice, gstRate);
         _items.Add(item);

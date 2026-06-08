@@ -519,7 +519,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 |----------|-------|---------------|
 | Domain unit tests | 6 | Entity creation, validation, state transitions, value object behavior |
 | Property-based (FsCheck) | 5 | Money arithmetic invariants, order state machine, GST calculations, email validation |
-| Convention tests | 6 classes | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping, Dapper SQL quality, DateTimeOffset enforcement, constraint naming enforcement, event routing contract validation, domain third-party dependency isolation |
+| Convention tests | 8 classes | Architecture boundaries, naming, CQRS separation, domain encapsulation, persistence mapping, Dapper SQL quality, caching rules, housekeeping, DateTimeOffset enforcement, constraint naming enforcement, event routing contract validation, domain third-party dependency isolation (plus AppHost.Tests conventions in the Aspire project) |
 | Application tests | 9 | All command handlers tested with in-memory DbContext |
 | Infrastructure tests | 3 | OutboxMessage mutation tests, OutboxProcessor batch processing with Moq ServiceBusSender, ProblemDetails validation-error customization |
 | Integration tests | 4+ | Full API endpoint testing with Testcontainers PostgreSQL, DbUp migrations, ProblemDetails responses |
@@ -532,7 +532,7 @@ The API Dockerfile no longer copies the DbMigrator project or its appsettings.js
 
 ## Verdict
 
-A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 6 classes (including Dapper SELECT * prevention via IL inspection), proper CQRS separation with zero violations, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
+A well-engineered starter template that gets the hard things right: architecture enforcement through convention tests across 8 classes (including Dapper SELECT * prevention via IL inspection), proper CQRS separation with zero violations, rich domain modeling with state machines and value objects, and modern DevOps with Aspire orchestration.
 
 Issues #1–#14 and #16–#66 remain resolved. Recent hardening addressed critical security and correctness gaps: order creation now sources pricing from the catalog, stock reservation uses atomic SQL to prevent overselling, cancellation restores reserved stock through every exposed cancellation path, order lifecycle changes route through intent-specific aggregate methods, the outbox persists events transactionally, rate limiting is enforced globally by verified identity where available, validation failures return structured field errors, domain dependency isolation is convention-guarded, mixed-currency orders are rejected at the domain level, APIM-projected identity headers now require a signed gateway assertion in production-like mode, route scopes are enforced, and resource access is owner-scoped for Customer, Product, and Order. The Service Bus integration was hardened with proper resource disposal, retry logic for transient failures, validated configuration, PostgreSQL row claiming, and optimized database indexing. The app persistence stack is now PostgreSQL-only.
 

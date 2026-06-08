@@ -117,6 +117,53 @@ public class OrderTests
     }
 
     [Fact]
+    public void AddItem_UpToMaxItems_ShouldSucceed()
+    {
+        // Arrange
+        var order = new Order(1);
+        var money = Money.Create(10.00m, "USD");
+
+        // Act
+        for (var productId = 1; productId <= Order.MaxItems; productId++)
+            order.AddItem(new OrderItem(TestOrderId, productId, $"Product {productId}", 1, money));
+
+        // Assert
+        Assert.Equal(Order.MaxItems, order.Items.Count);
+    }
+
+    [Fact]
+    public void AddItem_BeyondMaxItems_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var order = new Order(1);
+        var money = Money.Create(10.00m, "USD");
+        for (var productId = 1; productId <= Order.MaxItems; productId++)
+            order.AddItem(new OrderItem(TestOrderId, productId, $"Product {productId}", 1, money));
+
+        // Act & Assert — the (MaxItems + 1)-th distinct product breaches the aggregate invariant
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            order.AddItem(new OrderItem(TestOrderId, Order.MaxItems + 1, "Overflow", 1, money)));
+        Assert.Equal($"An order cannot contain more than {Order.MaxItems} items", exception.Message);
+    }
+
+    [Fact]
+    public void AddItem_ReplacingExistingProductAtMaxItems_ShouldNotThrow()
+    {
+        // Arrange — the cap bounds distinct products, so replacing one at the limit is allowed
+        var order = new Order(1);
+        var money = Money.Create(10.00m, "USD");
+        for (var productId = 1; productId <= Order.MaxItems; productId++)
+            order.AddItem(new OrderItem(TestOrderId, productId, $"Product {productId}", 1, money));
+
+        // Act
+        order.AddItem(new OrderItem(TestOrderId, 1, "Product 1 updated", 5, money));
+
+        // Assert
+        Assert.Equal(Order.MaxItems, order.Items.Count);
+        Assert.Equal(5, order.Items.Single(i => i.ProductId == 1).Quantity);
+    }
+
+    [Fact]
     public void RemoveItem_WithValidProductId_ShouldRemoveItem()
     {
         // Arrange
