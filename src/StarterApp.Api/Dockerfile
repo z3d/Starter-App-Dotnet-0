@@ -50,5 +50,11 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:8080/health/live || exit 1
 
+# Drop root: the aspnet base image ships a predefined non-root user (UID 1654) exposed
+# via $APP_UID. Listening on 8080 (>1024) needs no privileged bind, and the published
+# files are world-readable, so the app runs unchanged with least privilege. Hardened
+# orchestrators (Kubernetes runAsNonRoot, OpenShift, CIS benchmarks) require this.
+USER $APP_UID
+
 # Start the application — migrations handled by the dedicated migrator service
 ENTRYPOINT ["dotnet", "StarterApp.Api.dll"]

@@ -22,4 +22,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 
+# Drop root: run the migration job as the aspnet base image's predefined non-root user
+# (UID 1654, via $APP_UID). DbUp only reads embedded scripts and connects to PostgreSQL,
+# so it needs no write access or elevated privileges.
+USER $APP_UID
+
 ENTRYPOINT ["dotnet", "StarterApp.DbMigrator.dll"]
