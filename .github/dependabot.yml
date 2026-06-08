@@ -1,0 +1,32 @@
+version: 2
+updates:
+  # NuGet packages. Versions are centrally managed in Directory.Packages.props (CPM);
+  # Dependabot updates that file and refreshes the per-project packages.lock.json.
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      # One PR for low-risk patch/minor bumps to cut noise; majors stay individual.
+      nuget-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions used by the workflows (keeps action versions/SHAs current).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Base images in the three Dockerfiles (dotnet sdk/aspnet, azure-functions runtime).
+  - package-ecosystem: "docker"
+    directories:
+      - "/src/StarterApp.Api"
+      - "/src/StarterApp.DbMigrator"
+      - "/src/StarterApp.Functions"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
