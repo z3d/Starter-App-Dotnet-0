@@ -14,7 +14,11 @@
     <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsAsErrors />
-    <WarningsNotAsErrors />
+    <!-- NU1900 is NuGetAudit failing to *fetch* vulnerability data (a transient network/feed
+         error), not an actual advisory. With TreatWarningsAsErrors it would break the build on
+         any flaky audit-endpoint call — which it did inside the docker image restore. Exclude it
+         while keeping the real advisory codes (NU1901-NU1904) as hard errors. -->
+    <WarningsNotAsErrors>NU1900</WarningsNotAsErrors>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
     
