@@ -81,6 +81,19 @@ jobs:
         newRisk: "False Positive"
         url: "http://host.docker.internal:__API_PORT__/openapi/v1.json"
         urlRegex: false
+      # Path Traversal (rule 6) on the `page`/`pageSize` pagination params is a
+      # false positive: both are strongly-typed `int` minimal-API parameters, so
+      # ASP.NET model binding rejects any non-numeric (traversal) payload with a 400
+      # before a handler ever runs. They flow only into integer LIMIT/OFFSET
+      # arithmetic and parameterized Dapper SQL — no filesystem path is ever built.
+      # Rule 6 check 6-5 is a response-comparison heuristic that intermittently flags
+      # numeric params (attack value "10" == the original value), which is why it fires
+      # non-deterministically across list endpoints. Scoped to the two pagination param
+      # names only, so rule 6 still actively tests every path segment and other param.
+      - ruleId: 6
+        newRisk: "False Positive"
+        parameter: "^(page|pageSize)$"
+        parameterRegex: true
 
   # 3. Seed the site tree from the live OpenAPI document.
   - type: openapi
