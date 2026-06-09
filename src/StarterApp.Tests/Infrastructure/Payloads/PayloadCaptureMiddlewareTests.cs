@@ -44,6 +44,60 @@ public class PayloadCaptureMiddlewareTests
     }
 
     [Fact]
+    public async Task InvokeAsync_WithPresentCorrelationId_ShouldLeaveRequestHeaderRawForGatewayButEchoSanitized()
+    {
+        var store = new InMemoryPayloadArchiveStore();
+        var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
+        var sink = PayloadCaptureTests.CreateSink(store, timestamp);
+        string? downstreamCorrelationId = null;
+        var middleware = new PayloadCaptureMiddleware(context =>
+        {
+            downstreamCorrelationId = context.Request.Headers[CorrelationContext.HeaderName].ToString();
+            return Task.CompletedTask;
+        }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = HttpMethods.Get;
+        context.Request.Path = "/api/v1/customers";
+        context.Request.Headers[CorrelationContext.HeaderName] = "trace:abc";
+        context.Response.Body = new MemoryStream();
+
+        await middleware.InvokeAsync(context);
+
+        // The gateway identity layer validates the raw value the gateway signed, so a present correlation id
+        // must reach the downstream pipeline unchanged (not pre-sanitized by this middleware)...
+        Assert.Equal("trace:abc", downstreamCorrelationId);
+
+        // ...while the echoed correlation id stays sanitized, so raw client input is never reflected back.
+        Assert.Equal("traceabc", context.Response.Headers[CorrelationContext.HeaderName].ToString());
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WithoutCorrelationId_ShouldInjectGeneratedIdForDownstream()
+    {
+        var store = new InMemoryPayloadArchiveStore();
+        var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
+        var sink = PayloadCaptureTests.CreateSink(store, timestamp);
+        string? downstreamCorrelationId = null;
+        var middleware = new PayloadCaptureMiddleware(context =>
+        {
+            downstreamCorrelationId = context.Request.Headers[CorrelationContext.HeaderName].ToString();
+            return Task.CompletedTask;
+        }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = HttpMethods.Get;
+        context.Request.Path = "/api/v1/customers";
+        context.Response.Body = new MemoryStream();
+
+        await middleware.InvokeAsync(context);
+
+        // When the caller sends none, a generated (contract-valid) id is injected so the gateway's
+        // required-header check still passes.
+        Assert.False(string.IsNullOrWhiteSpace(downstreamCorrelationId));
+    }
+
+    [Fact]
     public async Task InvokeAsync_ShouldBoundCapturedPayloadsAndRecordTruncationMetadata()
     {
         var store = new InMemoryPayloadArchiveStore();

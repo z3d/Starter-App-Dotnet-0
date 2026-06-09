@@ -26,9 +26,17 @@ public sealed class PayloadCaptureMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var correlationId = ResolveCorrelationId(context);
+        var correlationId = ResolveCorrelationId(context, out var hadInboundCorrelationId);
         context.TraceIdentifier = correlationId;
-        context.Request.Headers[CorrelationContext.HeaderName] = correlationId;
+
+        // Leave a caller-supplied correlation id on the request unchanged so the gateway-identity layer
+        // validates the exact value the gateway signed (the assertion is signed over the raw id; sanitizing
+        // it here would make the verifier compare against a value the signer never produced). Only inject
+        // the generated id when the caller sent none, so the gateway's required-header check still passes.
+        // The echoed/archived id below stays sanitized, so no raw client input is reflected downstream.
+        if (!hadInboundCorrelationId)
+            context.Request.Headers[CorrelationContext.HeaderName] = correlationId;
+
         context.Response.Headers[CorrelationContext.HeaderName] = correlationId;
 
         using var correlationScope = CorrelationContext.Push(correlationId);
@@ -145,11 +153,15 @@ public sealed class PayloadCaptureMiddleware
         }, context.RequestAborted);
     }
 
-    private static string ResolveCorrelationId(HttpContext context)
+    private static string ResolveCorrelationId(HttpContext context, out bool hadInboundCorrelationId)
     {
         if (context.Request.Headers.TryGetValue(CorrelationContext.HeaderName, out var values) && !string.IsNullOrWhiteSpace(values.FirstOrDefault()))
+        {
+            hadInboundCorrelationId = true;
             return CorrelationContext.Sanitize(values.First()!);
+        }
 
+        hadInboundCorrelationId = false;
         return CorrelationContext.Create();
     }
 
