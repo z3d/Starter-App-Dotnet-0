@@ -6,6 +6,7 @@ Architectural convention tests using [Best.Conventional](https://github.com/andr
 
 | File | Purpose |
 |------|---------|
+| `AgentDocsConventionTests.cs` | `CLAUDE.md`/`.claude/skills` and `AGENTS.md`/`.agents/skills` mirror equality — same file sets, identical content after swapping the agent-specific name/path tokens |
 | `ApiConventionTests.cs` | Endpoint/validator/handler dependency boundaries; DTO/read-model/response serializability; materialized response collections |
 | `CachingConventionTests.cs` | `ICacheable` key/duration rules, deterministic same-id keys, different-id collision prevention, by-id-only caching, and mutation invalidation coverage |
 | `ConventionTestBase.cs` | Shared production assembly refs and compiler-generated type filtering |

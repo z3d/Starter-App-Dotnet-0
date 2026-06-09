@@ -97,7 +97,7 @@ Guard against vacuous passes: any test that filters a discovered set (handlers, 
 
 ## Shared Artifact: docs/ARCHITECTURE_REVIEW.md
 
-Read it before starting (it carries prior findings, dismissals, the accepted-limitations list, and the current score) and update it after: mark findings resolved with the fix + the regression test added, record dismissed false positives so they aren't re-raised, and adjust the score conservatively. It is the sync point across concurrent agent sessions. Keep CLAUDE.md/AGENTS.md and `.claude/skills`↔`.agents/skills` in sync per the repo's drift rule.
+Read it before starting (it carries prior findings, dismissals, the accepted-limitations list, and the current score) and update it after: mark findings resolved with the fix + the regression test added, record dismissed false positives so they aren't re-raised, and adjust the score conservatively. It is the sync point across concurrent agent sessions. Keep AGENTS.md/CLAUDE.md and `.agents/skills`↔`.claude/skills` in sync per the repo's drift rule.
 
 ## Rules
 

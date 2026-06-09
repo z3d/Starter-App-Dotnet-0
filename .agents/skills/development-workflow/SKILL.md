@@ -218,7 +218,7 @@ After completing a significant batch of work (bug fixes, feature additions, refa
 3. Update convention class lists and pattern descriptions to match current reality (do NOT hardcode test counts — they go stale immediately)
 4. Add new patterns or anti-patterns discovered during the session
 5. Update `AGENTS.md` if architectural decisions or project structure changed
-6. Mirror equivalent guidance changes into `.claude/skills/**` and `CLAUDE.md`; keep only intentional agent-specific path/name drift
+6. Mirror equivalent guidance changes into `.claude/skills/**` and `CLAUDE.md`; keep only intentional agent-specific path/name drift (`AgentDocsConventionTests` fails the build on any other drift)
 7. Update `docs/ARCHITECTURE_REVIEW.md` to mark resolved issues
 
 This prevents rules from drifting out of sync with the codebase — stale rules actively mislead future work.
