@@ -93,6 +93,55 @@ public class OrderApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetOrdersByCustomer_WithIdenticalOrderDates_ShouldPageWithoutDuplicatesOrGaps()
+    {
+        var (customer, product) = await CreateTestData();
+
+        var createdIds = new List<Guid>();
+        for (var i = 0; i < 5; i++)
+        {
+            var createResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", new CreateOrderCommand
+            {
+                CustomerId = customer.Id,
+                Items = [new CreateOrderItemCommand { ProductId = product.Id, Quantity = 1 }]
+            });
+            createResponse.EnsureSuccessStatusCode();
+            var order = await createResponse.Content.ReadFromJsonAsync<OrderDto>();
+            Assert.NotNull(order);
+            createdIds.Add(order.Id);
+        }
+
+        // Force every order to share one order_date so OFFSET pagination must rely on the id tie-breaker;
+        // without it, rows in the same-timestamp tie group can duplicate across pages or be skipped.
+        await using (var connection = new NpgsqlConnection(_fixture.ConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var command = new NpgsqlCommand(
+                "UPDATE orders SET order_date = @date WHERE customer_id = @customerId", connection);
+            command.Parameters.AddWithValue("date", new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            command.Parameters.AddWithValue("customerId", customer.Id);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var pagedIds = new List<Guid>();
+        var page = 1;
+        while (true)
+        {
+            var listResponse = await _fixture.Client.GetAsync($"/api/v1/orders/customer/{customer.Id}?page={page}&pageSize=2");
+            listResponse.EnsureSuccessStatusCode();
+            var paged = await listResponse.Content.ReadFromJsonAsync<PagedResponse<OrderReadModel>>();
+            Assert.NotNull(paged);
+            pagedIds.AddRange(paged.Data.Select(order => order.Id));
+            if (!paged.HasMore)
+                break;
+            page++;
+        }
+
+        Assert.Equal(createdIds.Count, pagedIds.Distinct().Count());
+        Assert.Equal(createdIds.OrderBy(id => id), pagedIds.OrderBy(id => id));
+    }
+
+    [Fact]
     public async Task GetOrder_WithNonExistentId_ShouldReturnNotFound()
     {
         // Arrange

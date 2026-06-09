@@ -16,9 +16,17 @@ public static class PayloadEntityReferenceExtractor
         "traceId"
     };
 
+    public const int DefaultMaxEntityReferences = 64;
+
     public static IReadOnlyList<PayloadEntityReference> Extract(PayloadCaptureRequest request)
     {
+        return Extract(request, DefaultMaxEntityReferences, out _);
+    }
+
+    public static IReadOnlyList<PayloadEntityReference> Extract(PayloadCaptureRequest request, int maxReferences, out bool truncated)
+    {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxReferences);
 
         var references = new Dictionary<string, PayloadEntityReference>(StringComparer.OrdinalIgnoreCase);
         var contextEntityType = InferRootEntityType(request.Operation, request.Metadata);
@@ -33,10 +41,16 @@ public static class PayloadEntityReferenceExtractor
 
         AddJsonReferences(request.Payload, request.ContentType, contextEntityType, references);
 
-        return references.Values
+        var ordered = references.Values
             .OrderBy(reference => reference.EntityType, StringComparer.Ordinal)
             .ThenBy(reference => reference.EntityId, StringComparer.Ordinal)
             .ToList();
+
+        // Cap the number of entity-index references. Each returned reference drives a separate serial
+        // blob round trip in the sink, so an attacker-controlled body packed with thousands of distinct
+        // *Id properties would otherwise amplify a single request into thousands of inline storage calls.
+        truncated = ordered.Count > maxReferences;
+        return truncated ? ordered.Take(maxReferences).ToList() : ordered;
     }
 
     private static void AddJsonReferences(

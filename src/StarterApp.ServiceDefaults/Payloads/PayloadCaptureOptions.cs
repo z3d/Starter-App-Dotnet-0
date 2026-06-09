@@ -57,6 +57,12 @@ public class PayloadCaptureOptions
     [Range(1, 104_857_600)]
     public int MaxPayloadBytes { get; set; } = 1_048_576;
 
+    // Bounds how many entity-index references a single capture may fan out into; each reference is a
+    // separate serial blob round trip on the request thread, so this caps request-path amplification
+    // from a hostile body packed with distinct *Id properties.
+    [Range(1, 4096)]
+    public int MaxEntityReferences { get; set; } = PayloadEntityReferenceExtractor.DefaultMaxEntityReferences;
+
     public string[] CapturedContentTypes { get; set; } =
     [
         "application/json",

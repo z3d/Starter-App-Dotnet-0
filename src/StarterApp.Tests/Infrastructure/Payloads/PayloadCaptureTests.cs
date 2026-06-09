@@ -28,6 +28,44 @@ public class PayloadCaptureTests
     }
 
     [Fact]
+    public void Extract_WithManyDistinctIdProperties_ShouldCapReferencesAndFlagTruncation()
+    {
+        // A hostile body packed with thousands of distinct *Id properties must not fan out into thousands
+        // of serial blob round trips: the extractor caps the reference count and signals truncation.
+        var properties = Enumerable.Range(0, 10_000).Select(i => $"\"a{i}Id\":{i}");
+        var payload = "{" + string.Join(",", properties) + "}";
+        var request = new PayloadCaptureRequest
+        {
+            Operation = "POST /api/v1/orders",
+            Channel = "http",
+            ContentType = "application/json",
+            Payload = payload
+        };
+
+        var references = PayloadEntityReferenceExtractor.Extract(request, 64, out var truncated);
+
+        Assert.True(truncated);
+        Assert.Equal(64, references.Count);
+    }
+
+    [Fact]
+    public void Extract_WithFewReferences_ShouldNotTruncate()
+    {
+        var request = new PayloadCaptureRequest
+        {
+            Operation = "POST /api/v1/orders",
+            Channel = "http",
+            ContentType = "application/json",
+            Payload = """{"customerId":42,"productId":7}"""
+        };
+
+        var references = PayloadEntityReferenceExtractor.Extract(request, 64, out var truncated);
+
+        Assert.False(truncated);
+        Assert.True(references.Count <= 64);
+    }
+
+    [Fact]
     public void JsonPayloadRedactor_ShouldMaskSensitiveJsonFieldsAndKeepOtherValues()
     {
         var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions()));

@@ -34,12 +34,23 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
 
         if (result is not null)
         {
-            var serialized = JsonSerializer.Serialize(result);
-            var options = new DistributedCacheEntryOptions
+            // Skip repopulation if a mutation invalidated this key while the handler was reading: the
+            // tombstone means our just-fetched value may already be stale, and writing it back would
+            // re-poison the key for the full TTL.
+            var tombstone = await _cache.GetStringAsync(CacheTombstone.KeyFor(cacheKey), cancellationToken);
+            if (tombstone is null)
             {
-                AbsoluteExpirationRelativeToNow = cacheable.CacheDuration
-            };
-            await _cache.SetStringAsync(cacheKey, serialized, options, cancellationToken);
+                var serialized = JsonSerializer.Serialize(result);
+                var options = new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = cacheable.CacheDuration
+                };
+                await _cache.SetStringAsync(cacheKey, serialized, options, cancellationToken);
+            }
+            else
+            {
+                _logger.LogDebug("Skipping cache repopulation for {CacheKey}; invalidation tombstone present", cacheKey);
+            }
         }
 
         return result;

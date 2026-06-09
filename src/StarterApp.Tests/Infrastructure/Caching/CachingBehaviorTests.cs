@@ -13,6 +13,13 @@ public class CachingBehaviorTests
 
     public CachingBehaviorTests()
     {
+        // A real IDistributedCache returns null for a missing invalidation tombstone; Moq's default for an
+        // unset GetAsync is a non-null empty array, so model the absent tombstone explicitly. Individual
+        // tests override the specific tombstone key when they need it present.
+        _cacheMock
+            .Setup(c => c.GetAsync(It.Is<string>(key => key.EndsWith(":inv", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((byte[]?)null);
+
         _behavior = new CachingBehavior<TestQuery, string>(
             _cacheMock.Object,
             CurrentUser.Anonymous,
@@ -78,6 +85,27 @@ public class CachingBehaviorTests
             It.IsAny<byte[]>(),
             It.Is<DistributedCacheEntryOptions>(o => o.AbsoluteExpirationRelativeToNow == TimeSpan.FromMinutes(5)),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenInvalidationTombstonePresent_ShouldNotRepopulateCache()
+    {
+        var request = new TestQuery { Id = 7 };
+        _cacheMock.Setup(c => c.GetAsync("Test:7", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((byte[]?)null);
+        _cacheMock.Setup(c => c.GetAsync("Test:7:inv", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(System.Text.Encoding.UTF8.GetBytes("1"));
+
+        var result = await _behavior.HandleAsync(request, () => Task.FromResult("fresh result"), CancellationToken.None);
+
+        // A concurrent mutation invalidated the key mid-read; the just-fetched value may be stale, so it
+        // must not be written back (which would re-poison the key for the full TTL).
+        Assert.Equal("fresh result", result);
+        _cacheMock.Verify(c => c.SetAsync(
+            "Test:7",
+            It.IsAny<byte[]>(),
+            It.IsAny<DistributedCacheEntryOptions>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

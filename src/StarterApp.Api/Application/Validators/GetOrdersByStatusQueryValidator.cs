@@ -9,6 +9,8 @@ public class GetOrdersByStatusQueryValidator : IValidator<GetOrdersByStatusQuery
 
         if (request.Page <= 0)
             yield return new ValidationError(nameof(request.Page), "Page must be a positive integer");
+        else if (request.Page > 100_000)
+            yield return new ValidationError(nameof(request.Page), "Page cannot exceed 100000");
 
         if (request.PageSize <= 0)
             yield return new ValidationError(nameof(request.PageSize), "PageSize must be a positive integer");

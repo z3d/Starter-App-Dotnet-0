@@ -18,6 +18,11 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
         _containerClient = blobServiceClient.GetBlobContainerClient(_options.ContainerName);
     }
 
+    // Azure Append Blob rejects any single AppendBlock larger than 4 MiB. MaxPayloadBytes can be
+    // configured up to 100 MiB, so a captured line can exceed one block; split it into ordered chunks
+    // (Append Blob preserves append order, so the JSONL line stays intact across blocks).
+    internal const int MaxAppendBlockBytes = 4 * 1024 * 1024;
+
     public async Task AppendLineAsync(string blobName, string line, CancellationToken cancellationToken)
     {
         await _containerClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
@@ -25,8 +30,24 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
         var appendBlobClient = _containerClient.GetAppendBlobClient(blobName);
         await appendBlobClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
 
-        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(line + Environment.NewLine));
-        await appendBlobClient.AppendBlockAsync(stream, cancellationToken: cancellationToken);
+        var bytes = Encoding.UTF8.GetBytes(line + Environment.NewLine);
+        foreach (var block in ChunkBlocks(bytes, MaxAppendBlockBytes))
+        {
+            await using var stream = new MemoryStream(block.Array!, block.Offset, block.Count, writable: false);
+            await appendBlobClient.AppendBlockAsync(stream, cancellationToken: cancellationToken);
+        }
+    }
+
+    internal static IEnumerable<ArraySegment<byte>> ChunkBlocks(byte[] bytes, int maxBlock)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxBlock);
+
+        for (var offset = 0; offset < bytes.Length; offset += maxBlock)
+        {
+            var count = Math.Min(maxBlock, bytes.Length - offset);
+            yield return new ArraySegment<byte>(bytes, offset, count);
+        }
     }
 
     public async Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)

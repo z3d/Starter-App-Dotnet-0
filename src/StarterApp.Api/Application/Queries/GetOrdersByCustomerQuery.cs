@@ -48,7 +48,7 @@ public class GetOrdersByCustomerQueryHandler : IRequestHandler<GetOrdersByCustom
             WHERE o.customer_id = @CustomerId
               AND o.owner_subject = @OwnerSubject
               AND o.tenant_id = @TenantId
-            ORDER BY o.order_date DESC
+            ORDER BY o.order_date DESC, o.id DESC
             LIMIT @FetchSize OFFSET @Offset";
 
         return await PostgresRetryPolicy.ExecuteAsync(

@@ -330,11 +330,14 @@ public class ApiConventionTests : ConventionTestBase
 
     private static IReadOnlyList<RouteEndpoint> GetApiRouteEndpoints(WebApplication app)
     {
-        return ((IEndpointRouteBuilder)app).DataSources
+        var endpoints = ((IEndpointRouteBuilder)app).DataSources
             .SelectMany(source => source.Endpoints)
             .OfType<RouteEndpoint>()
             .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/v1", StringComparison.Ordinal) == true)
             .ToList();
+
+        Assert.NotEmpty(endpoints);
+        return endpoints;
     }
 
     private static string FormatEndpoint(RouteEndpoint endpoint)

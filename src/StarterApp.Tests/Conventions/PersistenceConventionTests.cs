@@ -337,9 +337,7 @@ public class PersistenceConventionTests : ConventionTestBase
     [Fact]
     public void DbMigratorAssembly_MustHaveEmbeddedScriptsWithNumberedPrefix()
     {
-        var scriptsDir = ResolveScriptsDirectory();
-        if (scriptsDir == null)
-            return;
+        var scriptsDir = RequireScriptsDirectory();
 
         var badScripts = Directory.GetFiles(scriptsDir, "*.sql")
             .Select(Path.GetFileName)
@@ -352,9 +350,7 @@ public class PersistenceConventionTests : ConventionTestBase
     [Fact]
     public void DbMigratorAssembly_MustEmbedAllSqlMigrationScripts()
     {
-        var scriptsDir = ResolveScriptsDirectory();
-        if (scriptsDir == null)
-            return;
+        var scriptsDir = RequireScriptsDirectory();
 
         var resources = typeof(DatabaseMigrationEngine).Assembly
             .GetManifestResourceNames()
@@ -377,9 +373,7 @@ public class PersistenceConventionTests : ConventionTestBase
     {
         const int firstEnforcedScript = 1;
 
-        var scriptsDir = ResolveScriptsDirectory();
-        if (scriptsDir == null)
-            return;
+        var scriptsDir = RequireScriptsDirectory();
 
         var violations = new List<string>();
 
@@ -467,6 +461,19 @@ public class PersistenceConventionTests : ConventionTestBase
         {
             violations.Add($"  {fileName}: anonymous FOREIGN KEY — use CONSTRAINT FK_Table_Column FOREIGN KEY");
         }
+    }
+
+    private static string RequireScriptsDirectory()
+    {
+        var scriptsDir = ResolveScriptsDirectory();
+
+        // Fail loudly rather than silently no-op: if the DbMigrator Scripts directory cannot be
+        // located (project rename, extra TFM directory level, published/zipped layout, different
+        // working directory), the migration-safety guards below would otherwise pass having
+        // validated nothing — turning a documented hard invariant into a vacuous green.
+        Assert.NotNull(scriptsDir);
+        Assert.NotEmpty(Directory.GetFiles(scriptsDir, "*.sql"));
+        return scriptsDir;
     }
 
     private static string? ResolveScriptsDirectory()

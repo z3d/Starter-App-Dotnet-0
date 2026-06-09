@@ -21,6 +21,7 @@ public static class GatewayIdentityHeaders
     private const int MaxScopes = 50;
     private const int MaxAuthenticationMethodLength = 64;
     private const int MaxAuthenticationMethods = 20;
+    private const int MaxCorrelationIdLength = 128;
 
     private static readonly HashSet<string> AcceptedAuthenticatedHeaders = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -54,16 +55,22 @@ public static class GatewayIdentityHeaders
 
         var scopes = ParseScopes(scopesValue, errors);
         var authenticationMethods = ParseAuthenticationMethods(authenticationMethodsValue, errors);
+        ValidateCorrelationId(correlationId, errors);
 
         if (errors.Count > 0)
             return GatewayIdentityReadResult.Failure(errors);
 
+        // Store the raw (already contract-validated) correlation id. The gateway signs the assertion
+        // over this raw value, so the verifier must canonicalize identically — applying Sanitize() here
+        // would compare against a rewritten value the external signer never saw and reject valid traffic.
+        // Because ValidateCorrelationId enforces the same [A-Za-z0-9._-]{1,128} charset Sanitize keeps,
+        // the stored value is already blob-path safe.
         var user = new CurrentUser(
             subject,
             parsedPrincipalType,
             tenantId,
             scopes,
-            CorrelationContext.Sanitize(correlationId),
+            correlationId,
             email,
             clientId,
             issuer,
@@ -184,6 +191,26 @@ public static class GatewayIdentityHeaders
         }
 
         return authenticationMethods;
+    }
+
+    private static void ValidateCorrelationId(string correlationId, ICollection<string> errors)
+    {
+        if (string.IsNullOrEmpty(correlationId))
+            return;
+
+        if (correlationId.Length > MaxCorrelationIdLength)
+            errors.Add($"{CorrelationContext.HeaderName} exceeds {MaxCorrelationIdLength} characters.");
+
+        if (correlationId.Any(character => !IsCorrelationIdCharacter(character)))
+            errors.Add($"{CorrelationContext.HeaderName} must contain only letters, digits, '-', '_', or '.'.");
+    }
+
+    private static bool IsCorrelationIdCharacter(char character)
+    {
+        return character is >= 'A' and <= 'Z' ||
+            character is >= 'a' and <= 'z' ||
+            character is >= '0' and <= '9' ||
+            character is '-' or '_' or '.';
     }
 
     private static bool IsSafeSingleHeaderValue(string value)

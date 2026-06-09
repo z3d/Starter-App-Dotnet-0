@@ -62,11 +62,15 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
         var correlationId = CorrelationContext.Sanitize(request.CorrelationId ?? CorrelationContext.GetOrCreate());
         var archiveBlobName = PayloadBlobNaming.BuildArchiveBlobName(timestampUtc, correlationId, _options.ArchivePrefix);
         var auditBlobName = PayloadBlobNaming.BuildAuditBlobName(timestampUtc, _options.AuditPrefix);
-        var entityReferences = PayloadEntityReferenceExtractor.Extract(request);
+        var entityReferences = PayloadEntityReferenceExtractor.Extract(request, _options.MaxEntityReferences, out var entityReferencesTruncated);
         var capturedPayloadBytes = request.CapturedPayloadBytes == 0 && request.Payload.Length > 0
             ? Encoding.UTF8.GetByteCount(request.Payload)
             : request.CapturedPayloadBytes;
         var payloadSizeBytes = request.PayloadSizeBytes ?? capturedPayloadBytes;
+
+        var archiveMetadata = BuildArchiveMetadata(request.Metadata);
+        if (entityReferencesTruncated)
+            archiveMetadata["entityReferencesTruncated"] = "true";
 
         var record = new PayloadCaptureRecord
         {
@@ -86,7 +90,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
             PayloadSizeBytes = payloadSizeBytes,
             CapturedPayloadBytes = capturedPayloadBytes,
             PayloadSkipReason = request.PayloadSkipReason,
-            Metadata = BuildArchiveMetadata(request.Metadata),
+            Metadata = archiveMetadata,
             EntityReferences = entityReferences.ToList()
         };
 

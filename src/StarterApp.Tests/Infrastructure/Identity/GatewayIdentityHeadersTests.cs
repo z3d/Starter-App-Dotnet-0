@@ -123,6 +123,50 @@ public class GatewayIdentityHeadersTests
         Assert.Contains(result.Errors, error => error.Contains(GatewayIdentityHeaders.AuthenticationMethods, StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("trace:abc123")]
+    [InlineData("svc/abc123")]
+    [InlineData("abc 123")]
+    [InlineData("abc+123")]
+    public void Read_WithCorrelationIdOutsideContractCharset_ShouldFail(string correlationId)
+    {
+        // The gateway signs the assertion over the raw correlation id, so the verifier must not silently
+        // rewrite it (the old Sanitize() path). Out-of-charset ids are rejected deterministically instead.
+        var context = CreateContext();
+        context.Request.Headers[CorrelationContext.HeaderName] = correlationId;
+
+        var result = GatewayIdentityHeaders.Read(context.Request.Headers);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Errors, error => error.Contains(CorrelationContext.HeaderName, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Read_WithOverlongCorrelationId_ShouldFail()
+    {
+        var context = CreateContext();
+        context.Request.Headers[CorrelationContext.HeaderName] = new string('a', 129);
+
+        var result = GatewayIdentityHeaders.Read(context.Request.Headers);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(result.Errors, error => error.Contains(CorrelationContext.HeaderName, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Read_WithContractValidCorrelationId_ShouldStoreRawValueForSignerVerifierParity()
+    {
+        var context = CreateContext();
+        context.Request.Headers[CorrelationContext.HeaderName] = "trace-abc.123_v2";
+
+        var result = GatewayIdentityHeaders.Read(context.Request.Headers);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Envelope);
+        // Stored verbatim (not Sanitize-rewritten) so the verifier canonicalizes identically to the signer.
+        Assert.Equal("trace-abc.123_v2", result.Envelope.User.CorrelationId);
+    }
+
     [Fact]
     public void Read_WithLowercasePrincipalType_ShouldFail()
     {
