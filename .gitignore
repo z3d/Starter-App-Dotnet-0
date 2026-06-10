@@ -140,3 +140,6 @@ yarn-error.log*
 # DAST scan artifacts (keep the dir, ignore generated reports/logs)
 dast/reports/*
 !dast/reports/.gitkeep
+
+# Local-only working documents (never published from this public repo)
+docs/_local/
