@@ -1,0 +1,9 @@
+{
+  "EventType": "order.status-changed.v1",
+  "OrderId": "00000000-0000-0000-0000-000000000001",
+  "CustomerId": 42,
+  "PreviousStatus": "Pending",
+  "NewStatus": "Confirmed",
+  "LastUpdated": "\u003Cnormalized\u003E",
+  "OccurredOnUtc": "\u003Cnormalized\u003E"
+}

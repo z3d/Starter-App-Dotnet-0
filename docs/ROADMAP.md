@@ -60,18 +60,16 @@ window: within the window, serve the cached value and trigger a single backgroun
 (single-flight per key). Convention tests: refresh window must be positive and smaller than the
 cache duration. Owner-scoped key semantics must be preserved exactly.
 
-## P2 — Event-contract shape snapshot guard
+## P2 — Event-contract shape snapshot guard — ✅ DONE (2026-06-10)
 
-Convention tests guard event contract *names* (non-empty, unique, referenced by valid subscription
-filters) but nothing guards the serialized *shape* of each versioned event. Renaming a property on
-an event class silently changes the wire payload under the same contract id (e.g.
-`order.created.v1`), breaking Function subscribers and diverging from previously archived outbox
-payloads — the exact failure the versioned-contract convention exists to prevent. Add snapshot
-tests: one pinned canonical JSON fixture per event contract; the test serializes a representative
-instance with the outbox's serializer settings and diffs it against the fixture. Any difference
-fails the build until the fixture is deliberately updated — which forces the author to decide
-between a compatible change and a new `.v2` contract.
-*Done when:* renaming a property on an existing domain event fails CI with a readable diff.
+Landed (commit "test: pin event-contract wire shapes with snapshot fixtures"):
+`EventContractSnapshotTests` renders each event through the real `OutboxMessage.Create` path,
+normalizes only volatile timestamp values, and diffs against pinned fixtures in
+`src/StarterApp.Tests/Contracts/snapshots/{contract}.json`. Completeness is mechanical: every
+`IDomainEvent` must have a representative instance and fixture, and orphan fixtures fail.
+Deliberate updates run `UPDATE_EVENT_SNAPSHOTS=1 dotnet test --filter EventContractSnapshot`,
+forcing the compatible-change-vs-new-`.v2` decision into review. Verified: a property rename
+fails with a readable pinned-vs-actual diff (the done-when).
 
 ## P2 — Operator replay path for failed messages
 

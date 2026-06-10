@@ -1,0 +1,13 @@
+{
+  "EventType": "order.created.v1",
+  "OrderId": "00000000-0000-0000-0000-000000000001",
+  "CustomerId": 42,
+  "Status": "Pending",
+  "LineItemCount": 1,
+  "TotalQuantity": 2,
+  "TotalExcludingGst": 39.98,
+  "TotalIncludingGst": 43.98,
+  "TotalGstAmount": 4.00,
+  "Currency": "USD",
+  "OccurredOnUtc": "\u003Cnormalized\u003E"
+}
