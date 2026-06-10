@@ -1,8 +1,9 @@
 # Improvement Roadmap
 
-Last updated: 2026-06-10 (rev 2: dropped spike-folder and production-IaC items per maintainer
-decision; moved the WORM audit-retention item to `docs/ARCHITECTURE_REVIEW.md` as an accepted
-limitation with deployer guidance)
+Last updated: 2026-06-10 (rev 3: added event-contract shape snapshot guard and operator replay
+path. rev 2: dropped spike-folder and production-IaC items per maintainer decision; moved the WORM
+audit-retention item to `docs/ARCHITECTURE_REVIEW.md` as an accepted limitation with deployer
+guidance)
 
 Forward-looking capability backlog for this template. It complements `docs/ARCHITECTURE_REVIEW.md`
 (which tracks findings and fixes in the existing code) by tracking capabilities the template should
@@ -59,6 +60,34 @@ request misses and executes the handler simultaneously. Extend `ICacheable` with
 window: within the window, serve the cached value and trigger a single background refresh
 (single-flight per key). Convention tests: refresh window must be positive and smaller than the
 cache duration. Owner-scoped key semantics must be preserved exactly.
+
+## P2 — Event-contract shape snapshot guard
+
+Convention tests guard event contract *names* (non-empty, unique, referenced by valid subscription
+filters) but nothing guards the serialized *shape* of each versioned event. Renaming a property on
+an event class silently changes the wire payload under the same contract id (e.g.
+`order.created.v1`), breaking Function subscribers and diverging from previously archived outbox
+payloads — the exact failure the versioned-contract convention exists to prevent. Add snapshot
+tests: one pinned canonical JSON fixture per event contract; the test serializes a representative
+instance with the outbox's serializer settings and diffs it against the fixture. Any difference
+fails the build until the fixture is deliberately updated — which forces the author to decide
+between a compatible change and a new `.v2` contract.
+*Done when:* renaming a property on an existing domain event fails CI with a readable diff.
+
+## P2 — Operator replay path for failed messages
+
+The failure half of eventing keeps evidence but has no sanctioned recovery: errored outbox rows
+are retained yet only ever skipped on subsequent polls, and expired subscription messages
+dead-letter by design — in both cases recovery today means ad-hoc database or queue surgery. Add
+an operator replay capability: (a) a sanctioned way (admin endpoint, Function, or console verb) to
+reset an errored outbox row for re-publishing once the underlying fault is fixed, and (b) a
+documented dead-letter replay step for subscription DLQs — re-submit the dead-lettered message to
+the topic, with the archived payload (already captured) as the fallback source. Replays must flow
+through the normal pipeline — payload capture, audit, and subscribers' replay tolerance — never a
+side channel; replayed messages should carry a marker (application property) so audit can
+distinguish replay from first delivery.
+*Done when:* an intentionally failed event can be recovered end-to-end in an integration test
+without hand-written SQL or portal surgery.
 
 ## P2 — Durable background-work run history
 
