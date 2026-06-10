@@ -178,10 +178,13 @@ curl -sL https://aka.ms/DevTunnelCliInstall | bash
 devtunnel user login
 ```
 
-**Usage** (opt-in):
+**Usage** (opt-in, requires an explicit security acknowledgment):
 ```bash
-dotnet run --project src/StarterApp.AppHost -- --devtunnel
-# Or: ENABLE_DEV_TUNNEL=true dotnet run --project src/StarterApp.AppHost
+# The tunneled API runs GatewayIdentity:Mode=UnsignedDevelopment (trusts identity headers
+# without a signed gateway assertion), so AppHost refuses to start the tunnel unless you
+# acknowledge exposing that surface:
+DEV_TUNNEL_ACK_UNSIGNED_API=true dotnet run --project src/StarterApp.AppHost -- --devtunnel
+# Or: ENABLE_DEV_TUNNEL=true DEV_TUNNEL_ACK_UNSIGNED_API=true dotnet run --project src/StarterApp.AppHost
 ```
 
 ## Local CI with nektos/act

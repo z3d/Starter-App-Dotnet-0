@@ -240,6 +240,6 @@ dotnet build                                            # Build solution
 dotnet test                                             # Run all tests
 dotnet restore --use-lock-file                          # Update lock files
 dotnet restore --locked-mode                            # CI/CD locked restore
-dotnet run --project src/StarterApp.AppHost -- --devtunnel  # Run with dev tunnel
+DEV_TUNNEL_ACK_UNSIGNED_API=true dotnet run --project src/StarterApp.AppHost -- --devtunnel  # Run with dev tunnel (ack required: tunneled API is UnsignedDevelopment)
 act                                                     # Run CI locally (flags in .actrc)
 ```
