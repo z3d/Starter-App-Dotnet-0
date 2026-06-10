@@ -31,16 +31,17 @@ seeding and volume assertions"):
    `K6_MIN_LIST_ROWS` (default 1 locally; the gate sets 20 after seeding), so a fast-but-empty
    list response fails the run even when latency thresholds hold.
 
-## P1 — Structurally guaranteed owner-policy evaluation
+## P1 — Structurally guaranteed owner-policy evaluation — ✅ DONE (2026-06-10)
 
-Convention tests enforce that mutation handlers *inject* `IOwnerOnlyPolicy`, but injection is not
-invocation — a handler can take the dependency and never call it, and no mechanical rule catches
-that today. Owner checks must stay in handlers (only the loaded aggregate knows its persisted
-owner; see CLAUDE.md), so the fix is not endpoint metadata. Design direction: make the scoped
-policy record that it was evaluated, and add a mediator pipeline behavior that, after a mutation
-handler for an owner-scoped aggregate completes successfully, asserts the policy was consulted
-(fail loudly in Development/Testing; log/metric in production).
-*Done when:* a mutation handler that skips the owner check fails a test mechanically, not by review.
+Landed (commit "feat: structurally verify owner-policy evaluation in the mediator pipeline"):
+`OwnerOnlyPolicy.Authorize` records evaluation on a scoped `OwnerPolicyEvaluationTracker`;
+non-create commands carry the `IOwnerAuthorizedMutation` marker (cohort completeness and
+commands-only both convention-tested in `CqrsConventionTests`); `OwnerAuthorizationBehavior` in
+the mediator pipeline asserts after a marked command completes non-exceptionally that the policy
+was consulted — throwing in Development/Testing, logging an error in production (the mutation is
+already persisted; failing the response would not undo it). Covered by behavior unit tests, a
+real-Mediator pipeline test proving a policy-skipping handler is caught mechanically (the
+done-when), and a DI-wiring assertion against the API host.
 
 ## P2 — Request-type feature toggles
 

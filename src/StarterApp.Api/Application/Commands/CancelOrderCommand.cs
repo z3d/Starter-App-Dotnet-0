@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Application.Commands;
 
-public class CancelOrderCommand : ICommand, IRequest<OrderDto>
+public class CancelOrderCommand : ICommand, IRequest<OrderDto>, IOwnerAuthorizedMutation
 {
     public Guid OrderId { get; set; }
 }

@@ -133,6 +133,42 @@ public partial class CqrsConventionTests : ConventionTestBase
             string.Join("\n", violations));
     }
 
+    [Fact]
+    public void NonCreateCommands_MustBeOwnerAuthorizedMutations()
+    {
+        var violations = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && typeof(ICommand).IsAssignableFrom(t))
+            .Where(t => t.Name.EndsWith("Command", StringComparison.Ordinal))
+            .Where(t => !t.Name.StartsWith("Create", StringComparison.Ordinal))
+            .Where(t => !typeof(IOwnerAuthorizedMutation).IsAssignableFrom(t))
+            .Select(t => t.FullName ?? t.Name)
+            .OrderBy(name => name)
+            .ToList();
+
+        Assert.True(violations.Count == 0,
+            "Non-create commands mutate an existing owner-scoped aggregate and must implement IOwnerAuthorizedMutation " +
+            "so OwnerAuthorizationBehavior can verify the handler consulted IOwnerOnlyPolicy.Authorize. Creates are " +
+            "exempt because they stamp ownership instead of checking it. A future non-owner-scoped command needs a " +
+            "documented exemption here, not a silent omission:\n" +
+            string.Join("\n", violations));
+    }
+
+    [Fact]
+    public void OwnerAuthorizedMutations_MustBeCommands()
+    {
+        var violations = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && typeof(IOwnerAuthorizedMutation).IsAssignableFrom(t))
+            .Where(t => !typeof(ICommand).IsAssignableFrom(t))
+            .Select(t => t.FullName ?? t.Name)
+            .OrderBy(name => name)
+            .ToList();
+
+        Assert.True(violations.Count == 0,
+            "IOwnerAuthorizedMutation marks commands only — queries enforce owner scope through SQL filters, " +
+            "not through IOwnerOnlyPolicy.Authorize:\n" +
+            string.Join("\n", violations));
+    }
+
     // Injecting IOwnerOnlyPolicy is necessary but not sufficient — a handler that injects it and
     // never calls it provides zero owner authorization. These tests scan handler IL (including async
     // state machines) for an actual call to a member declared on IOwnerOnlyPolicy, closing the gap

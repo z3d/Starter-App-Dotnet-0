@@ -6,6 +6,7 @@ public static class MediatorServiceExtensions
     {
         services.AddScoped<IMediator, Mediator>();
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(Identity.OwnerAuthorizationBehavior<,>));
         services.AddScoped<ICacheInvalidator, CacheInvalidator>();
 
         foreach (var assembly in assemblies)

@@ -10,7 +10,7 @@ internal static class TestOwnerOnlyPolicy
         "test-correlation",
         null,
         null,
-        null));
+        null), new OwnerPolicyEvaluationTracker());
 
     public static IOwnerOnlyPolicy For(string subject, string tenantId)
     {
@@ -22,6 +22,6 @@ internal static class TestOwnerOnlyPolicy
             "test-correlation",
             null,
             null,
-            null));
+            null), new OwnerPolicyEvaluationTracker());
     }
 }

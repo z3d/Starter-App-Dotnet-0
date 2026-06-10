@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Application.Commands;
 
-public class DeleteCustomerCommand : ICommand, IRequest<Unit>
+public class DeleteCustomerCommand : ICommand, IRequest<Unit>, IOwnerAuthorizedMutation
 {
     public int Id { get; set; }
 }

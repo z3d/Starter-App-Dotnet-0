@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Application.Commands;
 
-public class UpdateCustomerCommand : ICommand, IRequest<CustomerDto>
+public class UpdateCustomerCommand : ICommand, IRequest<CustomerDto>, IOwnerAuthorizedMutation
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;

@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Application.Commands;
 
-public class UpdateOrderStatusCommand : ICommand, IRequest<OrderDto>
+public class UpdateOrderStatusCommand : ICommand, IRequest<OrderDto>, IOwnerAuthorizedMutation
 {
     public Guid OrderId { get; set; }
     public OrderStatus? Status { get; set; }

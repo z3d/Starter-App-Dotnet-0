@@ -113,6 +113,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<CurrentUserAccessor>();
         services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<CurrentUserAccessor>());
+        services.AddScoped<OwnerPolicyEvaluationTracker>();
         services.AddScoped<IOwnerOnlyPolicy, OwnerOnlyPolicy>();
         services.AddSingleton<IGatewayAssertionValidator, GatewayAssertionValidator>();
 

@@ -21,7 +21,7 @@ public class OwnerOnlyPolicyTests
     [Fact]
     public void GetRequiredScope_WhenAnonymous_ShouldThrowUnauthorized()
     {
-        var policy = new OwnerOnlyPolicy(CurrentUser.Anonymous);
+        var policy = new OwnerOnlyPolicy(CurrentUser.Anonymous, new OwnerPolicyEvaluationTracker());
 
         Assert.Throws<UnauthorizedAccessException>(policy.GetRequiredScope);
     }
