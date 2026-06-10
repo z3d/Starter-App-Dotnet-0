@@ -71,20 +71,17 @@ Deliberate updates run `UPDATE_EVENT_SNAPSHOTS=1 dotnet test --filter EventContr
 forcing the compatible-change-vs-new-`.v2` decision into review. Verified: a property rename
 fails with a readable pinned-vs-actual diff (the done-when).
 
-## P2 — Operator replay path for failed messages
+## P2 — Operator replay path for failed messages — ✅ DONE (2026-06-10)
 
-The failure half of eventing keeps evidence but has no sanctioned recovery: errored outbox rows
-are retained yet only ever skipped on subsequent polls, and expired subscription messages
-dead-letter by design — in both cases recovery today means ad-hoc database or queue surgery. Add
-an operator replay capability: (a) a sanctioned way (admin endpoint, Function, or console verb) to
-reset an errored outbox row for re-publishing once the underlying fault is fixed, and (b) a
-documented dead-letter replay step for subscription DLQs — re-submit the dead-lettered message to
-the topic, with the archived payload (already captured) as the fallback source. Replays must flow
-through the normal pipeline — payload capture, audit, and subscribers' replay tolerance — never a
-side channel; replayed messages should carry a marker (application property) so audit can
-distinguish replay from first delivery.
-*Done when:* an intentionally failed event can be recovered end-to-end in an integration test
-without hand-written SQL or portal surgery.
+Landed (commit "feat: add sanctioned outbox replay verb and dead-letter replay runbook"):
+(a) `DbMigrator` gains the `replay-outbox` verb (`--id <guid>` | `--all-errored`) — resets only
+unprocessed errored rows (clears error + stale claim, restores retry budget, stamps
+`replay_count`/`replayed_on_utc`, migration 0002); the processor marks replayed publishes with
+`Replay`/`ReplayCount` application properties. `OutboxMessage.ResetForReplay` carries the same
+semantics for in-process use, with a parity test keeping the SQL and entity representations in
+sync. (b) `docs/runbooks/event-replay.md` documents the subscription-DLQ re-submit procedure with
+archived payloads as the fallback source. The done-when is covered by `OutboxReplayTests`:
+an intentionally errored event is recovered end-to-end through the verb with no hand-written SQL.
 
 ## P2 — Incident knowledge base (diagnosis-side companion to the replay path)
 

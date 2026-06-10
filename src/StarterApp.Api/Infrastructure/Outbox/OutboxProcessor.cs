@@ -117,15 +117,7 @@ public class OutboxProcessor : BackgroundService
         {
             try
             {
-                var serviceBusMessage = new ServiceBusMessage(message.Payload)
-                {
-                    ContentType = "application/json",
-                    MessageId = message.Id.ToString(),
-                    CorrelationId = message.CorrelationId,
-                    Subject = message.Type
-                };
-                serviceBusMessage.ApplicationProperties["EventType"] = message.Type;
-                serviceBusMessage.ApplicationProperties[CorrelationContext.ApplicationPropertyName] = message.CorrelationId;
+                var serviceBusMessage = BuildServiceBusMessage(message);
 
                 try
                 {
@@ -321,5 +313,30 @@ public class OutboxProcessor : BackgroundService
             .OrderBy(m => m.OccurredOnUtc)
             .Take(_options.BatchSize)
             .ToListAsync(cancellationToken);
+    }
+
+    public static ServiceBusMessage BuildServiceBusMessage(OutboxMessage message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        var serviceBusMessage = new ServiceBusMessage(message.Payload)
+        {
+            ContentType = "application/json",
+            MessageId = message.Id.ToString(),
+            CorrelationId = message.CorrelationId,
+            Subject = message.Type
+        };
+        serviceBusMessage.ApplicationProperties["EventType"] = message.Type;
+        serviceBusMessage.ApplicationProperties[CorrelationContext.ApplicationPropertyName] = message.CorrelationId;
+
+        // Replayed messages are marked so audit and subscribers can distinguish an
+        // operator-initiated republish from a first delivery (see docs/runbooks/event-replay.md).
+        if (message.ReplayCount > 0)
+        {
+            serviceBusMessage.ApplicationProperties["Replay"] = true;
+            serviceBusMessage.ApplicationProperties["ReplayCount"] = message.ReplayCount;
+        }
+
+        return serviceBusMessage;
     }
 }

@@ -1,11 +1,17 @@
 using StarterApp.DbMigrator;
 
+// Ops verbs (currently: replay-outbox) bypass AddCommandLine — the bare verb token
+// is not key=value shaped and would fail configuration parsing. Their arguments are
+// parsed explicitly by the verb handler instead.
+var isReplayVerb = args.Length > 0 && string.Equals(args[0], "replay-outbox", StringComparison.OrdinalIgnoreCase);
+var configurationArgs = isReplayVerb ? Array.Empty<string>() : args;
+
 // Create configuration from appsettings.json
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: true)
     .AddEnvironmentVariables()
-    .AddCommandLine(args)
+    .AddCommandLine(configurationArgs)
     .Build();
 
 // Configure Serilog
@@ -42,6 +48,11 @@ try
     // Log connection string with password masked for security
     var maskedConnectionString = MaskConnectionStringPassword(connectionString);
     Log.Information("Using database connection: {ConnectionString}", maskedConnectionString);
+
+    if (isReplayVerb)
+    {
+        Environment.Exit(OutboxReplayer.Run(connectionString, args.Skip(1).ToArray()));
+    }
 
     // Use the DatabaseMigrationEngine to run migrations
     bool success = DatabaseMigrationEngine.Migrate(connectionString);

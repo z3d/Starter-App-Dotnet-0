@@ -47,6 +47,13 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
         builder.Property(message => message.LockedUntilUtc)
             .HasColumnName("locked_until_utc");
 
+        builder.Property(message => message.ReplayCount)
+            .HasColumnName("replay_count")
+            .HasDefaultValue(0);
+
+        builder.Property(message => message.ReplayedOnUtc)
+            .HasColumnName("replayed_on_utc");
+
         builder.HasIndex(message => new { message.OccurredOnUtc, message.LockedUntilUtc })
             .HasDatabaseName("ix_outbox_messages_claimable")
             .HasFilter("processed_on_utc IS NULL AND error IS NULL");

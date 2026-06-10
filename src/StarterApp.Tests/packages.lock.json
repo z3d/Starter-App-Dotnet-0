@@ -1215,6 +1215,7 @@
           "Microsoft.Extensions.Configuration.CommandLine": "[10.0.5, )",
           "Microsoft.Extensions.Configuration.EnvironmentVariables": "[10.0.5, )",
           "Microsoft.Extensions.Configuration.Json": "[10.0.5, )",
+          "Npgsql": "[10.0.3, )",
           "Serilog": "[4.3.0, )",
           "Serilog.Sinks.Console": "[6.1.1, )",
           "Serilog.Sinks.File": "[7.0.0, )",

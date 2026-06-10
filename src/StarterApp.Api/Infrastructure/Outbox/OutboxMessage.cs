@@ -21,6 +21,8 @@ public class OutboxMessage
     public string? Error { get; private set; }
     public Guid? ProcessingId { get; private set; }
     public DateTimeOffset? LockedUntilUtc { get; private set; }
+    public int ReplayCount { get; private set; }
+    public DateTimeOffset? ReplayedOnUtc { get; private set; }
 
     private OutboxMessage()
     {
@@ -42,6 +44,23 @@ public class OutboxMessage
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(error);
         Error = error;
+        ClearClaim();
+    }
+
+    public void ResetForReplay(DateTimeOffset replayedOnUtc)
+    {
+        // The sanctioned recovery path for errored rows (DbMigrator replay-outbox
+        // verb mirrors this in SQL; OutboxReplayTests keeps both in sync).
+        if (ProcessedOnUtc is not null)
+            throw new InvalidOperationException("A processed outbox message cannot be replayed.");
+
+        if (Error is null)
+            throw new InvalidOperationException("Only errored outbox messages can be replayed.");
+
+        Error = null;
+        RetryCount = 0;
+        ReplayCount++;
+        ReplayedOnUtc = replayedOnUtc;
         ClearClaim();
     }
 
