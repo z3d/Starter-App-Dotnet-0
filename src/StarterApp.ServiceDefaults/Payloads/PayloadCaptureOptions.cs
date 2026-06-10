@@ -52,8 +52,6 @@ public class PayloadCaptureOptions
     [Range(1, 10000)]
     public int CleanupBatchSize { get; set; } = 500;
 
-    public string CleanupCron { get; set; } = "0 0 * * * *";
-
     [Range(1, 104_857_600)]
     public int MaxPayloadBytes { get; set; } = 1_048_576;
 
@@ -71,18 +69,28 @@ public class PayloadCaptureOptions
         "text/plain"
     ];
 
-    public string[] SensitivePropertyNames { get; set; } =
+    // Shared by the JSON payload redactor (log masking), the capture sink (metadata/query-string
+    // masking), and the entity-reference extractor (blob-path exclusion) — matched as normalized
+    // substrings, so "ssn" also covers "ssnId" and "license" covers "driversLicenseNumber".
+    internal static readonly string[] DefaultSensitivePropertyNames =
     [
         "address",
         "authorization",
         "cookie",
         "email",
+        "license",
+        "medicare",
         "name",
+        "national",
+        "passport",
         "password",
         "phone",
         "secret",
         "set-cookie",
         "ssn",
+        "tax",
         "token"
     ];
+
+    public string[] SensitivePropertyNames { get; set; } = DefaultSensitivePropertyNames;
 }

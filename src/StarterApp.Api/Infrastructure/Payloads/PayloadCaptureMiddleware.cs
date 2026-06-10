@@ -53,7 +53,17 @@ public sealed class PayloadCaptureMiddleware
             await _next(context);
             await CaptureResponseAsync(context, correlationId, responseBody);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+            // A client abort must not silently suppress the audit record — a caller could
+            // otherwise deliberately disconnect to keep responses out of the audit trail. The
+            // response bytes written so far are already buffered, so capture them with an
+            // unlinked token before rethrowing the cancellation.
+            _logger.LogWarning("HTTP request was canceled for correlation {CorrelationId}; capturing the partial response for audit", correlationId);
+            await CaptureResponseAsync(context, correlationId, responseBody);
+            throw;
+        }
+        catch (Exception ex)
         {
             _logger.LogError(ex, "HTTP request failed before response payload capture completed for correlation {CorrelationId}", correlationId);
             throw;
@@ -119,6 +129,9 @@ public sealed class PayloadCaptureMiddleware
             ["statusCode"] = context.Response.StatusCode.ToString(CultureInfo.InvariantCulture)
         };
 
+        // The response payload is already buffered in memory, so the audit write deliberately runs
+        // on CancellationToken.None: cancelling it with RequestAborted would let a client abort
+        // suppress the audit record after the response was produced.
         if (!ShouldCaptureContentType(context.Response.ContentType))
         {
             await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
@@ -132,7 +145,7 @@ public sealed class PayloadCaptureMiddleware
                 PayloadSkipReason = BuildUnsupportedContentTypeReason(context.Response.ContentType),
                 PayloadSizeBytes = responseBody.TotalBytesWritten,
                 Metadata = metadata
-            }, context.RequestAborted);
+            }, CancellationToken.None);
             return;
         }
 
@@ -150,7 +163,7 @@ public sealed class PayloadCaptureMiddleware
             CapturedPayloadBytes = responseBody.CapturedBytes,
             PayloadSkipReason = responseBody.Truncated ? $"Payload exceeded configured limit of {_options.MaxPayloadBytes} bytes" : null,
             Metadata = metadata
-        }, context.RequestAborted);
+        }, CancellationToken.None);
     }
 
     private static string ResolveCorrelationId(HttpContext context, out bool hadInboundCorrelationId)

@@ -70,10 +70,10 @@ public class OrderEndpoints : IEndpointDefinition
             .ProducesProblem(500);
     }
 
-    private static async Task<IResult> GetOrder(Guid id, IMediator mediator)
+    private static async Task<IResult> GetOrder(Guid id, IMediator mediator, CancellationToken cancellationToken)
     {
         var query = new GetOrderByIdQuery { Id = id };
-        var result = await mediator.SendAsync(query);
+        var result = await mediator.SendAsync(query, cancellationToken);
 
         if (result == null)
         {
@@ -84,17 +84,17 @@ public class OrderEndpoints : IEndpointDefinition
         return Results.Ok(result);
     }
 
-    private static async Task<IResult> GetOrdersByCustomer(int customerId, IMediator mediator, int page = 1, int pageSize = 50)
+    private static async Task<IResult> GetOrdersByCustomer(int customerId, IMediator mediator, CancellationToken cancellationToken, int page = 1, int pageSize = 50)
     {
         var query = new GetOrdersByCustomerQuery { CustomerId = customerId, Page = page, PageSize = pageSize };
-        var items = (await mediator.SendAsync(query)).ToList();
+        var items = (await mediator.SendAsync(query, cancellationToken)).ToList();
         var hasMore = items.Count > pageSize;
         if (hasMore)
             items.RemoveAt(items.Count - 1);
         return Results.Ok(new PagedResponse<OrderReadModel> { Data = items, HasMore = hasMore });
     }
 
-    private static async Task<IResult> GetOrdersByStatus(string status, IMediator mediator, int page = 1, int pageSize = 50)
+    private static async Task<IResult> GetOrdersByStatus(string status, IMediator mediator, CancellationToken cancellationToken, int page = 1, int pageSize = 50)
     {
         if (!Enum.TryParse<OrderStatus>(status, ignoreCase: true, out var orderStatus))
         {
@@ -103,34 +103,34 @@ public class OrderEndpoints : IEndpointDefinition
         }
 
         var query = new GetOrdersByStatusQuery { Status = orderStatus, Page = page, PageSize = pageSize };
-        var items = (await mediator.SendAsync(query)).ToList();
+        var items = (await mediator.SendAsync(query, cancellationToken)).ToList();
         var hasMore = items.Count > pageSize;
         if (hasMore)
             items.RemoveAt(items.Count - 1);
         return Results.Ok(new PagedResponse<OrderReadModel> { Data = items, HasMore = hasMore });
     }
 
-    private static async Task<IResult> CreateOrder(CreateOrderCommand command, IMediator mediator)
+    private static async Task<IResult> CreateOrder(CreateOrderCommand command, IMediator mediator, CancellationToken cancellationToken)
     {
-        var result = await mediator.SendAsync(command);
+        var result = await mediator.SendAsync(command, cancellationToken);
         return Results.Created($"/api/v1/orders/{result.Id}", result);
     }
 
-    private static async Task<IResult> UpdateOrderStatus(Guid id, UpdateOrderStatusCommand command, IMediator mediator)
+    private static async Task<IResult> UpdateOrderStatus(Guid id, UpdateOrderStatusCommand command, IMediator mediator, CancellationToken cancellationToken)
     {
         if (id != command.OrderId)
         {
             return Results.BadRequest("ID in URL does not match ID in request body");
         }
 
-        var result = await mediator.SendAsync(command);
+        var result = await mediator.SendAsync(command, cancellationToken);
         return Results.Ok(result);
     }
 
-    private static async Task<IResult> CancelOrder(Guid id, IMediator mediator)
+    private static async Task<IResult> CancelOrder(Guid id, IMediator mediator, CancellationToken cancellationToken)
     {
         var command = new CancelOrderCommand { OrderId = id };
-        var result = await mediator.SendAsync(command);
+        var result = await mediator.SendAsync(command, cancellationToken);
         return Results.Ok(result);
     }
 }

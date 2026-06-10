@@ -25,8 +25,28 @@ public static class PayloadEntityReferenceExtractor
 
     public static IReadOnlyList<PayloadEntityReference> Extract(PayloadCaptureRequest request, int maxReferences, out bool truncated)
     {
+        return Extract(request, maxReferences, PayloadCaptureOptions.DefaultSensitivePropertyNames, out truncated);
+    }
+
+    public static IReadOnlyList<PayloadEntityReference> Extract(
+        PayloadCaptureRequest request,
+        int maxReferences,
+        IReadOnlyCollection<string> sensitivePropertyNames,
+        out bool truncated)
+    {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxReferences);
+        ArgumentNullException.ThrowIfNull(sensitivePropertyNames);
+
+        // Entity references become blob PATH segments and are echoed in Information logs by the
+        // sink — they must never carry redaction-bypassing sensitive values (e.g. nationalId),
+        // so sensitive property names are excluded with the same normalized-substring semantics
+        // the JSON payload redactor uses.
+        var sensitiveTokens = sensitivePropertyNames
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(NormalizePropertyName)
+            .Where(name => name.Length > 0)
+            .ToHashSet(StringComparer.Ordinal);
 
         var references = new Dictionary<string, PayloadEntityReference>(StringComparer.OrdinalIgnoreCase);
         var contextEntityType = InferRootEntityType(request.Operation, request.Metadata);
@@ -37,9 +57,9 @@ public static class PayloadEntityReferenceExtractor
         AddRouteReference(request.Operation, request.Metadata, references);
 
         foreach (var metadata in request.Metadata)
-            AddReferenceFromName(metadata.Key, metadata.Value, contextEntityType, references);
+            AddReferenceFromName(metadata.Key, metadata.Value, contextEntityType, sensitiveTokens, references);
 
-        AddJsonReferences(request.Payload, request.ContentType, contextEntityType, references);
+        AddJsonReferences(request.Payload, request.ContentType, contextEntityType, sensitiveTokens, references);
 
         var ordered = references.Values
             .OrderBy(reference => reference.EntityType, StringComparer.Ordinal)
@@ -57,6 +77,7 @@ public static class PayloadEntityReferenceExtractor
         string payload,
         string? contentType,
         string? contextEntityType,
+        HashSet<string> sensitiveTokens,
         Dictionary<string, PayloadEntityReference> references)
     {
         if (string.IsNullOrWhiteSpace(payload) || !LooksLikeJson(payload, contentType))
@@ -65,7 +86,7 @@ public static class PayloadEntityReferenceExtractor
         try
         {
             using var document = JsonDocument.Parse(payload);
-            AddJsonElementReferences(document.RootElement, contextEntityType, references);
+            AddJsonElementReferences(document.RootElement, contextEntityType, sensitiveTokens, references);
         }
         catch (JsonException)
         {
@@ -76,6 +97,7 @@ public static class PayloadEntityReferenceExtractor
     private static void AddJsonElementReferences(
         JsonElement element,
         string? contextEntityType,
+        HashSet<string> sensitiveTokens,
         Dictionary<string, PayloadEntityReference> references)
     {
         switch (element.ValueKind)
@@ -83,15 +105,15 @@ public static class PayloadEntityReferenceExtractor
             case JsonValueKind.Object:
                 foreach (var property in element.EnumerateObject())
                 {
-                    AddReferenceFromJsonProperty(property.Name, property.Value, contextEntityType, references);
-                    AddJsonElementReferences(property.Value, contextEntityType, references);
+                    AddReferenceFromJsonProperty(property.Name, property.Value, contextEntityType, sensitiveTokens, references);
+                    AddJsonElementReferences(property.Value, contextEntityType, sensitiveTokens, references);
                 }
 
                 break;
 
             case JsonValueKind.Array:
                 foreach (var item in element.EnumerateArray())
-                    AddJsonElementReferences(item, contextEntityType, references);
+                    AddJsonElementReferences(item, contextEntityType, sensitiveTokens, references);
                 break;
         }
     }
@@ -100,38 +122,57 @@ public static class PayloadEntityReferenceExtractor
         string propertyName,
         JsonElement value,
         string? contextEntityType,
+        HashSet<string> sensitiveTokens,
         Dictionary<string, PayloadEntityReference> references)
     {
         if (!TryGetScalarValue(value, out var scalarValue))
             return;
 
-        AddReferenceFromName(propertyName, scalarValue, contextEntityType, references);
+        AddReferenceFromName(propertyName, scalarValue, contextEntityType, sensitiveTokens, references);
     }
 
     private static void AddReferenceFromName(
         string name,
         string value,
         string? contextEntityType,
+        HashSet<string> sensitiveTokens,
         Dictionary<string, PayloadEntityReference> references)
     {
-        if (IgnoredIdentifierNames.Contains(name))
+        if (IgnoredIdentifierNames.Contains(name) || IsSensitivePropertyName(name, sensitiveTokens))
             return;
 
         string? entityType = null;
 
+        // The suffix match is case-sensitive on purpose: an OrdinalIgnoreCase "Id" suffix turns
+        // ordinary words ending in "id" (paid, valid, bid) into junk entity references.
         if (string.Equals(name, "id", StringComparison.OrdinalIgnoreCase))
         {
             entityType = contextEntityType;
         }
-        else if (name.EndsWith("Id", StringComparison.OrdinalIgnoreCase))
+        else if (name.Length > 2 && name.EndsWith("Id", StringComparison.Ordinal))
         {
             entityType = name[..^2];
+        }
+        else if (name.Length > 3 && name.EndsWith("_id", StringComparison.Ordinal))
+        {
+            entityType = name[..^3];
         }
 
         if (string.IsNullOrWhiteSpace(entityType))
             return;
 
         AddReference(entityType, value, references);
+    }
+
+    private static bool IsSensitivePropertyName(string name, HashSet<string> sensitiveTokens)
+    {
+        var normalized = NormalizePropertyName(name);
+        return sensitiveTokens.Any(token => normalized.Contains(token, StringComparison.Ordinal));
+    }
+
+    private static string NormalizePropertyName(string name)
+    {
+        return new string(name.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
     }
 
     private static void AddRouteReference(

@@ -12,6 +12,7 @@ public class OutboxProcessor : BackgroundService
     private readonly IPayloadCaptureSink _payloadCaptureSink;
     private readonly OutboxProcessorOptions _options;
     private readonly ILogger<OutboxProcessor> _logger;
+    private DateTimeOffset _lastCleanupUtc;
 
     public OutboxProcessor(
         IServiceScopeFactory scopeFactory,
@@ -37,6 +38,12 @@ public class OutboxProcessor : BackgroundService
             try
             {
                 await ProcessBatchAsync(stoppingToken);
+
+                if (DateTimeOffset.UtcNow - _lastCleanupUtc >= TimeSpan.FromMinutes(_options.CleanupIntervalMinutes))
+                {
+                    await CleanupExpiredMessagesAsync(stoppingToken);
+                    _lastCleanupUtc = DateTimeOffset.UtcNow;
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -45,6 +52,41 @@ public class OutboxProcessor : BackgroundService
 
             await Task.Delay(TimeSpan.FromSeconds(_options.PollingIntervalSeconds), stoppingToken);
         }
+    }
+
+    // Outbox rows carry full event payloads. Processed rows are pure history after publish, and
+    // errored rows are a manual-replay surface that RetentionDays bounds; both are purged so the
+    // table cannot grow forever. Unprocessed (pending/locked) rows are never touched.
+    internal async Task<int> CleanupExpiredMessagesAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var cutoffUtc = DateTimeOffset.UtcNow.AddDays(-_options.RetentionDays);
+
+        int deleted;
+        if (dbContext.Database.IsRelational())
+        {
+            deleted = await dbContext.OutboxMessages
+                .Where(m => (m.ProcessedOnUtc != null && m.ProcessedOnUtc < cutoffUtc) ||
+                            (m.Error != null && m.OccurredOnUtc < cutoffUtc))
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+        else
+        {
+            // InMemory fallback (tests): ExecuteDeleteAsync is not supported on that provider.
+            var expired = await dbContext.OutboxMessages
+                .Where(m => (m.ProcessedOnUtc != null && m.ProcessedOnUtc < cutoffUtc) ||
+                            (m.Error != null && m.OccurredOnUtc < cutoffUtc))
+                .ToListAsync(cancellationToken);
+            dbContext.OutboxMessages.RemoveRange(expired);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            deleted = expired.Count;
+        }
+
+        if (deleted > 0)
+            _logger.LogInformation("Outbox retention cleanup deleted {Count} messages older than {CutoffUtc}", deleted, cutoffUtc);
+
+        return deleted;
     }
 
     private async Task ProcessBatchAsync(CancellationToken cancellationToken)
@@ -159,7 +201,37 @@ public class OutboxProcessor : BackgroundService
             }
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await SaveOutcomesAsync(dbContext, cancellationToken);
+    }
+
+    // ProcessingId is a concurrency token, and a batch's MarkAsProcessed/IncrementRetry/MarkAsError
+    // outcomes persist in one SaveChanges. If a row's claim lock expired mid-batch and another
+    // replica reclaimed it, a plain save would throw and discard EVERY outcome in the batch —
+    // already-published messages would then be republished after lock expiry, outside the dedup
+    // window. Detach only the stolen rows (the reclaiming replica owns their outcome now) and
+    // persist the rest.
+    internal async Task SaveOutcomesAsync(ApplicationDbContext dbContext, CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            try
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+                return;
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                foreach (var entry in ex.Entries)
+                {
+                    if (entry.Entity is OutboxMessage stolen)
+                        _logger.LogWarning(
+                            "Outbox message {MessageId} ({Type}) was reclaimed by another processor before its outcome could be saved; persisting the remaining batch outcomes",
+                            stolen.Id, stolen.Type);
+
+                    entry.State = EntityState.Detached;
+                }
+            }
+        }
     }
 
     // internal (not private) so integration tests can drive the claim path against real PostgreSQL

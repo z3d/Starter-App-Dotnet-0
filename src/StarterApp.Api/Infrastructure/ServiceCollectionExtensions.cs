@@ -167,11 +167,22 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddServiceBusPublisher(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddServiceBusPublisher(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         var connectionString = configuration.GetConnectionString("servicebus");
         if (string.IsNullOrEmpty(connectionString))
+        {
+            // The no-op fallback exists for tests and standalone dev only. In production-like
+            // environments a missing/typo'd connection string would otherwise boot green, pass
+            // /health/ready (database-only), and silently accumulate outbox rows forever — so
+            // fail startup loudly, mirroring the GatewayIdentity:Mode environment gate.
+            if (!IsDevelopmentLike(environment))
+                throw new InvalidOperationException(
+                    "ConnectionStrings:servicebus is required outside Development/Testing environments. " +
+                    "Domain events would silently stop publishing; configure the Service Bus connection string.");
+
             return services;
+        }
 
         services.AddOptions<OutboxProcessorOptions>()
             .Bind(configuration.GetSection("OutboxProcessor"))

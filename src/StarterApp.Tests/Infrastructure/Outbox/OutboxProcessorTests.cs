@@ -485,6 +485,52 @@ public class OutboxProcessorTests
     }
 
     [Fact]
+    public async Task ProcessBatch_WhenOneClaimIsStolenMidBatch_ShouldPersistRemainingOutcomes()
+    {
+        // ProcessingId is a concurrency token. If another replica reclaims one row mid-batch
+        // (expired lock), the batch-final SaveChanges must not discard every other outcome —
+        // that would republish already-published messages outside the dedup window.
+        var dbName = Guid.NewGuid().ToString();
+        var baseTime = DateTimeOffset.UtcNow;
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            setupContext.OutboxMessages.Add(CreateTestMessage(occurredOnUtc: baseTime));
+            setupContext.OutboxMessages.Add(CreateTestMessage(occurredOnUtc: baseTime.AddMilliseconds(1)));
+            await setupContext.SaveChangesAsync();
+        }
+
+        // Steal the SECOND message's claim while the processor is publishing the first.
+        var sendCount = 0;
+        var senderMock = new Mock<ServiceBusSender>();
+        senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .Returns<ServiceBusMessage, CancellationToken>(async (_, ct) =>
+            {
+                sendCount++;
+                if (sendCount == 1)
+                {
+                    await using var thiefContext = CreateDbContext(dbName);
+                    var victim = await thiefContext.OutboxMessages.OrderBy(m => m.OccurredOnUtc).LastAsync(ct);
+                    victim.Claim(Guid.CreateVersion7(), DateTimeOffset.UtcNow.AddMinutes(5));
+                    await thiefContext.SaveChangesAsync(ct);
+                }
+            });
+
+        var processor = CreateProcessor(dbName, senderMock.Object);
+
+        // Act — must not throw, and must not lose the first message's outcome
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await RunSingleBatchAsync(processor, cts.Token);
+
+        // Assert — first outcome persisted; stolen row left to its new owner
+        await using var verifyContext = CreateDbContext(dbName);
+        var messages = await verifyContext.OutboxMessages.OrderBy(m => m.OccurredOnUtc).ToListAsync();
+        Assert.NotNull(messages[0].ProcessedOnUtc);
+        Assert.Null(messages[0].ProcessingId);
+        Assert.Null(messages[1].ProcessedOnUtc);
+        Assert.NotNull(messages[1].ProcessingId);
+    }
+
+    [Fact]
     public async Task ProcessBatch_WithNoMessages_ShouldNotPublish()
     {
         // Arrange
@@ -498,6 +544,43 @@ public class OutboxProcessorTests
 
         // Assert
         senderMock.Verify(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CleanupExpiredMessages_ShouldPurgeOnlyProcessedAndErroredRowsPastRetention()
+    {
+        // Processed/errored rows carry full event payloads and accumulated forever; retention must
+        // purge them while never touching pending (unprocessed, unerrored) rows of any age.
+        var dbName = Guid.NewGuid().ToString();
+        var now = DateTimeOffset.UtcNow;
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            var processedOld = CreateTestMessage(occurredOnUtc: now.AddDays(-60));
+            processedOld.MarkAsProcessed(now.AddDays(-60));
+
+            var processedRecent = CreateTestMessage(occurredOnUtc: now.AddDays(-1));
+            processedRecent.MarkAsProcessed(now.AddDays(-1));
+
+            var erroredOld = CreateTestMessage(occurredOnUtc: now.AddDays(-60));
+            erroredOld.MarkAsError("permanent failure");
+
+            var pendingOld = CreateTestMessage(occurredOnUtc: now.AddDays(-60));
+
+            setupContext.OutboxMessages.AddRange(processedOld, processedRecent, erroredOld, pendingOld);
+            await setupContext.SaveChangesAsync();
+        }
+
+        var processor = CreateProcessor(dbName, new Mock<ServiceBusSender>().Object);
+
+        var deleted = await processor.CleanupExpiredMessagesAsync(CancellationToken.None);
+
+        Assert.Equal(2, deleted);
+
+        await using var verifyContext = CreateDbContext(dbName);
+        var remaining = await verifyContext.OutboxMessages.ToListAsync();
+        Assert.Equal(2, remaining.Count);
+        Assert.Contains(remaining, m => m.ProcessedOnUtc != null);   // recent processed row kept
+        Assert.Contains(remaining, m => m.ProcessedOnUtc == null && m.Error == null); // pending kept regardless of age
     }
 
     private static OutboxProcessor CreateProcessor(

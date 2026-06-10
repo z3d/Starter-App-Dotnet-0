@@ -24,8 +24,12 @@ public sealed class PayloadArchiveCleanupFunction
         _logger = logger;
     }
 
+    // The %setting% lookup must use the ':' configuration-key form: the environment-variable
+    // configuration provider normalizes the PayloadCapture__CleanupCron env var to the
+    // PayloadCapture:CleanupCron key, so a literal '__' lookup resolves to null and the failed
+    // timer indexing can take down the Service Bus subscribers in the same worker.
     [Function(nameof(PayloadArchiveCleanupFunction))]
-    public async Task RunAsync([TimerTrigger("%PayloadCapture__CleanupCron%")] TimerInfo timerInfo, CancellationToken cancellationToken)
+    public async Task RunAsync([TimerTrigger("%PayloadCapture:CleanupCron%")] TimerInfo timerInfo, CancellationToken cancellationToken)
     {
         var cutoffUtc = _timeProvider.GetUtcNow().AddDays(-_options.RetentionDays);
         var result = await _payloadArchiveStore.DeleteOlderThanAsync(cutoffUtc, cancellationToken);

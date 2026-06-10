@@ -1,6 +1,6 @@
 {
   "ConnectionStrings": {
-    "database": "Server=localhost;Database=StarterApp;User Id=sa;Password=Your_password123;TrustServerCertificate=True;"
+    "database": "Host=localhost;Port=5432;Database=starterapp;Username=postgres;Password=Your_password123"
   },
   "Logging": {
     "LogLevel": {

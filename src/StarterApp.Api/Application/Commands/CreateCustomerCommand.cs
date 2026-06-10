@@ -29,29 +29,58 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         var ownerScope = _ownerOnlyPolicy.GetRequiredScope();
         await EnsureEmailIsUniqueAsync(email.Value, ownerScope, cancellationToken);
 
-        var customer = new Customer(command.Name, email, ownerScope.OwnerSubject, ownerScope.TenantId);
+        // Commit-ambiguity idempotency: with EnableRetryOnFailure, a SaveChanges whose commit
+        // succeeded but whose ack was lost is re-run by the execution strategy. Email is the
+        // natural key (unique per owner scope) and uniqueness was verified above, so finding the
+        // row inside a retry means our own insert committed — return it instead of throwing a
+        // spurious duplicate-email 409. Same failure mode CreateOrderCommandHandler guards with
+        // its pre-generated stable order Id.
+        var strategy = _dbContext.Database.CreateExecutionStrategy();
+        Customer? savedCustomer = null;
 
-        _dbContext.Customers.Add(customer);
-        try
+        await strategy.ExecuteAsync(cancellationToken, async ct =>
         {
-            await _dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException ex) when (ex.IsUniqueConstraintViolation("ix_customers_tenant_id_owner_subject_email"))
-        {
-            throw new InvalidOperationException("A customer with that email already exists", ex);
-        }
+            // Clear tracker so a prior failed attempt's tracked entity does not leak into this
+            // retry — otherwise two Added customers would be inserted on a second pass.
+            _dbContext.ChangeTracker.Clear();
 
-        await _cacheInvalidator.InvalidateCustomerAsync(customer.Id, cancellationToken);
-        Log.Information("Created new customer with ID: {CustomerId}", customer.Id);
+            var committedCustomer = await _dbContext.Customers
+                .FirstOrDefaultAsync(c =>
+                    c.Email.Value == email.Value &&
+                    c.OwnerSubject == ownerScope.OwnerSubject &&
+                    c.TenantId == ownerScope.TenantId,
+                    ct);
+            if (committedCustomer != null)
+            {
+                savedCustomer = committedCustomer;
+                return;
+            }
+
+            var customer = new Customer(command.Name, email, ownerScope.OwnerSubject, ownerScope.TenantId);
+            _dbContext.Customers.Add(customer);
+            try
+            {
+                await _dbContext.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex) when (ex.IsUniqueConstraintViolation("ix_customers_tenant_id_owner_subject_email"))
+            {
+                throw new InvalidOperationException("A customer with that email already exists", ex);
+            }
+
+            savedCustomer = customer;
+        });
+
+        await _cacheInvalidator.InvalidateCustomerAsync(savedCustomer!.Id, cancellationToken);
+        Log.Information("Created new customer with ID: {CustomerId}", savedCustomer.Id);
 
         // Map to DTO and return
         return new CustomerDto
         {
-            Id = customer.Id,
-            Name = customer.Name,
-            Email = customer.Email.Value,
-            DateCreated = customer.DateCreated,
-            IsActive = customer.IsActive
+            Id = savedCustomer.Id,
+            Name = savedCustomer.Name,
+            Email = savedCustomer.Email.Value,
+            DateCreated = savedCustomer.DateCreated,
+            IsActive = savedCustomer.IsActive
         };
     }
 

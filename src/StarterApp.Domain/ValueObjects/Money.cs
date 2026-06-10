@@ -5,6 +5,11 @@ public class Money : IEquatable<Money>
     public const int MaxCurrencyLength = 3;
     public const int CurrencyDecimalPlaces = 2;
 
+    // Persistence stores amounts as numeric(18,2); values past this overflow PostgreSQL
+    // (SqlState 22003) and surface as a client-input-driven 500. Validators reference this
+    // constant per the Validator–Domain Guard Sync Rule.
+    public const decimal MaxAmount = 9_999_999_999_999_999.99m;
+
     public decimal Amount { get; private set; }
     public string Currency { get; private set; }
 
@@ -17,6 +22,7 @@ public class Money : IEquatable<Money>
     public static Money Create(decimal amount, string currency = "USD")
     {
         ArgumentOutOfRangeException.ThrowIfNegative(amount);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(amount, MaxAmount);
 
         ArgumentException.ThrowIfNullOrWhiteSpace(currency);
 

@@ -87,6 +87,63 @@ public class ServiceBusTopologyConventionTests
             string.Join("\n", unknownContracts));
     }
 
+    [Fact]
+    public void Topology_MustNotSilentlyExpireEventsDuringConsumerDowntime()
+    {
+        // A 1h TTL with expiration dead-lettering off (the Azure default) deletes every event that
+        // outlives a subscriber outage with no trace, while the outbox row is already marked
+        // processed. Expired events must dead-letter for replay, and the TTL must absorb at least
+        // an overnight consumer outage.
+        Assert.True(ServiceBusTopology.SubscriptionDeadLetteringOnMessageExpiration,
+            "Subscriptions must dead-letter expired messages; otherwise consumer downtime silently destroys events.");
+        Assert.True(ServiceBusTopology.SubscriptionDefaultMessageTimeToLive >= TimeSpan.FromHours(24),
+            "Subscription TTL must be at least 24h so a subscriber outage does not expire live events.");
+        Assert.True(ServiceBusTopology.DomainEventsDefaultMessageTimeToLive >= ServiceBusTopology.SubscriptionDefaultMessageTimeToLive,
+            "Topic TTL caps the effective message TTL; it must not undercut the subscription TTL.");
+    }
+
+    [Fact]
+    public void AppHostSubscriptions_MustApplyTopologyLifecycleConstants()
+    {
+        // The fluent AppHost config is the deployed topology. Pin it to the ServiceBusTopology
+        // constants so the lifecycle posture above cannot drift via inline literals in Program.cs.
+        var programSource = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "StarterApp.AppHost", "Program.cs"));
+
+        var subscriptionBlocks = programSource
+            .Split("AddServiceBusSubscription", StringSplitOptions.RemoveEmptyEntries)
+            .Skip(1)
+            .Select(block => block.Split("RunAsEmulator", 2)[0])
+            .ToList();
+
+        Assert.Equal(2, subscriptionBlocks.Count);
+
+        foreach (var block in subscriptionBlocks)
+        {
+            Assert.Contains("ServiceBusTopology.SubscriptionDefaultMessageTimeToLive", block, StringComparison.Ordinal);
+            Assert.Contains("ServiceBusTopology.SubscriptionLockDuration", block, StringComparison.Ordinal);
+            Assert.Contains("ServiceBusTopology.SubscriptionMaxDeliveryCount", block, StringComparison.Ordinal);
+            Assert.Contains("ServiceBusTopology.SubscriptionDeadLetteringOnMessageExpiration", block, StringComparison.Ordinal);
+            Assert.DoesNotContain("TimeSpan.From", block, StringComparison.Ordinal);
+        }
+    }
+
+    private static string FindRepoRoot()
+    {
+        foreach (var candidate in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
+        {
+            var directory = new DirectoryInfo(candidate);
+            while (directory != null)
+            {
+                if (File.Exists(Path.Combine(directory.FullName, "Directory.Packages.props")))
+                    return directory.FullName;
+
+                directory = directory.Parent;
+            }
+        }
+
+        throw new InvalidOperationException("Repository root not found from test execution directory.");
+    }
+
     private static IEnumerable<ServiceBusTriggerBinding> GetServiceBusTriggerBindings()
     {
         return typeof(OrderConfirmationEmailFunction).Assembly.GetTypes()

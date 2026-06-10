@@ -8,7 +8,10 @@ public static class WebApplicationExtensions
         {
             context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
             context.Response.Headers.Append("X-Frame-Options", "DENY");
-            context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
+            // "0" is the current OWASP recommendation: modern browsers no longer ship the XSS
+            // auditor, and enabling it ("1; mode=block") created XS-Leak side channels in the
+            // browsers that did.
+            context.Response.Headers.Append("X-XSS-Protection", "0");
             context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
 
             if (!app.Environment.IsDevelopment())

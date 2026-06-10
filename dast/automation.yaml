@@ -89,11 +89,15 @@ jobs:
       # Rule 6 check 6-5 is a response-comparison heuristic that intermittently flags
       # numeric params (attack value "10" == the original value), which is why it fires
       # non-deterministically across list endpoints. Scoped to the two pagination param
-      # names only, so rule 6 still actively tests every path segment and other param.
+      # names AND the current int-paginated list-endpoint URLs, so a future string-typed
+      # `page` param on another route does not silently inherit the suppression, and
+      # rule 6 still actively tests every path segment and other param.
       - ruleId: 6
         newRisk: "False Positive"
         parameter: "^(page|pageSize)$"
         parameterRegex: true
+        url: "^http://host\\.docker\\.internal:__API_PORT__/api/v1/(products|customers|orders/customer/[^/?]+|orders/status/[^/?]+)/?(\\?.*)?$"
+        urlRegex: true
 
   # 3. Seed the site tree from the live OpenAPI document.
   - type: openapi

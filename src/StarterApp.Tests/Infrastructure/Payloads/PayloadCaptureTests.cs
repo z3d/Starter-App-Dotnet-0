@@ -66,6 +66,65 @@ public class PayloadCaptureTests
     }
 
     [Fact]
+    public void Extract_WithSensitivePropertyNames_ShouldNotEmitThemAsEntityReferences()
+    {
+        // Entity references become blob path segments and are echoed verbatim in Information logs,
+        // so *Id properties matching SensitivePropertyNames must never become references.
+        var request = new PayloadCaptureRequest
+        {
+            Operation = "POST /api/v1/customers",
+            Channel = "http",
+            ContentType = "application/json",
+            Payload = """{"nationalId":"123-45-6789","ssnId":"987654321","passportId":"PA1234567","customerId":42}"""
+        };
+
+        var references = PayloadEntityReferenceExtractor.Extract(request, 64, out _);
+
+        Assert.DoesNotContain(references, reference => reference.EntityType == "national");
+        Assert.DoesNotContain(references, reference => reference.EntityType == "ssn");
+        Assert.DoesNotContain(references, reference => reference.EntityType == "passport");
+        Assert.Contains(references, reference => reference.EntityType == "customer" && reference.EntityId == "42");
+    }
+
+    [Fact]
+    public void Extract_WithLowercaseIdSuffixWords_ShouldNotEmitJunkReferences()
+    {
+        // "paid"/"valid" end in lowercase "id" — an OrdinalIgnoreCase suffix match would mint
+        // junk entity types ("pa", "val"). Only a real "Id"/"_id" suffix marks an identifier.
+        var request = new PayloadCaptureRequest
+        {
+            Operation = "POST /api/v1/orders",
+            Channel = "http",
+            ContentType = "application/json",
+            Payload = """{"paid":"yes","valid":"true","order_id":"a1b2","productId":7}"""
+        };
+
+        var references = PayloadEntityReferenceExtractor.Extract(request, 64, out _);
+
+        Assert.DoesNotContain(references, reference => reference.EntityType == "pa");
+        Assert.DoesNotContain(references, reference => reference.EntityType == "val");
+        Assert.Contains(references, reference => reference.EntityType == "order" && reference.EntityId == "a1b2");
+        Assert.Contains(references, reference => reference.EntityType == "product" && reference.EntityId == "7");
+    }
+
+    [Fact]
+    public void Extract_WithCustomSensitiveNames_ShouldHonorConfiguredList()
+    {
+        var request = new PayloadCaptureRequest
+        {
+            Operation = "POST /api/v1/orders",
+            Channel = "http",
+            ContentType = "application/json",
+            Payload = """{"loyaltyId":"L-1","customerId":42}"""
+        };
+
+        var references = PayloadEntityReferenceExtractor.Extract(request, 64, ["loyalty"], out _);
+
+        Assert.DoesNotContain(references, reference => reference.EntityType == "loyalty");
+        Assert.Contains(references, reference => reference.EntityType == "customer");
+    }
+
+    [Fact]
     public void JsonPayloadRedactor_ShouldMaskSensitiveJsonFieldsAndKeepOtherValues()
     {
         var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions()));

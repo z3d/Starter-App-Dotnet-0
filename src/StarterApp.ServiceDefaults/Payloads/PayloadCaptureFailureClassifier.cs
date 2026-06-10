@@ -23,6 +23,9 @@ public static class PayloadCaptureFailureClassifier
 
     private static bool IsTransientStatus(int status)
     {
-        return status is 408 or 429 || status >= 500;
+        // Status 0 is the Azure SDK's marker for failures that never produced an HTTP response
+        // (DNS resolution, connection refused, TLS handshake) — the most common transient shape
+        // of a storage outage. Treating it as non-transient would mis-route those failures.
+        return status is 0 or 408 or 429 || status >= 500;
     }
 }

@@ -60,20 +60,20 @@ public class CustomerEndpoints : IEndpointDefinition
             .ProducesProblem(500);
     }
 
-    private static async Task<IResult> GetCustomers(IMediator mediator, int page = 1, int pageSize = 50)
+    private static async Task<IResult> GetCustomers(IMediator mediator, CancellationToken cancellationToken, int page = 1, int pageSize = 50)
     {
         var query = new GetCustomersQuery { Page = page, PageSize = pageSize };
-        var items = (await mediator.SendAsync(query)).ToList();
+        var items = (await mediator.SendAsync(query, cancellationToken)).ToList();
         var hasMore = items.Count > pageSize;
         if (hasMore)
             items.RemoveAt(items.Count - 1);
         return Results.Ok(new PagedResponse<CustomerReadModel> { Data = items, HasMore = hasMore });
     }
 
-    private static async Task<IResult> GetCustomer(int id, IMediator mediator)
+    private static async Task<IResult> GetCustomer(int id, IMediator mediator, CancellationToken cancellationToken)
     {
         var query = new GetCustomerQuery(id);
-        var result = await mediator.SendAsync(query);
+        var result = await mediator.SendAsync(query, cancellationToken);
 
         if (result == null)
         {
@@ -84,26 +84,26 @@ public class CustomerEndpoints : IEndpointDefinition
         return Results.Ok(result);
     }
 
-    private static async Task<IResult> CreateCustomer(CreateCustomerCommand command, IMediator mediator)
+    private static async Task<IResult> CreateCustomer(CreateCustomerCommand command, IMediator mediator, CancellationToken cancellationToken)
     {
-        var result = await mediator.SendAsync(command);
+        var result = await mediator.SendAsync(command, cancellationToken);
         return Results.Created($"/api/v1/customers/{result.Id}", result);
     }
 
-    private static async Task<IResult> UpdateCustomer(int id, UpdateCustomerCommand command, IMediator mediator)
+    private static async Task<IResult> UpdateCustomer(int id, UpdateCustomerCommand command, IMediator mediator, CancellationToken cancellationToken)
     {
         if (id != command.Id)
         {
             return Results.BadRequest("ID in URL does not match ID in request body");
         }
 
-        await mediator.SendAsync(command);
+        await mediator.SendAsync(command, cancellationToken);
         return Results.NoContent();
     }
 
-    private static async Task<IResult> DeleteCustomer(int id, IMediator mediator)
+    private static async Task<IResult> DeleteCustomer(int id, IMediator mediator, CancellationToken cancellationToken)
     {
-        await mediator.SendAsync(new DeleteCustomerCommand { Id = id });
+        await mediator.SendAsync(new DeleteCustomerCommand { Id = id }, cancellationToken);
         return Results.NoContent();
     }
 }

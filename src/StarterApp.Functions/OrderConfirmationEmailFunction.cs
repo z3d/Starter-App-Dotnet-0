@@ -51,6 +51,11 @@ public class OrderConfirmationEmailFunction
                 message.MessageId, message.Subject, correlationId);
 
             // TODO: Deserialize payload and send confirmation email
+            // CONSTRAINT: there is no ordering guarantee into this subscriber — host.json sets
+            // maxConcurrentCalls: 16 and the subscription has no sessions, so order.status-changed.v1
+            // can be processed BEFORE order.created.v1 for the same order. The real implementation
+            // must tolerate out-of-order delivery (e.g. upsert-by-orderId), or the subscription must
+            // move to sessions keyed by order id.
         }
         catch (Exception ex)
         {

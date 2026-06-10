@@ -73,6 +73,28 @@ public class ApiConventionTests : ConventionTestBase
     }
 
     [Fact]
+    public void ApiRouteEndpoints_MustBindACancellationToken()
+    {
+        // Without a CancellationToken parameter, minimal-API binding hands CancellationToken.None
+        // to the whole downstream chain (mediator, EF, Dapper, retry policies): a disconnected
+        // client cannot abort anything, stacked retries keep burning pooled connections for dead
+        // requests, and the OperationCanceledException -> 499 mapping is unreachable.
+        using var app = BuildEndpointMetadataApp();
+        var failures = GetApiRouteEndpoints(app)
+            .Where(endpoint =>
+            {
+                var handler = endpoint.Metadata.GetMetadata<MethodInfo>();
+                return handler == null ||
+                    handler.GetParameters().All(parameter => parameter.ParameterType != typeof(CancellationToken));
+            })
+            .Select(endpoint => $"{FormatEndpoint(endpoint)} must inject a CancellationToken and forward it to mediator.SendAsync.")
+            .ToList();
+
+        Assert.True(failures.Count == 0,
+            "API route handlers must bind the request CancellationToken so client aborts propagate downstream:\n" + string.Join("\n", failures));
+    }
+
+    [Fact]
     public void GatewayIdentityHeaders_MustOnlyBeReadByIdentityInfrastructure()
     {
         var gatewayHeaderLiteralFailures = ApiAssembly.GetTypes()

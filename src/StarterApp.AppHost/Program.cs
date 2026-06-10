@@ -40,9 +40,10 @@ var domainEventsTopic = serviceBus.AddServiceBusTopic(ServiceBusTopology.DomainE
 domainEventsTopic.AddServiceBusSubscription(ServiceBusTopology.EmailNotificationsSubscription)
     .WithProperties(sub =>
     {
-        sub.DefaultMessageTimeToLive = TimeSpan.FromHours(1);
-        sub.LockDuration = TimeSpan.FromSeconds(30);
-        sub.MaxDeliveryCount = 5;
+        sub.DefaultMessageTimeToLive = ServiceBusTopology.SubscriptionDefaultMessageTimeToLive;
+        sub.LockDuration = ServiceBusTopology.SubscriptionLockDuration;
+        sub.MaxDeliveryCount = ServiceBusTopology.SubscriptionMaxDeliveryCount;
+        sub.DeadLetteringOnMessageExpiration = ServiceBusTopology.SubscriptionDeadLetteringOnMessageExpiration;
         foreach (var filter in ServiceBusTopology.SubscriptionFilters.Where(filter =>
                      filter.SubscriptionName == ServiceBusTopology.EmailNotificationsSubscription))
             sub.Rules.Add(new AzureServiceBusRule(filter.RuleName)
@@ -58,9 +59,10 @@ domainEventsTopic.AddServiceBusSubscription(ServiceBusTopology.EmailNotification
 domainEventsTopic.AddServiceBusSubscription(ServiceBusTopology.InventoryReservationSubscription)
     .WithProperties(sub =>
     {
-        sub.DefaultMessageTimeToLive = TimeSpan.FromHours(1);
-        sub.LockDuration = TimeSpan.FromSeconds(30);
-        sub.MaxDeliveryCount = 5;
+        sub.DefaultMessageTimeToLive = ServiceBusTopology.SubscriptionDefaultMessageTimeToLive;
+        sub.LockDuration = ServiceBusTopology.SubscriptionLockDuration;
+        sub.MaxDeliveryCount = ServiceBusTopology.SubscriptionMaxDeliveryCount;
+        sub.DeadLetteringOnMessageExpiration = ServiceBusTopology.SubscriptionDeadLetteringOnMessageExpiration;
         foreach (var filter in ServiceBusTopology.SubscriptionFilters.Where(filter =>
                      filter.SubscriptionName == ServiceBusTopology.InventoryReservationSubscription))
             sub.Rules.Add(new AzureServiceBusRule(filter.RuleName)
@@ -122,6 +124,16 @@ builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Functions/Dockerfil
 // Enable with: dotnet run -- --devtunnel  OR  set ENABLE_DEV_TUNNEL=true
 if (args.Contains("--devtunnel") || Environment.GetEnvironmentVariable("ENABLE_DEV_TUNNEL") == "true")
 {
+    // The locally-orchestrated API runs GatewayIdentity:Mode=UnsignedDevelopment — it trusts
+    // projected identity headers without a signed gateway assertion. Exposing that surface to
+    // the internet (even Microsoft-auth-gated dev tunnels) must be an explicit, acknowledged
+    // decision, not a side effect of a convenience flag.
+    if (Environment.GetEnvironmentVariable("DEV_TUNNEL_ACK_UNSIGNED_API") != "true")
+        throw new InvalidOperationException(
+            "Refusing to start the dev tunnel: the API runs with GatewayIdentity:Mode=UnsignedDevelopment, " +
+            "which trusts identity headers without a signed gateway assertion. Set DEV_TUNNEL_ACK_UNSIGNED_API=true " +
+            "to acknowledge exposing this surface through the tunnel.");
+
     builder.AddDevTunnel("api-tunnel")
            .WithReference(api);
 }

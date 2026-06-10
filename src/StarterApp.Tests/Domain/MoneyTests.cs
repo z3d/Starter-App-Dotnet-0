@@ -11,6 +11,22 @@ public class MoneyTests
     }
 
     [Fact]
+    public void Create_WithAmountAboveMaxAmount_ShouldThrowArgumentOutOfRangeException()
+    {
+        // numeric(18,2) overflows past MaxAmount (SqlState 22003) and would surface as a
+        // client-input-driven 500; the domain guard must reject it first.
+        Assert.Throws<ArgumentOutOfRangeException>(() => Money.Create(Money.MaxAmount + 1m));
+    }
+
+    [Fact]
+    public void Create_WithAmountAtMaxAmount_ShouldSucceed()
+    {
+        var money = Money.Create(Money.MaxAmount);
+
+        Assert.Equal(Money.MaxAmount, money.Amount);
+    }
+
+    [Fact]
     public void Create_WithCurrencyExceedingMaxLength_ShouldThrowArgumentException()
     {
         // Arrange

@@ -68,8 +68,9 @@ public class PayloadCaptureMiddlewareTests
         // must reach the downstream pipeline unchanged (not pre-sanitized by this middleware)...
         Assert.Equal("trace:abc", downstreamCorrelationId);
 
-        // ...while the echoed correlation id stays sanitized, so raw client input is never reflected back.
-        Assert.Equal("traceabc", context.Response.Headers[CorrelationContext.HeaderName].ToString());
+        // ...while the echoed correlation id stays sanitized, so raw client input is never reflected
+        // back. Lossy sanitization appends a short raw-bound hash so distinct raw ids stay distinct.
+        Assert.Matches(@"^traceabc\.[0-9a-f]{8}$", context.Response.Headers[CorrelationContext.HeaderName].ToString());
     }
 
     [Fact]
@@ -95,6 +96,38 @@ public class PayloadCaptureMiddlewareTests
         // When the caller sends none, a generated (contract-valid) id is injected so the gateway's
         // required-header check still passes.
         Assert.False(string.IsNullOrWhiteSpace(downstreamCorrelationId));
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WhenClientAbortsAfterResponse_ShouldStillCaptureResponseForAudit()
+    {
+        // A caller could deliberately disconnect after receiving the response to keep it out of
+        // the audit trail: the response capture must run on an unlinked token and the middleware
+        // must capture before rethrowing the cancellation.
+        var store = new InMemoryPayloadArchiveStore();
+        var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
+        var sink = PayloadCaptureTests.CreateSink(store, timestamp);
+        using var abortSource = new CancellationTokenSource();
+        var middleware = new PayloadCaptureMiddleware(async context =>
+        {
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync("""{"id":7,"secretOutcome":"approved"}""");
+            await abortSource.CancelAsync();
+            abortSource.Token.ThrowIfCancellationRequested();
+        }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = HttpMethods.Get;
+        context.Request.Path = "/api/v1/orders";
+        context.Request.Headers[CorrelationContext.HeaderName] = "case-abort";
+        context.RequestAborted = abortSource.Token;
+        context.Response.Body = new MemoryStream();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => middleware.InvokeAsync(context));
+
+        var archiveEntry = store.Lines.Single(pair => pair.Key == "archive/2026-05-03/04/07/case-abort.jsonl");
+        Assert.Equal(2, archiveEntry.Value.Count);
+        Assert.Contains("approved", archiveEntry.Value[1]);
     }
 
     [Fact]

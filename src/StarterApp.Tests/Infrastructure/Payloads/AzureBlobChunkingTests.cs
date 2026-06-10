@@ -33,4 +33,41 @@ public class AzureBlobChunkingTests
         var reassembled = chunks.SelectMany(chunk => chunk).ToArray();
         Assert.Equal(bytes, reassembled);
     }
+
+    [Fact]
+    public void BuildOversizeSidecarBlobName_ShouldStayUniqueAndKeepRetentionMinutePath()
+    {
+        // Oversize records go to a single-writer sidecar so multi-block appends cannot interleave
+        // with concurrent writers in the shared per-minute audit blob. The sidecar must keep the
+        // parent's date/hour/minute segments so retention cleanup still covers it.
+        const string parent = "audit/2026-06-10/09/41/payload-audit.jsonl";
+
+        var first = AzureBlobPayloadArchiveStore.BuildOversizeSidecarBlobName(parent);
+        var second = AzureBlobPayloadArchiveStore.BuildOversizeSidecarBlobName(parent);
+
+        Assert.StartsWith(parent + ".oversize-", first, StringComparison.Ordinal);
+        Assert.NotEqual(first, second);
+
+        Assert.True(PayloadBlobNaming.TryGetBlobMinute(first, out var sidecarMinute));
+        Assert.True(PayloadBlobNaming.TryGetBlobMinute(parent, out var parentMinute));
+        Assert.Equal(parentMinute, sidecarMinute);
+    }
+
+    [Fact]
+    public void BuildOversizePointerLine_ShouldBeSmallSingleLineJsonReferencingSidecar()
+    {
+        const string sidecar = "audit/2026-06-10/09/41/payload-audit.jsonl.oversize-abc.jsonl";
+
+        var pointer = AzureBlobPayloadArchiveStore.BuildOversizePointerLine(sidecar, 9_000_000);
+
+        // The pointer replaces the record in the shared blob, so it must itself be an atomic
+        // single-block, single-line append.
+        Assert.DoesNotContain('\n', pointer);
+        Assert.True(System.Text.Encoding.UTF8.GetByteCount(pointer) < AzureBlobPayloadArchiveStore.MaxAppendBlockBytes);
+
+        using var document = System.Text.Json.JsonDocument.Parse(pointer);
+        Assert.True(document.RootElement.GetProperty("oversizeRecord").GetBoolean());
+        Assert.Equal(sidecar, document.RootElement.GetProperty("sidecarBlobName").GetString());
+        Assert.Equal(9_000_000, document.RootElement.GetProperty("recordSizeBytes").GetInt64());
+    }
 }

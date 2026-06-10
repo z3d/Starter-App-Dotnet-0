@@ -21,6 +21,8 @@ public class UpdateProductCommandValidator : IValidator<UpdateProductCommand>
             yield return new ValidationError(nameof(request.Price), "Price is required");
         else if (request.Price < 0)
             yield return new ValidationError(nameof(request.Price), "Price cannot be negative");
+        else if (request.Price > Money.MaxAmount)
+            yield return new ValidationError(nameof(request.Price), $"Price must not exceed {Money.MaxAmount}");
 
         if (string.IsNullOrWhiteSpace(request.Currency))
             yield return new ValidationError(nameof(request.Currency), "Currency is required");

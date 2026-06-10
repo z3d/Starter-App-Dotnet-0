@@ -29,4 +29,9 @@ RUN dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Relea
 # (Kubernetes runAsNonRoot / OpenShift) requires it.
 FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0@sha256:03e965f15c2b1591db5e19ceb8c547f11b2e79a09f2959e0eb8ce1f61d01eb28
 WORKDIR /home/site/wwwroot
+# Baked-in default for the cleanup timer schedule (hourly). The TimerTrigger's
+# %PayloadCapture:CleanupCron% lookup fails function indexing when the setting is absent,
+# which would take down the Service Bus subscribers in the same worker; deployments override
+# this env var to change the schedule.
+ENV PayloadCapture__CleanupCron="0 0 * * * *"
 COPY --from=build /app/publish .

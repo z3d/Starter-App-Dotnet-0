@@ -4,6 +4,12 @@ public sealed class InMemoryPayloadArchiveStore : IPayloadArchiveStore
 {
     private readonly object _gate = new();
     private readonly Dictionary<string, List<string>> _lines = [];
+    private readonly PayloadCaptureOptions _options;
+
+    public InMemoryPayloadArchiveStore(PayloadCaptureOptions? options = null)
+    {
+        _options = options ?? new PayloadCaptureOptions();
+    }
 
     public IReadOnlyDictionary<string, IReadOnlyList<string>> Lines
     {
@@ -40,29 +46,41 @@ public sealed class InMemoryPayloadArchiveStore : IPayloadArchiveStore
         return Task.CompletedTask;
     }
 
+    // Cleanup mirrors AzureBlobPayloadArchiveStore semantics so the tests that run against this
+    // double exercise the same contract: only blobs under the three configured prefixes are
+    // deleted, and each prefix sweep is capped at CleanupBatchSize per invocation.
     public Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
     {
         lock (_gate)
         {
-            var archiveDeleted = 0;
-            var auditDeleted = 0;
-            var entityIndexDeleted = 0;
-
-            foreach (var blobName in _lines.Keys.ToList())
-            {
-                if (!PayloadBlobNaming.TryGetBlobMinute(blobName, out var blobMinuteUtc) || blobMinuteUtc >= cutoffUtc)
-                    continue;
-
-                _lines.Remove(blobName);
-                if (blobName.StartsWith("archive/", StringComparison.Ordinal))
-                    archiveDeleted++;
-                else if (blobName.StartsWith("audit/", StringComparison.Ordinal))
-                    auditDeleted++;
-                else if (blobName.StartsWith("entity-index/", StringComparison.Ordinal))
-                    entityIndexDeleted++;
-            }
+            var archiveDeleted = DeletePrefixOlderThan(_options.ArchivePrefix, cutoffUtc);
+            var auditDeleted = DeletePrefixOlderThan(_options.AuditPrefix, cutoffUtc);
+            var entityIndexDeleted = DeletePrefixOlderThan(_options.EntityIndexPrefix, cutoffUtc);
 
             return Task.FromResult(new PayloadArchiveDeleteResult(archiveDeleted, auditDeleted, entityIndexDeleted));
         }
+    }
+
+    private int DeletePrefixOlderThan(string prefix, DateTimeOffset cutoffUtc)
+    {
+        var normalizedPrefix = prefix.Trim().Trim('/') + "/";
+        var deleted = 0;
+
+        foreach (var blobName in _lines.Keys
+                     .Where(name => name.StartsWith(normalizedPrefix, StringComparison.Ordinal))
+                     .OrderBy(name => name, StringComparer.Ordinal)
+                     .ToList())
+        {
+            if (deleted >= _options.CleanupBatchSize)
+                break;
+
+            if (!PayloadBlobNaming.TryGetBlobMinute(blobName, out var blobMinuteUtc) || blobMinuteUtc >= cutoffUtc)
+                continue;
+
+            _lines.Remove(blobName);
+            deleted++;
+        }
+
+        return deleted;
     }
 }

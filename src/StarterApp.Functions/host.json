@@ -15,5 +15,11 @@
       "maxAutoLockRenewalDuration": "00:05:00",
       "prefetchCount": 0
     }
+  },
+  "retry": {
+    "strategy": "exponentialBackoff",
+    "maxRetryCount": 5,
+    "minimumInterval": "00:00:05",
+    "maximumInterval": "00:01:00"
   }
 }

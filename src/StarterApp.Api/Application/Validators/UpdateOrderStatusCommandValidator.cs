@@ -9,5 +9,7 @@ public class UpdateOrderStatusCommandValidator : IValidator<UpdateOrderStatusCom
 
         if (!request.Status.HasValue)
             yield return new ValidationError(nameof(request.Status), "Status is required");
+        else if (!Enum.IsDefined(request.Status.Value))
+            yield return new ValidationError(nameof(request.Status), "Status is not a valid order status");
     }
 }

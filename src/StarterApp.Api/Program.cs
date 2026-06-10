@@ -40,7 +40,7 @@ builder.Services.AddApiCors(builder.Configuration, builder.Environment);
 builder.Services.AddGatewayIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddApiRateLimiting();
 builder.Services.AddApiHealthChecks();
-builder.Services.AddServiceBusPublisher(builder.Configuration);
+builder.Services.AddServiceBusPublisher(builder.Configuration, builder.Environment);
 builder.AddPayloadCapture();
 
 var app = builder.Build();

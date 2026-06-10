@@ -18,4 +18,12 @@ public class OutboxProcessorOptions
 
     [Required, MinLength(1)]
     public string TopicName { get; set; } = "domain-events";
+
+    // Processed/errored rows keep full event payloads; without retention the table grows forever
+    // (the blob archive has a cleanup story — the outbox table needs one too).
+    [Range(1, 3650)]
+    public int RetentionDays { get; set; } = 30;
+
+    [Range(1, 1440)]
+    public int CleanupIntervalMinutes { get; set; } = 60;
 }
