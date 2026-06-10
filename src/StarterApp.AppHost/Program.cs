@@ -29,10 +29,14 @@ storage.RunAsEmulator(emulator => emulator
 // Topology defined via fluent API so Aspire serializes correlation filters correctly
 var serviceBus = builder.AddAzureServiceBus("servicebus");
 
+// Run mode targets the emulator, which crash-loops on any TTL above ServiceBusTopology's
+// 1-hour emulator maximum; publish mode keeps the deployed 24h no-event-silently-lost posture.
+var isEmulator = builder.ExecutionContext.IsRunMode;
+
 var domainEventsTopic = serviceBus.AddServiceBusTopic(ServiceBusTopology.DomainEventsTopic)
     .WithProperties(topic =>
     {
-        topic.DefaultMessageTimeToLive = ServiceBusTopology.DomainEventsDefaultMessageTimeToLive;
+        topic.DefaultMessageTimeToLive = ServiceBusTopology.ClampForEmulator(ServiceBusTopology.DomainEventsDefaultMessageTimeToLive, isEmulator);
         topic.RequiresDuplicateDetection = ServiceBusTopology.DomainEventsRequiresDuplicateDetection;
         topic.DuplicateDetectionHistoryTimeWindow = ServiceBusTopology.DomainEventsDuplicateDetectionHistoryTimeWindow;
     });
@@ -40,7 +44,7 @@ var domainEventsTopic = serviceBus.AddServiceBusTopic(ServiceBusTopology.DomainE
 domainEventsTopic.AddServiceBusSubscription(ServiceBusTopology.EmailNotificationsSubscription)
     .WithProperties(sub =>
     {
-        sub.DefaultMessageTimeToLive = ServiceBusTopology.SubscriptionDefaultMessageTimeToLive;
+        sub.DefaultMessageTimeToLive = ServiceBusTopology.ClampForEmulator(ServiceBusTopology.SubscriptionDefaultMessageTimeToLive, isEmulator);
         sub.LockDuration = ServiceBusTopology.SubscriptionLockDuration;
         sub.MaxDeliveryCount = ServiceBusTopology.SubscriptionMaxDeliveryCount;
         sub.DeadLetteringOnMessageExpiration = ServiceBusTopology.SubscriptionDeadLetteringOnMessageExpiration;
@@ -59,7 +63,7 @@ domainEventsTopic.AddServiceBusSubscription(ServiceBusTopology.EmailNotification
 domainEventsTopic.AddServiceBusSubscription(ServiceBusTopology.InventoryReservationSubscription)
     .WithProperties(sub =>
     {
-        sub.DefaultMessageTimeToLive = ServiceBusTopology.SubscriptionDefaultMessageTimeToLive;
+        sub.DefaultMessageTimeToLive = ServiceBusTopology.ClampForEmulator(ServiceBusTopology.SubscriptionDefaultMessageTimeToLive, isEmulator);
         sub.LockDuration = ServiceBusTopology.SubscriptionLockDuration;
         sub.MaxDeliveryCount = ServiceBusTopology.SubscriptionMaxDeliveryCount;
         sub.DeadLetteringOnMessageExpiration = ServiceBusTopology.SubscriptionDeadLetteringOnMessageExpiration;

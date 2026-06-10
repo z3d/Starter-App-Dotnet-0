@@ -103,6 +103,20 @@ public class ServiceBusTopologyConventionTests
     }
 
     [Fact]
+    public void EmulatorClamp_MustCapTtlAtEmulatorMaximum()
+    {
+        // The Service Bus emulator crash-loops on any TTL above 1 hour ("Max DefaultMessageTimeToLive
+        // supported 1h", container exit 139), so run mode must clamp the deployed 24h posture while
+        // publish mode keeps it.
+        Assert.Equal(ServiceBusTopology.EmulatorMaxMessageTimeToLive,
+            ServiceBusTopology.ClampForEmulator(ServiceBusTopology.SubscriptionDefaultMessageTimeToLive, isEmulator: true));
+        Assert.Equal(ServiceBusTopology.SubscriptionDefaultMessageTimeToLive,
+            ServiceBusTopology.ClampForEmulator(ServiceBusTopology.SubscriptionDefaultMessageTimeToLive, isEmulator: false));
+        Assert.Equal(TimeSpan.FromMinutes(5),
+            ServiceBusTopology.ClampForEmulator(TimeSpan.FromMinutes(5), isEmulator: true));
+    }
+
+    [Fact]
     public void AppHostSubscriptions_MustApplyTopologyLifecycleConstants()
     {
         // The fluent AppHost config is the deployed topology. Pin it to the ServiceBusTopology
