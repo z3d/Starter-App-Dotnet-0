@@ -13,25 +13,23 @@ enforcement wherever a rule can be made deterministic.
 When an item lands: mark it done here with the commit/PR, add regression/convention tests with the
 implementation, and update `CLAUDE.md`/`AGENTS.md` if the change is architectural.
 
-## P1 — Performance regression gating
+## P1 — Performance regression gating — ✅ DONE (2026-06-10)
 
-The k6 suite (`tests/k6/`) is solid but only runs when someone remembers to run it, against a
-near-empty database. Performance regressions currently ship silently.
+All three sub-items landed together (commit "feat: add scheduled k6 performance gate with bulk
+seeding and volume assertions"):
 
-1. **Scheduled k6 CI workflow.** Nightly GitHub Actions workflow modeled on `dast.yml`'s shape:
-   boot throwaway PostgreSQL, run DbMigrator, start the API in `GatewayIdentity:Mode=UnsignedDevelopment`,
-   run `tests/k6/load.js`, fail the run on any threshold breach, and upload the k6 summary as an
-   artifact for trending. Scheduled (not per-PR) so it never slows the inner loop.
-   *Done when:* a threshold regression turns the workflow red and the summary artifact is downloadable.
-2. **Data-volume seeding for load runs.** `load.js` setup currently seeds ~10 customers/products, so
-   list, pagination, and index paths are exercised against an almost empty database — the cases that
-   actually regress (missing index, OFFSET cliff) are invisible. Add a bulk seed step (tens of
-   thousands of rows across customers/products/orders) that runs after migrations and before k6.
-   *Done when:* the scheduled run executes against the seeded volume and per-endpoint thresholds still pass.
-3. **Volume assertions in k6 checks.** Checks currently assert status and shape
-   (`data is array`) but not size, so a fast-but-empty response passes. With seeding guaranteeing
-   known minimum volumes, list-endpoint checks should assert minimum row counts.
-   *Done when:* an accidentally-empty list response fails the load run even if it is fast.
+1. **Scheduled k6 CI workflow** — `.github/workflows/perf.yml` (nightly 02:00 UTC + dispatch,
+   SHA-pinned actions, checksum-verified k6 install) runs `tests/k6/run-perf.sh`: throwaway
+   PostgreSQL → DbMigrator → bulk seed → API in `UnsignedDevelopment` → `load.js`; k6 exits
+   non-zero on any threshold breach (workflow red), and the `k6-summary` artifact is uploaded
+   always.
+2. **Data-volume seeding** — `tests/k6/seed/perf-seed.sql` (idempotent; 20k customers / 20k
+   products / 20k orders with items, all owned by the k6 gateway identity so owner-scoped list
+   queries see them). Schema drift is caught at PR time by `PerfSeedScriptTests` (real-PostgreSQL
+   integration test: runs the script twice, asserts counts, idempotency, and owner scoping).
+3. **Volume assertions** — list checks in `tests/k6/lib/{customers,products}.js` enforce
+   `K6_MIN_LIST_ROWS` (default 1 locally; the gate sets 20 after seeding), so a fast-but-empty
+   list response fails the run even when latency thresholds hold.
 
 ## P1 — Structurally guaranteed owner-policy evaluation
 

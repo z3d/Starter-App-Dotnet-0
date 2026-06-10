@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { BASE_URL, ENDPOINTS, jsonParams, tagParams } from './config.js';
+import { BASE_URL, ENDPOINTS, MIN_LIST_ROWS, jsonParams, tagParams } from './config.js';
 
 const CUSTOMERS_URL = `${BASE_URL}/api/v1/customers`;
 
@@ -28,6 +28,8 @@ export function listCustomers(page = 1, pageSize = 50) {
   check(res, {
     'list customers: status 200': (r) => r.status === 200,
     'list customers: data is array': (r) => Array.isArray(r.json('data')),
+    [`list customers: at least ${MIN_LIST_ROWS} rows`]: (r) =>
+      (r.json('data') || []).length >= Math.min(MIN_LIST_ROWS, pageSize),
   });
   return res;
 }

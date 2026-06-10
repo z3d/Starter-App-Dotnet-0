@@ -1,5 +1,11 @@
 export const BASE_URL = __ENV.K6_BASE_URL || 'http://localhost:8080';
 
+// Volume floor for list-endpoint checks: a fast-but-empty response must not
+// pass. Defaults to 1 (non-empty) so unseeded local runs stay green; the CI
+// perf gate seeds bulk data and sets 20 so every requested page comes back
+// full (see tests/k6/run-perf.sh and tests/k6/seed/perf-seed.sql).
+export const MIN_LIST_ROWS = Math.max(1, parseInt(__ENV.K6_MIN_LIST_ROWS || '1', 10) || 1);
+
 export const AUTH_HEADERS = {
   'X-Authenticated-Subject': __ENV.K6_AUTH_SUBJECT || 'k6-user',
   'X-Authenticated-Principal-Type': 'User',

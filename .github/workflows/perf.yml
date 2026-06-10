@@ -1,0 +1,75 @@
+name: Performance
+
+# The k6 load profile runs ~5 minutes of sustained traffic against a seeded
+# database, which is too heavy for every PR. Run it nightly against main, plus
+# on demand via workflow_dispatch. Threshold breaches fail the job (k6 exits
+# non-zero), so a performance regression turns this workflow red instead of
+# shipping silently.
+on:
+  schedule:
+    - cron: '0 2 * * *'   # 02:00 UTC daily (DAST runs at 03:00; staggered)
+  workflow_dispatch:
+    inputs:
+      k6_script:
+        description: 'k6 script to run (relative to repo root)'
+        required: false
+        default: 'tests/k6/load.js'
+
+# Least privilege: the run only reads the repo and uploads an artifact.
+permissions:
+  contents: read
+
+# A manual dispatch during the nightly run supersedes it rather than running
+# two sustained load profiles side by side on shared runners.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2 # v5.3.0
+      with:
+        dotnet-version: '10.0.x'
+        cache: true
+        cache-dependency-path: '**/packages.lock.json'
+
+    - name: Restore dependencies
+      run: dotnet restore --locked-mode
+
+    # Version-pinned, checksum-verified k6 binary (same supply-chain pattern as
+    # the gitleaks install in secret-scan.yml: no unpinned marketplace action).
+    - name: Install k6
+      env:
+        K6_VERSION: v1.7.1
+        K6_SHA256: cc127a656f734f8ea1e89f8a417777905ae6a93d42f3e763e95313518180655b
+      run: |
+        curl -fsSL -o k6.tar.gz "https://github.com/grafana/k6/releases/download/${K6_VERSION}/k6-${K6_VERSION}-linux-amd64.tar.gz"
+        echo "${K6_SHA256}  k6.tar.gz" | sha256sum -c -
+        tar -xzf k6.tar.gz
+        sudo install -m 0755 "k6-${K6_VERSION}-linux-amd64/k6" /usr/local/bin/k6
+        k6 version
+
+    # Boots a throwaway PostgreSQL, migrates, bulk-seeds owner-scoped data for
+    # the k6 identity, starts the API in UnsignedDevelopment, and runs the k6
+    # script. Thresholds (latency percentiles, error rate, check pass rate,
+    # full-page volume assertions) fail the run on breach. See tests/k6/README.md.
+    - name: k6 performance gate
+      run: tests/k6/run-perf.sh
+      env:
+        K6_SCRIPT: ${{ github.event.inputs.k6_script || 'tests/k6/load.js' }}
+
+    - name: Upload k6 summary
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: k6-summary
+        path: |
+          tests/k6/reports/summary.json
+          tests/k6/reports/api.log
+        if-no-files-found: ignore

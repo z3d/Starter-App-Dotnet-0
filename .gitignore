@@ -141,5 +141,8 @@ yarn-error.log*
 dast/reports/*
 !dast/reports/.gitkeep
 
+# k6 perf gate artifacts (summary export + API log from tests/k6/run-perf.sh)
+tests/k6/reports/
+
 # Local-only working documents (never published from this public repo)
 docs/_local/

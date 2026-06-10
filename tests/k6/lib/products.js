@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check } from 'k6';
-import { BASE_URL, ENDPOINTS, jsonParams, tagParams } from './config.js';
+import { BASE_URL, ENDPOINTS, MIN_LIST_ROWS, jsonParams, tagParams } from './config.js';
 
 const PRODUCTS_URL = `${BASE_URL}/api/v1/products`;
 
@@ -28,6 +28,8 @@ export function listProducts(page = 1, pageSize = 50) {
   check(res, {
     'list products: status 200': (r) => r.status === 200,
     'list products: data is array': (r) => Array.isArray(r.json('data')),
+    [`list products: at least ${MIN_LIST_ROWS} rows`]: (r) =>
+      (r.json('data') || []).length >= Math.min(MIN_LIST_ROWS, pageSize),
   });
   return res;
 }
