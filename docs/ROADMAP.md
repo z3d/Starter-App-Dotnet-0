@@ -1,9 +1,9 @@
 # Improvement Roadmap
 
-Last updated: 2026-06-10 (rev 3: added event-contract shape snapshot guard and operator replay
-path. rev 2: dropped spike-folder and production-IaC items per maintainer decision; moved the WORM
-audit-retention item to `docs/ARCHITECTURE_REVIEW.md` as an accepted limitation with deployer
-guidance)
+Last updated: 2026-06-10 (rev 4: added incident knowledge base and module-scoped agent docs.
+rev 3: added event-contract shape snapshot guard and operator replay path. rev 2: dropped
+spike-folder and production-IaC items per maintainer decision; moved the WORM audit-retention item
+to `docs/ARCHITECTURE_REVIEW.md` as an accepted limitation with deployer guidance)
 
 Forward-looking capability backlog for this template. It complements `docs/ARCHITECTURE_REVIEW.md`
 (which tracks findings and fixes in the existing code) by tracking capabilities the template should
@@ -89,6 +89,21 @@ distinguish replay from first delivery.
 *Done when:* an intentionally failed event can be recovered end-to-end in an integration test
 without hand-written SQL or portal surgery.
 
+## P2 — Incident knowledge base (diagnosis-side companion to the replay path)
+
+Recurring async-failure investigations (dead-lettered messages, errored outbox rows, capture
+failures) leave no durable, queryable record — each incident starts the diagnosis from zero. Add a
+machine-readable knowledge base under `docs/investigations/` (e.g. one `knowledge-base.json` per
+failure domain) recording: known failure patterns, each with a default action and a pinned
+verification query (logs/SQL) that proves the pattern applies before the action is taken; known
+code defects with their fix commit and deployment status; and a timestamped history of
+investigations with actions taken and new patterns learned. Guardrail to keep it honest: any entry
+recording a code defect must link either to a fix commit or to an accepted-limitation entry in
+`docs/ARCHITECTURE_REVIEW.md` — the knowledge base must never become a place where known bugs
+quietly age without a decision.
+*Done when:* a second occurrence of a known failure pattern is resolved by following the recorded
+action and verification query, without re-deriving the diagnosis.
+
 ## P2 — Durable background-work run history
 
 `OutboxProcessor` and the timer-triggered cleanup function run dark — their history exists only in
@@ -120,6 +135,17 @@ A versioned, reviewed set of support/ops queries under `scripts/reporting/*.sql`
 orders by status over time, outbox backlog and errored counts, payload-capture volume per day,
 owner-scope distribution. Cheap to add, prevents every incident from reinventing the same SQL, and
 gives agents a sanctioned place to add new support queries with review.
+
+## P3 — Module-scoped agent docs (only when the template grows)
+
+A single root agent doc works at the current size. If the template ever grows into multiple
+modules or bounded contexts, split agent guidance instead of letting the root doc bloat: the root
+keeps vision, module priority (including any "highest-criticality, extra care" flags), build/test
+commands, and an index; each module gets its own focused doc with business rules, command/event
+inventory, critical test scenarios, and a pre-change safety checklist; shared-kernel-style code
+gets a backward-compatibility policy (extend via overloads, never remove public surface) plus an
+impact-analysis checklist. The doc-mirror convention test must extend to cover every new
+agent-doc pair so the two trees cannot drift.
 
 ## Considered and rejected
 
