@@ -1,6 +1,8 @@
 # Improvement Roadmap
 
-Last updated: 2026-06-10
+Last updated: 2026-06-10 (rev 2: dropped spike-folder and production-IaC items per maintainer
+decision; moved the WORM audit-retention item to `docs/ARCHITECTURE_REVIEW.md` as an accepted
+limitation with deployer guidance)
 
 Forward-looking capability backlog for this template. It complements `docs/ARCHITECTURE_REVIEW.md`
 (which tracks findings and fixes in the existing code) by tracking capabilities the template should
@@ -67,15 +69,6 @@ periodic aggregate health rows (not per message). Gives support a queryable "wha
 background work actually do" trail that matches the payload-capture philosophy of jumping from
 symptom to evidence.
 
-## P2 — Tamper-proof audit retention (WORM)
-
-The audit/archive blob trail is the system's evidence record, yet any credential with blob-delete
-rights (including the cleanup function, or a bug in it) can destroy it before retention expires.
-Apply a time-based immutability (WORM) policy on the `audit/` container (and consider `archive/`)
-aligned with `PayloadCapture:RetentionDays`, so deletion is impossible inside the retention window
-and the cleanup function only ever succeeds on blobs past it. Document the policy in the payload
-capture docs; add an AppHost/infra note since the policy is set on the storage resource, not in code.
-
 ## P3 — Artifact and processing-stage capture
 
 Payload capture is boundary-only (HTTP in/out, Service Bus in/out). Once the template generates
@@ -99,20 +92,6 @@ orders by status over time, outbox backlog and errored counts, payload-capture v
 owner-scope distribution. Cheap to add, prevents every incident from reinventing the same SQL, and
 gives agents a sanctioned place to add new support queries with review.
 
-## P3 — Production infrastructure as code
-
-Aspire is the local orchestration path; production topology (API, Functions, PostgreSQL, Service
-Bus, Redis, storage, monitoring) has no IaC story. Add Bicep (or azd) templates with two parameter
-sets — dev-friendly and production-locked — including the storage immutability policy from the WORM
-item and DbMigrator-as-a-job sequencing before API rollout.
-
-## P3 — Spike isolation convention
-
-A `spikes/<topic>/` convention for throwaway experiments: standalone solutions excluded from the
-root build, lock-file policy, and CI; documented rule that spikes are disposable and graduate into
-`src/` only via a normal reviewed change. Gives experiments a sanctioned home instead of leaking
-half-finished code into the main tree.
-
 ## Considered and rejected
 
 Recorded so future sessions do not re-propose them:
@@ -120,6 +99,15 @@ Recorded so future sessions do not re-propose them:
 - **MediatR / AutoMapper / repository pattern / in-process background task queue** — all conflict
   with documented prohibitions or existing mechanisms (custom mediator, explicit mapping, DbContext
   directly, transactional outbox for anything that must survive a restart).
+- **Production infrastructure as code (Bicep/azd)** — maintainer decision (2026-06-10): not wanted;
+  deployment topology is owned by the hosting environment, Aspire remains the only orchestration
+  path in this repo.
+- **WORM/immutability policy on audit blobs as a roadmap item** — cannot be expressed in this
+  repo's scope (the local storage emulator does not enforce immutability, and there is no IaC
+  here). Recorded instead as an accepted limitation with deployer guidance in
+  `docs/ARCHITECTURE_REVIEW.md` (2026-06-10).
+- **Spike isolation convention (`spikes/` folder)** — maintainer decision (2026-06-10): not wanted;
+  experiments go through normal branches/worktrees and review.
 - **Client-IP extraction chains in middleware** — the API runs behind a trusted gateway; the
   gateway owns client network identity.
 - **List-query caching** — already deliberately excluded (no pattern-based invalidation in
