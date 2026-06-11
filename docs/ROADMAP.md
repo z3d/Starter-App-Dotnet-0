@@ -65,15 +65,18 @@ require the caller's gateway identity (a background refresh would risk cache poi
 Pre-envelope/unreadable entries degrade to a miss and are rewritten; the invalidation-tombstone
 and null-skip semantics are preserved on the refresh path. Convention-tested: every cacheable
 query's window is positive and smaller than its duration.
-## P2 — Durable background-work run history
+## P2 — Durable background-work run history — ✅ DONE (2026-06-11)
 
-`OutboxProcessor` and the timer-triggered cleanup function run dark — their history exists only in
-logs. Add a small job-run record (job name, started/completed timestamps, outcome, summary counts
-such as published/errored/deleted) written by timer jobs per run and by the outbox processor as
-periodic aggregate health rows (not per message). Gives support a queryable "what did the
-background work actually do" trail that matches the payload-capture philosophy of jumping from
-symptom to evidence.
-
+Landed (commit "feat: add durable job-run history for background work"): `job_runs` table
+(migration 0003) + `IJobRunRecorder` in ServiceDefaults (Npgsql writer, fail-open — a history
+write never breaks the job; conditional no-op without a database connection string;
+`JobRuns:RetentionDays` opportunistic purge). The outbox processor aggregates
+published/errored/retried/purged counts into one health row per `HealthRowIntervalMinutes` with
+activity (`OutboxRunAggregator`, unit-tested; never per-message, idle windows emit nothing); the
+payload-archive cleanup Function records each run with its deletion counts and a Failed row on
+exception. Recorder behavior covered by integration tests against real PostgreSQL (start/complete,
+single-shot, swallowed failures, retention purge); the Functions container now receives the
+database connection in AppHost for exactly this purpose.
 ## P3 — Artifact and processing-stage capture
 
 Payload capture is boundary-only (HTTP in/out, Service Bus in/out). Once the template generates

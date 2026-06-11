@@ -5,5 +5,6 @@ var builder = FunctionsApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.AddPayloadCapture();
+builder.AddJobRunRecording();
 
 builder.Build().Run();

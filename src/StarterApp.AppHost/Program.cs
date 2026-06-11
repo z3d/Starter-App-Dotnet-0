@@ -118,6 +118,8 @@ builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Functions/Dockerfil
        })
        .WithEnvironment("servicebus", serviceBus.Resource.ConnectionStringExpression)
        .WithEnvironment("ConnectionStrings__payloadarchive", payloadArchive.Resource.ConnectionStringExpression)
+       // Job-run history (job_runs table): the cleanup function records its runs durably.
+       .WithEnvironment("ConnectionStrings__database", db.Resource.ConnectionStringExpression)
        .WithEnvironment("PayloadCapture__RequireArchiveStore", "true")
        .WithEnvironment("PayloadCapture__ServiceBusFailureMode", "FailClosed")
        .WithEnvironment("PayloadCapture__CleanupCron", "0 0 * * * *")

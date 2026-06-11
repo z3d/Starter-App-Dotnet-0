@@ -1,6 +1,7 @@
 using Azure.Messaging.ServiceBus;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
+using StarterApp.ServiceDefaults.Jobs;
 using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Api.Infrastructure.Outbox;
@@ -11,7 +12,9 @@ public class OutboxProcessor : BackgroundService
     private readonly ServiceBusSender _sender;
     private readonly IPayloadCaptureSink _payloadCaptureSink;
     private readonly OutboxProcessorOptions _options;
+    private readonly IJobRunRecorder _jobRunRecorder;
     private readonly ILogger<OutboxProcessor> _logger;
+    private readonly OutboxRunAggregator _runAggregator;
     private DateTimeOffset _lastCleanupUtc;
 
     public OutboxProcessor(
@@ -19,13 +22,16 @@ public class OutboxProcessor : BackgroundService
         ServiceBusSender sender,
         IPayloadCaptureSink payloadCaptureSink,
         IOptions<OutboxProcessorOptions> options,
+        IJobRunRecorder jobRunRecorder,
         ILogger<OutboxProcessor> logger)
     {
         _scopeFactory = scopeFactory;
         _sender = sender;
         _payloadCaptureSink = payloadCaptureSink;
         _options = options.Value;
+        _jobRunRecorder = jobRunRecorder;
         _logger = logger;
+        _runAggregator = new OutboxRunAggregator(TimeSpan.FromMinutes(_options.HealthRowIntervalMinutes), DateTimeOffset.UtcNow);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -41,8 +47,22 @@ public class OutboxProcessor : BackgroundService
 
                 if (DateTimeOffset.UtcNow - _lastCleanupUtc >= TimeSpan.FromMinutes(_options.CleanupIntervalMinutes))
                 {
-                    await CleanupExpiredMessagesAsync(stoppingToken);
+                    _runAggregator.AddPurged(await CleanupExpiredMessagesAsync(stoppingToken));
                     _lastCleanupUtc = DateTimeOffset.UtcNow;
+                }
+
+                // Periodic aggregate health row (never per message): one job_runs row per
+                // interval that saw activity, so support can query what the outbox did.
+                var healthWindow = _runAggregator.TryFlush(DateTimeOffset.UtcNow);
+                if (healthWindow is not null)
+                {
+                    await _jobRunRecorder.RecordRunAsync(
+                        "outbox-processor",
+                        healthWindow.StartedOnUtc,
+                        healthWindow.CompletedOnUtc,
+                        healthWindow.Outcome,
+                        healthWindow.ToSummaryJson(),
+                        stoppingToken);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -153,6 +173,7 @@ public class OutboxProcessor : BackgroundService
                 await _sender.SendMessageAsync(serviceBusMessage, cancellationToken);
 
                 message.MarkAsProcessed(DateTimeOffset.UtcNow);
+                _runAggregator.AddPublished();
                 _logger.LogInformation("Published outbox message {MessageId} ({Type})", message.Id, message.Type);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -182,11 +203,13 @@ public class OutboxProcessor : BackgroundService
                 if (message.RetryCount >= _options.MaxRetries)
                 {
                     message.MarkAsError(ex.Message);
+                    _runAggregator.AddErrored();
                     _logger.LogError(ex, "Outbox message {MessageId} ({Type}) permanently failed after {RetryCount} attempts",
                         message.Id, message.Type, message.RetryCount);
                 }
                 else
                 {
+                    _runAggregator.AddRetried();
                     _logger.LogWarning(ex, "Outbox message {MessageId} ({Type}) failed, will retry (attempt {RetryCount}/{MaxRetries})",
                         message.Id, message.Type, message.RetryCount, _options.MaxRetries);
                 }

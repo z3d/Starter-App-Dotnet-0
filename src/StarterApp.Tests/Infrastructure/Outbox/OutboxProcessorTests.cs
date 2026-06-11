@@ -609,6 +609,7 @@ public class OutboxProcessorTests
             sender,
             CreatePayloadCaptureSink(payloadStore ?? new InMemoryPayloadArchiveStore(), payloadCaptureOptions),
             options,
+            new NullJobRunRecorder(),
             new LoggerFactory().CreateLogger<OutboxProcessor>());
     }
 

@@ -42,6 +42,7 @@ builder.Services.AddApiRateLimiting();
 builder.Services.AddApiHealthChecks();
 builder.Services.AddServiceBusPublisher(builder.Configuration, builder.Environment);
 builder.AddPayloadCapture();
+builder.AddJobRunRecording();
 
 var app = builder.Build();
 

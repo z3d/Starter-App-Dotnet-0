@@ -112,6 +112,7 @@ public class OutboxClaimConcurrencyIntegrationTests : IAsyncLifetime
             Mock.Of<ServiceBusSender>(),
             Mock.Of<IPayloadCaptureSink>(),
             options,
+            new NullJobRunRecorder(),
             new LoggerFactory().CreateLogger<OutboxProcessor>());
     }
 

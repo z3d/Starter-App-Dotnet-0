@@ -51,6 +51,7 @@ global using StarterApp.Domain.Entities;
 global using StarterApp.Domain.Enums;
 global using StarterApp.Domain.Events;
 global using StarterApp.Domain.ValueObjects;
+global using StarterApp.ServiceDefaults.Jobs;
 global using StarterApp.Tests.Integration;
 global using StarterApp.Tests.TestBuilders;
 // Testing frameworks

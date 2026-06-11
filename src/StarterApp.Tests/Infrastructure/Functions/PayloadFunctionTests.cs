@@ -47,6 +47,7 @@ public class PayloadFunctionTests
             store,
             new PayloadCaptureTests.FixedTimeProvider(new DateTimeOffset(2026, 5, 10, 0, 0, 0, TimeSpan.Zero)),
             options,
+            new NullJobRunRecorder(),
             new LoggerFactory().CreateLogger<PayloadArchiveCleanupFunction>());
 
         await function.RunAsync(null!, CancellationToken.None);
