@@ -114,6 +114,7 @@ public static class Extensions
         builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<IPayloadRedactor, JsonPayloadRedactor>();
         builder.Services.AddSingleton<IPayloadCaptureSink, PayloadCaptureSink>();
+        builder.Services.AddSingleton<IArtifactCaptureSink, ArtifactCaptureSink>();
         builder.Services.AddSingleton<IPayloadArchiveStore>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<PayloadCaptureOptions>>();

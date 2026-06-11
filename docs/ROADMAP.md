@@ -77,15 +77,16 @@ payload-archive cleanup Function records each run with its deletion counts and a
 exception. Recorder behavior covered by integration tests against real PostgreSQL (start/complete,
 single-shot, swallowed failures, retention purge); the Functions container now receives the
 database connection in AppHost for exactly this purpose.
-## P3 — Artifact and processing-stage capture
+## P3 — Artifact and processing-stage capture — ✅ DONE (2026-06-11)
 
-Payload capture is boundary-only (HTTP in/out, Service Bus in/out). Once the template generates
-artifacts — rendered documents, exports, batch files — "the payload that arrived" and "the artifact
-we produced" are different evidence. Add a correlation-bound capture slot for generated artifacts
-and significant intermediate transformations, reusing the existing archive/audit/entity-index
-scheme and failure-mode policy. Keep the API surface ready even before a concrete artifact
-producer exists.
-
+Landed (commit "feat: add correlation-bound artifact capture slot to payload capture"):
+`IArtifactCaptureSink` in ServiceDefaults — channel `artifact`, direction `internal`, stages
+`generated`/`intermediate`, a binary helper that base64-encodes with size metadata — wraps the
+existing sink so artifacts land in the same archive/audit/entity-index scheme under the ambient
+correlation id, bounded by `MaxPayloadBytes` with explicit truncation metadata. Failure policy is
+per-channel like HTTP/Service Bus: `PayloadCapture:ArtifactFailureMode` (default FailOpen;
+FailClosed propagates). Registered in DI; tests cover the blob round trip, binary encoding,
+truncation, and both failure modes. The surface is ready before any artifact producer exists.
 ## P3 — Business-action audit taxonomy — ✅ DONE (2026-06-11)
 
 Landed (commit "feat: stamp business-action taxonomy and verified identity onto audit rows"):

@@ -26,10 +26,19 @@ public class PayloadCaptureOptions
 
     public PayloadCaptureFailureMode ServiceBusFailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
 
-    public PayloadCaptureFailureMode FailureModeFor(string? channel) =>
-        string.Equals(channel, "http", StringComparison.OrdinalIgnoreCase)
-            ? HttpFailureMode
-            : ServiceBusFailureMode;
+    // Generated artifacts and intermediate transformations (channel "artifact") run inside
+    // request/handler flows, so they default FailOpen like HTTP; a compliance domain whose
+    // artifacts ARE the deliverable can opt into FailClosed.
+    public PayloadCaptureFailureMode ArtifactFailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
+
+    public PayloadCaptureFailureMode FailureModeFor(string? channel)
+    {
+        if (string.Equals(channel, "http", StringComparison.OrdinalIgnoreCase))
+            return HttpFailureMode;
+        if (string.Equals(channel, ArtifactCaptureSink.ChannelName, StringComparison.OrdinalIgnoreCase))
+            return ArtifactFailureMode;
+        return ServiceBusFailureMode;
+    }
 
     [Required, MinLength(1)]
     public string ContainerName { get; set; } = "payload-observability";
