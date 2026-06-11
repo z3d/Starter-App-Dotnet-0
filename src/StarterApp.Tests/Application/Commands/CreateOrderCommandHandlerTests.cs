@@ -1,4 +1,3 @@
-using System.Text.Json;
 using StarterApp.Api.Application.Validators;
 
 namespace StarterApp.Tests.Application.Commands;

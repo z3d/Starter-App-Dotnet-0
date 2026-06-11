@@ -1,0 +1,30 @@
+{
+  "knownPatterns": [
+    {
+      "id": "archive-outage-pauses-outbox-batch",
+      "symptom": "Outbox backlog grows; processor logs capture failures; no rows marked errored",
+      "rootCause": "Payload capture failing under PayloadCapture:ServiceBusFailureMode=FailClosed pauses the batch by design so no event is published without a durable audit record",
+      "defaultAction": "Restore the archive store; the processor resumes on its next poll. No replay needed - rows were never errored. If rows errored for other reasons during the outage, run: dotnet run --project src/StarterApp.DbMigrator -- replay-outbox --all-errored",
+      "verification": {
+        "description": "Confirms the backlog is paused-unprocessed (error IS NULL), not errored",
+        "query": "SELECT count(*) FILTER (WHERE error IS NULL) AS pending, count(*) FILTER (WHERE error IS NOT NULL) AS errored FROM outbox_messages WHERE processed_on_utc IS NULL"
+      },
+      "occurrences": 0,
+      "lastOccurrence": null
+    }
+  ],
+  "knownDefects": [],
+  "verificationTemplates": [
+    {
+      "id": "errored-outbox-rows",
+      "description": "Lists errored outbox rows with their error text, retry and replay history",
+      "query": "SELECT id, type, correlation_id, occurred_on_utc, retry_count, replay_count, replayed_on_utc, error FROM outbox_messages WHERE error IS NOT NULL AND processed_on_utc IS NULL ORDER BY occurred_on_utc"
+    },
+    {
+      "id": "replay-audit-trail",
+      "description": "Shows rows that have been operator-replayed and whether they subsequently processed",
+      "query": "SELECT id, type, replay_count, replayed_on_utc, processed_on_utc, error FROM outbox_messages WHERE replay_count > 0 ORDER BY replayed_on_utc DESC"
+    }
+  ],
+  "investigationHistory": []
+}

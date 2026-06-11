@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using StarterApp.Api.Infrastructure.Payloads;
 using StarterApp.ServiceDefaults.Payloads;

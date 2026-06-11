@@ -83,21 +83,17 @@ sync. (b) `docs/runbooks/event-replay.md` documents the subscription-DLQ re-subm
 archived payloads as the fallback source. The done-when is covered by `OutboxReplayTests`:
 an intentionally errored event is recovered end-to-end through the verb with no hand-written SQL.
 
-## P2 — Incident knowledge base (diagnosis-side companion to the replay path)
+## P2 — Incident knowledge base — ✅ DONE (2026-06-10)
 
-Recurring async-failure investigations (dead-lettered messages, errored outbox rows, capture
-failures) leave no durable, queryable record — each incident starts the diagnosis from zero. Add a
-machine-readable knowledge base under `docs/investigations/` (e.g. one `knowledge-base.json` per
-failure domain) recording: known failure patterns, each with a default action and a pinned
-verification query (logs/SQL) that proves the pattern applies before the action is taken; known
-code defects with their fix commit and deployment status; and a timestamped history of
-investigations with actions taken and new patterns learned. Guardrail to keep it honest: any entry
-recording a code defect must link either to a fix commit or to an accepted-limitation entry in
-`docs/ARCHITECTURE_REVIEW.md` — the knowledge base must never become a place where known bugs
-quietly age without a decision.
-*Done when:* a second occurrence of a known failure pattern is resolved by following the recorded
-action and verification query, without re-deriving the diagnosis.
-
+Landed (commit "docs: scaffold the incident knowledge base with mechanical guardrails"):
+`docs/investigations/` holds one `knowledge-base.json` per failure domain (schema + rules in the
+README there), seeded with the outbox/DLQ domain — one real pattern (FailClosed archive outage
+pauses the batch) and reusable verification queries. `KnowledgeBaseConventionTests` enforces the
+shape mechanically: every pattern needs a defaultAction AND a verification query, and every
+recorded defect must link a fixCommit or an accepted-limitation reference in
+`docs/ARCHITECTURE_REVIEW.md` — known bugs cannot quietly age in the file. The done-when
+(second occurrence resolved from the recorded action + verification) is the operating procedure
+the README binds investigators to; the scaffold and guardrails are what the repo can enforce.
 ## P2 — Durable background-work run history
 
 `OutboxProcessor` and the timer-triggered cleanup function run dark — their history exists only in
