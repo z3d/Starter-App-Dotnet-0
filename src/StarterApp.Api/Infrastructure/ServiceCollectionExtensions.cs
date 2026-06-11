@@ -43,6 +43,10 @@ public static class ServiceCollectionExtensions
                 document.Info.Version = "v1";
                 document.Info.Description = "A sample API for the Starter App built with .NET 10 Minimal APIs";
                 document.Info.Contact = new() { Name = "Starter App Team" };
+
+                // Scalar renders an Auth panel only for declared security schemes; the identity
+                // layer owns the header names (convention-enforced), so it declares them.
+                GatewayIdentityOpenApi.ApplySecuritySchemes(document);
                 return Task.CompletedTask;
             });
         });
