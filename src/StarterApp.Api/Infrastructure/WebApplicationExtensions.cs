@@ -61,6 +61,7 @@ public static class WebApplicationExtensions
             ArgumentException => StatusCodes.Status400BadRequest,
             BadHttpRequestException => StatusCodes.Status400BadRequest,
             KeyNotFoundException => StatusCodes.Status404NotFound,
+            FeatureToggles.FeatureDisabledException => StatusCodes.Status503ServiceUnavailable,
             InvalidOperationException => StatusCodes.Status409Conflict,
             _ => StatusCodes.Status500InternalServerError
         };

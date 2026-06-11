@@ -13,4 +13,20 @@ public interface IOwnerScopedRequest { }
 // Convention tests keep the cohort complete.
 public interface IOwnerAuthorizedMutation { }
 
+// Declares a kill-switch/dark-launch toggle on a request TYPE (command or query).
+// FeatureToggleBehavior refuses dispatch with a FeatureDisabledException (503) when
+// configuration sets FeatureToggles:{Name} to false. Convention tests enforce:
+// request types only, unique names, and an explicit configuration entry per name.
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+public sealed class FeatureToggleAttribute : Attribute
+{
+    public FeatureToggleAttribute(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        Name = name;
+    }
+
+    public string Name { get; }
+}
+
 

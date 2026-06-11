@@ -43,15 +43,16 @@ already persisted; failing the response would not undo it). Covered by behavior 
 real-Mediator pipeline test proving a policy-skipping handler is caught mechanically (the
 done-when), and a DI-wiring assertion against the API host.
 
-## P2 — Request-type feature toggles
+## P2 — Request-type feature toggles — ✅ DONE (2026-06-11)
 
-A `[FeatureToggle("name")]` attribute on command/query types, checked centrally in the mediator
-before dispatch, driven by configuration. Disabled requests return a well-defined ProblemDetails
-response (e.g. 503 with a feature-disabled code), never reach handlers, and require no redeploy to
-flip. Convention tests enforce: attribute lives on request types (not handlers), names are unique
-and non-empty, and every toggle name has a configuration entry. This gives kill-switch and
-dark-launch capability with a single mechanical rule, no third-party flag service.
-
+Landed (commit "feat: add request-type feature toggles checked in the mediator pipeline"):
+`[FeatureToggle("name")]` on command/query types; `FeatureToggleBehavior` (registered outermost,
+before caching) refuses dispatch with `FeatureDisabledException` → 503 when configuration sets
+`FeatureToggles:{name}` false — any configuration provider works, so a kill-switch needs no
+redeploy. A missing entry means enabled, and `FeatureToggleConventionTests` enforces: request
+types only, unique names, and an explicit appsettings entry per declared toggle (default state is
+a reviewed decision). Covered by behavior unit tests, a real-Mediator refusal test, the 503
+mapping test, and a pipeline-order assertion against the API host.
 ## P2 — Cache stampede protection (refresh-ahead)
 
 `CachingBehavior` is plain get/check/store: when a hot key expires under load, every concurrent

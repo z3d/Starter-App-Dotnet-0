@@ -3,6 +3,16 @@ namespace StarterApp.Tests.Infrastructure;
 public class ExceptionStatusCodeMappingTests
 {
     [Fact]
+    public void ResolveExceptionStatusCode_WithDisabledFeature_ShouldReturnServiceUnavailable()
+    {
+        var exception = new FeatureDisabledException("some-feature");
+
+        var statusCode = WebApplicationExtensions.ResolveExceptionStatusCode(exception);
+
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, statusCode);
+    }
+
+    [Fact]
     public void ResolveExceptionStatusCode_WithMalformedRequestBody_ShouldReturnBadRequest()
     {
         // Regression: ZAP DAST flagged PUT /api/v1/products/{id} returning HTTP 500 for a

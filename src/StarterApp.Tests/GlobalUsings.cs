@@ -39,6 +39,7 @@ global using StarterApp.Api.Data;
 global using StarterApp.Api.Endpoints;
 global using StarterApp.Api.Infrastructure;
 global using StarterApp.Api.Infrastructure.Caching;
+global using StarterApp.Api.Infrastructure.FeatureToggles;
 global using StarterApp.Api.Infrastructure.Identity;
 global using StarterApp.Api.Infrastructure.Mediator;
 global using StarterApp.Api.Infrastructure.Outbox;

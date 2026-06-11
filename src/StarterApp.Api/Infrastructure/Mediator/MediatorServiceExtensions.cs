@@ -5,6 +5,10 @@ public static class MediatorServiceExtensions
     public static IServiceCollection AddMediator(this IServiceCollection services, params Assembly[] assemblies)
     {
         services.AddScoped<IMediator, Mediator>();
+        services.AddSingleton<FeatureToggles.IFeatureToggles, FeatureToggles.ConfigurationFeatureToggles>();
+        // Registration order matters: first registered runs outermost. Toggles refuse
+        // dispatch before caching can serve a disabled feature from cache.
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(FeatureToggles.FeatureToggleBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(Identity.OwnerAuthorizationBehavior<,>));
         services.AddScoped<ICacheInvalidator, CacheInvalidator>();
