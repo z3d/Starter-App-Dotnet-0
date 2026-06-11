@@ -45,6 +45,7 @@ public class OrderEndpoints : IEndpointDefinition
             .ProducesProblem(500);
 
         orders.MapPut("/{id:guid}/status", UpdateOrderStatus)
+            .WithAuditAction(AuditAction.StatusChange)
             .WithName("UpdateOrderStatus")
             .WithSummary("Update order status")
             .WithDescription("Updates the status of an existing order")
@@ -58,6 +59,7 @@ public class OrderEndpoints : IEndpointDefinition
             .ProducesProblem(500);
 
         orders.MapPost("/{id:guid}/cancel", CancelOrder)
+            .WithAuditAction(AuditAction.StatusChange)
             .WithName("CancelOrder")
             .WithSummary("Cancel an order")
             .WithDescription("Cancels an existing order if it's in a cancellable state")

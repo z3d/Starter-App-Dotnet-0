@@ -1,6 +1,5 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
-using StarterApp.Api.Infrastructure.Payloads;
 using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Tests.Infrastructure.Payloads;
@@ -163,5 +162,52 @@ public class PayloadCaptureMiddlewareTests
         Assert.Equal(12, responseJson.RootElement.GetProperty("capturedPayloadBytes").GetInt32());
         Assert.Contains("configured limit", requestJson.RootElement.GetProperty("payloadSkipReason").GetString());
         Assert.Contains("configured limit", responseJson.RootElement.GetProperty("payloadSkipReason").GetString());
+    }
+
+    [Fact]
+    public async Task InvokeAsync_StampsAuditActionAndVerifiedIdentityOntoAuditRows()
+    {
+        var store = new InMemoryPayloadArchiveStore();
+        var timestamp = new DateTimeOffset(2026, 5, 3, 4, 9, 0, TimeSpan.Zero);
+        var sink = PayloadCaptureTests.CreateSink(store, timestamp);
+        var middleware = new PayloadCaptureMiddleware(async context =>
+        {
+            // Routing has selected the endpoint by the time the handler runs; the override
+            // must surface on the RESPONSE audit row.
+            context.SetEndpoint(new Endpoint(
+                null,
+                new EndpointMetadataCollection(new AuditActionMetadata(AuditAction.StatusChange)),
+                "order-status"));
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync("{}");
+        }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+
+        var services = new ServiceCollection();
+        services.AddSingleton<ICurrentUser>(new CurrentUser(
+            "subject-7", AuthenticatedPrincipalType.User, "tenant-7",
+            ["orders:write"], "case-789", null, null, null));
+        await using var provider = services.BuildServiceProvider();
+
+        var context = new DefaultHttpContext { RequestServices = provider };
+        context.Request.Method = HttpMethods.Put;
+        context.Request.Path = "/api/v1/orders/00000000-0000-0000-0000-000000000001/status";
+        context.Request.ContentType = "application/json";
+        context.Request.Headers[CorrelationContext.HeaderName] = "case-789";
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes("{\"status\":\"Confirmed\"}"));
+        context.Response.Body = new MemoryStream();
+
+        await middleware.InvokeAsync(context);
+
+        var auditRows = store.Lines.Single(pair => pair.Key.StartsWith("audit/", StringComparison.Ordinal)).Value;
+        Assert.Equal(2, auditRows.Count);
+
+        // Request row: captured before routing — verb-derived action, no identity yet asserted.
+        Assert.Contains("\"action\":\"Update\"", auditRows[0]);
+
+        // Response row: endpoint override + verified identity, so "all status changes by
+        // subject X" is answerable from audit rows alone.
+        Assert.Contains("\"action\":\"StatusChange\"", auditRows[1]);
+        Assert.Contains("\"subject\":\"subject-7\"", auditRows[1]);
+        Assert.Contains("\"tenantId\":\"tenant-7\"", auditRows[1]);
     }
 }

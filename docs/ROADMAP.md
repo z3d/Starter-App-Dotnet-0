@@ -86,13 +86,15 @@ and significant intermediate transformations, reusing the existing archive/audit
 scheme and failure-mode policy. Keep the API surface ready even before a concrete artifact
 producer exists.
 
-## P3 — Business-action audit taxonomy
+## P3 — Business-action audit taxonomy — ✅ DONE (2026-06-11)
 
-Audit rows record operation metadata (method, path, correlation) but no business semantics. Add a
-small action taxonomy (Create/Update/Delete/Read/StatusChange, derived from method + route with
-per-endpoint override) stamped onto audit rows, so support and compliance queries can ask "all
-deletes by subject X" without parsing routes.
-
+Landed (commit "feat: stamp business-action taxonomy and verified identity onto audit rows"):
+HTTP audit rows carry `action` (Create/Read/Update/Delete/StatusChange — verb-derived on request
+rows, endpoint-override-aware on response rows via `WithAuditAction`, with the order
+status/cancel routes overriding to StatusChange) and authenticated response rows carry the
+verified `subject`/`tenantId`, making "all deletes by subject X" answerable from audit rows
+alone. Overrides are convention-tested against the closed vocabulary; middleware tests assert the
+stamped rows end-to-end through the real sink.
 ## P3 — Operational SQL query pack — ✅ DONE (2026-06-11)
 
 Landed (commit "docs: add operational reporting query pack with schema-drift guard"):

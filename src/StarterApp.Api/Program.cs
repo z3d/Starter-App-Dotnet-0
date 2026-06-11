@@ -2,7 +2,6 @@ using System.Text.Json.Serialization;
 using Scalar.AspNetCore;
 using Serilog.Enrichers.Sensitive;
 using StarterApp.Api.Endpoints;
-using StarterApp.Api.Infrastructure.Payloads;
 
 var builder = WebApplication.CreateBuilder(args);
 

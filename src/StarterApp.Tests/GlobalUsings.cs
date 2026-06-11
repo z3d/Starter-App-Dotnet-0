@@ -43,6 +43,7 @@ global using StarterApp.Api.Infrastructure.FeatureToggles;
 global using StarterApp.Api.Infrastructure.Identity;
 global using StarterApp.Api.Infrastructure.Mediator;
 global using StarterApp.Api.Infrastructure.Outbox;
+global using StarterApp.Api.Infrastructure.Payloads;
 global using StarterApp.Api.Infrastructure.Validation;
 global using StarterApp.DbMigrator;
 // Domain references

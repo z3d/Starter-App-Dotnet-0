@@ -59,6 +59,21 @@ public class ApiConventionTests : ConventionTestBase
     }
 
     [Fact]
+    public void ApiAuditActionOverrides_MustUseTheTaxonomy()
+    {
+        using var app = BuildEndpointMetadataApp();
+        var failures = GetApiRouteEndpoints(app)
+            .Select(endpoint => (Endpoint: endpoint, Metadata: endpoint.Metadata.GetMetadata<AuditActionMetadata>()))
+            .Where(x => x.Metadata is not null && !AuditAction.All.Contains(x.Metadata.Action))
+            .Select(x => $"{FormatEndpoint(x.Endpoint)} overrides the audit action with '{x.Metadata!.Action}', which is outside the taxonomy.")
+            .ToList();
+
+        Assert.True(failures.Count == 0,
+            "WithAuditAction overrides must use the AuditAction taxonomy (Create/Read/Update/Delete/StatusChange) " +
+            "so audit rows stay queryable by a closed vocabulary:\n" + string.Join("\n", failures));
+    }
+
+    [Fact]
     public void ApiWriteEndpoints_MustBeSecuredBy2Fa()
     {
         using var app = BuildEndpointMetadataApp();

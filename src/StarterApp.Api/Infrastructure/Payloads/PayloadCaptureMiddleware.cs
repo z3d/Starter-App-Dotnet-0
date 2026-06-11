@@ -80,7 +80,10 @@ public sealed class PayloadCaptureMiddleware
         {
             ["method"] = context.Request.Method,
             ["path"] = context.Request.Path.Value ?? string.Empty,
-            ["queryString"] = context.Request.QueryString.Value ?? string.Empty
+            ["queryString"] = context.Request.QueryString.Value ?? string.Empty,
+            // Request rows run before routing: verb-derived only. The response row carries
+            // the endpoint-override-aware action.
+            ["action"] = AuditAction.FromMethod(context.Request.Method)
         };
 
         if (!ShouldCaptureContentType(context.Request.ContentType))
@@ -126,8 +129,18 @@ public sealed class PayloadCaptureMiddleware
         {
             ["method"] = context.Request.Method,
             ["path"] = context.Request.Path.Value ?? string.Empty,
-            ["statusCode"] = context.Response.StatusCode.ToString(CultureInfo.InvariantCulture)
+            ["statusCode"] = context.Response.StatusCode.ToString(CultureInfo.InvariantCulture),
+            ["action"] = AuditAction.Resolve(context)
         };
+
+        // The verified gateway identity makes "all deletes by subject X" answerable from
+        // audit rows alone. Audit blobs are full-fidelity support artifacts (may contain
+        // PII per the payload-capture policy); logs stay redacted as before.
+        if (context.RequestServices?.GetService<ICurrentUser>() is { IsAuthenticated: true } currentUser)
+        {
+            metadata["subject"] = currentUser.Subject;
+            metadata["tenantId"] = currentUser.TenantId;
+        }
 
         // The response payload is already buffered in memory, so the audit write deliberately runs
         // on CancellationToken.None: cancelling it with RequestAborted would let a client abort
