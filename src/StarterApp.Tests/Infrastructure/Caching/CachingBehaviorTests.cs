@@ -49,9 +49,8 @@ public class CachingBehaviorTests
     public async Task HandleAsync_WhenCacheHit_ShouldReturnCachedValueWithoutCallingNext()
     {
         var request = new TestQuery { Id = 42 };
-        var cachedValue = JsonSerializer.Serialize("cached result");
         _cacheMock.Setup(c => c.GetAsync($"Test:{request.Id}", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(System.Text.Encoding.UTF8.GetBytes(cachedValue));
+            .ReturnsAsync(Envelope("cached result", DateTimeOffset.UtcNow.AddMinutes(4)));
 
         var result = await _behavior.HandleAsync(request, () =>
         {
@@ -156,11 +155,107 @@ public class CachingBehaviorTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task HandleAsync_InsideRefreshWindow_OneCallerRecomputesAndRestores()
+    {
+        var request = new TestQuery { Id = 9 };
+        _cacheMock.Setup(c => c.GetAsync("Test:9", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Envelope("stale value", DateTimeOffset.UtcNow.AddSeconds(-5)));
+
+        var result = await _behavior.HandleAsync(request, () =>
+        {
+            _nextWasCalled = true;
+            return Task.FromResult("refreshed value");
+        }, CancellationToken.None);
+
+        Assert.True(_nextWasCalled);
+        Assert.Equal("refreshed value", result);
+        _cacheMock.Verify(c => c.SetAsync(
+            "Test:9",
+            It.IsAny<byte[]>(),
+            It.Is<DistributedCacheEntryOptions>(o => o.AbsoluteExpirationRelativeToNow == TimeSpan.FromMinutes(5)),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleAsync_InsideRefreshWindow_ConcurrentCallersGetCachedValueWhileOneRefreshes()
+    {
+        var request = new TestQuery { Id = 11 };
+        _cacheMock.Setup(c => c.GetAsync("Test:11", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Envelope("stale value", DateTimeOffset.UtcNow.AddSeconds(-5)));
+
+        var refresherStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseRefresher = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var refresherTask = _behavior.HandleAsync(request, () =>
+        {
+            refresherStarted.SetResult();
+            return releaseRefresher.Task;
+        }, CancellationToken.None);
+
+        await refresherStarted.Task;
+
+        var concurrentHandlerRan = false;
+        var concurrentResult = await _behavior.HandleAsync(request, () =>
+        {
+            concurrentHandlerRan = true;
+            return Task.FromResult("should never run");
+        }, CancellationToken.None);
+
+        Assert.False(concurrentHandlerRan);
+        Assert.Equal("stale value", concurrentResult);
+
+        releaseRefresher.SetResult("refreshed value");
+        Assert.Equal("refreshed value", await refresherTask);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WithLegacyCacheFormat_TreatsEntryAsMissAndRewrites()
+    {
+        var request = new TestQuery { Id = 13 };
+        _cacheMock.Setup(c => c.GetAsync("Test:13", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize("pre-envelope cached value")));
+
+        var result = await _behavior.HandleAsync(request, () =>
+        {
+            _nextWasCalled = true;
+            return Task.FromResult("fresh result");
+        }, CancellationToken.None);
+
+        Assert.True(_nextWasCalled);
+        Assert.Equal("fresh result", result);
+        _cacheMock.Verify(c => c.SetAsync(
+            "Test:13",
+            It.IsAny<byte[]>(),
+            It.IsAny<DistributedCacheEntryOptions>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task HandleAsync_RefreshRecompute_RespectsInvalidationTombstone()
+    {
+        var request = new TestQuery { Id = 17 };
+        _cacheMock.Setup(c => c.GetAsync("Test:17", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Envelope("stale value", DateTimeOffset.UtcNow.AddSeconds(-5)));
+        _cacheMock.Setup(c => c.GetAsync("Test:17:inv", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(System.Text.Encoding.UTF8.GetBytes("1"));
+
+        var result = await _behavior.HandleAsync(request, () => Task.FromResult("refreshed value"), CancellationToken.None);
+
+        Assert.Equal("refreshed value", result);
+        _cacheMock.Verify(c => c.SetAsync(
+            "Test:17",
+            It.IsAny<byte[]>(),
+            It.IsAny<DistributedCacheEntryOptions>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     public class TestQuery : IRequest<string>, ICacheable
     {
         public int Id { get; set; }
         public string CacheKey => $"Test:{Id}";
         public TimeSpan CacheDuration => TimeSpan.FromMinutes(5);
+        public TimeSpan CacheRefreshWindow => TimeSpan.FromMinutes(1);
     }
 
     public class NonCacheableQuery : IRequest<string>
@@ -171,6 +266,7 @@ public class CachingBehaviorTests
     {
         public string CacheKey => "NullableTest";
         public TimeSpan CacheDuration => TimeSpan.FromMinutes(5);
+        public TimeSpan CacheRefreshWindow => TimeSpan.FromMinutes(1);
     }
 
     public class OwnerScopedTestQuery : IRequest<string>, ICacheable, IOwnerScopedRequest
@@ -178,5 +274,10 @@ public class CachingBehaviorTests
         public int Id { get; set; }
         public string CacheKey => $"Test:{Id}";
         public TimeSpan CacheDuration => TimeSpan.FromMinutes(5);
+        public TimeSpan CacheRefreshWindow => TimeSpan.FromMinutes(1);
     }
+
+    private static byte[] Envelope(string value, DateTimeOffset refreshAfterUtc)
+        => System.Text.Encoding.UTF8.GetBytes(
+            $"{{\"Value\":{JsonSerializer.Serialize(value)},\"RefreshAfterUtc\":{JsonSerializer.Serialize(refreshAfterUtc)}}}");
 }

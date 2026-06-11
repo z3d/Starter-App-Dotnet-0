@@ -5,6 +5,7 @@ public class GetCustomerQuery : IQuery<CustomerReadModel?>, IRequest<CustomerRea
     public int Id { get; }
     public string CacheKey => $"Customer:{Id}";
     public TimeSpan CacheDuration => TimeSpan.FromMinutes(10);
+    public TimeSpan CacheRefreshWindow => TimeSpan.FromMinutes(1);
 
     public GetCustomerQuery(int id)
     {

@@ -53,48 +53,18 @@ redeploy. A missing entry means enabled, and `FeatureToggleConventionTests` enfo
 types only, unique names, and an explicit appsettings entry per declared toggle (default state is
 a reviewed decision). Covered by behavior unit tests, a real-Mediator refusal test, the 503
 mapping test, and a pipeline-order assertion against the API host.
-## P2 — Cache stampede protection (refresh-ahead)
+## P2 — Cache stampede protection (refresh-ahead) — ✅ DONE (2026-06-11)
 
-`CachingBehavior` is plain get/check/store: when a hot key expires under load, every concurrent
-request misses and executes the handler simultaneously. Extend `ICacheable` with a refresh-ahead
-window: within the window, serve the cached value and trigger a single background refresh
-(single-flight per key). Convention tests: refresh window must be positive and smaller than the
-cache duration. Owner-scoped key semantics must be preserved exactly.
-
-## P2 — Event-contract shape snapshot guard — ✅ DONE (2026-06-10)
-
-Landed (commit "test: pin event-contract wire shapes with snapshot fixtures"):
-`EventContractSnapshotTests` renders each event through the real `OutboxMessage.Create` path,
-normalizes only volatile timestamp values, and diffs against pinned fixtures in
-`src/StarterApp.Tests/Contracts/snapshots/{contract}.json`. Completeness is mechanical: every
-`IDomainEvent` must have a representative instance and fixture, and orphan fixtures fail.
-Deliberate updates run `UPDATE_EVENT_SNAPSHOTS=1 dotnet test --filter EventContractSnapshot`,
-forcing the compatible-change-vs-new-`.v2` decision into review. Verified: a property rename
-fails with a readable pinned-vs-actual diff (the done-when).
-
-## P2 — Operator replay path for failed messages — ✅ DONE (2026-06-10)
-
-Landed (commit "feat: add sanctioned outbox replay verb and dead-letter replay runbook"):
-(a) `DbMigrator` gains the `replay-outbox` verb (`--id <guid>` | `--all-errored`) — resets only
-unprocessed errored rows (clears error + stale claim, restores retry budget, stamps
-`replay_count`/`replayed_on_utc`, migration 0002); the processor marks replayed publishes with
-`Replay`/`ReplayCount` application properties. `OutboxMessage.ResetForReplay` carries the same
-semantics for in-process use, with a parity test keeping the SQL and entity representations in
-sync. (b) `docs/runbooks/event-replay.md` documents the subscription-DLQ re-submit procedure with
-archived payloads as the fallback source. The done-when is covered by `OutboxReplayTests`:
-an intentionally errored event is recovered end-to-end through the verb with no hand-written SQL.
-
-## P2 — Incident knowledge base — ✅ DONE (2026-06-10)
-
-Landed (commit "docs: scaffold the incident knowledge base with mechanical guardrails"):
-`docs/investigations/` holds one `knowledge-base.json` per failure domain (schema + rules in the
-README there), seeded with the outbox/DLQ domain — one real pattern (FailClosed archive outage
-pauses the batch) and reusable verification queries. `KnowledgeBaseConventionTests` enforces the
-shape mechanically: every pattern needs a defaultAction AND a verification query, and every
-recorded defect must link a fixCommit or an accepted-limitation reference in
-`docs/ARCHITECTURE_REVIEW.md` — known bugs cannot quietly age in the file. The done-when
-(second occurrence resolved from the recorded action + verification) is the operating procedure
-the README binds investigators to; the scaffold and guardrails are what the repo can enforce.
+Landed (commit "feat: add refresh-ahead cache stampede protection to CachingBehavior"):
+cached values are stored in an envelope carrying `RefreshAfterUtc`
+(= store time + `CacheDuration` − `CacheRefreshWindow`, the new explicit `ICacheable` member).
+Inside the refresh window exactly one request per key recomputes inline via single-flight
+(in-process `ConcurrentDictionary` claim) while concurrent requests keep the cached value — the
+recompute deliberately runs on the caller, never a background scope, because owner-scoped keys
+require the caller's gateway identity (a background refresh would risk cache poisoning).
+Pre-envelope/unreadable entries degrade to a miss and are rewritten; the invalidation-tombstone
+and null-skip semantics are preserved on the refresh path. Convention-tested: every cacheable
+query's window is positive and smaller than its duration.
 ## P2 — Durable background-work run history
 
 `OutboxProcessor` and the timer-triggered cleanup function run dark — their history exists only in

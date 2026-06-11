@@ -29,6 +29,21 @@ public class CachingConventionTests : ConventionTestBase
     }
 
     [Fact]
+    public void CacheableQueries_RefreshWindowMustBePositiveAndSmallerThanDuration()
+    {
+        foreach (var type in GetCacheableTypes())
+        {
+            var instance = CreateDefaultInstance(type);
+            Assert.True(instance.CacheRefreshWindow > TimeSpan.Zero,
+                $"{type.Name}.CacheRefreshWindow must be positive — without a refresh window a hot key expires " +
+                "under load and every concurrent request recomputes at once (cache stampede)");
+            Assert.True(instance.CacheRefreshWindow < instance.CacheDuration,
+                $"{type.Name}.CacheRefreshWindow must be smaller than CacheDuration — a window covering the whole " +
+                "TTL would recompute on every request and the cache would never serve a settled value");
+        }
+    }
+
+    [Fact]
     public void CacheableQueries_MustHaveDeterministicCacheKeys()
     {
         foreach (var type in GetCacheableTypes())

@@ -79,7 +79,7 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 **Distributed Caching**
 - Redis via Aspire `AddRedis` / `AddRedisDistributedCache("redis")` — falls back to in-memory cache when Redis connection string is absent (tests, standalone dev)
 - Queries opt in by implementing `ICacheable` (provides `CacheKey` and `CacheDuration`)
-- `CachingBehavior` in the mediator pipeline checks cache before handler, stores on miss, skips null results
+- `CachingBehavior` in the mediator pipeline checks cache before handler, stores on miss, skips null results. Stampede protection: entries carry a `RefreshAfterUtc` envelope; inside the final `CacheRefreshWindow` of the TTL exactly one request per key recomputes inline (single-flight, in-process) while others keep the cached value — the recompute runs on the caller (correct gateway identity), never a background scope, because owner-scoped keys would otherwise risk cache poisoning. Window must be positive and smaller than the duration (convention-tested)
 - Command handlers invalidate specific entity keys via `ICacheInvalidator` after `SaveChangesAsync`
 - Only by-id queries are cached — list/collection queries are NOT cached because `IDistributedCache` has no pattern-based deletion, and stale list pages after writes are user-visible bugs. If list caching is needed later, use a versioned namespace approach.
 - Convention tests enforce: non-empty cache keys, positive durations, deterministic identity keys, by-id-only caching, and invalidator injection for non-create mutations on cacheable entities

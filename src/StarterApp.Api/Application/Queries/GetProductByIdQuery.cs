@@ -5,6 +5,7 @@ public class GetProductByIdQuery : IQuery<ProductReadModel?>, IRequest<ProductRe
     public int Id { get; }
     public string CacheKey => $"Product:{Id}";
     public TimeSpan CacheDuration => TimeSpan.FromMinutes(10);
+    public TimeSpan CacheRefreshWindow => TimeSpan.FromMinutes(1);
 
     public GetProductByIdQuery(int id)
     {
