@@ -93,13 +93,13 @@ small action taxonomy (Create/Update/Delete/Read/StatusChange, derived from meth
 per-endpoint override) stamped onto audit rows, so support and compliance queries can ask "all
 deletes by subject X" without parsing routes.
 
-## P3 — Operational SQL query pack
+## P3 — Operational SQL query pack — ✅ DONE (2026-06-11)
 
-A versioned, reviewed set of support/ops queries under `scripts/reporting/*.sql` (or `docs/reporting/`):
-orders by status over time, outbox backlog and errored counts, payload-capture volume per day,
-owner-scope distribution. Cheap to add, prevents every incident from reinventing the same SQL, and
-gives agents a sanctioned place to add new support queries with review.
-
+Landed (commit "docs: add operational reporting query pack with schema-drift guard"):
+`scripts/reporting/` holds reviewed, read-only support queries (outbox health + replay trail,
+job-run history, orders by status over time, owner-scope distribution) with rules in its README
+(read-only, owner-scope aware, indexed access). `ReportingQueryTests` executes every query against
+the migrated schema so a column rename breaks the build, not an operator mid-incident.
 ## P3 — Module-scoped agent docs (only when the template grows)
 
 A single root agent doc works at the current size. If the template ever grows into multiple
