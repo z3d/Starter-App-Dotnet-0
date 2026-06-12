@@ -94,8 +94,9 @@ survives sessions; each item is marked done with its commit, same discipline as 
 11. [x] `[FeatureToggle("order-placement")]` exemplar — DONE (same commit as item 5).
 12. [x] `amr` signed as a first-class field; projected-header hash deleted — DONE (same commit
     as item 6). Tampered `X-Authenticated-Amr` now fails against the signature like scopes.
-13. [ ] Shared Aspire E2E fixture: one distributed-app boot instead of five in
-    `OutboxToServiceBusIntegrationTests`.
+13. [x] Shared Aspire E2E fixture — DONE (commit "test: boot the distributed app once for the
+    Aspire E2E collection"); 5 boots → 1, verified by the CI aspire job (local Docker was
+    unavailable; see commit message).
 14. [x] Review-doc compaction — DONE (commit "docs: compact the architecture review to living
     state; archive the narrative history"). Living doc ~100 lines; archive verbatim under
     docs/reviews/; DONE bodies collapsed; stale review-skill score and skill-authoring
