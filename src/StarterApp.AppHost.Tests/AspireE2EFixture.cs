@@ -26,9 +26,14 @@ public sealed class AspireE2EFixture : IAsyncLifetime
             await App.DisposeAsync();
     }
 
+    // No identity headers: orchestrator probes (Docker, Kubernetes) carry none, so health
+    // endpoints must be verifiable anonymously — an authenticated-only client would mask a
+    // regression that accidentally puts gateway identity in front of readiness/liveness.
+    public HttpClient CreateAnonymousApiClient() => App.CreateHttpClient("api");
+
     public HttpClient CreateApiClient()
     {
-        var client = App.CreateHttpClient("api");
+        var client = CreateAnonymousApiClient();
         client.DefaultRequestHeaders.Add("X-Authenticated-Subject", "apphost-test-user");
         client.DefaultRequestHeaders.Add("X-Authenticated-Principal-Type", "User");
         client.DefaultRequestHeaders.Add("X-Authenticated-Tenant-Id", "apphost-test-tenant");

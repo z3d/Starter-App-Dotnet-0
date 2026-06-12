@@ -81,9 +81,10 @@ public class OutboxToServiceBusIntegrationTests
     [Fact]
     public async Task HealthEndpoints_ShouldBeReachable()
     {
-        // Arrange
+        // Arrange — anonymous on purpose: orchestrator probes carry no gateway identity, so a
+        // regression that puts auth in front of readiness/liveness must fail HERE.
         var app = _fixture.App;
-        var httpClient = _fixture.CreateApiClient();
+        var httpClient = _fixture.CreateAnonymousApiClient();
 
         // Wait for full readiness before checking all endpoints
         await PollForHealthyAsync(httpClient, "/health/ready");
