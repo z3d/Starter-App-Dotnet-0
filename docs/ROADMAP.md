@@ -114,6 +114,71 @@ gets a backward-compatibility policy (extend via overloads, never remove public 
 impact-analysis checklist. The doc-mirror convention test must extend to cover every new
 agent-doc pair so the two trees cannot drift.
 
+## Complexity-review port backlog (2026-06-12)
+
+Source: a juice-vs-squeeze complexity review of this template (Karpathy lens — "don't simplify
+for the sake of it", starter weight is partly the product), cross-checked against a derived
+project's pruning experience. 76 findings; 37 adversarially verified. Tracked here so progress
+survives sessions; each item is marked done with its commit, same discipline as the roadmap.
+
+**P0 — live defect**
+1. [ ] Rate-limiting bundle: delete the dead "fixed" named policy, options-bind the global
+   limiter (PermitLimit/Window/QueueLimit via validated options), perf-gate override in
+   `tests/k6/run-perf.sh`, partition-key regression test. The nightly perf gate's first run
+   failed at 98.6% errors because the hardcoded 100/min global limit throttles the single k6
+   identity — the gate worked; the limiter config is the defect.
+
+**Ports (verified PORT verdicts)**
+2. [ ] Drop `'legacy-owner'/'legacy-tenant'` DDL DEFAULTs (migration 0004 + not-null regression
+   test; keep the `OwnershipDefaults` consts).
+3. [ ] Convention test: every `IDomainEvent` contract must be covered by a subscription filter
+   (explicit publish-only allowlist, currently empty) — kills the silent-shredder class already
+   recorded once in `docs/investigations/`.
+4. [ ] Serve-stale-on-refresh-failure in `CachingBehavior` (catch scoped to the winner's
+   `next()`, rethrow cancellation) + tests.
+5. [ ] Drop the request-row `action` stamp in `PayloadCaptureMiddleware` (response row stays
+   authoritative); add a "Considered and rejected" line.
+6. [ ] Remove `X-Authenticated-Email/Client-Id/Issuer` from the gateway header reader and
+   `ICurrentUser` (zero consumers; wider than the documented contract).
+7. [ ] Delete the bare-key invalidation branch + 1/2-arg ctors in `CacheInvalidator`; fix the
+   false "legacy" WHY in CLAUDE.md in lockstep.
+8. [ ] `IQuery<TResult> : IRequest<TResult>` (compiler replaces the tautological convention
+   half; keep the cohort-escape half).
+9. [ ] Stamp `replay`/`replayCount` into payload-capture metadata (OutboxProcessor + both
+   Functions) so audit keeps the republish promise end-to-end.
+10. [ ] Rewrite the stale ChangeTracker rationale comment in `DomainConventionTests`.
+11. [ ] `[FeatureToggle("order-placement")]` on `CreateOrderCommand` + explicit config entry
+    (live exemplar; de-vacuizes the toggle conventions).
+12. [ ] Promote `amr` to a signed gateway-assertion field; delete the projected-header hash
+    (after item 6 removes the other unsigned passengers).
+13. [ ] Shared Aspire E2E fixture: one distributed-app boot instead of five in
+    `OutboxToServiceBusIntegrationTests`.
+14. [ ] Compact `docs/ARCHITECTURE_REVIEW.md` to living state (~180 lines), archive narratives
+    under `docs/reviews/`, collapse ROADMAP DONE bodies; sweep stale facts (review-skill score,
+    "no mechanical rule" premises) — keep "Considered and rejected" verbatim.
+15. [ ] `.HasMaxLength(50)` on `Order.Status` EF mapping.
+
+**Simplify (lighter shape, verified)**
+16. [ ] Rename the sink's `{Payload}` log token to `{RedactedPayload}` and extend the raw-body
+    log scan to block `{Payload}`; document the scan as a tripwire, not a sound guard.
+17. [ ] Exact-match capture skip for the four health probe routes only (never `/api/v1`,
+    pinned by test); amend the capture-first recorded decision in both doc mirrors.
+18. [ ] Consistency suite: remove the embeddings stub + AST shingles (~1k lines); replace
+    cohort-gating facts with synthetic-fixture extraction tests; emit report to file.
+19. [ ] Reporting-query tests run under `default_transaction_read_only=on` + negative test;
+    README example values instead of psql placeholders.
+20. [ ] Incident KB: fix three dangling doc pointers; execute KB-embedded SQL against the
+    migrated schema beside `ReportingQueryTests`.
+21. [ ] New `docs/DERIVATION-PRUNING.md` (anonymized): the pruning discipline for derived
+    projects — named falsifiable re-add triggers, check ops consumers first, re-adds ship as
+    one change, never park events on subscriber-less topics.
+
+**Deferred (named triggers, decision-on-file)**
+- Dead-letter-with-reason in Functions subscribers — trigger: first real handler logic.
+- Doc-mirror generator — trigger: mirror set grows beyond root pair + skills.
+- Per-stage capture-sink failure isolation — trigger: any deployment opting the HTTP channel
+  into FailClosed.
+
 ## Considered and rejected
 
 Recorded so future sessions do not re-propose them:
