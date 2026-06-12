@@ -3,8 +3,41 @@ namespace StarterApp.Tests.Consistency;
 public class ConsistencyReportTests
 {
     private readonly ITestOutputHelper _output;
+    private readonly List<string> _reportLines = [];
 
     public ConsistencyReportTests(ITestOutputHelper output) => _output = output;
+
+    private void WriteLine(string line)
+    {
+        _output.WriteLine(line);
+        _reportLines.Add(line);
+    }
+
+    // The report is advisory; its value is being READ. Alongside the test console it lands in
+    // docs/_local/ (git-ignored) so it can be opened without re-running the suite — see the
+    // testing-strategy skill for how to consume it.
+    private void EmitReportFile(string cohortName)
+    {
+        var directory = System.IO.Path.Combine(FindRepoRoot(), "docs", "_local");
+        System.IO.Directory.CreateDirectory(directory);
+        System.IO.File.WriteAllLines(
+            System.IO.Path.Combine(directory, $"consistency-{cohortName.ToLowerInvariant().Replace(' ', '-')}.txt"),
+            _reportLines);
+        _reportLines.Clear();
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (System.IO.File.Exists(System.IO.Path.Combine(directory.FullName, "StarterApp.slnx")))
+                return directory.FullName;
+            directory = directory.Parent;
+        }
+
+        throw new InvalidOperationException("Could not locate the repo root from the test base directory.");
+    }
 
     [Fact]
     public void GenerateFullReport()
@@ -40,7 +73,7 @@ public class ConsistencyReportTests
     }
 
     [Fact]
-    public void EveryReportCohort_ProducesAllThreeMeasurementLayers()
+    public void EveryReportCohort_ProducesStructuralAndDivergenceLayers()
     {
         var reports = new[]
         {
@@ -64,10 +97,9 @@ public class ConsistencyReportTests
         var report = CohortConsistencyReporter.Build(cohort);
 
         WriteStructuralScores(report, memberLabel, memberNameWidth, structuralHeader, formatStructuralRow);
-        WriteShingleScores(report, memberLabel, memberNameWidth);
-        WriteEmbeddingScores(report, memberLabel, memberNameWidth);
         WriteFeatureDivergences(report, memberNameWidth);
         WriteSummary(report);
+        EmitReportFile(report.CohortName);
 
         AssertCompleteReportHealth(report);
     }
@@ -79,51 +111,33 @@ public class ConsistencyReportTests
         string structuralHeader,
         Func<CohortScore, string> formatStructuralRow)
     {
-        _output.WriteLine($"=== {report.CohortName} STRUCTURAL SCORES ===");
-        _output.WriteLine($"{Pad(memberLabel, memberNameWidth)} {structuralHeader}");
-        _output.WriteLine(new string('-', memberNameWidth + structuralHeader.Length + 1));
+        WriteLine($"=== {report.CohortName} STRUCTURAL SCORES ===");
+        WriteLine($"{Pad(memberLabel, memberNameWidth)} {structuralHeader}");
+        WriteLine(new string('-', memberNameWidth + structuralHeader.Length + 1));
 
         foreach (var score in report.StructuralScores)
-            _output.WriteLine($"{Pad(score.TypeName, memberNameWidth)} {formatStructuralRow(score)}");
+            WriteLine($"{Pad(score.TypeName, memberNameWidth)} {formatStructuralRow(score)}");
     }
 
-    private void WriteShingleScores(CohortConsistencyReport report, string memberLabel, int memberNameWidth)
-    {
-        _output.WriteLine($"\n=== {report.CohortName} AST SHINGLE SCORES ===");
-        _output.WriteLine($"{Pad(memberLabel, memberNameWidth)} {"AvgSim",8} {"Shingles",9}");
-        _output.WriteLine(new string('-', memberNameWidth + 19));
 
-        foreach (var score in report.ShingleScores)
-            _output.WriteLine($"{Pad(score.TypeName, memberNameWidth)} {score.AverageSimilarity,8:F3} {score.ShingleCount,9}");
-    }
-
-    private void WriteEmbeddingScores(CohortConsistencyReport report, string memberLabel, int memberNameWidth)
-    {
-        _output.WriteLine($"\n=== {report.CohortName} EMBEDDING SIMILARITY SCORES (source-token embedder) ===");
-        _output.WriteLine($"{Pad(memberLabel, memberNameWidth)} {"CosSim",8}");
-        _output.WriteLine(new string('-', memberNameWidth + 9));
-
-        foreach (var score in report.EmbeddingScores)
-            _output.WriteLine($"{Pad(score.TypeName, memberNameWidth)} {score.CosineSimilarity,8:F3}");
-    }
 
     private void WriteFeatureDivergences(CohortConsistencyReport report, int memberNameWidth)
     {
-        _output.WriteLine($"\n=== {report.CohortName} PER-FEATURE DIVERGENCE REPORT ===");
+        WriteLine($"\n=== {report.CohortName} PER-FEATURE DIVERGENCE REPORT ===");
 
         foreach (var divergence in report.FeatureDivergences)
         {
             if (!divergence.HasDivergence)
             {
-                _output.WriteLine($"\n{divergence.FeatureName}: no divergence");
+                WriteLine($"\n{divergence.FeatureName}: no divergence");
                 continue;
             }
 
             var exemplarLabel = FormatExemplarLabel(divergence);
 
-            _output.WriteLine($"\n{divergence.FeatureName} - Exemplar: {exemplarLabel} - {divergence.DivergentCount} divergent:");
+            WriteLine($"\n{divergence.FeatureName} - Exemplar: {exemplarLabel} - {divergence.DivergentCount} divergent:");
             foreach (var member in divergence.DivergentMembers)
-                _output.WriteLine($"  {Pad(member.TypeName, memberNameWidth)} actual={member.ActualValue:F1}  exemplar={member.ExemplarValue:F1}");
+                WriteLine($"  {Pad(member.TypeName, memberNameWidth)} actual={member.ActualValue:F1}  exemplar={member.ExemplarValue:F1}");
         }
     }
 
@@ -133,20 +147,12 @@ public class ConsistencyReportTests
         var stdDev = Math.Sqrt(report.StructuralScores.Average(s => (s.Distance - avgDist) * (s.Distance - avgDist)));
         var structuralOutliers = report.StructuralScores.Where(s => s.Distance > avgDist + 2 * stdDev).ToList();
 
-        var avgShingle = report.ShingleScores.Average(s => s.AverageSimilarity);
-        var minShingle = report.ShingleScores[0];
-
-        var avgEmbedding = report.EmbeddingScores.Average(s => s.CosineSimilarity);
-        var minEmbedding = report.EmbeddingScores[0];
-
-        _output.WriteLine($"\n=== {report.CohortName} SUMMARY ===");
-        _output.WriteLine($"Total members: {report.Fingerprints.Count}");
-        _output.WriteLine($"Exemplars: {string.Join(", ", report.Exemplars.Select(e => e.TypeName))}");
-        _output.WriteLine($"Structural - Mean distance: {avgDist:F2}, StdDev: {stdDev:F2}, 2-sigma: {avgDist + 2 * stdDev:F2}");
-        _output.WriteLine(
+        WriteLine($"\n=== {report.CohortName} SUMMARY ===");
+        WriteLine($"Total members: {report.Fingerprints.Count}");
+        WriteLine($"Exemplars: {string.Join(", ", report.Exemplars.Select(e => e.TypeName))}");
+        WriteLine($"Structural - Mean distance: {avgDist:F2}, StdDev: {stdDev:F2}, 2-sigma: {avgDist + 2 * stdDev:F2}");
+        WriteLine(
             $"Structural outliers (>2-sigma): {(structuralOutliers.Count > 0 ? string.Join(", ", structuralOutliers.Select(s => s.TypeName)) : "(none)")}");
-        _output.WriteLine($"Shingles - Mean similarity: {avgShingle:F3}, Min: {minShingle.AverageSimilarity:F3} ({minShingle.TypeName})");
-        _output.WriteLine($"Embedding - Mean similarity: {avgEmbedding:F3}, Min: {minEmbedding.CosineSimilarity:F3} ({minEmbedding.TypeName})");
     }
 
     private static void AssertCompleteReportHealth(CohortConsistencyReport report)
@@ -158,34 +164,18 @@ public class ConsistencyReportTests
 
         Assert.Equal(report.MemberTypes.Count, report.Fingerprints.Count);
         Assert.Equal(report.MemberTypes.Count, report.StructuralScores.Count);
-        Assert.Equal(report.MemberTypes.Count, report.ShingleScores.Count);
-        Assert.Equal(report.MemberTypes.Count, report.EmbeddingScores.Count);
         Assert.Equal(report.Fingerprints[0].FeatureNames.Length, report.FeatureDivergences.Count);
 
         Assert.All(report.StructuralScores, s => Assert.True(double.IsFinite(s.Distance),
             $"{report.CohortName}.{s.TypeName} structural distance is not finite: {s.Distance}"));
-        Assert.All(report.ShingleScores, s => Assert.True(double.IsFinite(s.AverageSimilarity),
-            $"{report.CohortName}.{s.TypeName} shingle similarity is not finite: {s.AverageSimilarity}"));
-        Assert.All(report.EmbeddingScores, s => Assert.True(double.IsFinite(s.CosineSimilarity),
-            $"{report.CohortName}.{s.TypeName} cosine similarity is not finite: {s.CosineSimilarity}"));
-
         for (var i = 1; i < report.StructuralScores.Count; i++)
             Assert.True(report.StructuralScores[i - 1].Distance >= report.StructuralScores[i].Distance,
                 $"{report.CohortName} structural scores not in descending order at index {i}");
 
-        for (var i = 1; i < report.ShingleScores.Count; i++)
-            Assert.True(report.ShingleScores[i - 1].AverageSimilarity <= report.ShingleScores[i].AverageSimilarity,
-                $"{report.CohortName} shingle scores not in ascending similarity order at index {i}");
-
-        for (var i = 1; i < report.EmbeddingScores.Count; i++)
-            Assert.True(report.EmbeddingScores[i - 1].CosineSimilarity <= report.EmbeddingScores[i].CosineSimilarity,
-                $"{report.CohortName} embedding scores not in ascending similarity order at index {i}");
 
         var discoveredNames = report.MemberTypes.Select(t => t.Name).ToHashSet();
         Assert.Equal(discoveredNames, report.Fingerprints.Select(f => f.TypeName).ToHashSet());
         Assert.Equal(discoveredNames, report.StructuralScores.Select(s => s.TypeName).ToHashSet());
-        Assert.Equal(discoveredNames, report.ShingleScores.Select(s => s.TypeName).ToHashSet());
-        Assert.Equal(discoveredNames, report.EmbeddingScores.Select(s => s.TypeName).ToHashSet());
     }
 
     private static string FormatCommandHandlerRow(CohortScore score)

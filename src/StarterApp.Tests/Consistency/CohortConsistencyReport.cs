@@ -6,15 +6,11 @@ public sealed record CohortConsistencyReport(
     IReadOnlyList<ICohortFingerprint> Fingerprints,
     IReadOnlyList<ICohortFingerprint> Exemplars,
     IReadOnlyList<CohortScore> StructuralScores,
-    IReadOnlyList<ShingleScore> ShingleScores,
-    IReadOnlyList<EmbeddingScore> EmbeddingScores,
     IReadOnlyList<FeatureDivergence> FeatureDivergences);
 
 public static class CohortConsistencyReporter
 {
-    public static CohortConsistencyReport Build<TFingerprint>(
-        ICohortDefinition<TFingerprint> cohort,
-        ICodeEmbedder? embedder = null)
+    public static CohortConsistencyReport Build<TFingerprint>(ICohortDefinition<TFingerprint> cohort)
         where TFingerprint : ICohortFingerprint
     {
         var memberTypes = cohort.DiscoverTypes();
@@ -40,7 +36,6 @@ public static class CohortConsistencyReporter
 
         var all = fingerprints.ToArray();
         var ex = exemplars.ToArray();
-        var codeEmbedder = embedder ?? new SourceTokenEmbedder();
 
         return new CohortConsistencyReport(
             cohort.CohortName,
@@ -48,8 +43,6 @@ public static class CohortConsistencyReporter
             fingerprints,
             exemplars,
             ConsistencyScorer.ScoreAll(all, ex),
-            AstShingleComparer.ScoreAll(memberTypes, exemplarTypes),
-            EmbeddingSimilarityScorer.ScoreAll(memberTypes, exemplarTypes, codeEmbedder),
             FeatureDivergenceReport.Analyse(all, ex));
     }
 }

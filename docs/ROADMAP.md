@@ -165,8 +165,10 @@ survives sessions; each item is marked done with its commit, same discipline as 
     simplify-block ports — log token, probe skip, read-only reporting guard, KB pointers").
 17. [x] Probe-route capture skip — DONE (same commit as item 16); exact-match four routes,
     pinned never-`/api` by test; capture-first decision amended in both doc mirrors.
-18. [ ] Consistency suite: remove the embeddings stub + AST shingles (~1k lines); replace
-    cohort-gating facts with synthetic-fixture extraction tests; emit report to file.
+18. [x] Consistency suite cut — DONE (commit "refactor: cut the consistency suite's stub
+    layers; pin extraction with synthetic fixtures"). Embeddings + AST shingles removed
+    (~1.1k lines); synthetic-fixture extraction tests pin the fingerprint machinery; reports
+    land in docs/_local/consistency-*.txt with a consumption note in the testing skill.
 19. [x] Read-only reporting guard — DONE (same commit as item 16).
 20. [x] KB pointers + verification-query schema guard — DONE (same commit as item 16).
 21. [x] `docs/DERIVATION-PRUNING.md` — DONE (commit "docs: add the derivation-pruning

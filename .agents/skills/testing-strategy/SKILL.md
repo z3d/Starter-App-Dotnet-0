@@ -174,3 +174,5 @@ public class ApiTestFixture : IAsyncLifetime
     }
 }
 ```
+
+Consistency reports: the advisory cohort reports (structural distances + per-feature divergence) are written to `docs/_local/consistency-*.txt` on every test run — read them there when reviewing structural drift; do not gate builds on distances.

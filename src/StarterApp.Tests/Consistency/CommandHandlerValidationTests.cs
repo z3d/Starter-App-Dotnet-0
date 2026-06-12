@@ -60,28 +60,79 @@ public class CommandHandlerValidationTests : CohortValidationTestBase<HandlerFin
             $"CreateOrderCommandHandler distance {createOrder.Distance:F2} must exceed mean+1σ ({threshold:F2}).");
     }
 
+
+    // Synthetic-fixture extraction tests: prove the fingerprint extractor reads real
+    // structure from KNOWN inputs, so the advisory layer cannot silently degrade into
+    // extracting zeros for everything (the vacuous-pass failure class). These replace the
+    // deleted AST-shingle similarity facts: they pin the machinery, not cohort statistics.
     [Fact]
-    public void AstShingles_SimpleHandlersMoreSimilarThanComplex()
+    public void Extraction_OnLeanSyntheticFixture_ReadsKnownStructure()
     {
-        var handlerTypes = _cohort.DiscoverTypes();
+        var fingerprint = _cohort.Extract(typeof(LeanSyntheticHandler));
 
-        var createProduct = handlerTypes.FirstOrDefault(t => t.Name == "CreateProductCommandHandler");
-        var updateProduct = handlerTypes.FirstOrDefault(t => t.Name == "UpdateProductCommandHandler");
-        var createOrder = handlerTypes.FirstOrDefault(t => t.Name == "CreateOrderCommandHandler");
+        Assert.Equal(2, fingerprint.ConstructorDependencyCount);
+        Assert.True(fingerprint.HasCacheInvalidator);
+        Assert.False(fingerprint.HasTryCatch);
+        Assert.Equal(0, fingerprint.PrivateMethodCount);
+        Assert.Equal(0, fingerprint.EntityLoadCount);
+        Assert.True(fingerprint.IlByteSize > 0);
+    }
 
-        Assert.NotNull(createProduct);
-        Assert.NotNull(updateProduct);
-        Assert.NotNull(createOrder);
+    [Fact]
+    public void Extraction_OnBusySyntheticFixture_ReadsKnownStructure()
+    {
+        var fingerprint = _cohort.Extract(typeof(BusySyntheticHandler));
 
-        var shinglesCreateProduct = AstShingleComparer.ComputeShingles(AstShingleComparer.ExtractOpcodeSequence(createProduct));
-        var shinglesUpdateProduct = AstShingleComparer.ComputeShingles(AstShingleComparer.ExtractOpcodeSequence(updateProduct));
-        var shinglesCreateOrder = AstShingleComparer.ComputeShingles(AstShingleComparer.ExtractOpcodeSequence(createOrder));
+        Assert.Equal(1, fingerprint.ConstructorDependencyCount);
+        Assert.False(fingerprint.HasCacheInvalidator);
+        Assert.True(fingerprint.HasTryCatch);
+        Assert.Equal(1, fingerprint.PrivateMethodCount);
+    }
 
-        var productPair = AstShingleComparer.JaccardSimilarity(shinglesCreateProduct, shinglesUpdateProduct);
-        var productToOrder = AstShingleComparer.JaccardSimilarity(shinglesCreateProduct, shinglesCreateOrder);
+    private sealed class LeanSyntheticHandler
+    {
+        private readonly ICacheInvalidator _cacheInvalidator;
+        private readonly OwnerPolicyEvaluationTracker _tracker;
 
-        Assert.True(productPair > productToOrder,
-            $"Product handler similarity ({productPair:F3}) should exceed CreateProduct/CreateOrder ({productToOrder:F3}).");
+        public LeanSyntheticHandler(ICacheInvalidator cacheInvalidator, OwnerPolicyEvaluationTracker tracker)
+        {
+            _cacheInvalidator = cacheInvalidator;
+            _tracker = tracker;
+        }
+
+        public Task HandleAsync(CancellationToken cancellationToken)
+        {
+            _tracker.MarkEvaluated();
+            return _cacheInvalidator.InvalidateProductAsync(1, cancellationToken);
+        }
+    }
+
+    private sealed class BusySyntheticHandler
+    {
+        private readonly OwnerPolicyEvaluationTracker _tracker;
+
+        public BusySyntheticHandler(OwnerPolicyEvaluationTracker tracker)
+        {
+            _tracker = tracker;
+        }
+
+        public Task HandleAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                return HelperAsync(cancellationToken);
+            }
+            catch (InvalidOperationException)
+            {
+                return Task.CompletedTask;
+            }
+        }
+
+        private Task HelperAsync(CancellationToken cancellationToken)
+        {
+            _tracker.MarkEvaluated();
+            return Task.CompletedTask;
+        }
     }
 
     [Fact]
@@ -95,16 +146,8 @@ public class CommandHandlerValidationTests : CohortValidationTestBase<HandlerFin
         ICohortFingerprint[] ex = exemplars.ToArray<ICohortFingerprint>();
         var structuralScores = ConsistencyScorer.ScoreAll(all, ex);
 
-        var exemplarTypes = handlerTypes.Where(t => _cohort.ExemplarTypeNames.Contains(t.Name)).ToList();
-        var shingleScores = AstShingleComparer.ScoreAll(handlerTypes, exemplarTypes);
-
         Assert.True(structuralScores.Count >= 9);
-        Assert.True(shingleScores.Count >= 9);
         Assert.True(structuralScores[0].Distance > 0);
-
-        var maxSim = shingleScores.Max(s => s.AverageSimilarity);
-        var minSim = shingleScores.Min(s => s.AverageSimilarity);
-        Assert.True(maxSim > minSim);
     }
 
     [Fact]
