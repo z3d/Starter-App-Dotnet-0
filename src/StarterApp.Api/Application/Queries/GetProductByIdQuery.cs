@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Application.Queries;
 
-public class GetProductByIdQuery : IQuery<ProductReadModel?>, IRequest<ProductReadModel?>, ICacheable, IOwnerScopedRequest
+public class GetProductByIdQuery : IQuery<ProductReadModel?>, ICacheable, IOwnerScopedRequest
 {
     public int Id { get; }
     public string CacheKey => $"Product:{Id}";

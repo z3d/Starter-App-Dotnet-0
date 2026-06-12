@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Application.Queries;
 
-public class GetAllProductsQuery : IQuery<IEnumerable<ProductReadModel>>, IRequest<IEnumerable<ProductReadModel>>, IOwnerScopedRequest
+public class GetAllProductsQuery : IQuery<IEnumerable<ProductReadModel>>, IOwnerScopedRequest
 {
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 50;

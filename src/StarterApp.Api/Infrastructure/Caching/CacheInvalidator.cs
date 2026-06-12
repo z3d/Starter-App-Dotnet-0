@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace StarterApp.Api.Infrastructure.Caching;
 
@@ -14,16 +13,6 @@ public class CacheInvalidator : ICacheInvalidator
     private readonly IDistributedCache _cache;
     private readonly ICurrentUser _currentUser;
     private readonly ILogger<CacheInvalidator> _logger;
-
-    public CacheInvalidator(IDistributedCache cache)
-        : this(cache, CurrentUser.Anonymous, NullLogger<CacheInvalidator>.Instance)
-    {
-    }
-
-    public CacheInvalidator(IDistributedCache cache, ICurrentUser currentUser)
-        : this(cache, currentUser, NullLogger<CacheInvalidator>.Instance)
-    {
-    }
 
     public CacheInvalidator(IDistributedCache cache, ICurrentUser currentUser, ILogger<CacheInvalidator> logger)
     {
@@ -44,10 +33,14 @@ public class CacheInvalidator : ICacheInvalidator
 
     private async Task RemoveAsync(string cacheKey, CancellationToken cancellationToken)
     {
-        await InvalidateKeyAsync(cacheKey, cancellationToken);
+        // Only the owner-scoped key is ever written: cacheable queries are owner-scoped and
+        // the protected surface is unreachable without a gateway identity, so the bare key
+        // has no writer and needs no invalidation. Mutations always run authenticated; the
+        // guard below is a belt for test harnesses that invalidate without an identity.
+        if (!_currentUser.IsAuthenticated)
+            return;
 
-        if (_currentUser.IsAuthenticated)
-            await InvalidateKeyAsync(OwnerScopedCacheKey.Create(cacheKey, _currentUser), cancellationToken);
+        await InvalidateKeyAsync(OwnerScopedCacheKey.Create(cacheKey, _currentUser), cancellationToken);
     }
 
     private async Task InvalidateKeyAsync(string cacheKey, CancellationToken cancellationToken)

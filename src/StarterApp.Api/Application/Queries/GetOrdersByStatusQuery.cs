@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Application.Queries;
 
-public class GetOrdersByStatusQuery : IQuery<IEnumerable<OrderReadModel>>, IRequest<IEnumerable<OrderReadModel>>, IOwnerScopedRequest
+public class GetOrdersByStatusQuery : IQuery<IEnumerable<OrderReadModel>>, IOwnerScopedRequest
 {
     public OrderStatus? Status { get; set; }
     public int Page { get; set; } = 1;

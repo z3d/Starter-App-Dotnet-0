@@ -343,17 +343,10 @@ public partial class CqrsConventionTests : ConventionTestBase
     }
 
     [Fact]
-    public void Queries_MustImplementBothIQueryAndIRequest()
+    public void RequestsInQueryNamespace_MustImplementIQuery()
     {
-        var queryTypes = ApiAssembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract &&
-                   t.GetInterfaces().Any(i =>
-                       i.IsGenericType &&
-                       i.GetGenericTypeDefinition() == typeof(IQuery<>)));
-        queryTypes
-            .MustConformTo(new MustImplementRequestInterfaceConvention())
-            .WithFailureAssertion(Assert.Fail);
-
+        // The other direction (every IQuery is dispatchable) is a compiler guarantee now:
+        // IQuery<TResult> : IRequest<TResult>. Only the cohort-escape half needs a test.
         var requestsInQueryNs = ApiAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.Namespace != null && t.Namespace.Contains("Queries") &&

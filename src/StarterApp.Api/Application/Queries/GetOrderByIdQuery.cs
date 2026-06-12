@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Application.Queries;
 
-public class GetOrderByIdQuery : IQuery<OrderWithItemsReadModel?>, IRequest<OrderWithItemsReadModel?>, IOwnerScopedRequest
+public class GetOrderByIdQuery : IQuery<OrderWithItemsReadModel?>, IOwnerScopedRequest
 {
     public Guid Id { get; set; }
 }

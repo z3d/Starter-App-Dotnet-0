@@ -3,7 +3,10 @@ namespace StarterApp.Api.Application.Interfaces;
 // Marker interfaces for CQRS pattern - used for type safety and categorization
 public interface ICommand { }
 
-public interface IQuery<TResult> { }
+// IQuery extends IRequest so the dispatchability of every query is a compiler guarantee,
+// not a convention-test assertion. The reverse rule (requests in the Queries namespace must
+// be IQuery) stays convention-tested — the compiler cannot see namespace intent.
+public interface IQuery<TResult> : IRequest<TResult> { }
 
 public interface IOwnerScopedRequest { }
 

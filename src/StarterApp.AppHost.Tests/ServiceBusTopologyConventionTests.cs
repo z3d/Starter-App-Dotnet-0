@@ -88,6 +88,34 @@ public class ServiceBusTopologyConventionTests
     }
 
     [Fact]
+    public void EveryDomainEventContract_MustBeCoveredByASubscriptionFilter()
+    {
+        // The reverse of the filter-validity rule: a contract that is published but matched by
+        // no subscription filter is a silent shredder — real Azure Service Bus discards the
+        // message instantly, the outbox row is already marked processed, and recoverability is
+        // time-boxed by outbox retention. This exact loss class is recorded once in
+        // docs/investigations/. A deliberately publish-only contract must be allowlisted here
+        // with a comment explaining who consumes it out-of-band.
+        string[] publishOnlyAllowlist = [];
+
+        var filteredContracts = ServiceBusTopology.SubscriptionFilters
+            .Select(filter => filter.EventType)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var uncovered = typeof(IDomainEvent).Assembly.GetTypes()
+            .Where(type => type.IsClass && !type.IsAbstract && typeof(IDomainEvent).IsAssignableFrom(type))
+            .Select(type => (System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type) as IDomainEvent)?.EventType)
+            .Where(eventType => !string.IsNullOrWhiteSpace(eventType))
+            .Where(eventType => !filteredContracts.Contains(eventType!) && !publishOnlyAllowlist.Contains(eventType))
+            .ToList();
+
+        Assert.True(uncovered.Count == 0,
+            "Every domain event contract must be covered by a subscription filter (or explicitly " +
+            "allowlisted as publish-only) — an unmatched publish is silently discarded by the broker:\n" +
+            string.Join("\n", uncovered));
+    }
+
+    [Fact]
     public void Topology_MustNotSilentlyExpireEventsDuringConsumerDowntime()
     {
         // A 1h TTL with expiration dead-lettering off (the Azure default) deletes every event that

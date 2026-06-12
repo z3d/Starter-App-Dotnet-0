@@ -1,32 +1,62 @@
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace StarterApp.Tests.Infrastructure.Caching;
 
 public class CacheInvalidatorTests
 {
+    private static readonly CurrentUser AuthenticatedUser = new(
+        "subject-1",
+        AuthenticatedPrincipalType.User,
+        "tenant-1",
+        ["products:read"],
+        "correlation",
+        null,
+        null,
+        null);
+
     private readonly Mock<IDistributedCache> _cacheMock = new();
-    private readonly CacheInvalidator _invalidator;
 
-    public CacheInvalidatorTests()
+    private CacheInvalidator CreateInvalidator(ICurrentUser currentUser) =>
+        new(_cacheMock.Object, currentUser, NullLogger<CacheInvalidator>.Instance);
+
+    [Fact]
+    public async Task InvalidateProductAsync_RemovesOnlyTheOwnerScopedKey()
     {
-        _invalidator = new CacheInvalidator(_cacheMock.Object);
+        var invalidator = CreateInvalidator(AuthenticatedUser);
+
+        await invalidator.InvalidateProductAsync(42, CancellationToken.None);
+
+        // The bare key has no writer (cacheable queries are owner-scoped and unreachable
+        // without a gateway identity), so it must not be touched.
+        _cacheMock.Verify(c => c.RemoveAsync(
+            It.Is<string>(key => key.StartsWith("Product:42:Owner:", StringComparison.Ordinal)),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _cacheMock.Verify(c => c.RemoveAsync("Product:42", It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task InvalidateProductAsync_ShouldRemoveProductCacheKey()
+    public async Task InvalidateCustomerAsync_RemovesOnlyTheOwnerScopedKey()
     {
-        await _invalidator.InvalidateProductAsync(42, CancellationToken.None);
+        var invalidator = CreateInvalidator(AuthenticatedUser);
 
-        _cacheMock.Verify(c => c.RemoveAsync("Product:42", It.IsAny<CancellationToken>()), Times.Once);
+        await invalidator.InvalidateCustomerAsync(7, CancellationToken.None);
+
+        _cacheMock.Verify(c => c.RemoveAsync(
+            It.Is<string>(key => key.StartsWith("Customer:7:Owner:", StringComparison.Ordinal)),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _cacheMock.Verify(c => c.RemoveAsync("Customer:7", It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task InvalidateCustomerAsync_ShouldRemoveCustomerCacheKey()
+    public async Task InvalidateProductAsync_WithoutIdentity_IsANoOp()
     {
-        await _invalidator.InvalidateCustomerAsync(7, CancellationToken.None);
+        var invalidator = CreateInvalidator(CurrentUser.Anonymous);
 
-        _cacheMock.Verify(c => c.RemoveAsync("Customer:7", It.IsAny<CancellationToken>()), Times.Once);
+        await invalidator.InvalidateProductAsync(42, CancellationToken.None);
+
+        _cacheMock.Verify(c => c.RemoveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -35,32 +65,11 @@ public class CacheInvalidatorTests
         _cacheMock
             .Setup(c => c.RemoveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("cache offline"));
+        var invalidator = CreateInvalidator(AuthenticatedUser);
 
         // A transient cache outage must not turn an already-committed write into a 500.
-        var exception = await Record.ExceptionAsync(() => _invalidator.InvalidateProductAsync(42, CancellationToken.None));
+        var exception = await Record.ExceptionAsync(() => invalidator.InvalidateProductAsync(42, CancellationToken.None));
 
         Assert.Null(exception);
-    }
-
-    [Fact]
-    public async Task InvalidateProductAsync_WithAuthenticatedUser_ShouldRemoveOwnerScopedCacheKey()
-    {
-        var currentUser = new CurrentUser(
-            "subject-1",
-            AuthenticatedPrincipalType.User,
-            "tenant-1",
-            ["products:read"],
-            "correlation",
-            null,
-            null,
-            null);
-        var invalidator = new CacheInvalidator(_cacheMock.Object, currentUser);
-
-        await invalidator.InvalidateProductAsync(42, CancellationToken.None);
-
-        _cacheMock.Verify(c => c.RemoveAsync("Product:42", It.IsAny<CancellationToken>()), Times.Once);
-        _cacheMock.Verify(c => c.RemoveAsync(
-            It.Is<string>(key => key.StartsWith("Product:42:Owner:", StringComparison.Ordinal)),
-            It.IsAny<CancellationToken>()), Times.Once);
     }
 }

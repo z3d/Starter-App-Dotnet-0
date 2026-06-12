@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Application.Queries;
 
-public class GetOrdersByCustomerQuery : IQuery<IEnumerable<OrderReadModel>>, IRequest<IEnumerable<OrderReadModel>>, IOwnerScopedRequest
+public class GetOrdersByCustomerQuery : IQuery<IEnumerable<OrderReadModel>>, IOwnerScopedRequest
 {
     public int CustomerId { get; set; }
     public int Page { get; set; } = 1;

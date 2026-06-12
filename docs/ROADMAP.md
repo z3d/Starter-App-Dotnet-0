@@ -132,21 +132,21 @@ survives sessions; each item is marked done with its commit, same discipline as 
    5.18ms) — fixed by widening the order pool from the bulk-seeded catalog in `load.js`.
 
 **Ports (verified PORT verdicts)**
-2. [ ] Drop `'legacy-owner'/'legacy-tenant'` DDL DEFAULTs (migration 0004 + not-null regression
-   test; keep the `OwnershipDefaults` consts).
-3. [ ] Convention test: every `IDomainEvent` contract must be covered by a subscription filter
-   (explicit publish-only allowlist, currently empty) — kills the silent-shredder class already
-   recorded once in `docs/investigations/`.
+2. [x] Drop legacy DDL DEFAULTs — DONE (commit "refactor: complexity-review ports — DDL
+   defaults, event-coverage convention, invalidator, IQuery inheritance"). Migration 0004 +
+   23502 regression test.
+3. [x] Event-coverage convention — DONE (same commit as item 2);
+   `EveryDomainEventContract_MustBeCoveredByASubscriptionFilter` with empty publish-only allowlist.
 4. [ ] Serve-stale-on-refresh-failure in `CachingBehavior` (catch scoped to the winner's
    `next()`, rethrow cancellation) + tests.
 5. [x] Drop the request-row `action` stamp — DONE (commit "refactor: small complexity-review
    ports — request-row action, ctor-event rationale, status length, toggle exemplar").
 6. [ ] Remove `X-Authenticated-Email/Client-Id/Issuer` from the gateway header reader and
    `ICurrentUser` (zero consumers; wider than the documented contract).
-7. [ ] Delete the bare-key invalidation branch + 1/2-arg ctors in `CacheInvalidator`; fix the
-   false "legacy" WHY in CLAUDE.md in lockstep.
-8. [ ] `IQuery<TResult> : IRequest<TResult>` (compiler replaces the tautological convention
-   half; keep the cohort-escape half).
+7. [x] CacheInvalidator bare-key branch + convenience ctors deleted — DONE (same commit as
+   item 2); CLAUDE.md WHY fixed in lockstep.
+8. [x] `IQuery<TResult> : IRequest<TResult>` — DONE (same commit as item 2); dual declarations
+   dropped from seven query files; tautological convention half removed, cohort-escape half kept.
 9. [ ] Stamp `replay`/`replayCount` into payload-capture metadata (OutboxProcessor + both
    Functions) so audit keeps the republish promise end-to-end.
 10. [x] Rewrite the stale ChangeTracker rationale — DONE (same commit as item 5).

@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Application.Queries;
 
-public class GetCustomerQuery : IQuery<CustomerReadModel?>, IRequest<CustomerReadModel?>, ICacheable, IOwnerScopedRequest
+public class GetCustomerQuery : IQuery<CustomerReadModel?>, ICacheable, IOwnerScopedRequest
 {
     public int Id { get; }
     public string CacheKey => $"Customer:{Id}";
