@@ -8,41 +8,25 @@ using Npgsql;
 
 namespace StarterApp.AppHost.Tests;
 
+[Collection("Aspire E2E")]
 [Trait("Category", "Aspire")]
 public class OutboxToServiceBusIntegrationTests
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
-    [Fact]
-    public async Task AppHost_ShouldEventuallyExposeHealthyApi()
+    private readonly AspireE2EFixture _fixture;
+
+    public OutboxToServiceBusIntegrationTests(AspireE2EFixture fixture)
     {
-        // Arrange
-        var appHost = await DistributedApplicationTestingBuilder
-            .CreateAsync<Projects.StarterApp_AppHost>();
-        await using var app = await appHost.BuildAsync();
-        await app.StartAsync();
-
-        var httpClient = app.CreateHttpClient("api");
-        ConfigureGatewayIdentity(httpClient);
-
-        // Act — poll with retries instead of a single GET, since resources may still be starting
-        var response = await PollForHealthyAsync(httpClient, "/health/live");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        _fixture = fixture;
     }
 
     [Fact]
     public async Task CreateOrder_ShouldSucceedEndToEnd()
     {
         // Arrange
-        var appHost = await DistributedApplicationTestingBuilder
-            .CreateAsync<Projects.StarterApp_AppHost>();
-        await using var app = await appHost.BuildAsync();
-        await app.StartAsync();
-
-        var httpClient = app.CreateHttpClient("api");
-        ConfigureGatewayIdentity(httpClient);
+        var app = _fixture.App;
+        var httpClient = _fixture.CreateApiClient();
 
         // Wait for API to be ready
         await PollForHealthyAsync(httpClient, "/health/ready");
@@ -97,14 +81,10 @@ public class OutboxToServiceBusIntegrationTests
     [Fact]
     public async Task HealthEndpoints_ShouldBeReachable()
     {
-        // Arrange
-        var appHost = await DistributedApplicationTestingBuilder
-            .CreateAsync<Projects.StarterApp_AppHost>();
-        await using var app = await appHost.BuildAsync();
-        await app.StartAsync();
-
-        var httpClient = app.CreateHttpClient("api");
-        ConfigureGatewayIdentity(httpClient);
+        // Arrange — anonymous on purpose: orchestrator probes carry no gateway identity, so a
+        // regression that puts auth in front of readiness/liveness must fail HERE.
+        var app = _fixture.App;
+        var httpClient = _fixture.CreateAnonymousApiClient();
 
         // Wait for full readiness before checking all endpoints
         await PollForHealthyAsync(httpClient, "/health/ready");
@@ -124,13 +104,8 @@ public class OutboxToServiceBusIntegrationTests
     public async Task CreateOrder_ShouldWriteAndProcessOutboxEvent()
     {
         // Arrange
-        var appHost = await DistributedApplicationTestingBuilder
-            .CreateAsync<Projects.StarterApp_AppHost>();
-        await using var app = await appHost.BuildAsync();
-        await app.StartAsync();
-
-        var httpClient = app.CreateHttpClient("api");
-        ConfigureGatewayIdentity(httpClient);
+        var app = _fixture.App;
+        var httpClient = _fixture.CreateApiClient();
         await PollForHealthyAsync(httpClient, "/health/ready");
 
         // Create a customer
@@ -208,13 +183,8 @@ public class OutboxToServiceBusIntegrationTests
     public async Task CreateCustomer_ShouldArchivePayloadsToAspireBlobStorage()
     {
         // Arrange
-        var appHost = await DistributedApplicationTestingBuilder
-            .CreateAsync<Projects.StarterApp_AppHost>();
-        await using var app = await appHost.BuildAsync();
-        await app.StartAsync();
-
-        var httpClient = app.CreateHttpClient("api");
-        ConfigureGatewayIdentity(httpClient);
+        var app = _fixture.App;
+        var httpClient = _fixture.CreateApiClient();
         await PollForHealthyAsync(httpClient, "/health/ready");
 
         var correlationId = $"aspire-{Guid.NewGuid():N}";
@@ -344,14 +314,6 @@ public class OutboxToServiceBusIntegrationTests
         }
     }
 
-    private static void ConfigureGatewayIdentity(HttpClient client)
-    {
-        client.DefaultRequestHeaders.Add("X-Authenticated-Subject", "apphost-test-user");
-        client.DefaultRequestHeaders.Add("X-Authenticated-Principal-Type", "User");
-        client.DefaultRequestHeaders.Add("X-Authenticated-Tenant-Id", "apphost-test-tenant");
-        client.DefaultRequestHeaders.Add("X-Authenticated-Scopes", "customers:read customers:write orders:read orders:write products:read products:write");
-        client.DefaultRequestHeaders.Add("X-Authenticated-Amr", "mfa pwd");
-    }
 
     private static async Task<(string BlobName, string Content)> PollForBlobContentAsync(
         string storageConnectionString,
