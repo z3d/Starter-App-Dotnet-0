@@ -169,9 +169,8 @@ survives sessions; each item is marked done with its commit, same discipline as 
     cohort-gating facts with synthetic-fixture extraction tests; emit report to file.
 19. [x] Read-only reporting guard — DONE (same commit as item 16).
 20. [x] KB pointers + verification-query schema guard — DONE (same commit as item 16).
-21. [ ] New `docs/DERIVATION-PRUNING.md` (anonymized): the pruning discipline for derived
-    projects — named falsifiable re-add triggers, check ops consumers first, re-adds ship as
-    one change, never park events on subscriber-less topics.
+21. [x] `docs/DERIVATION-PRUNING.md` — DONE (commit "docs: add the derivation-pruning
+    discipline guide").
 
 **Deferred (named triggers, decision-on-file)**
 - Dead-letter-with-reason in Functions subscribers — trigger: first real handler logic.
