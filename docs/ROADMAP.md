@@ -122,11 +122,11 @@ project's pruning experience. 76 findings; 37 adversarially verified. Tracked he
 survives sessions; each item is marked done with its commit, same discipline as the roadmap.
 
 **P0 — live defect**
-1. [ ] Rate-limiting bundle: delete the dead "fixed" named policy, options-bind the global
-   limiter (PermitLimit/Window/QueueLimit via validated options), perf-gate override in
-   `tests/k6/run-perf.sh`, partition-key regression test. The nightly perf gate's first run
-   failed at 98.6% errors because the hardcoded 100/min global limit throttles the single k6
-   identity — the gate worked; the limiter config is the defect.
+1. [x] Rate-limiting bundle — DONE (commit "fix: options-bind the rate limiter, drop the dead
+   named policy, lift the limit for the perf gate"). Dead "fixed" policy deleted;
+   `RateLimitingOptions` (validated, explicit appsettings defaults); partition key extracted to
+   `ResolveRateLimitPartitionKey` with regression tests; `run-perf.sh` lifts `PermitLimit` since
+   the whole load runs under one k6 identity — root cause of the 98.6%-error first nightly run.
 
 **Ports (verified PORT verdicts)**
 2. [ ] Drop `'legacy-owner'/'legacy-tenant'` DDL DEFAULTs (migration 0004 + not-null regression

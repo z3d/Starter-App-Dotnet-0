@@ -126,36 +126,42 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddApiRateLimiting(this IServiceCollection services)
     {
+        services.AddOptions<RateLimitingOptions>()
+            .BindConfiguration(RateLimitingOptions.SectionName)
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.AddRateLimiter(options =>
         {
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
             {
-                var currentUser = httpContext.RequestServices.GetService<ICurrentUser>();
-                var key = currentUser is { IsAuthenticated: true }
-                    ? $"identity:{currentUser.TenantId}:{currentUser.Subject}"
-                    : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+                var key = ResolveRateLimitPartitionKey(httpContext);
+                var limits = httpContext.RequestServices
+                    .GetRequiredService<Microsoft.Extensions.Options.IOptions<RateLimitingOptions>>().Value;
 
                 return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
                 {
-                    PermitLimit = 100,
-                    Window = TimeSpan.FromMinutes(1),
+                    PermitLimit = limits.PermitLimit,
+                    Window = TimeSpan.FromSeconds(limits.WindowSeconds),
                     QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                    QueueLimit = 5
+                    QueueLimit = limits.QueueLimit
                 });
-            });
-
-            options.AddFixedWindowLimiter("fixed", options =>
-            {
-                options.PermitLimit = 100;
-                options.Window = TimeSpan.FromMinutes(1);
-                options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                options.QueueLimit = 5;
             });
 
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
         });
 
         return services;
+    }
+
+    // Authenticated traffic is partitioned by the verified gateway identity so one tenant
+    // cannot starve another; only unauthenticated traffic falls back to client IP.
+    internal static string ResolveRateLimitPartitionKey(HttpContext httpContext)
+    {
+        var currentUser = httpContext.RequestServices.GetService<ICurrentUser>();
+        return currentUser is { IsAuthenticated: true }
+            ? $"identity:{currentUser.TenantId}:{currentUser.Subject}"
+            : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
     }
 
     private static bool IsDevelopmentLike(IHostEnvironment environment)

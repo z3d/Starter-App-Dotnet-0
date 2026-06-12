@@ -104,11 +104,15 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
     [[ -z "$K6_MIN_LIST_ROWS_EXPLICIT" ]] && K6_MIN_LIST_ROWS=1
   fi
 
+  # The entire load profile runs under the single k6 gateway identity, so the
+  # per-identity rate limit must be lifted or the gate measures the limiter
+  # (98.6% 429s on the first nightly run), not the API.
   log "Starting API on port $API_PORT (Development / UnsignedDevelopment)"
   : > "$API_LOG"
   ASPNETCORE_ENVIRONMENT=Development \
   ASPNETCORE_URLS="http://0.0.0.0:${API_PORT}" \
   ConnectionStrings__database="$CONN" \
+  RateLimiting__PermitLimit=1000000 \
     dotnet run --project "$REPO_ROOT/src/StarterApp.Api" -c Release --no-launch-profile \
     >"$API_LOG" 2>&1 &
   API_PID=$!

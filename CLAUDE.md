@@ -110,7 +110,7 @@ Validators and domain guards intentionally overlap (defense-in-depth). When modi
 - All resource queries must implement `IOwnerScopedRequest`, and all command/query handlers must inject `IOwnerOnlyPolicy`; convention tests enforce both rules so future endpoints cannot drift back to global visibility
 - Owner-scoped by-id caches include the verified tenant/subject in the cache key. Mutations invalidate both the legacy resource key and the owner-scoped key so cached data cannot cross identities.
 - Gateway auth does not eliminate API authorization. Tenant ownership, resource-level permissions, and domain-sensitive workflow rules still belong in application/domain code, with `IOwnerOnlyPolicy` as the minimum baseline for owned resources.
-- Rate limiting partitions by the verified tenant/subject identity for protected endpoints and falls back to IP only for public/unauthenticated requests
+- Rate limiting partitions by the verified tenant/subject identity for protected endpoints and falls back to IP only for public/unauthenticated requests. Per-partition limits are options-bound (`RateLimiting:PermitLimit/WindowSeconds/QueueLimit`, validated at startup, explicit defaults in appsettings.json); the k6 perf gate lifts `PermitLimit` because its entire load runs under a single gateway identity
 
 **Clean Architecture**
 - Domain layer has no external dependencies

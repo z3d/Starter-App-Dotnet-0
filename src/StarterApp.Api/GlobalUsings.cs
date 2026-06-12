@@ -7,7 +7,6 @@ global using System.Threading.RateLimiting;
 global using Dapper;
 global using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 // Microsoft namespaces
-global using Microsoft.AspNetCore.RateLimiting;
 global using Microsoft.EntityFrameworkCore;
 // Logging with Serilog
 global using Serilog;
