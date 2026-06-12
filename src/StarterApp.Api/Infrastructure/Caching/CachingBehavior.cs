@@ -60,6 +60,15 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
                         await StoreAsync(cacheKey, cacheable, refreshed, cancellationToken);
                     return refreshed;
                 }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // Serve-stale-on-error (RFC 5861 shape): the cached value is still inside its
+                    // TTL — without this catch, refresh-ahead would be strictly worse than plain
+                    // expiry in-window (the recompute winner eats a 500 while losers get cache).
+                    // Scoped to the refresh recompute only; a plain miss still propagates.
+                    _logger.LogWarning(ex, "Refresh-ahead recompute failed for {CacheKey}; serving the cached value until the next attempt", cacheKey);
+                    return envelope.Value!;
+                }
                 finally
                 {
                     RefreshesInFlight.TryRemove(cacheKey, out _);

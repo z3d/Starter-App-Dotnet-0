@@ -137,8 +137,8 @@ survives sessions; each item is marked done with its commit, same discipline as 
    23502 regression test.
 3. [x] Event-coverage convention — DONE (same commit as item 2);
    `EveryDomainEventContract_MustBeCoveredByASubscriptionFilter` with empty publish-only allowlist.
-4. [ ] Serve-stale-on-refresh-failure in `CachingBehavior` (catch scoped to the winner's
-   `next()`, rethrow cancellation) + tests.
+4. [x] Serve-stale-on-refresh-failure — DONE (commit "feat: serve stale on refresh-ahead
+   recompute failure; stamp replay metadata into capture").
 5. [x] Drop the request-row `action` stamp — DONE (commit "refactor: small complexity-review
    ports — request-row action, ctor-event rationale, status length, toggle exemplar").
 6. [ ] Remove `X-Authenticated-Email/Client-Id/Issuer` from the gateway header reader and
@@ -147,8 +147,8 @@ survives sessions; each item is marked done with its commit, same discipline as 
    item 2); CLAUDE.md WHY fixed in lockstep.
 8. [x] `IQuery<TResult> : IRequest<TResult>` — DONE (same commit as item 2); dual declarations
    dropped from seven query files; tautological convention half removed, cohort-escape half kept.
-9. [ ] Stamp `replay`/`replayCount` into payload-capture metadata (OutboxProcessor + both
-   Functions) so audit keeps the republish promise end-to-end.
+9. [x] Replay metadata in capture — DONE (same commit as item 4); processor outbound capture
+   and both Functions' inbound captures carry replay/replayCount.
 10. [x] Rewrite the stale ChangeTracker rationale — DONE (same commit as item 5).
 11. [x] `[FeatureToggle("order-placement")]` exemplar — DONE (same commit as item 5).
 12. [ ] Promote `amr` to a signed gateway-assertion field; delete the projected-header hash

@@ -210,6 +210,49 @@ public class CachingBehaviorTests
     }
 
     [Fact]
+    public async Task HandleAsync_RefreshRecomputeFails_ServesTheCachedValue()
+    {
+        var request = new TestQuery { Id = 21 };
+        _cacheMock.Setup(c => c.GetAsync("Test:21", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Envelope("stale value", DateTimeOffset.UtcNow.AddSeconds(-5)));
+
+        var result = await _behavior.HandleAsync(
+            request,
+            () => Task.FromException<string>(new InvalidOperationException("database offline")),
+            CancellationToken.None);
+
+        // The entry is still inside its TTL: a failed early recompute must degrade to the
+        // cached value, not turn a cache HIT into a 500.
+        Assert.Equal("stale value", result);
+    }
+
+    [Fact]
+    public async Task HandleAsync_RefreshRecomputeCancelled_PropagatesCancellation()
+    {
+        var request = new TestQuery { Id = 23 };
+        _cacheMock.Setup(c => c.GetAsync("Test:23", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Envelope("stale value", DateTimeOffset.UtcNow.AddSeconds(-5)));
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => _behavior.HandleAsync(
+            request,
+            () => Task.FromException<string>(new OperationCanceledException()),
+            CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task HandleAsync_PlainMissFailure_StillPropagates()
+    {
+        var request = new TestQuery { Id = 27 };
+        _cacheMock.Setup(c => c.GetAsync("Test:27", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((byte[]?)null);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _behavior.HandleAsync(
+            request,
+            () => Task.FromException<string>(new InvalidOperationException("database offline")),
+            CancellationToken.None));
+    }
+
+    [Fact]
     public async Task HandleAsync_WithLegacyCacheFormat_TreatsEntryAsMissAndRewrites()
     {
         var request = new TestQuery { Id = 13 };

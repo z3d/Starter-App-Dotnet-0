@@ -149,12 +149,7 @@ public class OutboxProcessor : BackgroundService
                         Operation = message.Type,
                         ContentType = "application/json",
                         Payload = message.Payload,
-                        Metadata = new Dictionary<string, string>
-                        {
-                            ["messageId"] = message.Id.ToString(),
-                            ["subject"] = message.Type,
-                            ["topic"] = _options.TopicName
-                        }
+                        Metadata = BuildCaptureMetadata(message, _options.TopicName)
                     }, cancellationToken);
                 }
                 catch (Exception captureEx) when (captureEx is not OperationCanceledException)
@@ -336,6 +331,27 @@ public class OutboxProcessor : BackgroundService
             .OrderBy(m => m.OccurredOnUtc)
             .Take(_options.BatchSize)
             .ToListAsync(cancellationToken);
+    }
+
+    // The runbook and CLAUDE.md promise that audit distinguishes an operator republish from a
+    // first delivery; the capture metadata must carry the same marker as the message itself,
+    // because for dead-letter resubmits the captured record is the only durable artifact.
+    internal static Dictionary<string, string> BuildCaptureMetadata(OutboxMessage message, string topicName)
+    {
+        var metadata = new Dictionary<string, string>
+        {
+            ["messageId"] = message.Id.ToString(),
+            ["subject"] = message.Type,
+            ["topic"] = topicName
+        };
+
+        if (message.ReplayCount > 0)
+        {
+            metadata["replay"] = "true";
+            metadata["replayCount"] = message.ReplayCount.ToString(CultureInfo.InvariantCulture);
+        }
+
+        return metadata;
     }
 
     public static ServiceBusMessage BuildServiceBusMessage(OutboxMessage message)
