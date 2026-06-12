@@ -47,5 +47,5 @@ happens on the Service Bus side:
    `entity-index/` pointers), and the outbox row's `payload` column is a second copy.
 5. Tag any manually re-submitted message with `Replay=true` so audit stays truthful.
 
-Cross-reference: `docs/ROADMAP.md` (incident knowledge base) is the place to record recurring
+Cross-reference: `docs/investigations/` (see its README) is the place to record recurring
 DLQ patterns and their verified default actions.

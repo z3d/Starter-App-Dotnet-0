@@ -161,16 +161,14 @@ survives sessions; each item is marked done with its commit, same discipline as 
 15. [x] `.HasMaxLength(50)` on `Order.Status` — DONE (same commit as item 5).
 
 **Simplify (lighter shape, verified)**
-16. [ ] Rename the sink's `{Payload}` log token to `{RedactedPayload}` and extend the raw-body
-    log scan to block `{Payload}`; document the scan as a tripwire, not a sound guard.
-17. [ ] Exact-match capture skip for the four health probe routes only (never `/api/v1`,
-    pinned by test); amend the capture-first recorded decision in both doc mirrors.
+16. [x] `{RedactedPayload}` token + scan extended to `{Payload}` — DONE (commit "refactor:
+    simplify-block ports — log token, probe skip, read-only reporting guard, KB pointers").
+17. [x] Probe-route capture skip — DONE (same commit as item 16); exact-match four routes,
+    pinned never-`/api` by test; capture-first decision amended in both doc mirrors.
 18. [ ] Consistency suite: remove the embeddings stub + AST shingles (~1k lines); replace
     cohort-gating facts with synthetic-fixture extraction tests; emit report to file.
-19. [ ] Reporting-query tests run under `default_transaction_read_only=on` + negative test;
-    README example values instead of psql placeholders.
-20. [ ] Incident KB: fix three dangling doc pointers; execute KB-embedded SQL against the
-    migrated schema beside `ReportingQueryTests`.
+19. [x] Read-only reporting guard — DONE (same commit as item 16).
+20. [x] KB pointers + verification-query schema guard — DONE (same commit as item 16).
 21. [ ] New `docs/DERIVATION-PRUNING.md` (anonymized): the pruning discipline for derived
     projects — named falsifiable re-add triggers, check ops consumers first, re-adds ship as
     one change, never park events on subscriber-less topics.

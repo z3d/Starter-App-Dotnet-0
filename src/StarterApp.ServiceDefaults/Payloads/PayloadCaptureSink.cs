@@ -126,7 +126,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
 
             var redactedPayload = RedactForLog(request);
             _logger.LogInformation(
-                "Captured {Direction} {Channel} payload for {Operation} with correlation {CorrelationId}. ArchiveBlob: {ArchiveBlobName}. AuditBlob: {AuditBlobName}. EntityIndexBlobs: {EntityIndexBlobNames}. Truncated: {PayloadTruncated}. SkipReason: {PayloadSkipReason}. Payload: {Payload}",
+                "Captured {Direction} {Channel} payload for {Operation} with correlation {CorrelationId}. ArchiveBlob: {ArchiveBlobName}. AuditBlob: {AuditBlobName}. EntityIndexBlobs: {EntityIndexBlobNames}. Truncated: {PayloadTruncated}. SkipReason: {PayloadSkipReason}. Payload: {RedactedPayload}",
                 request.Direction,
                 request.Channel,
                 request.Operation,

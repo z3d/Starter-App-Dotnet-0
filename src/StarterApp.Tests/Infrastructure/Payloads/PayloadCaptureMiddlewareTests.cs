@@ -212,4 +212,41 @@ public class PayloadCaptureMiddlewareTests
         Assert.Contains("\"subject\":\"subject-7\"", auditRows[1]);
         Assert.Contains("\"tenantId\":\"tenant-7\"", auditRows[1]);
     }
+
+    [Fact]
+    public async Task InvokeAsync_SkipsCaptureForHealthProbeRoutes()
+    {
+        var store = new InMemoryPayloadArchiveStore();
+        var sink = PayloadCaptureTests.CreateSink(store, new DateTimeOffset(2026, 6, 12, 8, 0, 0, TimeSpan.Zero));
+        var middleware = new PayloadCaptureMiddleware(async context =>
+        {
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync("{}");
+        }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+
+        foreach (var route in PayloadCaptureMiddleware.ProbeSkipRoutes)
+        {
+            var context = new DefaultHttpContext();
+            context.Request.Method = HttpMethods.Get;
+            context.Request.Path = route;
+            context.Response.Body = new MemoryStream();
+            await middleware.InvokeAsync(context);
+        }
+
+        Assert.Empty(store.Lines);
+    }
+
+    [Fact]
+    public void ProbeSkipRoutes_CanNeverExcludeTheBusinessSurface()
+    {
+        // The skip list is hardcoded and exact-match on purpose. If this test is failing,
+        // someone is trying to exclude business traffic from the audit artifact — that
+        // requires a new recorded decision, not an entry here.
+        Assert.Equal(4, PayloadCaptureMiddleware.ProbeSkipRoutes.Count);
+        Assert.All(PayloadCaptureMiddleware.ProbeSkipRoutes, route =>
+        {
+            Assert.False(route.StartsWith("/api", StringComparison.OrdinalIgnoreCase));
+            Assert.False(route.EndsWith('/'));
+        });
+    }
 }

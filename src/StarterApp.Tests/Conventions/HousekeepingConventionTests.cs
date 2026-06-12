@@ -76,8 +76,12 @@ public class HousekeepingConventionTests : ConventionTestBase
             foreach (var line in File.ReadLines(file))
             {
                 lineNumber++;
-                if (line.Contains("{Body}", StringComparison.Ordinal))
-                    failures.Add($"{FormatPath(file)}:{lineNumber} raw Body placeholders must not be written to logs; archive full payloads and log redacted payloads only.");
+                // Tripwire, not a sound guard: a determined rename evades a token scan. The
+                // sink logs through the {RedactedPayload} token (self-describing: the value has
+                // passed JsonPayloadRedactor), so any reappearance of the raw-sounding tokens
+                // is either a new unredacted log site or a misleading rename — both rejected.
+                if (line.Contains("{Body}", StringComparison.Ordinal) || line.Contains("{Payload}", StringComparison.Ordinal))
+                    failures.Add($"{FormatPath(file)}:{lineNumber} raw Body/Payload placeholders must not be written to logs; archive full payloads and log redacted payloads only (use {{RedactedPayload}} for redactor output).");
             }
         }
 

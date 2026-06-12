@@ -24,8 +24,26 @@ public sealed class PayloadCaptureMiddleware
         _logger = logger;
     }
 
+    // Exact-match only, deliberately hardcoded (configuration would allow excluding business
+    // routes): platform liveness/readiness probes hammer these paths and their capture is pure
+    // noise in the audit artifact ops actually reads. Everything else — including 404 junk and
+    // rejected traffic — is captured by design (see the capture-first recorded decision).
+    internal static readonly IReadOnlySet<string> ProbeSkipRoutes = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "/health",
+        "/health/ready",
+        "/health/live",
+        "/alive"
+    };
+
     public async Task InvokeAsync(HttpContext context)
     {
+        if (context.Request.Path.Value is { } path && ProbeSkipRoutes.Contains(path))
+        {
+            await _next(context);
+            return;
+        }
+
         var correlationId = ResolveCorrelationId(context, out var hadInboundCorrelationId);
         context.TraceIdentifier = correlationId;
 

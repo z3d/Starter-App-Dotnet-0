@@ -41,7 +41,7 @@ skill set grows.
   mandates it and documents its command surface; improvised raw CLI is the fallback, not the
   default.
 - **Reuse accumulated knowledge.** Repeat-heavy investigation skills read and update the incident
-  knowledge base (`docs/investigations/` — see `docs/ROADMAP.md`) rather than starting every
+  knowledge base (`docs/investigations/` — see its README) rather than starting every
   diagnosis from zero.
 
 ## When skills multiply

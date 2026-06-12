@@ -13,7 +13,8 @@ Rules:
   owners say so explicitly in their header comment.
 - **Indexed access.** Filter on indexed columns (see the index definitions in
   `src/StarterApp.DbMigrator/Scripts/`); a support query must never become the load problem.
-- Parameter placeholders use psql `:'name'` / `:name` syntax where a filter is expected.
+- Queries ship directly executable with literal example values where a filter is wanted —
+  edit the literal before running (no psql placeholder machinery to remember mid-incident).
 
 | File | Question it answers |
 |------|---------------------|
