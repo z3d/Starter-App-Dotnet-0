@@ -127,6 +127,9 @@ survives sessions; each item is marked done with its commit, same discipline as 
    `RateLimitingOptions` (validated, explicit appsettings defaults); partition key extracted to
    `ResolveRateLimitPartitionKey` with regression tests; `run-perf.sh` lifts `PermitLimit` since
    the whole load runs under one k6 identity — root cause of the 98.6%-error first nightly run.
+   Follow-up in the same item: the de-throttled run then exposed a load-shape artifact — all 50
+   order VUs convoyed on the ten setup-created products (create_order p95 20.12s; reads p95
+   5.18ms) — fixed by widening the order pool from the bulk-seeded catalog in `load.js`.
 
 **Ports (verified PORT verdicts)**
 2. [ ] Drop `'legacy-owner'/'legacy-tenant'` DDL DEFAULTs (migration 0004 + not-null regression

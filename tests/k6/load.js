@@ -81,6 +81,20 @@ export function setup() {
     );
   }
 
+  // Widen the order scenario's product pool from the bulk-seeded catalog: with only the
+  // ten setup-created products, fifty order VUs convoy on ten stock rows (row locks +
+  // xmin retries) and create_order collapses to tens of seconds — a load-shape artifact,
+  // not an API regression (hot-row correctness is covered by the concurrency tests).
+  // Seeded products carry 100k stock, so depletion is not a concern.
+  for (let page = 1; page <= 10; page++) {
+    const res = listProducts(page, 50);
+    const rows = res.status === 200 ? res.json('data') || [] : [];
+    for (const row of rows) {
+      if (row && row.id) productIds.push(row.id);
+    }
+    if (rows.length < 50) break;
+  }
+
   return { customerIds, productIds };
 }
 
