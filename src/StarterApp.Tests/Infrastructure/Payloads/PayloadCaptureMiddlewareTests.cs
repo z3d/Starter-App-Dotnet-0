@@ -201,8 +201,10 @@ public class PayloadCaptureMiddlewareTests
         var auditRows = store.Lines.Single(pair => pair.Key.StartsWith("audit/", StringComparison.Ordinal)).Value;
         Assert.Equal(2, auditRows.Count);
 
-        // Request row: captured before routing — verb-derived action, no identity yet asserted.
-        Assert.Contains("\"action\":\"Update\"", auditRows[0]);
+        // Request row: captured before routing, so it carries no action — the verb-derived
+        // value was wrong on exactly the override routes (cancel/status mapped to Create),
+        // and "method" already carries the verb. The response row is authoritative.
+        Assert.DoesNotContain("\"action\":", auditRows[0]);
 
         // Response row: endpoint override + verified identity, so "all status changes by
         // subject X" is answerable from audit rows alone.

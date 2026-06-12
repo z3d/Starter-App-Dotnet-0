@@ -80,10 +80,7 @@ public sealed class PayloadCaptureMiddleware
         {
             ["method"] = context.Request.Method,
             ["path"] = context.Request.Path.Value ?? string.Empty,
-            ["queryString"] = context.Request.QueryString.Value ?? string.Empty,
-            // Request rows run before routing: verb-derived only. The response row carries
-            // the endpoint-override-aware action.
-            ["action"] = AuditAction.FromMethod(context.Request.Method)
+            ["queryString"] = context.Request.QueryString.Value ?? string.Empty
         };
 
         if (!ShouldCaptureContentType(context.Request.ContentType))

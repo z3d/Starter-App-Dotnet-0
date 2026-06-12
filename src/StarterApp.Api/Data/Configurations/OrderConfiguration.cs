@@ -23,7 +23,8 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.Property(o => o.Status)
             .HasColumnName("status")
-            .HasConversion<string>();
+            .HasConversion<string>()
+            .HasMaxLength(50);
 
         builder.Property(o => o.OwnerSubject)
             .HasColumnName("owner_subject")

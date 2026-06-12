@@ -139,8 +139,8 @@ survives sessions; each item is marked done with its commit, same discipline as 
    recorded once in `docs/investigations/`.
 4. [ ] Serve-stale-on-refresh-failure in `CachingBehavior` (catch scoped to the winner's
    `next()`, rethrow cancellation) + tests.
-5. [ ] Drop the request-row `action` stamp in `PayloadCaptureMiddleware` (response row stays
-   authoritative); add a "Considered and rejected" line.
+5. [x] Drop the request-row `action` stamp — DONE (commit "refactor: small complexity-review
+   ports — request-row action, ctor-event rationale, status length, toggle exemplar").
 6. [ ] Remove `X-Authenticated-Email/Client-Id/Issuer` from the gateway header reader and
    `ICurrentUser` (zero consumers; wider than the documented contract).
 7. [ ] Delete the bare-key invalidation branch + 1/2-arg ctors in `CacheInvalidator`; fix the
@@ -149,9 +149,8 @@ survives sessions; each item is marked done with its commit, same discipline as 
    half; keep the cohort-escape half).
 9. [ ] Stamp `replay`/`replayCount` into payload-capture metadata (OutboxProcessor + both
    Functions) so audit keeps the republish promise end-to-end.
-10. [ ] Rewrite the stale ChangeTracker rationale comment in `DomainConventionTests`.
-11. [ ] `[FeatureToggle("order-placement")]` on `CreateOrderCommand` + explicit config entry
-    (live exemplar; de-vacuizes the toggle conventions).
+10. [x] Rewrite the stale ChangeTracker rationale — DONE (same commit as item 5).
+11. [x] `[FeatureToggle("order-placement")]` exemplar — DONE (same commit as item 5).
 12. [ ] Promote `amr` to a signed gateway-assertion field; delete the projected-header hash
     (after item 6 removes the other unsigned passengers).
 13. [ ] Shared Aspire E2E fixture: one distributed-app boot instead of five in
@@ -159,7 +158,7 @@ survives sessions; each item is marked done with its commit, same discipline as 
 14. [ ] Compact `docs/ARCHITECTURE_REVIEW.md` to living state (~180 lines), archive narratives
     under `docs/reviews/`, collapse ROADMAP DONE bodies; sweep stale facts (review-skill score,
     "no mechanical rule" premises) — keep "Considered and rejected" verbatim.
-15. [ ] `.HasMaxLength(50)` on `Order.Status` EF mapping.
+15. [x] `.HasMaxLength(50)` on `Order.Status` — DONE (same commit as item 5).
 
 **Simplify (lighter shape, verified)**
 16. [ ] Rename the sink's `{Payload}` log token to `{RedactedPayload}` and extend the raw-body
@@ -204,3 +203,6 @@ Recorded so future sessions do not re-propose them:
   `IDistributedCache`); revisit only with a versioned-namespace design.
 - **TypeScript client codegen** — marginal for an API-only template; OpenAPI output already serves
   contract consumers.
+- **Request-row audit `action` stamp** — captured before routing, the verb-derived value was wrong
+  on exactly the override routes and duplicated `method`; the response row is the authoritative
+  action carrier (complexity review, 2026-06-12).
