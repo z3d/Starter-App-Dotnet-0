@@ -7,7 +7,7 @@ user-invocable: false
 # Skill Authoring Conventions
 
 Two kinds of skill live in this repo. **Reference skills** document how this repo's patterns work
-(all current skills are this kind). **Operational skills** execute a workflow — investigations,
+(most skills here are this kind; architecture-review is the operational exemplar). **Operational skills** execute a workflow — investigations,
 code generation, deployment checks. The rules below keep both kinds safe and consistent as the
 skill set grows.
 

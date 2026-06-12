@@ -75,7 +75,7 @@ End with:
 
 ## Comprehensive Multi-Agent Mode (for "thorough"/"comprehensive"/"audit everything" requests)
 
-When the user wants an exhaustive audit (and especially when multi-agent orchestration is opted in), scale Phase 1–2 into a **find → dedup → adversarially verify** workflow via the Workflow tool instead of a single pass. This codebase is at 9.7/10 with a long history of *dismissing* plausible "HIGH/CRITICAL" findings as false positives, so the dominant failure mode is **plausible-but-wrong findings, not missed bugs**. Structure the workflow to refute, not to accumulate:
+When the user wants an exhaustive audit (and especially when multi-agent orchestration is opted in), scale Phase 1–2 into a **find → dedup → adversarially verify** workflow via the Workflow tool instead of a single pass. This codebase is mature and hardened, with a long history of *dismissing* plausible "HIGH/CRITICAL" findings as false positives (the current self-assessed score lives in docs/ARCHITECTURE_REVIEW.md — never trust a number embedded in skill text), so the dominant failure mode is **plausible-but-wrong findings, not missed bugs**. Structure the workflow to refute, not to accumulate:
 
 1. **Find** — fan out one finder per subsystem. The eight that map to this repo: security/auth (gateway assertion, scopes, MFA, owner-only policy), CQRS/domain, data-access/persistence, eventing/outbox/Service Bus, payload-capture/PII, build/CI/reproducibility, concurrency/correctness, and convention-test rigor. Tell each finder the bar is high, to ground every finding in `file:line` with quoted evidence, and that **zero findings is an acceptable answer**.
 2. **Dedup** — merge by file + normalized title in plain code (a barrier is correct here).
@@ -97,7 +97,7 @@ Guard against vacuous passes: any test that filters a discovered set (handlers, 
 
 ## Shared Artifact: docs/ARCHITECTURE_REVIEW.md
 
-Read it before starting (it carries prior findings, dismissals, the accepted-limitations list, and the current score) and update it after: mark findings resolved with the fix + the regression test added, record dismissed false positives so they aren't re-raised, and adjust the score conservatively. It is the sync point across concurrent agent sessions. Keep CLAUDE.md/AGENTS.md and `.claude/skills`↔`.agents/skills` in sync per the repo's drift rule.
+Read it before starting (it carries the open findings and current score; the dated history and dismissed false positives live in docs/reviews/) and update it after: mark findings resolved with the fix + the regression test added, record dismissed false positives so they aren't re-raised, and adjust the score conservatively. It is the sync point across concurrent agent sessions. Keep CLAUDE.md/AGENTS.md and `.claude/skills`↔`.agents/skills` in sync per the repo's drift rule.
 
 ## Rules
 
