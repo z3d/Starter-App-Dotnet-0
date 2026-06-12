@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Api.Infrastructure.Identity;
@@ -12,9 +10,6 @@ public static class GatewayIdentityHeaders
     public const string TenantId = "X-Authenticated-Tenant-Id";
     public const string Scopes = "X-Authenticated-Scopes";
     public const string AuthenticationMethods = "X-Authenticated-Amr";
-    public const string Email = "X-Authenticated-Email";
-    public const string ClientId = "X-Authenticated-Client-Id";
-    public const string Issuer = "X-Authenticated-Issuer";
 
     private const int MaxHeaderLength = 512;
     private const int MaxScopeLength = 100;
@@ -29,10 +24,7 @@ public static class GatewayIdentityHeaders
         PrincipalType,
         TenantId,
         Scopes,
-        AuthenticationMethods,
-        Email,
-        ClientId,
-        Issuer
+        AuthenticationMethods
     };
 
     internal static GatewayIdentityReadResult Read(IHeaderDictionary headers)
@@ -46,9 +38,6 @@ public static class GatewayIdentityHeaders
         var scopesValue = ReadRequiredHeader(headers, Scopes, errors);
         var correlationId = ReadRequiredHeader(headers, CorrelationContext.HeaderName, errors);
         var authenticationMethodsValue = ReadOptionalHeader(headers, AuthenticationMethods, errors);
-        var email = ReadOptionalHeader(headers, Email, errors);
-        var clientId = ReadOptionalHeader(headers, ClientId, errors);
-        var issuer = ReadOptionalHeader(headers, Issuer, errors);
 
         if (!Enum.TryParse<AuthenticatedPrincipalType>(principalTypeValue, ignoreCase: false, out var parsedPrincipalType))
             errors.Add($"{PrincipalType} must be either User or Service.");
@@ -71,30 +60,11 @@ public static class GatewayIdentityHeaders
             tenantId,
             scopes,
             correlationId,
-            email,
-            clientId,
-            issuer,
             authenticationMethods);
 
-        return GatewayIdentityReadResult.Success(new GatewayIdentityEnvelope(user, ComputeHeaderHash(user)));
+        return GatewayIdentityReadResult.Success(new GatewayIdentityEnvelope(user));
     }
 
-    internal static string ComputeHeaderHash(ICurrentUser user)
-    {
-        var builder = new StringBuilder();
-        AppendCanonicalHeader(builder, Subject, user.Subject);
-        AppendCanonicalHeader(builder, PrincipalType, user.PrincipalType.ToString());
-        AppendCanonicalHeader(builder, TenantId, user.TenantId);
-        AppendCanonicalHeader(builder, Scopes, string.Join(' ', user.Scopes.OrderBy(scope => scope, StringComparer.Ordinal)));
-        AppendCanonicalHeader(builder, AuthenticationMethods, string.Join(' ', user.AuthenticationMethods.OrderBy(method => method, StringComparer.Ordinal)));
-        AppendCanonicalHeader(builder, CorrelationContext.HeaderName, user.CorrelationId);
-        AppendCanonicalHeader(builder, Email, user.Email);
-        AppendCanonicalHeader(builder, ClientId, user.ClientId);
-        AppendCanonicalHeader(builder, Issuer, user.Issuer);
-
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()));
-        return GatewayAssertionToken.Base64UrlEncode(hash);
-    }
 
     private static void RejectUnsupportedAuthenticatedHeaders(IHeaderDictionary headers, ICollection<string> errors)
     {
@@ -227,16 +197,6 @@ public static class GatewayIdentityHeaders
             character is ':' or '.' or '_' or '-';
     }
 
-    private static void AppendCanonicalHeader(StringBuilder builder, string name, string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return;
-
-        builder.Append(name.ToLowerInvariant())
-            .Append('=')
-            .Append(value.Trim())
-            .Append('\n');
-    }
 }
 
 internal sealed record GatewayIdentityReadResult(

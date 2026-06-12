@@ -141,8 +141,8 @@ survives sessions; each item is marked done with its commit, same discipline as 
    recompute failure; stamp replay metadata into capture").
 5. [x] Drop the request-row `action` stamp — DONE (commit "refactor: small complexity-review
    ports — request-row action, ctor-event rationale, status length, toggle exemplar").
-6. [ ] Remove `X-Authenticated-Email/Client-Id/Issuer` from the gateway header reader and
-   `ICurrentUser` (zero consumers; wider than the documented contract).
+6. [x] Email/Client-Id/Issuer headers removed — DONE (commit "refactor!: sign amr as a
+   first-class assertion field; drop the projected-header hash and unused identity headers").
 7. [x] CacheInvalidator bare-key branch + convenience ctors deleted — DONE (same commit as
    item 2); CLAUDE.md WHY fixed in lockstep.
 8. [x] `IQuery<TResult> : IRequest<TResult>` — DONE (same commit as item 2); dual declarations
@@ -151,8 +151,8 @@ survives sessions; each item is marked done with its commit, same discipline as 
    and both Functions' inbound captures carry replay/replayCount.
 10. [x] Rewrite the stale ChangeTracker rationale — DONE (same commit as item 5).
 11. [x] `[FeatureToggle("order-placement")]` exemplar — DONE (same commit as item 5).
-12. [ ] Promote `amr` to a signed gateway-assertion field; delete the projected-header hash
-    (after item 6 removes the other unsigned passengers).
+12. [x] `amr` signed as a first-class field; projected-header hash deleted — DONE (same commit
+    as item 6). Tampered `X-Authenticated-Amr` now fails against the signature like scopes.
 13. [ ] Shared Aspire E2E fixture: one distributed-app boot instead of five in
     `OutboxToServiceBusIntegrationTests`.
 14. [ ] Compact `docs/ARCHITECTURE_REVIEW.md` to living state (~180 lines), archive narratives

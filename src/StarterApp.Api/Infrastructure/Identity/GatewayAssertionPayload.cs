@@ -31,8 +31,8 @@ internal sealed class GatewayAssertionPayload
     [JsonPropertyName("pth")]
     public string Path { get; init; } = string.Empty;
 
-    [JsonPropertyName("hsh")]
-    public string HeaderHash { get; init; } = string.Empty;
+    [JsonPropertyName("amr")]
+    public string[] AuthenticationMethods { get; init; } = Array.Empty<string>();
 
     [JsonPropertyName("iat")]
     public long IssuedAt { get; init; }

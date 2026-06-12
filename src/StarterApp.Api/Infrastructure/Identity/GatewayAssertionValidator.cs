@@ -66,8 +66,7 @@ internal sealed class GatewayAssertionValidator : IGatewayAssertionValidator
         if (!string.Equals(payload.Subject, envelope.User.Subject, StringComparison.Ordinal) ||
             !string.Equals(payload.PrincipalType, envelope.User.PrincipalType.ToString(), StringComparison.Ordinal) ||
             !string.Equals(payload.TenantId, envelope.User.TenantId, StringComparison.Ordinal) ||
-            !string.Equals(payload.CorrelationId, envelope.User.CorrelationId, StringComparison.Ordinal) ||
-            !string.Equals(payload.HeaderHash, envelope.HeaderHash, StringComparison.Ordinal))
+            !string.Equals(payload.CorrelationId, envelope.User.CorrelationId, StringComparison.Ordinal))
         {
             return GatewayAssertionValidationResult.Failure("Gateway assertion identity does not match the projected headers.");
         }
@@ -76,6 +75,16 @@ internal sealed class GatewayAssertionValidator : IGatewayAssertionValidator
         var headerScopes = envelope.User.Scopes.OrderBy(scope => scope, StringComparer.Ordinal).ToArray();
         if (!payloadScopes.SequenceEqual(headerScopes, StringComparer.Ordinal))
             return GatewayAssertionValidationResult.Failure("Gateway assertion scopes do not match the projected headers.");
+
+        // The authentication methods are a first-class signed field — SecuredBy2Fa trusts them,
+        // so a tampered X-Authenticated-Amr header must fail against the signature, exactly like
+        // scopes. (This replaced the projected-header hash: every other field the hash covered is
+        // already signed individually, and a canonicalization hash invites signer/verifier
+        // mismatch bugs without adding coverage.)
+        var payloadMethods = payload.AuthenticationMethods.OrderBy(method => method, StringComparer.Ordinal).ToArray();
+        var headerMethods = envelope.User.AuthenticationMethods.OrderBy(method => method, StringComparer.Ordinal).ToArray();
+        if (!payloadMethods.SequenceEqual(headerMethods, StringComparer.Ordinal))
+            return GatewayAssertionValidationResult.Failure("Gateway assertion authentication methods do not match the projected headers.");
 
         return GatewayAssertionValidationResult.Success();
     }

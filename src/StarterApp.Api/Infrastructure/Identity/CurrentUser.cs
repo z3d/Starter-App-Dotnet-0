@@ -11,9 +11,6 @@ public sealed class CurrentUser : ICurrentUser
         string tenantId,
         IEnumerable<string> scopes,
         string correlationId,
-        string? email,
-        string? clientId,
-        string? issuer,
         IEnumerable<string>? authenticationMethods = null)
     {
         Subject = subject;
@@ -22,9 +19,6 @@ public sealed class CurrentUser : ICurrentUser
         _scopes = new HashSet<string>(scopes, StringComparer.Ordinal);
         _authenticationMethods = new HashSet<string>(authenticationMethods ?? Array.Empty<string>(), StringComparer.Ordinal);
         CorrelationId = correlationId;
-        Email = email;
-        ClientId = clientId;
-        Issuer = issuer;
     }
 
     public static CurrentUser Anonymous { get; } = new(
@@ -32,10 +26,7 @@ public sealed class CurrentUser : ICurrentUser
         AuthenticatedPrincipalType.User,
         string.Empty,
         Array.Empty<string>(),
-        string.Empty,
-        null,
-        null,
-        null);
+        string.Empty);
 
     public bool IsAuthenticated => !string.IsNullOrEmpty(Subject);
 
@@ -50,12 +41,6 @@ public sealed class CurrentUser : ICurrentUser
     public IReadOnlySet<string> AuthenticationMethods => _authenticationMethods;
 
     public string CorrelationId { get; }
-
-    public string? Email { get; }
-
-    public string? ClientId { get; }
-
-    public string? Issuer { get; }
 
     public bool HasScope(string scope)
     {

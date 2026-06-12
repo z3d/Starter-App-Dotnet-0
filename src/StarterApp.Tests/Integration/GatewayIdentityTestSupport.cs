@@ -54,9 +54,6 @@ internal static class TestGatewayIdentity
             tenantId,
             scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
             correlationId,
-            null,
-            null,
-            null,
             authenticationMethods?.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? Array.Empty<string>());
 
         var now = issuedAt ?? DateTimeOffset.UtcNow;
@@ -71,7 +68,7 @@ internal static class TestGatewayIdentity
             CorrelationId = currentUser.CorrelationId,
             Method = method ?? request.Method.Method,
             Path = path ?? ResolvePath(request.RequestUri),
-            HeaderHash = GatewayIdentityHeaders.ComputeHeaderHash(currentUser),
+            AuthenticationMethods = currentUser.AuthenticationMethods.OrderBy(method => method, StringComparer.Ordinal).ToArray(),
             IssuedAt = now.ToUnixTimeSeconds(),
             ExpiresAt = (expiresAt ?? now.AddSeconds(60)).ToUnixTimeSeconds(),
             KeyId = keyId

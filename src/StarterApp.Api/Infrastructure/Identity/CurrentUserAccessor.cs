@@ -18,12 +18,6 @@ internal sealed class CurrentUserAccessor : ICurrentUser
 
     public string CorrelationId => _currentUser.CorrelationId;
 
-    public string? Email => _currentUser.Email;
-
-    public string? ClientId => _currentUser.ClientId;
-
-    public string? Issuer => _currentUser.Issuer;
-
     public void Set(CurrentUser currentUser)
     {
         _currentUser = currentUser;

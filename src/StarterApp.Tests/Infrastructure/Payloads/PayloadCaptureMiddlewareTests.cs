@@ -185,7 +185,7 @@ public class PayloadCaptureMiddlewareTests
         var services = new ServiceCollection();
         services.AddSingleton<ICurrentUser>(new CurrentUser(
             "subject-7", AuthenticatedPrincipalType.User, "tenant-7",
-            ["orders:write"], "case-789", null, null, null));
+            ["orders:write"], "case-789"));
         await using var provider = services.BuildServiceProvider();
 
         var context = new DefaultHttpContext { RequestServices = provider };

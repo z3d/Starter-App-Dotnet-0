@@ -11,10 +11,7 @@ public class CacheInvalidatorTests
         AuthenticatedPrincipalType.User,
         "tenant-1",
         ["products:read"],
-        "correlation",
-        null,
-        null,
-        null);
+        "correlation");
 
     private readonly Mock<IDistributedCache> _cacheMock = new();
 

@@ -6,7 +6,7 @@ namespace StarterApp.Tests.Infrastructure.Identity;
 public class GatewayIdentityHeadersTests
 {
     [Fact]
-    public void Read_WithValidHeaders_ShouldReturnCurrentUserAndStableHeaderHash()
+    public void Read_WithValidHeaders_ShouldReturnCurrentUser()
     {
         var context = CreateContext();
 
@@ -20,12 +20,13 @@ public class GatewayIdentityHeadersTests
         Assert.True(result.Envelope.User.HasScope("products:write"));
         Assert.True(result.Envelope.User.HasAuthenticationMethod("mfa"));
         Assert.True(result.Envelope.User.HasAuthenticationMethod("pwd"));
-        Assert.False(string.IsNullOrWhiteSpace(result.Envelope.HeaderHash));
     }
 
     [Fact]
-    public void Read_WithScopesInDifferentOrder_ShouldProduceSameHeaderHash()
+    public void Read_WithScopesInDifferentOrder_ShouldParseTheSameScopeSet()
     {
+        // Header ordering is not semantic: the parsed sets are what the validator compares
+        // (sorted on both sides), so order-insensitivity is a set property, not a hash property.
         var first = CreateContext();
         var second = CreateContext();
         second.Request.Headers[GatewayIdentityHeaders.Scopes] = "orders:read products:write";
@@ -37,11 +38,13 @@ public class GatewayIdentityHeadersTests
         Assert.True(secondResult.Succeeded);
         Assert.NotNull(firstResult.Envelope);
         Assert.NotNull(secondResult.Envelope);
-        Assert.Equal(firstResult.Envelope.HeaderHash, secondResult.Envelope.HeaderHash);
+        Assert.Equal(
+            firstResult.Envelope.User.Scopes.OrderBy(s => s, StringComparer.Ordinal),
+            secondResult.Envelope.User.Scopes.OrderBy(s => s, StringComparer.Ordinal));
     }
 
     [Fact]
-    public void Read_WithAuthenticationMethodsInDifferentOrder_ShouldProduceSameHeaderHash()
+    public void Read_WithAuthenticationMethodsInDifferentOrder_ShouldParseTheSameMethodSet()
     {
         var first = CreateContext();
         var second = CreateContext();
@@ -54,7 +57,9 @@ public class GatewayIdentityHeadersTests
         Assert.True(secondResult.Succeeded);
         Assert.NotNull(firstResult.Envelope);
         Assert.NotNull(secondResult.Envelope);
-        Assert.Equal(firstResult.Envelope.HeaderHash, secondResult.Envelope.HeaderHash);
+        Assert.Equal(
+            firstResult.Envelope.User.AuthenticationMethods.OrderBy(m => m, StringComparer.Ordinal),
+            secondResult.Envelope.User.AuthenticationMethods.OrderBy(m => m, StringComparer.Ordinal));
     }
 
     [Fact]
