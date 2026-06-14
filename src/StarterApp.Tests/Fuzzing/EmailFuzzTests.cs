@@ -1,4 +1,5 @@
 using FsCheck;
+using FsCheck.Fluent;
 using FsCheck.Xunit;
 
 namespace StarterApp.Tests.Fuzzing;
@@ -52,12 +53,12 @@ public class EmailFuzzTests
     [Property]
     public Property RandomStrings_NeverCrashUnexpectedly()
     {
-        return Prop.ForAll(Arb.Default.String(),
-            (string? value) =>
+        return Prop.ForAll(ArbMap.Default.ArbFor<string>(),
+            (string value) =>
             {
                 try
                 {
-                    Email.Create(value!);
+                    Email.Create(value);
                     return true;
                 }
                 catch (ArgumentException) { return true; }
