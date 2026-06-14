@@ -1,4 +1,5 @@
 using FsCheck;
+using FsCheck.Fluent;
 using FsCheck.Xunit;
 
 namespace StarterApp.Tests.Fuzzing;
@@ -105,11 +106,12 @@ public class OrderStateMachineFuzzTests
     public Property OrderTotals_EqualSumOfItemTotals()
     {
         var itemsGen = Gen.Choose(1, 5).SelectMany(count =>
-            Gen.ArrayOf(count,
+            Gen.ArrayOf(
                 Gen.Choose(1, 10000).Select(i => (decimal)i / 100m)
                     .SelectMany(amount => Gen.Choose(1, 10)
                         .SelectMany(qty => Gen.Elements(0.00m, 0.05m, 0.10m, 0.15m, 0.20m)
-                            .Select(gst => (Amount: amount, Quantity: qty, GstRate: gst))))));
+                            .Select(gst => (Amount: amount, Quantity: qty, GstRate: gst)))),
+                count));
 
         return Prop.ForAll(itemsGen.ToArbitrary(),
             itemSpecs =>
