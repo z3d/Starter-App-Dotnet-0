@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Options;
 using StarterApp.Gateway.Proxy;
-using StarterApp.ServiceDefaults.GatewayIdentity;
 using StarterApp.ServiceDefaults.Payloads;
 using Yarp.ReverseProxy.Transforms;
 

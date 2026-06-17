@@ -39,9 +39,8 @@ public class HealthEndpointTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var body = await response.Content.ReadAsStringAsync();
-        // The durable set always includes the database and the distributed cache (in-memory fallback
-        // in the Testing environment); Service Bus / payload archive register only when configured.
+        // The database is always in the durable set; Redis (distributed-cache), Service Bus and the
+        // payload archive register only when configured (none are in the Testing environment).
         Assert.Contains("database", body, StringComparison.Ordinal);
-        Assert.Contains("distributed-cache", body, StringComparison.Ordinal);
     }
 }

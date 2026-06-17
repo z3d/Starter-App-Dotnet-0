@@ -176,8 +176,13 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddApiHealthChecks(this IServiceCollection services, IConfiguration configuration)
     {
         var healthChecks = services.AddHealthChecks()
-            .AddCheck<DatabaseReadinessHealthCheck>("database", tags: ["ready", "durable"])
-            .AddCheck<DistributedCacheHealthCheck>("distributed-cache", tags: ["durable"]);
+            .AddCheck<DatabaseReadinessHealthCheck>("database", tags: ["ready", "durable"]);
+
+        // Only a real distributed cache (Redis) is a durable backing resource. The in-memory
+        // fallback (Program.cs, when no redis connection string) is per-process, so tagging it
+        // "durable" would make /healthiness green for a non-durable cache and mask a missing Redis.
+        if (!string.IsNullOrEmpty(configuration.GetConnectionString("redis")))
+            healthChecks.AddCheck<DistributedCacheHealthCheck>("distributed-cache", tags: ["durable"]);
 
         if (!string.IsNullOrEmpty(configuration.GetConnectionString("servicebus")))
             healthChecks.AddCheck<ServiceBusHealthCheck>("servicebus", tags: ["durable"]);
