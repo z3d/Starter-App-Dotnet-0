@@ -38,7 +38,7 @@ builder.Services.AddMediator(Assembly.GetExecutingAssembly());
 builder.Services.AddApiCors(builder.Configuration, builder.Environment);
 builder.Services.AddGatewayIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddApiRateLimiting();
-builder.Services.AddApiHealthChecks();
+builder.Services.AddApiHealthChecks(builder.Configuration);
 builder.Services.AddServiceBusPublisher(builder.Configuration, builder.Environment);
 builder.AddPayloadCapture();
 builder.AddJobRunRecording();
@@ -88,6 +88,7 @@ try
     {
         Predicate = check => check.Tags.Contains("live")
     });
+    app.MapProbeEndpoints();
 
     app.Run();
 }

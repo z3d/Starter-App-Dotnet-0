@@ -170,12 +170,30 @@ public static class ServiceCollectionExtensions
             environment.EnvironmentName == "Testing";
     }
 
-    public static IServiceCollection AddApiHealthChecks(this IServiceCollection services)
+    // The "durable" tag marks checks against deployable backing resources; /healthiness runs
+    // exactly that set. Service Bus and the payload archive register conditionally, mirroring
+    // their service registrations, so standalone dev/tests without them stay healthy.
+    public static IServiceCollection AddApiHealthChecks(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddHealthChecks()
-            .AddCheck<DatabaseReadinessHealthCheck>("database", tags: ["ready"]);
+        var healthChecks = services.AddHealthChecks()
+            .AddCheck<DatabaseReadinessHealthCheck>("database", tags: ["ready", "durable"])
+            .AddCheck<DistributedCacheHealthCheck>("distributed-cache", tags: ["durable"]);
+
+        if (!string.IsNullOrEmpty(configuration.GetConnectionString("servicebus")))
+            healthChecks.AddCheck<ServiceBusHealthCheck>("servicebus", tags: ["durable"]);
+
+        if (HasPayloadArchiveConfiguration(configuration))
+            healthChecks.AddCheck<PayloadArchiveHealthCheck>("payload-archive", tags: ["durable"]);
 
         return services;
+    }
+
+    private static bool HasPayloadArchiveConfiguration(IConfiguration configuration)
+    {
+        return !string.IsNullOrWhiteSpace(configuration["PayloadCapture:ConnectionString"]) ||
+            !string.IsNullOrWhiteSpace(configuration["PayloadCapture:AccountUri"]) ||
+            !string.IsNullOrWhiteSpace(configuration.GetConnectionString("payloadarchive")) ||
+            !string.IsNullOrWhiteSpace(configuration.GetConnectionString("payloadstorage"));
     }
 
     public static IServiceCollection AddServiceBusPublisher(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
