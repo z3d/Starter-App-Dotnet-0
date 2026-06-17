@@ -2,9 +2,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
-namespace StarterApp.Api.Infrastructure.Identity;
+namespace StarterApp.ServiceDefaults.GatewayIdentity;
 
-internal static class GatewayAssertionToken
+public static class GatewayAssertionToken
 {
     private const string Version = "v1";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -59,7 +59,7 @@ internal static class GatewayAssertionToken
         return expectedBytes.Length == actualBytes.Length && CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes);
     }
 
-    public static string Base64UrlEncode(byte[] bytes)
+    private static string Base64UrlEncode(byte[] bytes)
     {
         return Convert.ToBase64String(bytes)
             .TrimEnd('=')

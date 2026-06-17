@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using StarterApp.ServiceDefaults.GatewayIdentity;
 
 namespace StarterApp.Api.Infrastructure.Identity;
 

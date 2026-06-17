@@ -1,3 +1,4 @@
+using StarterApp.ServiceDefaults.GatewayIdentity;
 using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Tests.Integration;
