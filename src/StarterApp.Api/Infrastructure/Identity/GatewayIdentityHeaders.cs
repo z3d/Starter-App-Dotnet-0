@@ -1,15 +1,18 @@
+using StarterApp.ServiceDefaults.GatewayIdentity;
 using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Api.Infrastructure.Identity;
 
 public static class GatewayIdentityHeaders
 {
-    public const string Assertion = "X-Gateway-Assertion";
-    public const string Subject = "X-Authenticated-Subject";
-    public const string PrincipalType = "X-Authenticated-Principal-Type";
-    public const string TenantId = "X-Authenticated-Tenant-Id";
-    public const string Scopes = "X-Authenticated-Scopes";
-    public const string AuthenticationMethods = "X-Authenticated-Amr";
+    // Names live in ServiceDefaults so the dev gateway emulator projects the exact strings this
+    // parser reads; these aliases keep the existing call sites and parsing logic unchanged.
+    public const string Assertion = GatewayIdentityHeaderNames.Assertion;
+    public const string Subject = GatewayIdentityHeaderNames.Subject;
+    public const string PrincipalType = GatewayIdentityHeaderNames.PrincipalType;
+    public const string TenantId = GatewayIdentityHeaderNames.TenantId;
+    public const string Scopes = GatewayIdentityHeaderNames.Scopes;
+    public const string AuthenticationMethods = GatewayIdentityHeaderNames.AuthenticationMethods;
 
     private const int MaxHeaderLength = 512;
     private const int MaxScopeLength = 100;

@@ -11,6 +11,7 @@
     <Project Path="src/StarterApp.DbMigrator/StarterApp.DbMigrator.csproj" />
     <Project Path="src/StarterApp.Domain/StarterApp.Domain.csproj" />
     <Project Path="src/StarterApp.Functions/StarterApp.Functions.csproj" />
+    <Project Path="src/StarterApp.Gateway/StarterApp.Gateway.csproj" />
     <Project Path="src/StarterApp.ServiceDefaults/StarterApp.ServiceDefaults.csproj" />
     <Project Path="src/StarterApp.Tests/StarterApp.Tests.csproj" />
   </Folder>

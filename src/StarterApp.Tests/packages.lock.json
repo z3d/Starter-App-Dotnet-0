@@ -1238,6 +1238,14 @@
           "StarterApp.ServiceDefaults": "[1.0.0, )"
         }
       },
+      "starterapp.gateway": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.ServiceDiscovery.Yarp": "[10.2.0, )",
+          "StarterApp.ServiceDefaults": "[1.0.0, )",
+          "Yarp.ReverseProxy": "[2.3.0, )"
+        }
+      },
       "starterapp.servicedefaults": {
         "type": "Project",
         "dependencies": {
@@ -1441,6 +1449,17 @@
           "Microsoft.Extensions.ServiceDiscovery.Abstractions": "10.2.0"
         }
       },
+      "Microsoft.Extensions.ServiceDiscovery.Yarp": {
+        "type": "CentralTransitive",
+        "requested": "[10.2.0, )",
+        "resolved": "10.2.0",
+        "contentHash": "1R553WDRfqvbn3yKk5JND5D2M41S7ZBMuVGYSTApegej9Dh9iVAxLv1te+7DjuXLKtWk4t0mRN/FNws3KIh3Hg==",
+        "dependencies": {
+          "Microsoft.Extensions.ServiceDiscovery": "10.2.0",
+          "Microsoft.Extensions.ServiceDiscovery.Abstractions": "10.2.0",
+          "Yarp.ReverseProxy": "2.3.0"
+        }
+      },
       "OpenTelemetry.Exporter.OpenTelemetryProtocol": {
         "type": "CentralTransitive",
         "requested": "[1.15.3, )",
@@ -1529,6 +1548,15 @@
         "dependencies": {
           "Serilog": "4.0.0",
           "Serilog.Sinks.File": "5.0.0"
+        }
+      },
+      "Yarp.ReverseProxy": {
+        "type": "CentralTransitive",
+        "requested": "[2.3.0, )",
+        "resolved": "2.3.0",
+        "contentHash": "gxtkN3a+9biu9V9Zd5NaTO6VZWXAnS2mhQ0R/VXmSPoTuiQNZsakKikrKpDtKxrL5nUYzbRsHtl40WNq+ZBKKg==",
+        "dependencies": {
+          "System.IO.Hashing": "8.0.0"
         }
       }
     }

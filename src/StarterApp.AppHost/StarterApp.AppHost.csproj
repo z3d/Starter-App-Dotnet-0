@@ -25,6 +25,7 @@
     <ProjectReference Include="..\StarterApp.Api\StarterApp.Api.csproj" />
     <ProjectReference Include="..\StarterApp.DbMigrator\StarterApp.DbMigrator.csproj" />
     <ProjectReference Include="..\StarterApp.Functions\StarterApp.Functions.csproj" />
+    <ProjectReference Include="..\StarterApp.Gateway\StarterApp.Gateway.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,8 +1,8 @@
 using System.Text.Json.Serialization;
 
-namespace StarterApp.Api.Infrastructure.Identity;
+namespace StarterApp.ServiceDefaults.GatewayIdentity;
 
-internal sealed class GatewayAssertionPayload
+public sealed class GatewayAssertionPayload
 {
     [JsonPropertyName("iss")]
     public string Issuer { get; init; } = string.Empty;

@@ -42,6 +42,7 @@
     <ProjectReference Include="..\StarterApp.DbMigrator\StarterApp.DbMigrator.csproj" />
     <ProjectReference Include="..\StarterApp.Domain\StarterApp.Domain.csproj" />
     <ProjectReference Include="..\StarterApp.Functions\StarterApp.Functions.csproj" />
+    <ProjectReference Include="..\StarterApp.Gateway\StarterApp.Gateway.csproj" />
     <ProjectReference Include="..\StarterApp.ServiceDefaults\StarterApp.ServiceDefaults.csproj" />
   </ItemGroup>
 
