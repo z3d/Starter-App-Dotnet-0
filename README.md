@@ -21,7 +21,16 @@ dotnet run
 ```
 - **Aspire Dashboard**: Opens automatically at https://localhost:17113
 - **API**: Available at dynamically assigned port (shown in dashboard)
-- **Scalar API Reference**: `https://localhost:<api-port>/scalar/v1`
+- **Scalar API Reference**: `https://localhost:<api-port>/scalar`
+
+#### Optional: local gateway emulator
+
+By default the locally-orchestrated API runs in `GatewayIdentity:Mode=UnsignedDevelopment` and trusts projected `X-Authenticated-*` identity headers directly. To exercise the production verification path locally, opt into the `StarterApp.Gateway` reverse-proxy emulator, which fronts the API, projects the normalized identity headers, and signs the `X-Gateway-Assertion` the API verifies in `Required` mode:
+
+```powershell
+# From src\StarterApp.AppHost
+dotnet run -- --gateway          # or set ENABLE_GATEWAY=true
+```
 
 ## 🎯 What This Project Demonstrates
 
@@ -56,7 +65,8 @@ dotnet run
    - Service Bus emulator for local development, started by Aspire through Docker
 
 6. **DevOps & CI**
-   - GitHub Actions CI pipeline (build, unit tests, integration tests)
+   - GitHub Actions CI pipeline with separate build/unit, Testcontainers integration, Aspire end-to-end, and Docker image build jobs
+   - Security & performance workflows: CodeQL static analysis, secret scanning (gitleaks), OWASP ZAP DAST, and nightly k6 performance gates
    - Direct Docker image build validation
    - Smoke test script for validating live deployments
 
@@ -70,6 +80,7 @@ starterapp/
 │   ├── StarterApp.Api/              # Main Web API (+ outbox processor)
 │   ├── StarterApp.Domain/           # Domain models and interfaces
 │   ├── StarterApp.Functions/        # Azure Functions (Service Bus subscribers)
+│   ├── StarterApp.Gateway/          # Dev-only APIM gateway emulator (reverse proxy + signed identity projection)
 │   ├── StarterApp.DbMigrator/       # Database migration console app
 │   ├── StarterApp.ServiceDefaults/  # Shared Aspire configuration
 │   └── StarterApp.Tests/            # Unit, convention, integration, fuzzing tests
@@ -146,7 +157,8 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 
 - **Clean Architecture**: Separation of concerns with Domain, Application, and Infrastructure layers
 - **Modern .NET Patterns**: Uses C# 13/.NET 10 features like collection expressions, guard clauses, and using declarations
-- **Health Checks**: Built-in health monitoring for all services
+- **Gateway-Based Authentication**: The API trusts a normalized `X-Authenticated-*` identity contract projected by a front gateway (APIM in production) and verifies a signed `X-Gateway-Assertion` in `Required` mode. `StarterApp.Gateway` is a dev-only reverse-proxy emulator of that gateway, so local orchestration can exercise the signed verification path
+- **Health Checks**: Built-in liveness/readiness probes plus durable dependency checks for the database, distributed cache, Service Bus, and payload archive store
 - **Distributed Caching**: Redis-backed by-id query caching via mediator pipeline behavior; list queries are intentionally not cached because `IDistributedCache` cannot invalidate by pattern
 - **Cache Safety Conventions**: Convention tests enforce non-empty deterministic cache keys, by-id-only caching, and invalidator injection for non-create mutations on cacheable entities
 - **Outbox Pattern**: Domain events are captured durably and published to Azure Service Bus via BackgroundService
