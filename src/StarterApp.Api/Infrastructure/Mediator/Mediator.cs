@@ -23,6 +23,7 @@ public class Mediator : IMediator
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        RunFeatureToggleGate(request);
         RunValidators(request);
 
         var wrapper = (RequestHandlerWrapper<TResponse>)RequestHandlerWrappers.GetOrAdd(
@@ -32,6 +33,17 @@ public class Mediator : IMediator
             typeof(TResponse));
 
         return wrapper.HandleAsync(request, _serviceProvider, cancellationToken);
+    }
+
+    private void RunFeatureToggleGate(object request)
+    {
+        var toggle = request.GetType().GetCustomAttribute<FeatureToggleAttribute>(inherit: false);
+        if (toggle is null)
+            return;
+
+        var featureToggles = _serviceProvider.GetService<FeatureToggles.IFeatureToggles>();
+        if (featureToggles is not null && !featureToggles.IsEnabled(toggle.Name))
+            throw new FeatureToggles.FeatureDisabledException(toggle.Name);
     }
 
     private void RunValidators(object request)
