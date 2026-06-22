@@ -34,6 +34,11 @@ var app = builder.Build();
 // /health/ready is deliberately unmapped here so it proxies through to the API's readiness.
 app.MapDefaultEndpoints();
 
+// Interactive walkthrough, dev-only like the whole emulator: served from the gateway origin so
+// its fetches are same-origin with the proxied API surface and flow through the signing transform.
+app.MapGet("/demo", (IWebHostEnvironment environment) =>
+    Results.File(Path.Combine(environment.WebRootPath, "demo.html"), "text/html"));
+
 app.MapReverseProxy();
 
 app.Run();
