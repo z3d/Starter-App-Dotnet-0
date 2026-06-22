@@ -27,7 +27,7 @@ RUN dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Relea
 # is an internal Service-Bus subscriber (not internet-facing) run via AppHost for local
 # integration tests. Harden to non-root as a validated deploy-time step if your platform
 # (Kubernetes runAsNonRoot / OpenShift) requires it.
-FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0@sha256:03e965f15c2b1591db5e19ceb8c547f11b2e79a09f2959e0eb8ce1f61d01eb28
+FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0@sha256:ced0cefde4ed181d842008393e461e3d597372505914dab56f7b18b736346837
 WORKDIR /home/site/wwwroot
 # Baked-in default for the cleanup timer schedule (hourly). The TimerTrigger's
 # %PayloadCapture:CleanupCron% lookup fails function indexing when the setting is absent,
