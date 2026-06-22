@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-
 namespace StarterApp.Api.Infrastructure.FeatureToggles;
 
 public interface IFeatureToggles
@@ -36,30 +34,4 @@ public sealed class FeatureDisabledException : Exception
     }
 
     public string FeatureName { get; }
-}
-
-public sealed class FeatureToggleBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
-    where TRequest : IRequest<TResponse>
-{
-    // One reflection lookup per request type for the process lifetime.
-    private static readonly ConcurrentDictionary<Type, FeatureToggleAttribute?> AttributeCache = new();
-
-    private readonly IFeatureToggles _featureToggles;
-
-    public FeatureToggleBehavior(IFeatureToggles featureToggles)
-    {
-        _featureToggles = featureToggles;
-    }
-
-    public Task<TResponse> HandleAsync(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
-    {
-        var toggle = AttributeCache.GetOrAdd(
-            request.GetType(),
-            static type => type.GetCustomAttribute<FeatureToggleAttribute>(inherit: false));
-
-        if (toggle is not null && !_featureToggles.IsEnabled(toggle.Name))
-            throw new FeatureDisabledException(toggle.Name);
-
-        return next();
-    }
 }

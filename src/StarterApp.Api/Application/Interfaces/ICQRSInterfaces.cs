@@ -17,9 +17,10 @@ public interface IOwnerScopedRequest { }
 public interface IOwnerAuthorizedMutation { }
 
 // Declares a kill-switch/dark-launch toggle on a request TYPE (command or query).
-// FeatureToggleBehavior refuses dispatch with a FeatureDisabledException (503) when
-// configuration sets FeatureToggles:{Name} to false. Convention tests enforce:
-// request types only, unique names, and an explicit configuration entry per name.
+// The mediator's feature-toggle gate refuses dispatch with a FeatureDisabledException (503)
+// when configuration sets FeatureToggles:{Name} to false — it runs before validators and before
+// any pipeline behavior, so a disabled feature is never served from cache. Convention tests
+// enforce: request types only, unique names, and an explicit configuration entry per name.
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
 public sealed class FeatureToggleAttribute : Attribute
 {

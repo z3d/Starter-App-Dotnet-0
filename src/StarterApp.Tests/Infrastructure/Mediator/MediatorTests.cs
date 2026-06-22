@@ -63,6 +63,41 @@ public class MediatorTests
     }
 
     [Fact]
+    public async Task SendAsync_refuses_disabled_feature_before_validators_and_pipeline_behaviors()
+    {
+        var log = new List<string>();
+        var validator = new ToggledRequestValidator();
+        var mediator = BuildMediator(s =>
+        {
+            s.AddSingleton(log);
+            s.AddSingleton<IFeatureToggles>(new StubFeatureToggles(enabled: false));
+            s.AddScoped<IRequestHandler<ToggledRequest, string>, ToggledHandler>();
+            s.AddSingleton<IValidator<ToggledRequest>>(validator);
+            s.AddScoped<IPipelineBehavior<ToggledRequest, string>, ToggledRecordingBehavior>();
+        });
+
+        await Assert.ThrowsAsync<FeatureDisabledException>(() => mediator.SendAsync(new ToggledRequest()));
+
+        // The gate short-circuits ahead of validation and the pipeline: neither ran.
+        Assert.False(validator.WasCalled);
+        Assert.Empty(log);
+    }
+
+    [Fact]
+    public async Task SendAsync_dispatches_when_feature_is_enabled()
+    {
+        var mediator = BuildMediator(s =>
+        {
+            s.AddSingleton<IFeatureToggles>(new StubFeatureToggles(enabled: true));
+            s.AddScoped<IRequestHandler<ToggledRequest, string>, ToggledHandler>();
+        });
+
+        var result = await mediator.SendAsync(new ToggledRequest());
+
+        Assert.Equal("toggled-ok", result);
+    }
+
+    [Fact]
     public async Task SendAsync_propagates_cancellation_token_to_handler()
     {
         CancellationToken captured = default;
@@ -201,6 +236,39 @@ public class MediatorTests
     {
         public IEnumerable<ValidationError> Validate(ValidatedRequest instance)
             => [new ValidationError("y", "second")];
+    }
+
+    [FeatureToggle("test-feature")]
+    private sealed record ToggledRequest : IRequest<string>;
+
+    private sealed class ToggledHandler : IRequestHandler<ToggledRequest, string>
+    {
+        public Task<string> HandleAsync(ToggledRequest request, CancellationToken cancellationToken)
+            => Task.FromResult("toggled-ok");
+    }
+
+    private sealed class ToggledRequestValidator : IValidator<ToggledRequest>
+    {
+        public bool WasCalled { get; private set; }
+        public IEnumerable<ValidationError> Validate(ToggledRequest instance)
+        {
+            WasCalled = true;
+            return [new ValidationError("ToggledRequest", "should-not-run")];
+        }
+    }
+
+    private sealed class ToggledRecordingBehavior(List<string> log) : IPipelineBehavior<ToggledRequest, string>
+    {
+        public Task<string> HandleAsync(ToggledRequest request, RequestHandlerDelegate<string> next, CancellationToken cancellationToken)
+        {
+            log.Add("behavior");
+            return next();
+        }
+    }
+
+    private sealed class StubFeatureToggles(bool enabled) : IFeatureToggles
+    {
+        public bool IsEnabled(string name) => enabled;
     }
 
     private sealed record TokenRequest : IRequest<string>;
