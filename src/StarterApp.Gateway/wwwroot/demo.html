@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StarterApp walkthrough — local rig</title>
+<style>
+  :root {
+    --paper: #f5f3ee; --card: #fdfcf9; --ink: #22272e; --dim: #6a7180;
+    --rule: #d8d4ca; --rule-dark: #b9b4a6;
+    --teal: #0e6e69; --teal-soft: #e3efed;
+    --amber: #9a6700; --amber-soft: #fbf0dc;
+    --red: #b13a2f; --navy: #243b53;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--paper); color: var(--ink); font: 15px/1.6 "Segoe UI", system-ui, sans-serif; }
+  code, pre, .mono, input.mono { font-family: Consolas, "Cascadia Mono", monospace; }
+  code { background: #eceadf; padding: .05em .3em; border-radius: 3px; font-size: .85em; }
+  a { color: var(--teal); }
+
+  /* header / wire */
+  header { position: sticky; top: 0; z-index: 40; background: linear-gradient(180deg, #fbfaf6, var(--paper)); border-bottom: 2.5px solid var(--ink); padding: .95rem 1.3rem 1.1rem; box-shadow: 0 3px 16px rgba(34,39,46,.10); }
+  .masthead { display: flex; justify-content: space-between; align-items: center; gap: 1rem; max-width: 1040px; margin: 0 auto .8rem; }
+  .masthead h1 { font-size: 1.22rem; font-weight: 800; letter-spacing: .005em; }
+  .masthead h1 small { display: block; font-size: .66rem; font-weight: 500; color: var(--dim); letter-spacing: .02em; margin-top: .1rem; }
+  .masthead .env { font-size: .72rem; color: var(--dim); display: flex; align-items: center; gap: .45rem; white-space: nowrap; }
+  #mode { font-weight: 700; padding: .16em .65em; border-radius: 999px; font-size: .66rem; letter-spacing: .03em; border: 1.5px solid var(--rule-dark); color: var(--dim); }
+  #mode.ok { color: var(--teal); background: var(--teal-soft); border-color: var(--teal); }
+  #mode.warn { color: #fff; background: var(--red); border-color: var(--red); }
+  .wire { display: flex; align-items: center; max-width: 1040px; margin: 0 auto; position: relative; }
+  .stop { border: 1.5px solid var(--rule-dark); background: var(--card); padding: .3rem .6rem; font-size: .7rem; line-height: 1.25; color: var(--dim); border-radius: 3px; white-space: nowrap; transition: border-color .25s, color .25s, background .25s, box-shadow .25s; }
+  .stop small { display: block; font-size: .58rem; }
+  .stop.on { border-color: var(--teal); color: var(--ink); background: var(--teal-soft); font-weight: 600; box-shadow: 0 0 0 3px var(--teal-soft); }
+  .stop.was { border-color: var(--teal); color: var(--teal); }
+  .seg { flex: 1; height: 3px; margin: 0 4px; min-width: 14px; background: repeating-linear-gradient(90deg, var(--rule-dark) 0 6px, transparent 6px 12px); }
+  .seg.on { background: repeating-linear-gradient(90deg, var(--teal) 0 6px, transparent 6px 12px); animation: march .45s linear infinite; }
+  @keyframes march { to { background-position-x: 12px; } }
+  /* live narration bubble — points at the active span of the pipeline */
+  .callout { position: absolute; top: calc(100% + 10px); left: 0; transform: translateX(-50%); max-width: 250px; background: var(--navy); color: #fff; font-size: .69rem; line-height: 1.4; padding: .45rem .68rem; border-radius: 6px; box-shadow: 0 6px 18px rgba(34,39,46,.24); opacity: 0; transition: opacity .2s ease, left .3s ease; pointer-events: none; z-index: 60; }
+  .callout.show { opacity: 1; }
+  .callout::before { content: ""; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border: 7px solid transparent; border-bottom-color: var(--navy); }
+  .ticker { max-width: 1040px; margin: .55rem auto 0; font-size: .72rem; color: var(--dim); font-family: Consolas, monospace; min-height: 1.1em; }
+  .ticker::before { content: "» "; color: var(--teal); }
+
+  /* steps */
+  main { max-width: 760px; margin: 0 auto; padding: 2.4rem 1.2rem 5rem; }
+  .step { background: var(--card); border: 1.5px solid var(--rule-dark); border-radius: 4px; padding: 1.5rem 1.7rem 1.7rem; margin-bottom: 2.1rem; scroll-margin-top: 120px; transition: opacity .35s; }
+  .step.locked { opacity: .38; pointer-events: none; }
+  .step.done { border-left: 5px solid var(--teal); }
+  .kicker { font-size: .68rem; letter-spacing: .16em; color: var(--dim); margin-bottom: .35rem; font-family: Consolas, monospace; }
+  .step.done .kicker::after { content: "  ✓"; color: var(--teal); }
+  .step h2 { font-size: 1.18rem; font-weight: 700; margin-bottom: .45rem; }
+  .blurb { color: #4a5160; font-size: .87rem; margin-bottom: 1.15rem; max-width: 62ch; }
+
+  .row { display: flex; flex-wrap: wrap; gap: .8rem; align-items: end; margin-bottom: .9rem; }
+  .field { display: flex; flex-direction: column; gap: .25rem; }
+  .field label { font-size: .68rem; color: var(--dim); letter-spacing: .06em; text-transform: uppercase; }
+  input[type=text], input[type=password], select { background: #fff; border: 1.5px solid var(--rule-dark); color: var(--ink); border-radius: 3px; padding: .5rem .65rem; font-size: .86rem; min-width: 200px; }
+  input:focus, select:focus { outline: none; border-color: var(--teal); }
+  .ticks { display: flex; flex-wrap: wrap; gap: .35rem .5rem; }
+  .ticks label { display: inline-flex; align-items: center; gap: .35rem; font-size: .8rem; border: 1.5px solid var(--rule-dark); background: #fff; padding: .25rem .55rem; border-radius: 3px; cursor: pointer; user-select: none; }
+  .ticks label:has(input:checked) { border-color: var(--teal); background: var(--teal-soft); }
+  .ticks input { accent-color: var(--teal); }
+
+  button { font: inherit; cursor: pointer; }
+  .run { background: var(--navy); color: #fff; border: none; border-radius: 3px; padding: .55rem 1.15rem; font-size: .85rem; font-weight: 600; }
+  .run:hover { background: #1b2e42; }
+  .run:disabled { background: var(--rule-dark); cursor: not-allowed; }
+  .quiet { background: transparent; border: 1.5px solid var(--rule-dark); border-radius: 3px; padding: .42rem .8rem; font-size: .78rem; color: var(--ink); }
+  .quiet:hover { border-color: var(--ink); }
+
+  pre.out { background: #232730; color: #d6dde6; border-radius: 4px; padding: .85rem 1rem; font-size: .74rem; overflow-x: auto; margin-top: .9rem; max-height: 280px; white-space: pre-wrap; word-break: break-all; }
+  pre.out:empty { display: none; }
+
+  table.checks { border-collapse: collapse; width: 100%; margin-top: .9rem; font-size: .82rem; }
+  table.checks th { text-align: left; font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); border-bottom: 1.5px solid var(--rule-dark); padding: .3rem .5rem; }
+  table.checks td { border-bottom: 1px solid var(--rule); padding: .42rem .5rem; }
+  td.st-ok { color: var(--teal); font-weight: 700; } td.st-bad { color: var(--red); font-weight: 700; }
+
+  .lane { display: flex; align-items: center; gap: .45rem; margin-top: 1rem; flex-wrap: wrap; font-size: .76rem; font-family: Consolas, monospace; }
+  .lane .ls { color: var(--dim); border-bottom: 2px solid transparent; padding-bottom: 1px; }
+  .lane .ls.now { color: var(--ink); border-bottom-color: var(--amber); }
+  .lane .ls.past { color: var(--teal); border-bottom-color: var(--teal); }
+  .lane .x { color: var(--rule-dark); }
+
+  .pill { display: inline-block; margin-top: 1rem; font-size: .74rem; font-family: Consolas, monospace; color: var(--dim); }
+  .pill b { color: var(--ink); }
+
+  .aside { font-size: .76rem; color: var(--dim); margin-top: 1rem; border-left: 3px solid var(--rule-dark); padding-left: .75rem; }
+  footer { max-width: 760px; margin: 0 auto; padding: 1rem 1.2rem 3rem; font-size: .72rem; color: var(--dim); border-top: 1px solid var(--rule); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="masthead">
+    <h1>StarterApp walkthrough<small>browser → gateway → API → Postgres → Service Bus → Functions, the whole signed pipeline live</small></h1>
+    <div class="env">local rig · gateway-signed identity · <b id="mode">checking…</b></div>
+  </div>
+  <div class="wire" id="wire">
+    <div class="stop" data-n="you">browser<small>this page</small></div><div class="seg"></div>
+    <div class="stop" data-n="gw">gateway<small>signs assertion</small></div><div class="seg"></div>
+    <div class="stop" data-n="api">api<small>verify + handle</small></div><div class="seg"></div>
+    <div class="stop" data-n="db">postgres<small>row + outbox</small></div><div class="seg"></div>
+    <div class="stop" data-n="sb">service bus<small>topics</small></div><div class="seg"></div>
+    <div class="stop" data-n="fn">functions<small>consumers</small></div>
+  </div>
+  <div class="ticker" id="ticker">idle — start at step 01</div>
+</header>
+
+<main>
+
+  <section class="step" id="s1">
+    <div class="kicker">01 / PROBE</div>
+    <h2>Check the rig is healthy</h2>
+    <p class="blurb"><code>GET /healthiness</code> runs real round-trips against the durable resources: Postgres, the cache, a Service Bus AMQP link, the payload archive — every check tagged <code>durable</code>. No identity required — probes sit in front of the gateway contract.</p>
+    <div class="row">
+      <button class="run" id="bProbe">run healthiness</button>
+      <button class="quiet" id="bLive">liveness</button>
+    </div>
+    <table class="checks" id="probeTable" hidden><thead><tr><th>check</th><th>status</th><th>ms</th></tr></thead><tbody></tbody></table>
+    <pre class="out" id="oProbe"></pre>
+  </section>
+
+  <section class="step locked" id="s2">
+    <div class="kicker">02 / IDENTITY</div>
+    <h2>Say who is calling</h2>
+    <p class="blurb">In a deployed environment APIM derives this from your token. Here you state it; the gateway normalises it and signs it into <code>X-Gateway-Assertion</code>. The API trusts the signature, never the raw headers. Drop <code>orders:write</code> or <code>mfa</code> later and the order step will refuse you.</p>
+    <div class="row">
+      <div class="field"><label>subject</label><input type="text" id="fSubject" value="demo.user"></div>
+      <div class="field"><label>tenant</label><input type="text" id="fTenant" value="demo-tenant"></div>
+      <div class="field"><label>principal</label><select id="fPty"><option>User</option><option>Service</option></select></div>
+    </div>
+    <div class="field"><label>scopes</label>
+      <div class="ticks" id="fScopes">
+        <label><input type="checkbox" value="customers:read" checked>customers:read</label>
+        <label><input type="checkbox" value="customers:write" checked>customers:write</label>
+        <label><input type="checkbox" value="products:read" checked>products:read</label>
+        <label><input type="checkbox" value="products:write" checked>products:write</label>
+        <label><input type="checkbox" value="orders:read" checked>orders:read</label>
+        <label><input type="checkbox" value="orders:write" checked>orders:write</label>
+      </div>
+    </div>
+    <div class="field" style="margin-top:.6rem"><label>amr</label>
+      <div class="ticks" id="fAmr">
+        <label><input type="checkbox" value="mfa" checked>mfa</label>
+        <label><input type="checkbox" value="pwd" checked>pwd</label>
+      </div>
+    </div>
+    <div class="row" style="margin-top:1rem"><button class="run" id="bIdentity">apply identity</button></div>
+    <pre class="out" id="oIdentity"></pre>
+  </section>
+
+  <section class="step locked" id="s3">
+    <div class="kicker">03 / PRODUCT</div>
+    <h2>Add a product to the catalog</h2>
+    <p class="blurb"><code>POST /api/v1/products</code> is a synchronous write: validate → EF Core insert → <code>201</code> with the new id. This becomes the line item the order in step 05 reserves stock against. Needs <code>products:write</code> and <code>mfa</code> in the signed assertion.</p>
+    <div class="row">
+      <div class="field"><label>name</label><input type="text" id="fProdName" style="min-width:180px"></div>
+      <div class="field"><label>price</label><input type="text" id="fProdPrice" class="mono" value="19.99" style="min-width:90px"></div>
+      <div class="field"><label>currency</label><input type="text" id="fProdCcy" class="mono" value="AUD" style="min-width:80px"></div>
+      <div class="field"><label>stock</label><input type="text" id="fProdStock" class="mono" value="100" style="min-width:80px"></div>
+      <button class="run" id="bProduct">create product</button>
+    </div>
+    <div class="pill" id="prodPill" hidden>product <b id="prodId">—</b> · stock <b id="prodStock">—</b></div>
+    <pre class="out" id="oProduct"></pre>
+  </section>
+
+  <section class="step locked" id="s4">
+    <div class="kicker">04 / CUSTOMER</div>
+    <h2>Create a customer</h2>
+    <p class="blurb"><code>POST /api/v1/customers</code> is the other synchronous write. Email is the natural key (unique per owner scope), so the page randomises it per load — re-running won't collide. Needs <code>customers:write</code> and <code>mfa</code>.</p>
+    <div class="row">
+      <div class="field"><label>name</label><input type="text" id="fCustName" value="Demo Tester" style="min-width:180px"></div>
+      <div class="field"><label>email</label><input type="text" id="fCustEmail" class="mono" style="min-width:240px"></div>
+      <button class="run" id="bCustomer">create customer</button>
+    </div>
+    <div class="pill" id="custPill" hidden>customer <b id="custId">—</b></div>
+    <pre class="out" id="oCustomer"></pre>
+  </section>
+
+  <section class="step locked" id="s5">
+    <div class="kicker">05 / ORDER</div>
+    <h2>Place an order — the async pipeline</h2>
+    <p class="blurb"><code>POST /api/v1/orders</code> reserves stock and writes the order row <b>and</b> an <code>OrderCreated</code> event into the outbox in one commit, then returns <code>201</code>. A background processor publishes the event to Service Bus; the Functions consumers (order-confirmation email, inventory reservation) pick it up off their topic subscriptions. Then drive the order forward: <code>PUT /api/v1/orders/{id}/status</code> raises an <code>OrderStatusChanged</code> event the same way.</p>
+    <div class="row">
+      <div class="field"><label>quantity</label><input type="text" id="fQty" class="mono" value="2" style="min-width:80px"></div>
+      <button class="run" id="bOrder">place order</button>
+      <button class="quiet" id="bConfirm" hidden>confirm order</button>
+    </div>
+    <div class="lane" id="laneOrder">
+      <span class="ls" data-s="placed">201</span><span class="x">→</span>
+      <span class="ls" data-s="pending">Pending</span><span class="x">→</span>
+      <span class="ls" data-s="bus">OrderCreated on the bus</span><span class="x">→</span>
+      <span class="ls" data-s="consumed">consumed by functions</span><span class="x">→</span>
+      <span class="ls" data-s="confirmed">Confirmed</span>
+    </div>
+    <pre class="out" id="oOrder"></pre>
+    <p class="aside">Authorisation demo: back in step 02, untick <code>orders:write</code> or <code>mfa</code>, re-apply, retry this button. 403 — decided from the signed scopes, nothing else.</p>
+  </section>
+
+  <section class="step locked" id="s6">
+    <div class="kicker">06 / END</div>
+    <h2>That's the pipeline</h2>
+    <p class="blurb">Signed identity in, verified by the API in Required mode; synchronous writes for catalog and customers; a transactional outbox that publishes order events to Service Bus topics; idempotent Functions consumers off those subscriptions. Payloads captured throughout. Keep going in <a href="/scalar/v1">Scalar</a> (same origin — try-it just works) or the Aspire dashboard for traces.</p>
+  </section>
+
+</main>
+<footer>Served by the dev-only gateway emulator. None of this page ships anywhere.</footer>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s) => document.querySelector(s);
+  const state = { headers: {}, productId: null, customerId: null, orderId: null };
+
+  // wire strip
+  const stops = [...document.querySelectorAll(".stop")];
+  const segs = [...document.querySelectorAll(".seg")];
+  const ticker = $("#ticker");
+
+  // live callout — a speech bubble that points at the active span of the pipeline and narrates the hop.
+  const wireEl = document.querySelector(".wire");
+  const callout = document.createElement("div");
+  callout.className = "callout";
+  wireEl.appendChild(callout);
+  const showCallout = (a, b, msg) => {
+    const lo = Math.max(0, Math.min(a, stops.length - 1));
+    const hi = Math.max(0, Math.min(b, stops.length - 1));
+    const wireRect = wireEl.getBoundingClientRect();
+    const loRect = stops[lo].getBoundingClientRect();
+    const hiRect = stops[hi].getBoundingClientRect();
+    const centerX = ((loRect.left + loRect.width / 2) + (hiRect.left + hiRect.width / 2)) / 2 - wireRect.left;
+    callout.style.left = `${centerX}px`;
+    callout.textContent = msg;
+    callout.classList.add("show");
+  };
+  const hideCallout = () => callout.classList.remove("show");
+
+  const phase = (a, b, msg) => {
+    stops.forEach((n, i) => n.classList.toggle("on", i >= a && i <= b));
+    segs.forEach((l, i) => l.classList.toggle("on", i >= a && i < b));
+    ticker.textContent = "";
+    if (msg) showCallout(a, b, msg); else hideCallout();
+  };
+  const settle = (msg) => { stops.forEach(n => n.classList.remove("on")); segs.forEach(l => l.classList.remove("on")); hideCallout(); ticker.textContent = msg ?? "idle"; };
+  const visited = (...names) => names.forEach(nm => document.querySelector(`.stop[data-n=${nm}]`)?.classList.add("was"));
+
+  const setMode = (text, cls) => { const m = $("#mode"); m.textContent = text; m.className = cls || ""; };
+
+  const unlock = (doneId, nextId) => {
+    $(doneId).classList.add("done");
+    if (!nextId) return;
+    const next = $(nextId);
+    if (!next.classList.contains("locked")) return;
+    next.classList.remove("locked");
+    setTimeout(() => next.scrollIntoView({ behavior: "smooth", block: "start" }), 400);
+  };
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const fmt = (o) => JSON.stringify(o, null, 2);
+
+  async function call(method, path, { body, identity } = {}) {
+    const headers = {};
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (identity) Object.assign(headers, state.headers);
+    const t0 = performance.now();
+    const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+    const ms = Math.round(performance.now() - t0);
+    let json = null;
+    try { json = await res.json(); } catch { /* no body */ }
+    return { status: res.status, ms, json };
+  }
+  const show = (el, method, path, r) => {
+    $(el).textContent = `${method} ${path}\n${r.status} in ${r.ms}ms\n\n${r.json ? fmt(r.json) : ""}`;
+  };
+
+  const lane = (sel) => (s) => {
+    const items = [...document.querySelectorAll(`${sel} .ls`)];
+    const idx = items.findIndex(e => e.dataset.s === s);
+    items.forEach((e, i) => { e.classList.toggle("past", i < idx); e.classList.toggle("now", i === idx); });
+  };
+  const laneOrder = lane("#laneOrder");
+
+  // randomise per page load so reruns don't collide on the unique-email natural key
+  const rand = crypto.randomUUID().replaceAll("-", "").slice(0, 10);
+  $("#fProdName").value = "Demo Widget " + rand.slice(0, 5).toUpperCase();
+  $("#fCustEmail").value = "demo." + rand + "@example.test";
+
+  // 01 probe
+  $("#bProbe").addEventListener("click", async () => {
+    phase(0, 5, "probing durable resources");
+    const r = await call("GET", "/healthiness");
+    show("#oProbe", "GET", "/healthiness", r);
+    const tbody = document.querySelector("#probeTable tbody");
+    tbody.innerHTML = "";
+    (r.json?.checks ?? []).forEach(c => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="mono">${c.name}</td><td class="${c.status === "Healthy" ? "st-ok" : "st-bad"}">${c.status}</td><td>${c.durationMs}</td>`;
+      tbody.appendChild(tr);
+    });
+    $("#probeTable").hidden = false;
+    await sleep(500);
+    if (r.status === 200) { visited("you"); setMode("healthy", "ok"); settle("healthy — state an identity next"); unlock("#s1", "#s2"); }
+    else { setMode("unhealthy", "warn"); settle("unhealthy — see the table"); }
+  });
+  $("#bLive").addEventListener("click", async () => show("#oProbe", "GET", "/liveness", await call("GET", "/liveness")));
+
+  // 02 identity
+  $("#bIdentity").addEventListener("click", async () => {
+    const scopes = [...document.querySelectorAll("#fScopes input:checked")].map(i => i.value).join(" ");
+    const amr = [...document.querySelectorAll("#fAmr input:checked")].map(i => i.value).join(" ");
+    state.headers = {
+      "X-Authenticated-Subject": $("#fSubject").value.trim(),
+      "X-Authenticated-Principal-Type": $("#fPty").value,
+      "X-Authenticated-Tenant-Id": $("#fTenant").value.trim(),
+      "X-Authenticated-Scopes": scopes,
+    };
+    if (amr) state.headers["X-Authenticated-Amr"] = amr;
+    phase(0, 1, "gateway normalises + signs the assertion");
+    $("#oIdentity").textContent = "caller-stated headers (the gateway signs these):\n\n" + fmt(state.headers);
+    await sleep(900);
+    visited("gw");
+    settle("identity staged for every call below");
+    unlock("#s2", "#s3");
+  });
+
+  // 03 product — synchronous write
+  $("#bProduct").addEventListener("click", async () => {
+    const body = {
+      name: $("#fProdName").value.trim(),
+      description: "Created from the local walkthrough",
+      price: Number($("#fProdPrice").value.trim()),
+      currency: $("#fProdCcy").value.trim() || "AUD",
+      stock: Number($("#fProdStock").value.trim()),
+    };
+    phase(0, 3, "POST products — validate, EF Core insert, one commit");
+    const r = await call("POST", "/api/v1/products", { body, identity: true });
+    show("#oProduct", "POST", "/api/v1/products", r);
+    if (r.status !== 201) { settle(`api said ${r.status}${r.status === 403 ? " — the signed scopes/amr refused you" : ""}`); return; }
+    state.productId = r.json.id;
+    $("#prodId").textContent = r.json.id;
+    $("#prodStock").textContent = r.json.stock;
+    $("#prodPill").hidden = false;
+    visited("api", "db");
+    settle(`product ${r.json.id} created — now create a customer`);
+    unlock("#s3", "#s4");
+  });
+
+  // 04 customer — synchronous write
+  $("#bCustomer").addEventListener("click", async () => {
+    const body = { name: $("#fCustName").value.trim(), email: $("#fCustEmail").value.trim() };
+    phase(0, 3, "POST customers — unique-email check, EF Core insert, one commit");
+    const r = await call("POST", "/api/v1/customers", { body, identity: true });
+    show("#oCustomer", "POST", "/api/v1/customers", r);
+    if (r.status !== 201) { settle(`api said ${r.status}${r.status === 403 ? " — the signed scopes/amr refused you" : ""}`); return; }
+    state.customerId = r.json.id;
+    $("#custId").textContent = r.json.id;
+    $("#custPill").hidden = false;
+    visited("api", "db");
+    settle(`customer ${r.json.id} created — place an order next`);
+    unlock("#s4", "#s5");
+  });
+
+  // 05 order — the async event pipeline
+  $("#bOrder").addEventListener("click", async () => {
+    if (!state.productId || !state.customerId) { settle("create a product (03) and a customer (04) first"); return; }
+    const qty = Number($("#fQty").value.trim()) || 1;
+    const body = { customerId: state.customerId, items: [{ productId: state.productId, quantity: qty }] };
+    phase(0, 3, "POST orders — order row + OrderCreated event, one commit");
+    const r = await call("POST", "/api/v1/orders", { body, identity: true });
+    show("#oOrder", "POST", "/api/v1/orders", r);
+    if (r.status !== 201) {
+      settle(`api said ${r.status}${r.status === 403 ? " — the signed scopes/amr refused you (that's the demo)" : r.status === 503 ? " — order-placement feature toggle is off (kill switch)" : ""}`);
+      return;
+    }
+    state.orderId = r.json.id;
+    laneOrder("placed"); await sleep(400); laneOrder("pending");
+    visited("api", "db");
+    phase(3, 5, "outbox → service bus topic → email + inventory consumers");
+    laneOrder("bus");
+    await sleep(1800);
+    visited("sb", "fn");
+    laneOrder("consumed");
+    document.querySelector("#laneOrder [data-s=consumed]").classList.add("past");
+
+    // re-read the product to show the stock the order reserved
+    const p = await call("GET", `/api/v1/products/${encodeURIComponent(state.productId)}`, { identity: true });
+    if (p.status === 200) { $("#prodStock").textContent = p.json.stock; }
+
+    $("#bConfirm").hidden = false;
+    settle(`order ${state.orderId} placed — OrderCreated published, stock reserved. Confirm it to raise OrderStatusChanged.`);
+  });
+
+  // drive order state — another signed write that raises a bus event
+  $("#bConfirm").addEventListener("click", async () => {
+    if (!state.orderId) { settle("place an order first"); return; }
+    const body = { orderId: state.orderId, status: "Confirmed" };
+    phase(0, 3, "PUT status — domain transition + OrderStatusChanged event, one commit");
+    const r = await call("PUT", `/api/v1/orders/${encodeURIComponent(state.orderId)}/status`, { body, identity: true });
+    show("#oOrder", "PUT", `/api/v1/orders/${state.orderId}/status`, r);
+    if (r.status !== 200) { settle(`api said ${r.status} — needs orders:write + mfa from step 02`); return; }
+    phase(3, 5, "OrderStatusChanged → outbox → service bus");
+    await sleep(1200);
+    const g = await call("GET", `/api/v1/orders/${encodeURIComponent(state.orderId)}`, { identity: true });
+    show("#oOrder", "GET", `/api/v1/orders/${state.orderId}`, g);
+    if (g.json?.status === "Confirmed") {
+      laneOrder("confirmed"); document.querySelector("#laneOrder [data-s=confirmed]").classList.add("past");
+      visited("api", "db", "sb", "fn");
+      $("#bConfirm").hidden = true;
+      settle("Confirmed — the status write raised its own event, exactly as in production");
+      unlock("#s5", "#s6");
+    } else {
+      settle(`status is ${g.json?.status ?? "unknown"} — see the response`);
+    }
+  });
+})();
+</script>
+</body>
+</html>

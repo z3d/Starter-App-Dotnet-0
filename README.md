@@ -32,6 +32,8 @@ By default the locally-orchestrated API runs in `GatewayIdentity:Mode=UnsignedDe
 dotnet run -- --gateway          # or set ENABLE_GATEWAY=true
 ```
 
+With the gateway running, open **`/demo`** on the gateway origin for a self-contained interactive walkthrough: it drives probe → identity → product → customer → order through the signed path with an animated pipeline, same-origin with the proxied API (so its fetches need no CORS). Untick a scope or `mfa` in the identity step to watch the API refuse a write with `403` from the signed assertion alone.
+
 ## 🎯 What This Project Demonstrates
 
 1. **Modern .NET Development**
