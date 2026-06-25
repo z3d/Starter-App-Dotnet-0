@@ -26,16 +26,32 @@ public abstract class ConventionTestBase
     }
 
     // A type's own methods plus the methods of its compiler-generated nested types
-    // (async state machines, where the real work lives after `async` lowering).
+    // (async state machines, where the real work lives after `async` lowering), walking same-assembly
+    // base classes too: a handler whose HandleAsync lives on a shared command-handler base class must
+    // still have that IL scanned, or behaviour conventions would silently skip every derived handler.
     internal static IEnumerable<MethodInfo> GetAllMethodsIncludingStateMachines(Type type)
     {
         const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic |
                                    BindingFlags.Instance | BindingFlags.Static |
                                    BindingFlags.DeclaredOnly;
 
-        return type.GetMethods(flags)
-            .Concat(type.GetNestedTypes(BindingFlags.NonPublic)
-                .SelectMany(nested => nested.GetMethods(flags)));
+        for (var current = type; current is not null && current != typeof(object); current = current.BaseType)
+        {
+            if (current.Assembly != type.Assembly)
+                break;
+
+            // Closed generic bases must be opened to their definition to read method bodies.
+            var inspectable = current.IsGenericType && !current.IsGenericTypeDefinition
+                ? current.GetGenericTypeDefinition()
+                : current;
+
+            foreach (var method in inspectable.GetMethods(flags))
+                yield return method;
+
+            foreach (var nested in inspectable.GetNestedTypes(BindingFlags.NonPublic))
+                foreach (var method in nested.GetMethods(flags))
+                    yield return method;
+        }
     }
 
     // Scan IL for method/field opcodes whose target member's DeclaringType matches the given name.

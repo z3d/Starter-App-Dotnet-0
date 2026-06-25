@@ -193,6 +193,35 @@ public class PayloadCaptureTests
     }
 
     [Fact]
+    public async Task CaptureAsync_WhenOnlyTheAuditAppendFails_IsNonFatal_EvenUnderFailClosed()
+    {
+        // The audit stream is best-effort by design: the archive append above it is the durable
+        // FailClosed record, and the shared per-minute fan-in blob must never become a second
+        // serial failure point that fails traffic or pauses the outbox.
+        var store = new AuditFailingPayloadArchiveStore();
+        var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
+        var sink = CreateSink(store, timestamp, new PayloadCaptureOptions
+        {
+            HttpFailureMode = PayloadCaptureFailureMode.FailClosed,
+            ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed
+        });
+
+        var result = await sink.CaptureAsync(new PayloadCaptureRequest
+        {
+            CorrelationId = "case-123",
+            Direction = "outbound",
+            Channel = "servicebus",
+            Operation = "order.created.v1",
+            ContentType = "application/json",
+            Payload = """{"ok":true}"""
+        }, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Contains("archive/2026-05-03/04/07/case-123.jsonl", store.Inner.Lines.Keys);
+        Assert.DoesNotContain(store.Inner.Lines.Keys, key => key.StartsWith("audit/", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task CaptureAsync_WithNullStore_ShouldReturnNullWithoutClaimingCapture()
     {
         var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
@@ -468,6 +497,26 @@ public class PayloadCaptureTests
         public Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
         {
             throw new InvalidOperationException("archive store unavailable");
+        }
+    }
+
+    // Fails ONLY audit-prefixed appends: proves the best-effort audit contract without disturbing
+    // the durable archive path.
+    private sealed class AuditFailingPayloadArchiveStore : IPayloadArchiveStore
+    {
+        public InMemoryPayloadArchiveStore Inner { get; } = new();
+
+        public Task AppendLineAsync(string blobName, string line, CancellationToken cancellationToken)
+        {
+            if (blobName.StartsWith("audit/", StringComparison.Ordinal))
+                throw new InvalidOperationException("audit blob unavailable");
+
+            return Inner.AppendLineAsync(blobName, line, cancellationToken);
+        }
+
+        public Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
+        {
+            return Inner.DeleteOlderThanAsync(cutoffUtc, cancellationToken);
         }
     }
 

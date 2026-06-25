@@ -96,9 +96,16 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
 
         try
         {
+            // The per-correlation archive is THE durable record: this append is the one governed by
+            // the channel's FailOpen/FailClosed policy.
             var line = JsonSerializer.Serialize(record, SerializerOptions);
             await _store.AppendLineAsync(archiveBlobName, line, cancellationToken);
-            await _store.AppendLineAsync(auditBlobName, line, cancellationToken);
+
+            // The per-minute audit stream is ops' time-window view (tail one blob for "everything in
+            // this minute" without knowing correlation ids) and is BEST-EFFORT: the durable record
+            // already exists above, and the shared fan-in blob is the most contended write in the
+            // system, so a failure here must never fail traffic or pause the outbox — even FailClosed.
+            await AppendAuditBestEffortAsync(auditBlobName, line, request, cancellationToken);
 
             var entityIndexBlobNames = new List<string>();
             foreach (var entityReference in entityReferences)
@@ -150,6 +157,23 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
         }
 
         return record;
+    }
+
+    private async Task AppendAuditBestEffortAsync(string auditBlobName, string line, PayloadCaptureRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _store.AppendLineAsync(auditBlobName, line, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex,
+                "Audit-stream append to {AuditBlobName} failed for {Direction} {Channel} {Operation}; the archive record is durable, continuing",
+                auditBlobName,
+                request.Direction,
+                request.Channel,
+                request.Operation);
+        }
     }
 
     private string RedactForLog(PayloadCaptureRequest request)
