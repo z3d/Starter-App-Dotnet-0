@@ -20,10 +20,10 @@ export function getCustomer(id) {
   return res;
 }
 
-export function listCustomers(page = 1, pageSize = 50) {
+export function listCustomers(page = 1, pageSize = 50, tag = ENDPOINTS.LIST_CUSTOMERS) {
   const res = http.get(
     `${CUSTOMERS_URL}?page=${page}&pageSize=${pageSize}`,
-    tagParams(ENDPOINTS.LIST_CUSTOMERS),
+    tagParams(tag),
   );
   check(res, {
     'list customers: status 200': (r) => r.status === 200,

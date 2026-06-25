@@ -134,4 +134,67 @@ public class OrderStateMachineFuzzTests
                     && order.GetTotalGstAmount().Amount == expectedGst;
             });
     }
+
+    // ---- P1b: MaxItems boundary ----
+
+    [Fact]
+    public void AddingUpToMaxItems_Succeeds_AndOneMoreThrows()
+    {
+        var order = TestEntities.Order(1);
+        for (var i = 1; i <= Order.MaxItems; i++)
+            order.AddItem(i, $"Product {i}", 1, Money.Create(10m, "USD"));
+
+        Assert.Equal(Order.MaxItems, order.Items.Count);
+
+        // The (MaxItems + 1)-th DISTINCT product must throw (AddItem replaces same-ProductId items,
+        // so a new ProductId is required to actually exceed the cap).
+        Assert.Throws<InvalidOperationException>(() =>
+            order.AddItem(Order.MaxItems + 1, "Overflow", 1, Money.Create(10m, "USD")));
+    }
+
+    [Property(MaxTest = 500)]
+    public Property AddingMoreThanMaxDistinctItems_AlwaysThrows()
+    {
+        var overflow = Gen.Choose(1, 50).ToArbitrary();
+        return Prop.ForAll(overflow,
+            extra =>
+            {
+                var order = TestEntities.Order(1);
+                for (var i = 1; i <= Order.MaxItems; i++)
+                    order.AddItem(i, $"Product {i}", 1, Money.Create(10m, "USD"));
+
+                try
+                {
+                    // Add `extra` further DISTINCT products beyond the cap; the very first must throw.
+                    order.AddItem(Order.MaxItems + extra, "Overflow", 1, Money.Create(10m, "USD"));
+                    return false;
+                }
+                catch (InvalidOperationException) { return true; }
+            });
+    }
+
+    // ---- P2a: currency mismatch across order items ----
+
+    [Property(MaxTest = 500)]
+    public Property AddingItemWithMismatchedCurrency_AlwaysThrows()
+    {
+        var currencyPair = Gen.Elements("USD", "EUR", "GBP", "AUD", "NZD")
+            .SelectMany(first => Gen.Elements("USD", "EUR", "GBP", "AUD", "NZD")
+                .Where(second => second != first)
+                .Select(second => (First: first, Second: second)))
+            .ToArbitrary();
+
+        return Prop.ForAll(currencyPair,
+            pair =>
+            {
+                var order = TestEntities.Order(1);
+                order.AddItem(1, "First", 1, Money.Create(10m, pair.First));
+                try
+                {
+                    order.AddItem(2, "Second", 1, Money.Create(10m, pair.Second));
+                    return false;
+                }
+                catch (InvalidOperationException) { return true; }
+            });
+    }
 }

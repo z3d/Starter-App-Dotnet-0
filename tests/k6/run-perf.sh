@@ -25,9 +25,12 @@ API_PORT="${API_PORT:-5165}"   # uncommon default (DAST uses 5164) to avoid fore
 TARGET_URL="${TARGET_URL:-http://localhost:${API_PORT}}"
 SKIP_BOOT="${SKIP_BOOT:-0}"               # 1 = use an existing instance, skip DB/API boot
 SKIP_SEED="${SKIP_SEED:-0}"               # 1 = skip the bulk data seed
+SKIP_REDIS="${SKIP_REDIS:-0}"             # 1 = no Redis; by-id reads fall back to in-memory cache
 PG_IMAGE="${PG_IMAGE:-postgres:16-alpine}"
 PG_PORT="${PG_PORT:-55433}"               # distinct from the DAST runner's 55432
 PG_DB="starterapp_perf"
+REDIS_IMAGE="${REDIS_IMAGE:-redis:7-alpine}"
+REDIS_PORT="${REDIS_PORT:-56379}"         # distinct from PG_PORT; dedicated perf-Redis host port
 K6_SCRIPT="${K6_SCRIPT:-$SCRIPT_DIR/load.js}"
 # Volume floor for list-endpoint checks: with the bulk seed in place every list
 # page must come back full. Unseeded runs (SKIP_SEED=1) drop the floor to 1
@@ -36,9 +39,22 @@ K6_MIN_LIST_ROWS_EXPLICIT="${K6_MIN_LIST_ROWS+1}"
 K6_MIN_LIST_ROWS="${K6_MIN_LIST_ROWS:-20}"
 REPORTS_DIR="$SCRIPT_DIR/reports"
 SUMMARY_OUT="$REPORTS_DIR/summary.json"
+# Run-over-run trend tracking. If a committed baseline exists, compare key
+# percentiles after k6 exits. Warn-only by default so a noisy baseline cannot
+# destabilize the gate; set REGRESSION_FAIL=1 to make a regression fatal.
+BASELINE_FILE="${BASELINE_FILE:-$SCRIPT_DIR/baseline/summary-baseline.json}"
+REGRESSION_PCT="${REGRESSION_PCT:-20}"    # % over baseline that counts as a regression
+REGRESSION_FAIL="${REGRESSION_FAIL:-0}"   # 1 = exit non-zero on regression (default: warn)
 RUN_ID="perf-$$"
 PG_CONTAINER="${RUN_ID}-pg"
+REDIS_CONTAINER="${RUN_ID}-redis"
 CONN="Host=localhost;Port=${PG_PORT};Database=${PG_DB};Username=postgres;Password=postgres"
+# StackExchange.Redis (via Aspire AddRedisDistributedCache("redis")) reads
+# ConnectionStrings:redis as a host:port endpoint. The API only wires Redis when
+# this connection string is present (Program.cs); otherwise it falls back to an
+# in-process AddDistributedMemoryCache — which is what made the by-id latency
+# signal measure an in-memory cache instead of a prod-like Redis round trip.
+REDIS_CONN="localhost:${REDIS_PORT}"
 
 API_PID=""
 API_LOG="$REPORTS_DIR/api.log"
@@ -56,6 +72,10 @@ cleanup() {
   if [[ "$SKIP_BOOT" != "1" ]]; then
     log "Removing PostgreSQL container"
     docker rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
+    if [[ "$SKIP_REDIS" != "1" ]]; then
+      log "Removing Redis container"
+      docker rm -f "$REDIS_CONTAINER" >/dev/null 2>&1 || true
+    fi
   fi
   exit "$code"
 }
@@ -91,6 +111,23 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
     sleep 1
   done
 
+  if [[ "$SKIP_REDIS" != "1" ]]; then
+    log "Starting Redis ($REDIS_IMAGE) on port $REDIS_PORT"
+    docker run -d --name "$REDIS_CONTAINER" \
+      -p "${REDIS_PORT}:6379" \
+      "$REDIS_IMAGE" >/dev/null
+
+    log "Waiting for Redis to accept connections"
+    redis_ready=0
+    for _ in $(seq 1 30); do
+      if docker exec "$REDIS_CONTAINER" redis-cli ping 2>/dev/null | grep -q PONG; then redis_ready=1; break; fi
+      sleep 1
+    done
+    [[ "$redis_ready" == "1" ]] || { err "Redis did not become ready."; exit 1; }
+  else
+    log "SKIP_REDIS=1 — no Redis; by-id reads fall back to the in-memory cache (by-id thresholds are not prod-meaningful)"
+  fi
+
   log "Running database migrations (DbMigrator)"
   ConnectionStrings__database="$CONN" \
     dotnet run --project "$REPO_ROOT/src/StarterApp.DbMigrator" -c Release
@@ -107,12 +144,23 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
   # The entire load profile runs under the single k6 gateway identity, so the
   # per-identity rate limit must be lifted or the gate measures the limiter
   # (98.6% 429s on the first nightly run), not the API.
+  # Pass Redis only when provisioned: an empty ConnectionStrings__redis still
+  # trips Program.cs's IsNullOrEmpty check and stays on the in-memory fallback,
+  # so SKIP_REDIS leaves the variable unset entirely. Built as an env array so
+  # the empty (SKIP_REDIS) case adds nothing to the API process environment.
+  REDIS_ENV=()
+  if [[ "$SKIP_REDIS" != "1" ]]; then
+    REDIS_ENV+=("ConnectionStrings__redis=$REDIS_CONN")
+  fi
+
   log "Starting API on port $API_PORT (Development / UnsignedDevelopment)"
   : > "$API_LOG"
+  env \
   ASPNETCORE_ENVIRONMENT=Development \
   ASPNETCORE_URLS="http://0.0.0.0:${API_PORT}" \
   ConnectionStrings__database="$CONN" \
   RateLimiting__PermitLimit=1000000 \
+  ${REDIS_ENV[@]+"${REDIS_ENV[@]}"} \
     dotnet run --project "$REPO_ROOT/src/StarterApp.Api" -c Release --no-launch-profile \
     >"$API_LOG" 2>&1 &
   API_PID=$!
@@ -139,3 +187,44 @@ K6_MIN_LIST_ROWS="$K6_MIN_LIST_ROWS" \
   k6 run --summary-export="$SUMMARY_OUT" "$K6_SCRIPT"
 
 log "PERF PASSED: all thresholds held. Summary: $SUMMARY_OUT"
+
+# --- baseline / trend comparison ----------------------------------------------
+# Diff key percentiles against a committed known-good baseline so a slow drift
+# that still passes the absolute thresholds is surfaced. Non-fatal by default.
+# Refresh the baseline by copying a known-good run:
+#   cp tests/k6/reports/summary.json tests/k6/baseline/summary-baseline.json
+if [[ -f "$BASELINE_FILE" ]]; then
+  if ! command -v jq >/dev/null 2>&1; then
+    log "Baseline present but 'jq' not on PATH — skipping trend comparison."
+  else
+    log "Comparing against baseline: $BASELINE_FILE (regression threshold: +${REGRESSION_PCT}%)"
+    regressed=0
+    for metric in "p(95)" "p(99)"; do
+      cur="$(jq -r --arg m "$metric" '.metrics.http_req_duration[$m] // empty' "$SUMMARY_OUT")"
+      base="$(jq -r --arg m "$metric" '.metrics.http_req_duration[$m] // empty' "$BASELINE_FILE")"
+      if [[ -z "$cur" || -z "$base" ]]; then
+        log "  http_req_duration ${metric}: missing in current or baseline — skipped"
+        continue
+      fi
+      # allowed = base * (1 + pct/100); compare with awk (floats)
+      verdict="$(awk -v c="$cur" -v b="$base" -v p="$REGRESSION_PCT" \
+        'BEGIN { allowed = b * (1 + p/100); if (b > 0 && c > allowed) print "REGRESS"; else print "OK" }')"
+      delta="$(awk -v c="$cur" -v b="$base" 'BEGIN { if (b > 0) printf "%+.1f", (c-b)/b*100; else print "n/a" }')"
+      if [[ "$verdict" == "REGRESS" ]]; then
+        err "  http_req_duration ${metric}: ${cur}ms vs baseline ${base}ms (${delta}%) — REGRESSION (> +${REGRESSION_PCT}%)"
+        regressed=1
+      else
+        log "  http_req_duration ${metric}: ${cur}ms vs baseline ${base}ms (${delta}%) — within budget"
+      fi
+    done
+    if [[ "$regressed" == "1" ]]; then
+      if [[ "$REGRESSION_FAIL" == "1" ]]; then
+        err "Baseline regression detected and REGRESSION_FAIL=1 — failing the run."
+        exit 1
+      fi
+      log "Baseline regression detected (warn-only; set REGRESSION_FAIL=1 to fail the run)."
+    fi
+  fi
+else
+  log "No baseline at $BASELINE_FILE — skipping trend comparison. To establish one, copy a known-good $SUMMARY_OUT there."
+fi

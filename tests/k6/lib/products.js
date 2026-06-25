@@ -20,10 +20,10 @@ export function getProduct(id) {
   return res;
 }
 
-export function listProducts(page = 1, pageSize = 50) {
+export function listProducts(page = 1, pageSize = 50, tag = ENDPOINTS.LIST_PRODUCTS) {
   const res = http.get(
     `${PRODUCTS_URL}?page=${page}&pageSize=${pageSize}`,
-    tagParams(ENDPOINTS.LIST_PRODUCTS),
+    tagParams(tag),
   );
   check(res, {
     'list products: status 200': (r) => r.status === 200,
