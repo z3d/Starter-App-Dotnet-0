@@ -93,7 +93,9 @@ public static class ServiceCollectionExtensions
                 else
                     policy.WithOrigins(configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
                           .WithMethods("GET", "POST", "PUT", "DELETE")
-                          .WithHeaders("Authorization", "Content-Type");
+                          // X-Correlation-ID is a documented client-settable request header (echoed on
+                          // responses); omitting it here blocks browser callers from supplying their own.
+                          .WithHeaders("Authorization", "Content-Type", "X-Correlation-ID");
             });
         });
 

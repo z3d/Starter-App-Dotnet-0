@@ -13,17 +13,20 @@ public static class ProbeEndpoints
 {
     public static WebApplication MapProbeEndpoints(this WebApplication app)
     {
+        // These external-monitor probes opt out of the global rate limiter for the same reason as
+        // the /health* set in Program.cs: they are unauthenticated and would otherwise share an
+        // IP-keyed partition, letting throttling restart/evict a healthy instance.
         app.MapGet("/liveness", (TimeProvider timeProvider) => Results.Ok(new
         {
             status = "alive",
             timestampUtc = timeProvider.GetUtcNow(),
-        }));
+        })).DisableRateLimiting();
 
         app.MapHealthChecks("/healthiness", new HealthCheckOptions
         {
             Predicate = check => check.Tags.Contains("durable"),
             ResponseWriter = WriteHealthinessResponseAsync,
-        });
+        }).DisableRateLimiting();
 
         return app;
     }

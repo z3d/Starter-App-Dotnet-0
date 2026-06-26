@@ -77,28 +77,57 @@ public partial class CqrsConventionTests : ConventionTestBase
             string.Join("\n", queryTypes));
     }
 
+    // Provably-gated sub-queries that intentionally omit owner predicates because a prior owner-scoped
+    // fetch in the SAME handler gates them: an unauthorized caller gets null/empty from the gating query
+    // and never reaches the sub-query. This is the ONLY sanctioned escape from per-literal owner filtering.
+    // Keep it tiny, match a distinctive SQL fragment, and document why each entry is safe — a new entry is
+    // a deliberate security decision, not a way to silence the test.
+    private static readonly (string HandlerFullName, string SqlFragment, string Reason)[] GatedSubQueryExemptions =
+    [
+        (
+            "StarterApp.Api.Application.Queries.GetOrderByIdQueryHandler",
+            "WHERE order_id = @Id",
+            "items fetch runs only after the owner-scoped order fetch (orderSql) returns non-null; a " +
+            "cross-owner caller gets null before this executes, so keying by order_id alone cannot leak rows."),
+    ];
+
     [Fact]
     public void OwnerScopedQueryHandlers_MustFilterSqlByOwnerScope()
     {
         var handlers = GetOwnerScopedQueryHandlers().ToList();
         Assert.NotEmpty(handlers);
 
-        var failures = handlers
-            .Select(handler => new
+        // Validate EACH SELECT literal independently. Joining every literal into one blob (the prior
+        // approach) let a handler pass on a single owner-filtered SELECT while a SECOND, unfiltered SELECT
+        // literal silently leaked cross-owner rows — the owner predicate only had to appear *somewhere*.
+        var failures = new List<string>();
+        foreach (var handler in handlers)
+        {
+            var ownedTableSelects = ExtractStringLiterals(handler)
+                .Where(literal => literal.Contains("SELECT", StringComparison.OrdinalIgnoreCase)
+                    && OwnedTableRegex().IsMatch(literal));
+
+            foreach (var literal in ownedTableSelects)
             {
-                Handler = handler,
-                Sql = string.Join("\n", ExtractStringLiterals(handler)
-                    .Where(literal => literal.Contains("SELECT", StringComparison.OrdinalIgnoreCase)))
-            })
-            .Where(item =>
-                !OwnerSubjectPredicateRegex().IsMatch(item.Sql) ||
-                !TenantPredicateRegex().IsMatch(item.Sql))
-            .Select(item => $"{item.Handler.FullName} must include owner_subject = @OwnerSubject and tenant_id = @TenantId in its Dapper SQL.")
-            .OrderBy(message => message)
-            .ToList();
+                if (OwnerSubjectPredicateRegex().IsMatch(literal) && TenantPredicateRegex().IsMatch(literal))
+                    continue;
+
+                var exempt = GatedSubQueryExemptions.Any(e =>
+                    string.Equals(handler.FullName, e.HandlerFullName, StringComparison.Ordinal) &&
+                    literal.Contains(e.SqlFragment, StringComparison.Ordinal));
+                if (exempt)
+                    continue;
+
+                failures.Add($"{handler.FullName} has a SELECT over an owner-scoped table " +
+                    "(customers/products/orders/order_items) that omits owner_subject = @OwnerSubject and/or " +
+                    "tenant_id = @TenantId and is not a documented gated-subquery exemption.");
+            }
+        }
+
+        failures = failures.Distinct().OrderBy(message => message).ToList();
 
         Assert.True(failures.Count == 0,
-            "Owner-scoped query handlers must enforce owner filters in SQL, not just implement IOwnerScopedRequest:\n" +
+            "Owner-scoped query handlers must enforce owner filters in EVERY SELECT literal, not just one:\n" +
             string.Join("\n", failures));
     }
 
@@ -235,6 +264,9 @@ public partial class CqrsConventionTests : ConventionTestBase
 
     [GeneratedRegex(@"\b(?:\w+\.)?tenant_id\s*=\s*@TenantId\b", RegexOptions.IgnoreCase)]
     private static partial Regex TenantPredicateRegex();
+
+    [GeneratedRegex(@"\b(?:customers|products|orders|order_items)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex OwnedTableRegex();
 
     // === Handler Wiring ===
 

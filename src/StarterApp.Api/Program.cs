@@ -75,19 +75,24 @@ try
     app.UseRateLimiter();
 
     app.MapApiEndpoints();
-    app.MapHealthChecks("/health");
+
+    // Health/probe endpoints opt out of the global rate limiter. They are unauthenticated, so the
+    // limiter buckets them by client IP — under k8s the kubelet probes from the node IP and would
+    // share one partition with other node-egress traffic, so a 429 on /health/ready or /health/live
+    // could evict or restart an otherwise-healthy pod (a self-inflicted availability flap).
+    app.MapHealthChecks("/health").DisableRateLimiting();
     app.MapHealthChecks("/health/ready", new HealthCheckOptions
     {
         Predicate = check => check.Tags.Contains("ready")
-    });
+    }).DisableRateLimiting();
     app.MapHealthChecks("/health/live", new HealthCheckOptions
     {
         Predicate = check => check.Tags.Contains("live")
-    });
+    }).DisableRateLimiting();
     app.MapHealthChecks("/alive", new HealthCheckOptions
     {
         Predicate = check => check.Tags.Contains("live")
-    });
+    }).DisableRateLimiting();
     app.MapProbeEndpoints();
 
     app.Run();
