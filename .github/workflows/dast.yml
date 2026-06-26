@@ -58,4 +58,5 @@ jobs:
           dast/reports/dast-report.html
           dast/reports/dast-report.json
           dast/reports/api.log
+          dast/reports/zap-autorun.log
         if-no-files-found: ignore

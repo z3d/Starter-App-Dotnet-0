@@ -38,11 +38,11 @@ PG_PORT="${PG_PORT:-55432}"
 PG_DB="starterapp_dast"
 FAIL_RISK="${FAIL_RISK:-Medium}"          # Fail the run on alerts >= this risk (High|Medium|Low)
 SKIP_SEED="${SKIP_SEED:-0}"               # 1 = skip the owner-scoped data seed
-# Minimum-coverage floor: count of distinct URIs that must appear in the scan
-# report. If ZAP hangs/OOMs/half-runs, the JSON exists but is nearly empty, so a
-# 0-alert report would otherwise pass green. This floor (plus the ZAP exit-code
-# guard below) turns a dead/throttled scan into a hard failure. It is the DAST
-# analogue of the k6 gate's K6_MIN_LIST_ROWS volume floor.
+# Minimum-coverage floor: the number of URLs the scan must discover (parsed from
+# the ZAP openapi/spider job summaries, not from alert instances). If ZAP
+# hangs/OOMs/half-runs or never reaches the app, discovery is ~0, so this floor
+# (plus the ZAP exit-code guard below) turns a dead/throttled scan into a hard
+# failure. It is the DAST analogue of the k6 gate's K6_MIN_LIST_ROWS volume floor.
 DAST_MIN_URLS="${DAST_MIN_URLS:-5}"
 RUN_ID="dast-$$"
 PG_CONTAINER="${RUN_ID}-pg"
@@ -146,7 +146,7 @@ fi
 
 # --- run ZAP ------------------------------------------------------------------
 log "Running OWASP ZAP ($ZAP_IMAGE)"
-rm -f "$SCRIPT_DIR/reports/dast-report.json" "$SCRIPT_DIR/reports/dast-report.html"
+rm -f "$SCRIPT_DIR/reports/dast-report.json" "$SCRIPT_DIR/reports/dast-report.html" "$SCRIPT_DIR/reports/zap-autorun.log"
 chmod -R a+rwX "$SCRIPT_DIR/reports" 2>/dev/null || true
 
 # Render the automation template with the real port (single source of truth lives
@@ -162,13 +162,17 @@ sed "s/__API_PORT__/${ZAP_PORT}/g" "$SCRIPT_DIR/automation.yaml" > "$RENDERED_PL
 # yields a non-zero/non-2 code. We must briefly disable `set -e` around the run
 # so the non-zero code is captured rather than aborting the script before the
 # guards below can produce a clear message.
+# Tee ZAP's stdout to a log so the coverage gate below can read the Automation
+# Framework job summaries ("Job openapi added N URLs", "Job spider found N URLs").
+# PIPESTATUS[0] preserves docker's exit code through the pipe.
+ZAP_LOG="$SCRIPT_DIR/reports/zap-autorun.log"
 set +e
 docker run --rm \
   --add-host=host.docker.internal:host-gateway \
   -v "$SCRIPT_DIR:/zap/wrk:rw" \
   "$ZAP_IMAGE" \
-  zap.sh -cmd -autorun /zap/wrk/reports/automation.rendered.yaml
-ZAP_EXIT=$?
+  zap.sh -cmd -autorun /zap/wrk/reports/automation.rendered.yaml 2>&1 | tee "$ZAP_LOG"
+ZAP_EXIT=${PIPESTATUS[0]}
 set -e
 
 # Treat anything other than 0 (clean) or 2 (WARN — e.g. non-failing passive
@@ -184,21 +188,24 @@ fi
 REPORT_JSON="$SCRIPT_DIR/reports/dast-report.json"
 [[ -f "$REPORT_JSON" ]] || { err "ZAP produced no JSON report at $REPORT_JSON."; exit 1; }
 
-# Coverage floor. The traditional-json report has no request/message counter, so
-# the most reliable signal that the scan actually reached the app is the number
-# of distinct URIs ZAP recorded across alert instances. A real scan of the seeded
-# /api/v1 surface plus the static doc routes always produces well above the
-# floor; a scan that never connected (or was 429'd into oblivion) produces few or
-# none. Defensive jq (`// empty`) tolerates a report with no sites/alerts. This
-# is the DAST analogue of the k6 gate's K6_MIN_LIST_ROWS volume floor.
-SCANNED_URLS=$(jq -r '
-  [.site[]?.alerts[]?.instances[]?.uri // empty] | unique | length
-' "$REPORT_JSON" 2>/dev/null || echo 0)
-[[ "$SCANNED_URLS" =~ ^[0-9]+$ ]] || SCANNED_URLS=0
-log "Distinct URIs in scan report: $SCANNED_URLS (floor: $DAST_MIN_URLS)"
+# Coverage floor. Measure the URLs the scan actually *discovered*, not the URIs
+# that happened to produce an alert: a hardened app can be fully crawled yet alert
+# on only a handful of URLs, so counting alert-instance URIs conflates "clean app"
+# with "scan reached nothing". The Automation Framework logs an authoritative
+# per-job discovery count to stdout (captured in $ZAP_LOG): the openapi job emits
+# "added N URLs" and the spider job emits "found N URLs". Both are printed only
+# once ZAP has reached the target; a dead/throttled scan yields ~0 from both. We
+# take the larger of the two as the coverage signal. This is the DAST analogue of
+# the k6 gate's K6_MIN_LIST_ROWS volume floor.
+openapi_urls=$(grep -oiE 'Job openapi added [0-9]+ URLs' "$ZAP_LOG" 2>/dev/null | grep -oE '[0-9]+' | tail -1)
+spider_urls=$(grep -oiE 'Job spider found [0-9]+ URLs' "$ZAP_LOG" 2>/dev/null | grep -oE '[0-9]+' | tail -1)
+openapi_urls=${openapi_urls:-0}
+spider_urls=${spider_urls:-0}
+SCANNED_URLS=$(( openapi_urls > spider_urls ? openapi_urls : spider_urls ))
+log "URLs discovered by scan: openapi=$openapi_urls spider=$spider_urls (floor: $DAST_MIN_URLS)"
 if [[ "$SCANNED_URLS" -lt "$DAST_MIN_URLS" ]]; then
-  err "DAST FAILED: only $SCANNED_URLS distinct URI(s) in the report, below the floor of $DAST_MIN_URLS."
-  err "The scan likely did not reach the app (boot failure, wrong port, or fully rate-limited). Inspect dast/reports/api.log and dast-report.html."
+  err "DAST FAILED: scan discovered only $SCANNED_URLS URL(s), below the floor of $DAST_MIN_URLS."
+  err "The scan likely did not reach the app (boot failure, wrong port, or fully rate-limited). Inspect dast/reports/api.log and dast/reports/zap-autorun.log."
   exit 1
 fi
 

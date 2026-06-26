@@ -20,8 +20,8 @@ static convention/security tests in `StarterApp.Tests`.
 5. Runs the ZAP Automation Framework plan (`automation.yaml`): inject identity
    headers → import OpenAPI → spider → passive scan → active scan → reports.
 6. Fails the run if any alert is at/above the risk threshold (default `Medium`),
-   if ZAP itself failed/hung (non-zero/non-WARN exit), or if the scan covered
-   fewer than `DAST_MIN_URLS` distinct URIs (a dead/throttled scan can't pass green).
+   if ZAP itself failed/hung (non-zero/non-WARN exit), or if the scan discovered
+   fewer than `DAST_MIN_URLS` URLs (a dead/throttled scan can't pass green).
 7. Runs a scripted cross-owner IDOR probe (`curl`) asserting owner-02's resources
    stay hidden (404/empty) or forbidden (403) under owner-01's identity.
 8. Tears everything down.
@@ -40,9 +40,12 @@ reaching a handler, gutting active-scan coverage. The boot sets
 A trailing `|| true` on the ZAP run plus a "fail only if the report is missing"
 gate would let a ZAP hang/OOM/half-run pass green with 0 alerts. The runner now
 captures ZAP's autorun exit code (treating anything but `0`/`2` as a hard infra
-failure, since the plan sets `failOnError: true`) and enforces a distinct-URI
-coverage floor (`DAST_MIN_URLS`, default 5) parsed from the report — the DAST
-analogue of the k6 gate's `K6_MIN_LIST_ROWS` volume floor.
+failure, since the plan sets `failOnError: true`) and enforces a URL-discovery
+coverage floor (`DAST_MIN_URLS`, default 5) parsed from the ZAP openapi/spider
+job summaries — the DAST analogue of the k6 gate's `K6_MIN_LIST_ROWS` volume
+floor. The floor counts URLs the scan *discovered*, not URIs that produced an
+alert: a hardened app can be crawled in full yet alert on only a few URLs, so an
+alert-instance count would conflate "clean app" with "scan reached nothing".
 
 ### Why a cross-owner IDOR probe
 
@@ -90,7 +93,7 @@ SKIP_BOOT=1 TARGET_URL=http://localhost:5164 dast/run-dast.sh
 | `FAIL_RISK`     | `Medium`                         | Gate threshold: `High` \| `Medium` \| `Low` |
 | `SKIP_BOOT`     | `0`                              | `1` = scan an existing API, don't boot one |
 | `SKIP_SEED`     | `0`                              | `1` = skip the owner-scoped data seed (also skips the IDOR probe) |
-| `DAST_MIN_URLS` | `5`                              | Minimum distinct URIs the scan must cover, else fail |
+| `DAST_MIN_URLS` | `5`                              | Minimum URLs the scan must discover, else fail |
 | `TARGET_URL`    | `http://localhost:5164`          | API base URL                              |
 | `API_PORT`      | `5164`                           | Port the booted API listens on            |
 | `PG_PORT`       | `55432`                          | Host port for the throwaway PostgreSQL    |
@@ -101,6 +104,8 @@ SKIP_BOOT=1 TARGET_URL=http://localhost:5164 dast/run-dast.sh
 - `dast/reports/dast-report.html` — human-readable findings (open in a browser).
 - `dast/reports/dast-report.json` — machine-readable; drives the pass/fail gate.
 - `dast/reports/api.log` — API stdout/stderr from the scanned run.
+- `dast/reports/zap-autorun.log` — ZAP Automation Framework stdout; the coverage
+  gate parses the openapi/spider URL-discovery counts from it.
 
 The console prints an alert count per risk level and, on failure, the breaching
 alerts.
