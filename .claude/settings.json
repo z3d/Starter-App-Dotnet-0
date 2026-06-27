@@ -1,9 +1,29 @@
 {
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/appsettings.Development.json)",
+      "Read(**/appsettings.*.local.json)",
+      "Read(**/secrets/**)",
+      "Read(**/*.pfx)",
+      "Read(**/*.pem)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
         "matcher": "Bash",
         "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "statusMessage": "Guarding against destructive commands",
+            "timeout": 15,
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/protect-commands.sh\""
+          },
           {
             "type": "command",
             "shell": "bash",
