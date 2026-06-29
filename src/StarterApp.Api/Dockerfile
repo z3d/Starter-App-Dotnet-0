@@ -36,7 +36,7 @@ RUN dotnet publish "StarterApp.Api.csproj" -c Release -o /app/publish /p:UseAppH
 
 # Runtime image — lightweight, no ODBC tools needed
 # The API uses the Npgsql managed driver; database inspection should happen from the PostgreSQL container or psql-capable tooling.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:ddcf70ad1ab963a4fcd41fbd722a6b660e404e87567cfbd46fd2809c21b02088 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:7644f992230d35cf230017189d4038c0ae0f7388b13f4f7ae1900a155bafb597 AS final
 
 WORKDIR /app
 
