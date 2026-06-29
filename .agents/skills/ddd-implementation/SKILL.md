@@ -10,33 +10,42 @@ user-invocable: false
 
 **Core Pattern**: Entities with private setters, public constructors, and domain behavior.
 
+Owner-scoped aggregates (`Product`, `Customer`, `Order`) must take `string ownerSubject, string tenantId` on their public constructor and validate them via `OwnershipDefaults.Validate(...)` — `DomainConventionTests.OwnerScopedAggregates_MustNotExposeOwnerlessPublicConstructors` fails the build for any ownerless public ctor.
+
 ```csharp
 public class Product
 {
     public int Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
+    public string Description { get; private set; } = string.Empty;
     public Money Price { get; private set; } = null!;
+    public string OwnerSubject { get; private set; } = string.Empty;
+    public string TenantId { get; private set; } = string.Empty;
     public int Stock { get; private set; }
 
     protected Product() { } // EF Core constructor
 
-    public Product(string name, string description, Money price, int stock)
+    public Product(string name, string? description, Money price, int stock, string ownerSubject, string tenantId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(price);
         ArgumentOutOfRangeException.ThrowIfNegative(stock);
+        OwnershipDefaults.Validate(ownerSubject, tenantId);
 
         Name = name;
-        Description = description;
+        Description = description ?? string.Empty;
         Price = price;
         Stock = stock;
+        OwnerSubject = ownerSubject;
+        TenantId = tenantId;
     }
 
-    public void UpdateDetails(string name, Money price)
+    public void UpdateDetails(string name, string? description, Money price)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(price);
         Name = name;
+        Description = description ?? string.Empty;
         Price = price;
     }
 }
@@ -58,13 +67,19 @@ public class Money
         Currency = currency;
     }
 
-    public static Money Create(decimal amount, string currency)
+    public static Money Create(decimal amount, string currency = "USD")
     {
         ArgumentOutOfRangeException.ThrowIfNegative(amount);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(amount, MaxAmount);
         ArgumentException.ThrowIfNullOrWhiteSpace(currency);
-        if (currency.Length > 3)
-            throw new ArgumentException("Currency code cannot exceed 3 characters", nameof(currency));
-        return new Money(amount, currency);
+
+        // Currency must be EXACTLY three ISO letters — not merely "at most 3 chars".
+        if (!IsValidCurrencyCode(currency))
+            throw new ArgumentException("Currency code must be a three-letter ISO code", nameof(currency));
+
+        // Normalize: round to 2 dp (whole minor units) and upper-case the currency.
+        var rounded = decimal.Round(amount, CurrencyDecimalPlaces, MidpointRounding.AwayFromZero);
+        return new Money(rounded, currency.ToUpperInvariant());
     }
 
     // Must override Equals(object) and GetHashCode() — convention tests enforce this
@@ -95,15 +110,19 @@ public class Customer
 // public class CustomerEntity { } // When you already have Customer
 ```
 
+(The constructor is elided above to focus on value-object embedding; the real `Customer` takes `string ownerSubject, string tenantId` and calls `OwnershipDefaults.Validate(...)` like every owner-scoped aggregate.)
+
 ## Reconstitute Pattern (Test-Only)
 
 `internal static` factory method for rebuilding aggregates in arbitrary states. Visible to the test project via `InternalsVisibleTo`.
 
 ```csharp
-internal static Order Reconstitute(int id, int customerId, DateTime orderDate,
-    OrderStatus status, DateTime lastUpdated, List<OrderItem> items)
+internal static Order Reconstitute(Guid id, int customerId, DateTimeOffset orderDate,
+    OrderStatus status, DateTimeOffset lastUpdated, List<OrderItem> items)
 ```
 
-**Why it exists**: The public `Order(customerId)` constructor enforces creation-time invariants (status = Pending, empty items). Property-based fuzz tests need to create orders in arbitrary states (e.g., Shipped, Delivered) without going through the full state machine.
+`Order.Id` is a `Guid` (client-assigned `Guid.CreateVersion7()`), and timestamps are `DateTimeOffset` — `DomainConventionTests.DomainTypes_MustUseDateTimeOffsetNotDateTime` forbids `DateTime` on domain types.
+
+**Why it exists**: The public `Order(int customerId, string ownerSubject, string tenantId)` constructor and `RecordCreation()` enforce creation-time invariants (the ctor sets status = Pending; `RecordCreation()` guards against an empty order). Property-based fuzz tests need to create orders in arbitrary states (e.g., Shipped, Delivered) without going through the full state machine.
 
 **Not for production handlers**: Command handlers load aggregates via EF Core with `.Include(o => o.Items)` on a tracked entity, mutate through domain methods, and call `SaveChangesAsync`. EF Core detects only the changed properties. Do not use `AsNoTracking` + `Reconstitute` + `Update` — that marks all columns modified and creates lost-update risks.

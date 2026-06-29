@@ -78,11 +78,14 @@ ALTER TABLE orders ADD CONSTRAINT ck_orders_status CHECK (status IN ('Pending', 
 
 ## Connection String Resolution
 
-Priority order: `database` → `DockerLearning` → `postgres` → `DefaultConnection`
+Two resolvers, each in its own `Program.cs`:
+
+- **API** (`src/StarterApp.Api/Program.cs`) resolves **only** `database` and throws if it is absent (`GetConnectionString("database") ?? throw new InvalidOperationException(...)`) — it relies on Aspire injecting the connection string, so there is no local fallback.
+- **DbMigrator** (`src/StarterApp.DbMigrator/Program.cs`) resolves a fallback chain `database` → `postgres` → `DefaultConnection` (`databaseConnection ?? postgresConnection ?? defaultConnection`), with `DefaultConnection` serving as the local `appsettings.json` fallback for standalone migration runs.
 
 ## Aspire Configuration
 
-### Aspire 13.1.2 Features
+### Aspire 13.2.3 Features
 
 - **CLI Tools**: `aspire update` for automatic package updates
 - **Dashboard**: GenAI visualizer for LLM telemetry, multi-resource console logs

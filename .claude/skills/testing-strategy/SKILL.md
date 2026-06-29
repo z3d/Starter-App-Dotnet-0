@@ -21,7 +21,7 @@ Tests/
 
 ## Property-Based Testing (Fuzzing)
 
-**FsCheck 2.16.6** with **FsCheck.Xunit** integration. Instead of hand-picked test values, FsCheck generates hundreds of random inputs to verify domain invariants hold universally.
+**FsCheck 3.3.3** with **FsCheck.Xunit 3.3.3** integration. Instead of hand-picked test values, FsCheck generates hundreds of random inputs to verify domain invariants hold universally.
 
 **Key properties tested**:
 - **Money**: Addition commutativity/associativity, subtract-inverse, subtract never produces negative amounts, negative rejection, currency validation
@@ -131,8 +131,10 @@ var httpClient = app.CreateHttpClient("api");
 **Shell script** (`scripts/smoke-test.sh`) for verifying a live deployment. Complements integration tests — integration tests verify correctness in-process, smoke tests verify the deployed artifact works end-to-end.
 
 ```bash
-./scripts/smoke-test.sh [BASE_URL]   # default: http://localhost:8080
-./scripts/smoke-test.sh https://localhost:7286  # Aspire
+# BASE_URL is required — pass it positionally or via the SMOKE_BASE_URL env var.
+# With neither set, the script prints usage and exits 2 (no baked-in default).
+./scripts/smoke-test.sh https://localhost:7286   # Aspire (API URL from the dashboard)
+SMOKE_BASE_URL=https://localhost:7286 ./scripts/smoke-test.sh
 ```
 
 **What it covers** (25 assertions):

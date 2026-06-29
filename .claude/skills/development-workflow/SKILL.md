@@ -101,10 +101,8 @@ After deploying or modifying infrastructure, run the smoke test script against t
 
 The script tests all CRUD endpoints, validators (email, currency, OrderId), conflict responses (409), and not-found responses (404). It uses unique test data per run and exits non-zero on failure — suitable for CI post-deploy gates.
 
-### .NET 10 Dockerfile Changes
-- .NET 10 base images use Ubuntu (not Debian)
-- Use modern GPG key management: `gpg --dearmor` + `signed-by=` in sources list
-- Microsoft package repo path: `ubuntu/24.04/prod.list`
+### .NET 10 Dockerfiles in this repo
+This repo's three Dockerfiles (`src/StarterApp.Api`, `src/StarterApp.DbMigrator`, `src/StarterApp.Functions`) pull the .NET SDK/runtime from **digest-pinned `mcr.microsoft.com` images** (`dotnet/sdk:10.0@sha256:…` for build, `dotnet/aspnet:10.0@sha256:…` or `azure-functions/dotnet-isolated:…@sha256:…` for the final stage) — there is NO Microsoft apt repo, GPG-key import (`gpg --dearmor`/`signed-by=`), or `prod.list` to maintain. The only apt step in the final stage installs `curl` for the healthcheck via plain `apt-get install -y --no-install-recommends curl` (then clears `/var/lib/apt/lists/*`). Do not introduce a Microsoft package-repo block — the runtime comes from the base image. Resolve a new digest with `docker buildx imagetools inspect <image>` (mutable tags would defeat the digest pin and the Dependabot docker updater).
 
 ## Azure Service Bus Emulator in Aspire
 
@@ -210,7 +208,7 @@ act -v           # Verbose output
 act --list       # List available workflows
 ```
 
-**Config files**: `.actrc` sets `--container-architecture linux/amd64` and runner image. `.act.env` sets container `PATH` for Node.js in post-steps.
+**Config files**: `.actrc` sets `--container-architecture linux/amd64`, the runner image (`-P ubuntu-latest=catthehacker/ubuntu:act-latest`), and `--env-file .act.env`. `.act.env` sets `TESTCONTAINERS_RYUK_DISABLED=true` so Testcontainers-backed tests run under act's nested Docker (the Ryuk reaper can't be reached across the nested-Docker boundary). It deliberately does NOT override `PATH` — the catthehacker runner image already puts the correct bundled Node on `PATH`, and pinning a patch version here breaks on every image bump.
 
 ## Post-Session Retrospective
 

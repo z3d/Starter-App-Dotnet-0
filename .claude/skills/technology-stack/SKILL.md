@@ -32,7 +32,7 @@ user-invocable: false
 
 ### Testing
 - **xUnit**: Primary testing framework
-- **FsCheck 2.16.6 + FsCheck.Xunit**: Property-based (fuzz) testing
+- **FsCheck 3.3.3 + FsCheck.Xunit 3.3.3**: Property-based (fuzz) testing (3.x — a major-version bump from 2.x with a different API; fuzz tests use the FsCheck 3.x surface, e.g. `Gen.OneOf`)
 - **Testcontainers.PostgreSql**: Database integration testing
 - **Microsoft.AspNetCore.Mvc.Testing**: API integration testing
 - **Moq**: Mocking framework
@@ -40,27 +40,52 @@ user-invocable: false
 
 ## Custom Mediator Implementation
 
-**Custom CQRS Mediator** (replaces commercial MediatR):
+**Custom CQRS Mediator** (replaces commercial MediatR). The public contract:
 
 ```csharp
 public interface IMediator
 {
-    Task<TResult> SendAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default);
+    // Single dispatch path: every request is IRequest<TResponse>, so every command/query runs
+    // through the same IPipelineBehavior chain. Commands with no natural result return Unit.
+    Task<TResponse> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default);
 }
 
-public class Mediator : IMediator
-{
-    private readonly IServiceProvider _serviceProvider;
+public interface IRequest<out TResponse> { }
 
-    public async Task<TResult> SendAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
-    {
-        var handlerType = typeof(IRequestHandler<,>).MakeGenericType(request.GetType(), typeof(TResult));
-        var handler = _serviceProvider.GetRequiredService(handlerType);
-        var method = handlerType.GetMethod("HandleAsync");
-        var task = (Task<TResult>)method!.Invoke(handler, new object[] { request, cancellationToken })!;
-        return await task;
-    }
+public interface IRequestHandler<in TRequest, TResponse> where TRequest : IRequest<TResponse>
+{
+    Task<TResponse> HandleAsync(TRequest request, CancellationToken cancellationToken);
 }
 ```
 
-Benefits: No commercial licensing, simple transparent implementation, full control over dispatch, zero reflection overhead in handlers.
+The implementation (`StarterApp.Api/Infrastructure/Mediator/Mediator.cs`) deliberately avoids
+`MethodInfo.Invoke`. It runs a feature-toggle gate and validators, then dispatches through a
+strongly-typed wrapper that is **built once per request type and cached** for the process lifetime
+(`ConcurrentDictionary<Type, object>`). Every subsequent `SendAsync` is a dictionary lookup plus a
+strongly-typed virtual call — no per-call `MethodInfo.Invoke`, no `object[]` argument allocation:
+
+```csharp
+public Task<TResponse> SendAsync<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
+{
+    ArgumentNullException.ThrowIfNull(request);
+
+    RunFeatureToggleGate(request);  // [FeatureToggle("name")] → FeatureDisabledException (503) before anything else
+    RunValidators(request);         // every command/query has a validator (convention-enforced)
+
+    var wrapper = (RequestHandlerWrapper<TResponse>)RequestHandlerWrappers.GetOrAdd(
+        request.GetType(),
+        static (requestType, responseType) =>
+            Activator.CreateInstance(typeof(RequestHandlerWrapperImpl<,>).MakeGenericType(requestType, responseType))!,
+        typeof(TResponse));
+
+    return wrapper.HandleAsync(request, _serviceProvider, cancellationToken);
+}
+
+// Inside RequestHandlerWrapperImpl<TRequest, TResponse>: resolves IRequestHandler<TRequest, TResponse>,
+// wraps the call in the IPipelineBehavior<TRequest, TResponse> chain (registration order, first
+// registered runs outermost), and invokes handler.HandleAsync(typed, cancellationToken) directly.
+```
+
+Benefits: No commercial licensing, simple transparent implementation, full control over dispatch.
+The per-request-type wrapper is created once and cached, so dispatch carries no per-call reflection
+cost; the feature-toggle gate, validators, and pipeline behaviors are all centralized in this one path.

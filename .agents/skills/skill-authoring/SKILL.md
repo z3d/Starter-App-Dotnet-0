@@ -53,4 +53,4 @@ content into the winner before retiring it.
 ## Related skills
 
 - `development-workflow` — debugging and local CI workflow these conventions plug into
-- `testing-strategy` — where convention tests (including the doc-mirror test) are documented
+- `testing-strategy` — where convention tests are documented

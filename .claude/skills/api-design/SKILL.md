@@ -22,35 +22,53 @@ public class CustomerEndpoints : IEndpointDefinition
 {
     public void DefineEndpoints(WebApplication app)
     {
-        var customers = app.MapGroup("/api/customers")
+        // Every /api/v1 group MUST call RequireGatewayIdentity(); every route MUST declare
+        // RequireScope("domain:read|write"); every non-GET route MUST also call SecuredBy2Fa().
+        // ApiConventionTests enforces all three from the mapped endpoint metadata.
+        var customers = app.MapGroup("/api/v1/customers")
             .WithTags("Customers")
-            .WithDescription("Customer management operations");
+            .RequireGatewayIdentity();
+
+        customers.MapGet("/{id:int}", GetCustomer)
+            .WithName("GetCustomer")
+            .WithSummary("Get customer by ID")
+            .WithDescription("Retrieves a specific customer by their unique identifier")
+            .RequireScope("customers:read")
+            .Produces<CustomerReadModel>(200, "application/json")
+            .ProducesProblem(404)
+            .ProducesProblem(500);
 
         customers.MapPost("/", CreateCustomer)
             .WithName("CreateCustomer")
-            .WithDescription("Create a new customer")
-            .Produces<CustomerDto>(StatusCodes.Status201Created)
-            .Produces(StatusCodes.Status400BadRequest);
-
-        customers.MapGet("/{id}", GetCustomer)
-            .WithName("GetCustomer")
-            .WithDescription("Get customer by ID")
-            .Produces<CustomerReadModel>(StatusCodes.Status200OK)
-            .Produces(StatusCodes.Status404NotFound);
+            .WithSummary("Create a new customer")
+            .WithDescription("Creates a new customer with the provided information")
+            .RequireScope("customers:write")
+            .SecuredBy2Fa()
+            .Accepts<CreateCustomerCommand>("application/json")
+            .Produces<CustomerDto>(201, "application/json")
+            .ProducesProblem(400)
+            .ProducesProblem(500);
     }
 
+    // Handlers MUST bind a CancellationToken and forward it to mediator.SendAsync —
+    // ApiConventionTests.ApiRouteEndpoints_MustBindACancellationToken enforces this.
     private static async Task<IResult> CreateCustomer(
         CreateCustomerCommand command, IMediator mediator, CancellationToken cancellationToken)
     {
         var result = await mediator.SendAsync(command, cancellationToken);
-        return Results.Created($"/api/customers/{result.Id}", result);
+        return Results.Created($"/api/v1/customers/{result.Id}", result);
     }
 
     private static async Task<IResult> GetCustomer(
         int id, IMediator mediator, CancellationToken cancellationToken)
     {
-        var query = new GetCustomerQuery { Id = id };
+        // GetCustomerQuery has a read-only Id set via constructor — use the ctor, not an object initializer.
+        var query = new GetCustomerQuery(id);
         var result = await mediator.SendAsync(query, cancellationToken);
+
+        if (result == null)
+            return Results.NotFound();
+
         return Results.Ok(result);
     }
 }
@@ -63,7 +81,7 @@ public static class EndpointExtensions
 {
     public static WebApplication MapApiEndpoints(this WebApplication app)
     {
-        var endpointDefinitions = typeof(Program).Assembly
+        var endpointDefinitions = typeof(IApiMarker).Assembly
             .GetTypes()
             .Where(t => t.IsAssignableTo(typeof(IEndpointDefinition))
                        && !t.IsAbstract && !t.IsInterface)
