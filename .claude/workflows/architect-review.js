@@ -65,7 +65,7 @@ const results = await pipeline(
   lenses,
   (s) =>
     agent(
-      `Review ${changed} — focus on ${LENSES[s].what}.${planNote} Check adherence to the rules in CLAUDE.md and the matching .claude/skills, AND hunt for real bugs/security issues. Do not re-report anything already marked resolved in docs/ARCHITECTURE_REVIEW.md. Report each as a structured finding (file, symbol, line, severity, kind, title, detail). Be specific and verifiable — each finding is adversarially checked line-by-line, so do not pad with speculation.`,
+      `Review ${changed} — focus on ${LENSES[s].what}.${planNote} Check adherence to the rules in CLAUDE.md and the matching .claude/skills, AND hunt for real bugs/security issues. Do not re-report anything already marked resolved in docs/ARCHITECTURE_REVIEW.md, and do not re-litigate a recorded decision (trade-offs explicitly documented in CLAUDE.md or docs/ARCHITECTURE_REVIEW.md). Report each as a structured finding (file, symbol, line, severity, kind, title, detail). Be specific and verifiable — each finding is adversarially checked line-by-line, so do not pad with speculation.`,
       { agentType: LENSES[s].agentType, label: `review:${s}`, phase: 'Review', schema: FINDINGS_SCHEMA },
     ),
   // As soon as a lens returns, verify each of its findings adversarially (no barrier between lenses).
@@ -73,7 +73,7 @@ const results = await pipeline(
     parallel(
       (review?.findings || []).map((f) => () =>
         agent(
-          `Adversarially verify this finding by reading the actual code line-by-line. Decide REAL (a genuine bug or rule violation you can prove from the source) vs NOISE (unprovable, handled elsewhere — e.g. an existing convention test/domain guard/validator/pipeline behavior — or a style nit). Default to NOISE if uncertain.\nFinding (from ${s} review):\n${JSON.stringify(f, null, 2)}`,
+          `Adversarially verify this finding by reading the actual code line-by-line. Decide REAL (a genuine bug or rule violation you can prove from the source) vs NOISE (unprovable, handled elsewhere — e.g. an existing convention test/domain guard/validator/pipeline behavior — a style nit, or a complaint against a recorded decision). Default to NOISE if uncertain.\nFinding (from ${s} review):\n${JSON.stringify(f, null, 2)}`,
           { agentType: 'findings-verifier', label: `verify:${f.file || '?'}`, phase: 'Verify', schema: VERDICT_SCHEMA },
         ).then((v) => ({ finding: f, lens: s, verdict: v })),
       ),

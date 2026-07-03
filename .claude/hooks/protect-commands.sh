@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # PreToolUse hook: gate destructive shell commands (Bash).
 #
-# Adapted from atherio-danp/cde-dotnetcc (protect-commands.ps1) for this repo's bash/darwin
-# harness. Posture: permissions broadly ALLOW tools so safe work never prompts; this hook is
+# Adapted from atherio-danp/cde-dotnetcc (protect-commands.ps1) for this repo's bash harness.
+# Posture: permissions broadly ALLOW tools so safe work never prompts; this hook is
 # the gate that escalates DESTRUCTIVE commands:
 #   * deny — hard-block the truly catastrophic (wiping / or ~).
 #   * ask  — force a permission prompt for recoverable-but-destructive actions (file deletion,
@@ -14,10 +14,15 @@
 # gating routine commits here would fight the workflow. We therefore do NOT ask on
 # add/commit/push (history-rewriting variants below are still gated).
 #
+# SCOPE: this gates the Bash tool only. On a PowerShell-primary harness (e.g. Windows),
+# destructive cmdlets (Remove-Item -Recurse -Force, git reset --hard run via PowerShell) are
+# NOT matched here. The secret-read denylist in settings.json is shell-agnostic and covers the
+# higher-value risk.
+#
 # Matching uses `grep -E` with POSIX-only patterns (no \b / \s) so it behaves the same under
-# macOS bash 3.2 / BSD regex and GNU. Reads the PreToolUse event JSON on stdin; emits the
-# decision JSON on stdout (exit 0). Fails OPEN on any problem so a hook bug never hard-blocks
-# legitimate work.
+# Git Bash on Windows, macOS bash 3.2 / BSD regex, and GNU. Reads the PreToolUse event JSON on
+# stdin; emits the decision JSON on stdout (exit 0). Fails OPEN on any problem so a hook bug
+# never hard-blocks legitimate work.
 
 set -u
 
