@@ -56,6 +56,8 @@ public abstract class ConventionTestBase
 
     // Scan IL for method/field opcodes whose target member's DeclaringType matches the given name.
     // Catches both direct references and references inside compiler-generated async state machines.
+    // Walks on instruction boundaries via IlInstructionWalker so an operand byte (e.g. inside an
+    // ldc.i4 constant or branch target) can never be misread as an opcode.
     internal static bool IlReferencesType(MethodInfo method, string typeName)
     {
         var body = method.GetMethodBody();
@@ -67,29 +69,31 @@ public abstract class ConventionTestBase
             return false;
 
         var module = method.Module;
+        var found = false;
 
-        for (var i = 0; i < il.Length - 4; i++)
+        IlInstructionWalker.Walk(il, (opcode, _, operandStart, operandSize) =>
         {
             // call/callvirt plus field access opcodes — each followed by a 4-byte metadata token.
-            if (il[i] is not (0x28 or 0x6F or 0x7B or 0x7C or 0x7D or 0x7E or 0x7F or 0x80))
-                continue;
+            if (found || opcode is not (0x28 or 0x6F or 0x7B or 0x7C or 0x7D or 0x7E or 0x7F or 0x80))
+                return;
 
-            var token = BitConverter.ToInt32(il, i + 1);
+            if (operandSize < 4 || operandStart + 3 >= il.Length)
+                return;
+
+            var token = BitConverter.ToInt32(il, operandStart);
             try
             {
                 var member = module.ResolveMember(token);
                 if (member?.DeclaringType?.Name == typeName)
-                    return true;
+                    found = true;
             }
             catch
             {
                 // Unresolvable generic instantiation — skip.
             }
+        });
 
-            i += 4;
-        }
-
-        return false;
+        return found;
     }
 
     internal static IEnumerable<string> ExtractStringLiterals(Type type)
@@ -98,38 +102,33 @@ public abstract class ConventionTestBase
             .SelectMany(ExtractStringLiterals);
     }
 
+    // Operand-safe via IlInstructionWalker: only genuine ldstr instructions are resolved.
     internal static IEnumerable<string> ExtractStringLiterals(MethodInfo method)
     {
         var body = method.GetMethodBody();
-        if (body == null)
-            yield break;
-
-        var il = body.GetILAsByteArray();
+        var il = body?.GetILAsByteArray();
         if (il == null || il.Length < 5)
-            yield break;
+            return [];
 
         var module = method.Module;
+        var literals = new List<string>();
 
-        for (var i = 0; i < il.Length - 4; i++)
+        IlInstructionWalker.Walk(il, (opcode, _, operandStart, operandSize) =>
         {
-            if (il[i] != 0x72)
-                continue;
+            if (opcode != 0x72 || operandSize < 4 || operandStart + 3 >= il.Length)
+                return;
 
-            var token = BitConverter.ToInt32(il, i + 1);
-            string? resolved = null;
+            var token = BitConverter.ToInt32(il, operandStart);
             try
             {
-                resolved = module.ResolveString(token);
+                literals.Add(module.ResolveString(token));
             }
             catch
             {
                 // Not a valid string token — skip.
             }
+        });
 
-            if (resolved != null)
-                yield return resolved;
-
-            i += 4;
-        }
+        return literals;
     }
 }

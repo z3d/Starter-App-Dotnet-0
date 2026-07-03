@@ -5,8 +5,8 @@ namespace StarterApp.Tests.Consistency;
 /// <summary>
 /// Walks IL byte arrays on instruction boundaries, yielding each opcode and its operand
 /// position/size. Uses System.Reflection.Emit.OpCodes metadata for authoritative operand
-/// sizes. Consumed by IlInspector (opcode-level feature
-/// extraction) to avoid duplicating operand-size logic.
+/// sizes. Consumed by IlInspector (opcode-level feature extraction) and the Conventions
+/// ConventionTestBase IL helpers to avoid duplicating operand-size logic.
 /// </summary>
 public static class IlInstructionWalker
 {
