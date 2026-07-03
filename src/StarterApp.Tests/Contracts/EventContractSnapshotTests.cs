@@ -16,7 +16,9 @@ public class EventContractSnapshotTests
     // renaming a volatile property surfaces in the diff as a missing + unexpected key.
     private static readonly string[] VolatileProperties = ["OccurredOnUtc", "LastUpdated"];
 
-    private static readonly JsonSerializerOptions IndentedOptions = new() { WriteIndented = true };
+    // NewLine pinned to LF: the fixtures are committed LF (.gitattributes eol=lf) and compared
+    // byte-for-byte, so the writer must not follow Environment.NewLine across platforms.
+    private static readonly JsonSerializerOptions IndentedOptions = new() { WriteIndented = true, NewLine = "\n" };
 
     private static readonly IReadOnlyDictionary<string, Func<IDomainEvent>> RepresentativeEvents =
         new Dictionary<string, Func<IDomainEvent>>

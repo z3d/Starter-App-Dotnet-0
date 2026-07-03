@@ -7,6 +7,9 @@
 *.csproj text
 *.sln text
 *.json text
+# Event-contract snapshot fixtures are compared byte-for-byte against an LF-pinned serializer
+# (EventContractSnapshotTests) — native-EOL checkout would fail the suite on a fresh Windows clone.
+src/StarterApp.Tests/Contracts/snapshots/*.json text eol=lf
 *.md text
 *.yml text
 *.yaml text
