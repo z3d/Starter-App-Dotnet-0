@@ -28,7 +28,7 @@ public sealed class ArtifactCaptureRequest
 
 public sealed class ArtifactCaptureSink : IArtifactCaptureSink
 {
-    public const string ChannelName = "artifact";
+    public const string ChannelName = PayloadCaptureChannels.Artifact;
     public const string GeneratedStage = "generated";
     public const string IntermediateStage = "intermediate";
 

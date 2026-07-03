@@ -145,7 +145,7 @@ public class OutboxProcessor : BackgroundService
                     {
                         CorrelationId = message.CorrelationId,
                         Direction = "outbound",
-                        Channel = "servicebus",
+                        Channel = PayloadCaptureChannels.ServiceBus,
                         Operation = message.Type,
                         ContentType = "application/json",
                         Payload = message.Payload,

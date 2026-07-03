@@ -107,7 +107,7 @@ public sealed class PayloadCaptureMiddleware
             {
                 CorrelationId = correlationId,
                 Direction = "inbound",
-                Channel = "http",
+                Channel = PayloadCaptureChannels.Http,
                 Operation = $"{context.Request.Method} {context.Request.Path}",
                 ContentType = context.Request.ContentType,
                 PayloadSkipReason = BuildUnsupportedContentTypeReason(context.Request.ContentType),
@@ -126,7 +126,7 @@ public sealed class PayloadCaptureMiddleware
         {
             CorrelationId = correlationId,
             Direction = "inbound",
-            Channel = "http",
+            Channel = PayloadCaptureChannels.Http,
             Operation = $"{context.Request.Method} {context.Request.Path}",
             ContentType = context.Request.ContentType,
             Payload = payload,
@@ -166,7 +166,7 @@ public sealed class PayloadCaptureMiddleware
             {
                 CorrelationId = correlationId,
                 Direction = "outbound",
-                Channel = "http",
+                Channel = PayloadCaptureChannels.Http,
                 Operation = $"{context.Request.Method} {context.Request.Path}",
                 ContentType = context.Response.ContentType,
                 StatusCode = context.Response.StatusCode,
@@ -181,7 +181,7 @@ public sealed class PayloadCaptureMiddleware
         {
             CorrelationId = correlationId,
             Direction = "outbound",
-            Channel = "http",
+            Channel = PayloadCaptureChannels.Http,
             Operation = $"{context.Request.Method} {context.Request.Path}",
             ContentType = context.Response.ContentType,
             StatusCode = context.Response.StatusCode,

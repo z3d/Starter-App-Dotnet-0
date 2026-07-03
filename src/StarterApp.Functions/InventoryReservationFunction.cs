@@ -34,7 +34,7 @@ public class InventoryReservationFunction
             {
                 CorrelationId = correlationId,
                 Direction = "inbound",
-                Channel = "servicebus",
+                Channel = PayloadCaptureChannels.ServiceBus,
                 Operation = nameof(InventoryReservationFunction),
                 ContentType = message.ContentType,
                 Payload = body,

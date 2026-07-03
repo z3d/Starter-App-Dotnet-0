@@ -33,9 +33,9 @@ public class PayloadCaptureOptions
 
     public PayloadCaptureFailureMode FailureModeFor(string? channel)
     {
-        if (string.Equals(channel, "http", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(channel, PayloadCaptureChannels.Http, StringComparison.OrdinalIgnoreCase))
             return HttpFailureMode;
-        if (string.Equals(channel, ArtifactCaptureSink.ChannelName, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(channel, PayloadCaptureChannels.Artifact, StringComparison.OrdinalIgnoreCase))
             return ArtifactFailureMode;
         return ServiceBusFailureMode;
     }

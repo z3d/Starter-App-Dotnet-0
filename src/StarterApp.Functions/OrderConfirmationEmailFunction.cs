@@ -34,7 +34,7 @@ public class OrderConfirmationEmailFunction
             {
                 CorrelationId = correlationId,
                 Direction = "inbound",
-                Channel = "servicebus",
+                Channel = PayloadCaptureChannels.ServiceBus,
                 Operation = nameof(OrderConfirmationEmailFunction),
                 ContentType = message.ContentType,
                 Payload = body,
