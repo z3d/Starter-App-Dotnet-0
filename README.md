@@ -2,14 +2,14 @@
 
 A production-grade starter template and reference architecture for modern .NET development with .NET Aspire orchestration, PostgreSQL, Docker-backed local dependencies, and deployable container images.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
 - [Docker Desktop](https://www.docker.com/products/docker-desktop) (**Required** - Aspire-managed dependencies, the Functions runtime container, Testcontainers, and image builds use Docker)
 - Visual Studio Code or Visual Studio 2026
 
-> **⚠️ Important**: Docker Desktop must be installed and running before executing Aspire orchestration or integration tests. Aspire is the supported local run path; Docker provides the local infrastructure containers underneath it.
+> **Important**: Docker Desktop must be installed and running before executing Aspire orchestration or integration tests. Aspire is the supported local run path; Docker provides the local infrastructure containers underneath it.
 
 ### Running with .NET Aspire (Recommended for Development)
 ```powershell
@@ -34,7 +34,7 @@ dotnet run -- --gateway          # or set ENABLE_GATEWAY=true
 
 With the gateway running, open **`/demo`** on the gateway origin for a self-contained interactive walkthrough: it drives probe → identity → product → customer → order through the signed path with an animated pipeline, same-origin with the proxied API (so its fetches need no CORS). Untick a scope or `mfa` in the identity step to watch the API refuse a write with `403` from the signed assertion alone.
 
-## 🎯 What This Project Demonstrates
+## What This Project Demonstrates
 
 1. **Modern .NET Development**
    - .NET 10 Minimal APIs with clean architecture
@@ -72,7 +72,7 @@ With the gateway running, open **`/demo`** on the gateway origin for a self-cont
    - Direct Docker image build validation
    - Smoke test script for validating live deployments
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 starterapp/
@@ -90,7 +90,7 @@ starterapp/
 └── scripts/                       # Smoke test script
 ```
 
-## 📚 Step-by-Step Guide
+## Step-by-Step Guide
 
 Follow the numbered directories in the `docs/` folder:
 
@@ -99,7 +99,7 @@ Follow the numbered directories in the `docs/` folder:
 3. **[Container Images and Docker Dependencies](docs/03-docker-setup/README.md)** - Dockerfiles, Aspire-managed container dependencies, and image build validation
 4. **[Aspire Setup](docs/05-aspire-setup/README.md)** - .NET Aspire orchestration
 
-## 🧪 Running CI Locally with Act
+## Running CI Locally with Act
 
 [Act](https://github.com/nektos/act) lets you run GitHub Actions workflows locally using Docker.
 
@@ -137,7 +137,7 @@ act push -v
 
 > **Note**: The GitHub workflow has separate unit, Testcontainers integration, Aspire, and Docker image build jobs. When using `act`, run a targeted job if your local Docker setup cannot support the full workflow.
 
-## 🛠️ Development Commands
+## Development Commands
 
 ```powershell
 # Run database migrations
@@ -155,7 +155,7 @@ dotnet test
 dotnet test --filter "FullyQualifiedName!~Integration"
 ```
 
-## 🔍 Key Features
+## Key Features
 
 - **Clean Architecture**: Separation of concerns with Domain, Application, and Infrastructure layers
 - **Modern .NET Patterns**: Uses C# 13/.NET 10 features like collection expressions, guard clauses, and using declarations
