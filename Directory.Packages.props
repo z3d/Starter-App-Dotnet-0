@@ -32,8 +32,6 @@
     <PackageVersion Include="FsCheck.Xunit" Version="3.3.3" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.3" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.3" />
-    <!-- Direct pin of a transitive dependency: Microsoft.AspNetCore.OpenApi 10.0.3 pulls Microsoft.OpenApi 2.0.0, which is flagged by GHSA-v5pm-xwqc-g5wc (NU1903 fails restore). Remove when Microsoft.AspNetCore.OpenApi references >= 2.7.5 itself. -->
-    <PackageVersion Include="Microsoft.OpenApi" Version="2.7.5" />
     <PackageVersion Include="Microsoft.Azure.Functions.Worker" Version="2.1.0" />
     <PackageVersion Include="Microsoft.Azure.Functions.Worker.Extensions.ServiceBus" Version="5.22.0" />
     <PackageVersion Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.3.1" />
@@ -48,6 +46,11 @@
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.2.0" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery.Yarp" Version="10.2.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <!-- Transitive pin: Microsoft.AspNetCore.OpenApi 10.0.3 pulls Microsoft.OpenApi 2.0.0, which
+         carries GHSA-v5pm-xwqc-g5wc (stack overflow on a circular schema reference; NU1903 fails
+         the build under warnings-as-errors). Fixed upstream in 2.7.5; pin to 2.7.6. Remove when
+         Microsoft.AspNetCore.OpenApi's own floor moves past it. -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.7.6" />
     <PackageVersion Include="Moq" Version="4.20.72" />
     <!-- Transitive pin: Aspire's host SDK pulls MessagePack 2.5.192, which carries
          GHSA-hv8m-jj95-wg3x (NU1903 fails the build under warnings-as-errors). Remove
