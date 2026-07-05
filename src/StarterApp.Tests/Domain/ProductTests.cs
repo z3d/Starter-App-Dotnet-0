@@ -141,7 +141,7 @@ public class ProductTests
     }
 
     [Fact]
-    public void UpdateStock_WithNegativeQuantityExceedingStock_ShouldThrowInvalidOperationException()
+    public void UpdateStock_WithNegativeQuantityExceedingStock_ShouldThrowDomainRuleException()
     {
         // Arrange
         var initialStock = 100;
@@ -150,7 +150,7 @@ public class ProductTests
         var quantityToRemove = -101;
 
         // Act & Assert
-        var exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<DomainRuleException>(() =>
             product.UpdateStock(quantityToRemove));
 
         Assert.Contains("Cannot reduce stock below zero", exception.Message);

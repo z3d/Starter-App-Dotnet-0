@@ -172,7 +172,7 @@ public class MoneyFuzzTests
                 var moneyB = Money.Create(5m, b);
                 try
                 { moneyA.Add(moneyB); return false; }
-                catch (InvalidOperationException) { return true; }
+                catch (DomainRuleException) { return true; }
             });
     }
 
@@ -187,7 +187,7 @@ public class MoneyFuzzTests
                 var moneyB = Money.Create(5m, b);
                 try
                 { moneyA.Subtract(moneyB); return false; }
-                catch (InvalidOperationException) { return true; }
+                catch (DomainRuleException) { return true; }
             });
     }
 

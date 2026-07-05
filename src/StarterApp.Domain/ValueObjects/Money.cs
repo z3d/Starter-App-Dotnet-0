@@ -58,7 +58,7 @@ public class Money : IEquatable<Money>
     public Money Add(Money other)
     {
         if (other.Currency != Currency)
-            throw new InvalidOperationException("Cannot add money with different currencies");
+            throw new DomainRuleException("Cannot add money with different currencies");
 
         return new Money(Amount + other.Amount, Currency);
     }
@@ -66,7 +66,7 @@ public class Money : IEquatable<Money>
     public Money Subtract(Money other)
     {
         if (other.Currency != Currency)
-            throw new InvalidOperationException("Cannot subtract money with different currencies");
+            throw new DomainRuleException("Cannot subtract money with different currencies");
 
         return Create(Amount - other.Amount, Currency);
     }

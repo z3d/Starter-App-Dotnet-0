@@ -28,11 +28,44 @@ public class ExceptionStatusCodeMappingTests
     [Fact]
     public void ResolveExceptionStatusCode_WithMissingEntity_ShouldReturnNotFound()
     {
-        var exception = new KeyNotFoundException("Product with ID 10 not found");
+        var exception = new EntityNotFoundException("Product with ID 10 not found");
 
         var statusCode = WebApplicationExtensions.ResolveExceptionStatusCode(exception);
 
         Assert.Equal(StatusCodes.Status404NotFound, statusCode);
+    }
+
+    [Fact]
+    public void ResolveExceptionStatusCode_WithDomainRuleViolation_ShouldReturnConflict()
+    {
+        var exception = new DomainRuleException("Cannot cancel a delivered order");
+
+        var statusCode = WebApplicationExtensions.ResolveExceptionStatusCode(exception);
+
+        Assert.Equal(StatusCodes.Status409Conflict, statusCode);
+    }
+
+    [Fact]
+    public void ResolveExceptionStatusCode_WithBareInvalidOperationException_ShouldReturnInternalServerError()
+    {
+        // Regression: a stray BCL InvalidOperationException (LINQ .Single(), misused API) is a
+        // server bug, not a client conflict — it must surface as 500 so 5xx alerting sees it.
+        var exception = new InvalidOperationException("Sequence contains no elements");
+
+        var statusCode = WebApplicationExtensions.ResolveExceptionStatusCode(exception);
+
+        Assert.Equal(StatusCodes.Status500InternalServerError, statusCode);
+    }
+
+    [Fact]
+    public void ResolveExceptionStatusCode_WithBareKeyNotFoundException_ShouldReturnInternalServerError()
+    {
+        // Regression: a dictionary miss inside a handler is a server bug, not a missing resource.
+        var exception = new KeyNotFoundException("The given key was not present in the dictionary.");
+
+        var statusCode = WebApplicationExtensions.ResolveExceptionStatusCode(exception);
+
+        Assert.Equal(StatusCodes.Status500InternalServerError, statusCode);
     }
 
     [Fact]

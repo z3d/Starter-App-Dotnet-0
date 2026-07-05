@@ -45,6 +45,16 @@ DAST, both green.
 
 Decisions / watch-items / explained deferrals — no open runtime defects.
 
+- **RESOLVED (2026-07-05) — Blanket BCL-exception → client-fault status mapping.**
+  `ResolveExceptionStatusCode` mapped every `InvalidOperationException` to 409 and every
+  `KeyNotFoundException` to 404, so a stray BCL throw from a genuine server bug (LINQ
+  `.Single()`, a dictionary miss) surfaced as a client fault and hid from 5xx alerting. Fixed in
+  the same change it was found: dedicated `DomainRuleException` (409) and
+  `EntityNotFoundException` (404) in `StarterApp.Domain.Exceptions`, all intentional throw sites
+  swept, bare BCL types now fall through to 500. Regression tests in
+  `ExceptionStatusCodeMappingTests`; `ExceptionConventionTests` (IL `newobj` scan over Domain +
+  Api Application types) blocks reintroduction.
+
 - **Folder-only Clean Architecture — ACCEPTED (deferred; split designed, not implemented,
   2026-06-09).** `Domain` is compiler-enforced; `Application`/`Infrastructure` are folders inside
   `StarterApp.Api`, so that boundary is convention-enforced. A full assembly split was designed

@@ -41,7 +41,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             .AsNoTracking()
             .SingleOrDefaultAsync(c => c.Id == command.CustomerId, cancellationToken);
         if (customer == null)
-            throw new KeyNotFoundException($"Customer with ID {command.CustomerId} was not found");
+            throw new EntityNotFoundException($"Customer with ID {command.CustomerId} was not found");
 
         _ownerOnlyPolicy.Authorize(customer.OwnerSubject, customer.TenantId);
 
@@ -135,7 +135,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             .SingleOrDefaultAsync(p => p.Id == itemCommand.ProductId, cancellationToken);
 
         if (product == null)
-            throw new KeyNotFoundException($"Product with ID {itemCommand.ProductId} was not found");
+            throw new EntityNotFoundException($"Product with ID {itemCommand.ProductId} was not found");
 
         _ownerOnlyPolicy.Authorize(product.OwnerSubject, product.TenantId);
 
@@ -153,7 +153,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
                 cancellationToken);
 
         if (updatedRows == 0)
-            throw new InvalidOperationException(
+            throw new DomainRuleException(
                 $"Insufficient stock for product '{product.Name}'. Available stock changed before the order could be placed.");
 
         return product;
@@ -165,12 +165,12 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
     {
         var product = await _dbContext.Products.FindAsync([itemCommand.ProductId], cancellationToken);
         if (product == null)
-            throw new KeyNotFoundException($"Product with ID {itemCommand.ProductId} was not found");
+            throw new EntityNotFoundException($"Product with ID {itemCommand.ProductId} was not found");
 
         _ownerOnlyPolicy.Authorize(product.OwnerSubject, product.TenantId);
 
         if (product.Stock < itemCommand.Quantity)
-            throw new InvalidOperationException(
+            throw new DomainRuleException(
                 $"Insufficient stock for product '{product.Name}'. Available stock changed before the order could be placed.");
 
         product.UpdateStock(-itemCommand.Quantity);

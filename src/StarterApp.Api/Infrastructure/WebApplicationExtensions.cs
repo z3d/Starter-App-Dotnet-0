@@ -60,9 +60,11 @@ public static class WebApplicationExtensions
             ArgumentOutOfRangeException => StatusCodes.Status400BadRequest,
             ArgumentException => StatusCodes.Status400BadRequest,
             BadHttpRequestException => StatusCodes.Status400BadRequest,
-            KeyNotFoundException => StatusCodes.Status404NotFound,
+            EntityNotFoundException => StatusCodes.Status404NotFound,
             FeatureToggles.FeatureDisabledException => StatusCodes.Status503ServiceUnavailable,
-            InvalidOperationException => StatusCodes.Status409Conflict,
+            DomainRuleException => StatusCodes.Status409Conflict,
+            // Bare BCL InvalidOperationException/KeyNotFoundException are server bugs, not
+            // client faults — they fall through to 500 so alerting sees them.
             _ => StatusCodes.Status500InternalServerError
         };
     }

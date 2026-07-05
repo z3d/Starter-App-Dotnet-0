@@ -71,7 +71,7 @@ public class OrderStateMachineFuzzTests
                 var order = Order.Reconstitute(Guid.CreateVersion7(), 1, DateTimeOffset.UtcNow, current, DateTimeOffset.UtcNow, []);
                 try
                 { order.UpdateStatus(target); return false; }
-                catch (InvalidOperationException) { return true; }
+                catch (DomainRuleException) { return true; }
             });
     }
 
@@ -148,7 +148,7 @@ public class OrderStateMachineFuzzTests
 
         // The (MaxItems + 1)-th DISTINCT product must throw (AddItem replaces same-ProductId items,
         // so a new ProductId is required to actually exceed the cap).
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.Throws<DomainRuleException>(() =>
             order.AddItem(Order.MaxItems + 1, "Overflow", 1, Money.Create(10m, "USD")));
     }
 
@@ -169,7 +169,7 @@ public class OrderStateMachineFuzzTests
                     order.AddItem(Order.MaxItems + extra, "Overflow", 1, Money.Create(10m, "USD"));
                     return false;
                 }
-                catch (InvalidOperationException) { return true; }
+                catch (DomainRuleException) { return true; }
             });
     }
 
@@ -194,7 +194,7 @@ public class OrderStateMachineFuzzTests
                     order.AddItem(2, "Second", 1, Money.Create(10m, pair.Second));
                     return false;
                 }
-                catch (InvalidOperationException) { return true; }
+                catch (DomainRuleException) { return true; }
             });
     }
 }

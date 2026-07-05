@@ -31,7 +31,7 @@ public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand,
         if (product == null)
         {
             Log.Warning("Product {Id} not found for deletion", command.Id);
-            throw new KeyNotFoundException($"Product with ID {command.Id} not found");
+            throw new EntityNotFoundException($"Product with ID {command.Id} not found");
         }
 
         _ownerOnlyPolicy.Authorize(product.OwnerSubject, product.TenantId);
@@ -40,7 +40,7 @@ public class DeleteProductCommandHandler : IRequestHandler<DeleteProductCommand,
         if (hasOrderItems)
         {
             Log.Warning("Product {Id} cannot be deleted because it has existing order items", command.Id);
-            throw new InvalidOperationException($"Cannot delete product '{product.Name}' because it is referenced by existing orders");
+            throw new DomainRuleException($"Cannot delete product '{product.Name}' because it is referenced by existing orders");
         }
 
         _dbContext.Products.Remove(product);

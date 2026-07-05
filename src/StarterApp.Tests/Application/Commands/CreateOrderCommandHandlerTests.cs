@@ -136,7 +136,7 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
     }
 
     [Fact]
-    public async Task Handle_WithInsufficientStock_ShouldThrowInvalidOperationException()
+    public async Task Handle_WithInsufficientStock_ShouldThrowDomainRuleException()
     {
         // Arrange
         await using var context = CreateContext();
@@ -160,7 +160,7 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         };
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+        var ex = await Assert.ThrowsAsync<DomainRuleException>(
             () => handler.HandleAsync(command, CancellationToken.None));
         Assert.Contains("Insufficient stock", ex.Message);
         Assert.Contains("Available stock changed before the order could be placed", ex.Message);
@@ -260,7 +260,7 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         };
 
         // Act — second item should fail stock check
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<DomainRuleException>(
             () => handler.HandleAsync(command, CancellationToken.None));
 
         // Assert — first product's stock should be unchanged (SaveChanges never called)

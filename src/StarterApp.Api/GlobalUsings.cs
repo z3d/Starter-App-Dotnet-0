@@ -30,4 +30,5 @@ global using StarterApp.Domain.Abstractions;
 // Domain references
 global using StarterApp.Domain.Entities;
 global using StarterApp.Domain.Enums;
+global using StarterApp.Domain.Exceptions;
 global using StarterApp.Domain.ValueObjects;

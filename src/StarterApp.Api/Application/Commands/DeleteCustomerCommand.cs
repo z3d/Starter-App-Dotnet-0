@@ -28,7 +28,7 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
         if (customer == null)
         {
             Log.Warning("Customer {Id} not found for deletion", command.Id);
-            throw new KeyNotFoundException($"Customer with ID {command.Id} not found");
+            throw new EntityNotFoundException($"Customer with ID {command.Id} not found");
         }
 
         _ownerOnlyPolicy.Authorize(customer.OwnerSubject, customer.TenantId);
@@ -37,7 +37,7 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
         if (hasOrders)
         {
             Log.Warning("Customer {Id} cannot be deleted because they have existing orders", command.Id);
-            throw new InvalidOperationException("Cannot delete customer because they have existing orders");
+            throw new DomainRuleException("Cannot delete customer because they have existing orders");
         }
 
         _dbContext.Customers.Remove(customer);

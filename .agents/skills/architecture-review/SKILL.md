@@ -113,7 +113,7 @@ Read it before starting (it carries the open findings and current score; the dat
 These are real issues found in production .NET projects. Check for each of these specifically:
 
 ### Exception Mapping Gaps
-- `InvalidOperationException` is commonly thrown for business rule violations (e.g., "cannot delete entity with dependents", "insufficient stock") but often falls through to the default 500 handler. Map it to 409 Conflict.
+- Business rule violations must throw `DomainRuleException` (→ 409) and handler not-found must throw `EntityNotFoundException` (→ 404). Bare BCL `InvalidOperationException`/`KeyNotFoundException` deliberately map to 500: the BCL throws those itself (LINQ `.Single()`, dictionary misses), so treating them as client faults disguises server bugs as 409/404. `ExceptionConventionTests` blocks them from Domain and Application code.
 - Endpoints that catch exceptions locally create inconsistency — some endpoints catch, some don't. Fix the global handler and remove all endpoint-level try-catches.
 
 ### Convention Test Blind Spots
@@ -131,7 +131,7 @@ These are real issues found in production .NET projects. Check for each of these
 - Value objects that override `Equals(object)` and `GetHashCode()` should also implement `IEquatable<T>` to avoid boxing in LINQ operations.
 
 ### Test Impact of Fixes
-- Changing exception-to-status-code mapping (e.g., `InvalidOperationException` from 500 to 409) will break integration tests that assert on HTTP status codes. Search for `HttpStatusCode.BadRequest` and `HttpStatusCode.InternalServerError` in test files and update assertions.
+- Changing exception-to-status-code mapping (e.g., introducing `DomainRuleException` → 409) will break integration tests that assert on HTTP status codes. Search for `HttpStatusCode.BadRequest` and `HttpStatusCode.InternalServerError` in test files and update assertions.
 - Removing DataAnnotation attributes from DTOs will break any tests using `Validator.TryValidateObject()`. These tests should be deleted, not fixed — they test dead validation.
 
 ### Presence-vs-Behaviour Convention Gaps (recurring finding class)

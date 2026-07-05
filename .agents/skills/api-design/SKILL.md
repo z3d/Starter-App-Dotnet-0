@@ -157,6 +157,7 @@ builder.Services.AddProblemDetails(options =>
 
 // Automatic status code mapping:
 // ArgumentException → 400 Bad Request
-// KeyNotFoundException → 404 Not Found
-// Other exceptions → 500 Internal Server Error
+// EntityNotFoundException → 404 Not Found
+// DomainRuleException → 409 Conflict
+// Other exceptions (incl. bare InvalidOperationException/KeyNotFoundException — treated as server bugs) → 500 Internal Server Error
 ```

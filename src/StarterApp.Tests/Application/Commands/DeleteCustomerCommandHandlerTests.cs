@@ -41,7 +41,7 @@ public class DeleteCustomerCommandHandlerTests : PostgresCommandHandlerTestBase
     }
 
     [Fact]
-    public async Task Handle_WithNonExistentCustomer_ShouldThrowKeyNotFoundException()
+    public async Task Handle_WithNonExistentCustomer_ShouldThrowEntityNotFoundException()
     {
         // Arrange
         await using var context = CreateContext();
@@ -50,12 +50,12 @@ public class DeleteCustomerCommandHandlerTests : PostgresCommandHandlerTestBase
         var command = new DeleteCustomerCommand { Id = 999 };
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             handler.HandleAsync(command, CancellationToken.None));
     }
 
     [Fact]
-    public async Task Handle_WithCustomerWhoHasOrders_ShouldThrowInvalidOperationException()
+    public async Task Handle_WithCustomerWhoHasOrders_ShouldThrowDomainRuleException()
     {
         // Arrange
         await using var context = CreateContext();
@@ -78,7 +78,7 @@ public class DeleteCustomerCommandHandlerTests : PostgresCommandHandlerTestBase
         var command = new DeleteCustomerCommand { Id = customer.Id };
 
         // Act & Assert
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var ex = await Assert.ThrowsAsync<DomainRuleException>(() =>
             handler.HandleAsync(command, CancellationToken.None));
         Assert.Contains("existing orders", ex.Message);
     }

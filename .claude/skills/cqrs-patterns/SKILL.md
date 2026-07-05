@@ -166,7 +166,7 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
 }
 ```
 
-`GetCustomerQuery` is `IQuery<CustomerReadModel?>, ICacheable, IOwnerScopedRequest` and returns a **nullable** read model — a miss returns `null`, not a thrown `KeyNotFoundException`.
+`GetCustomerQuery` is `IQuery<CustomerReadModel?>, ICacheable, IOwnerScopedRequest` and returns a **nullable** read model — a miss returns `null`, not a thrown `EntityNotFoundException`.
 
 ## Validator Coverage
 

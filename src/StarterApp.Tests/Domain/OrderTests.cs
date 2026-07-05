@@ -69,7 +69,7 @@ public class OrderTests
     }
 
     [Fact]
-    public void AddItem_WhenOrderIsNotPending_ShouldThrowInvalidOperationException()
+    public void AddItem_WhenOrderIsNotPending_ShouldThrowDomainRuleException()
     {
         // Arrange
         var order = TestEntities.Order(1);
@@ -78,7 +78,7 @@ public class OrderTests
         var orderItem = new OrderItem(TestOrderId, 1, "Test Product", 2, money);
 
         // Act & Assert
-        var exception = Assert.Throws<InvalidOperationException>(() => order.AddItem(orderItem));
+        var exception = Assert.Throws<DomainRuleException>(() => order.AddItem(orderItem));
         Assert.Equal("Cannot add items to a non-pending order", exception.Message);
     }
 
@@ -103,14 +103,14 @@ public class OrderTests
     }
 
     [Fact]
-    public void AddItem_WithMixedCurrency_ShouldThrowInvalidOperationException()
+    public void AddItem_WithMixedCurrency_ShouldThrowDomainRuleException()
     {
         // Arrange
         var order = TestEntities.Order(1);
         order.AddItem(new OrderItem(TestOrderId, 1, "Product 1", 1, Money.Create(10.00m, "USD")));
 
         // Act & Assert
-        var exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<DomainRuleException>(() =>
             order.AddItem(new OrderItem(TestOrderId, 2, "Product 2", 1, Money.Create(10.00m, "AUD"))));
 
         Assert.Equal("All order items must use the same currency", exception.Message);
@@ -132,7 +132,7 @@ public class OrderTests
     }
 
     [Fact]
-    public void AddItem_BeyondMaxItems_ShouldThrowInvalidOperationException()
+    public void AddItem_BeyondMaxItems_ShouldThrowDomainRuleException()
     {
         // Arrange
         var order = TestEntities.Order(1);
@@ -141,7 +141,7 @@ public class OrderTests
             order.AddItem(new OrderItem(TestOrderId, productId, $"Product {productId}", 1, money));
 
         // Act & Assert — the (MaxItems + 1)-th distinct product breaches the aggregate invariant
-        var exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<DomainRuleException>(() =>
             order.AddItem(new OrderItem(TestOrderId, Order.MaxItems + 1, "Overflow", 1, money)));
         Assert.Equal($"An order cannot contain more than {Order.MaxItems} items", exception.Message);
     }
@@ -164,12 +164,12 @@ public class OrderTests
     }
 
     [Fact]
-    public void RecordCreation_WithNoItems_ShouldThrowInvalidOperationException()
+    public void RecordCreation_WithNoItems_ShouldThrowDomainRuleException()
     {
         // Domain guard mirroring the empty-order validator rule; fires during persistence capture.
         var order = TestEntities.Order(1);
 
-        var exception = Assert.Throws<InvalidOperationException>(() => order.RecordCreation());
+        var exception = Assert.Throws<DomainRuleException>(() => order.RecordCreation());
         Assert.Equal("Cannot create an order with no items", exception.Message);
     }
 
@@ -213,14 +213,14 @@ public class OrderTests
     }
 
     [Fact]
-    public void RemoveItem_WhenOrderIsNotPending_ShouldThrowInvalidOperationException()
+    public void RemoveItem_WhenOrderIsNotPending_ShouldThrowDomainRuleException()
     {
         // Arrange
         var order = TestEntities.Order(1);
         order.UpdateStatus(OrderStatus.Confirmed);
 
         // Act & Assert
-        var exception = Assert.Throws<InvalidOperationException>(() => order.RemoveItem(1));
+        var exception = Assert.Throws<DomainRuleException>(() => order.RemoveItem(1));
         Assert.Equal("Cannot remove items from a non-pending order", exception.Message);
     }
 
@@ -266,7 +266,7 @@ public class OrderTests
         }
         else
         {
-            var exception = Assert.Throws<InvalidOperationException>(() => order.UpdateStatus(newStatus));
+            var exception = Assert.Throws<DomainRuleException>(() => order.UpdateStatus(newStatus));
             Assert.Contains($"Cannot transition from {currentStatus} to {newStatus}", exception.Message);
         }
     }
@@ -288,13 +288,13 @@ public class OrderTests
     }
 
     [Fact]
-    public void Confirm_WithNoItems_ShouldThrowInvalidOperationException()
+    public void Confirm_WithNoItems_ShouldThrowDomainRuleException()
     {
         // Arrange
         var order = TestEntities.Order(1);
 
         // Act & Assert
-        var exception = Assert.Throws<InvalidOperationException>(() => order.Confirm());
+        var exception = Assert.Throws<DomainRuleException>(() => order.Confirm());
         Assert.Equal("Cannot confirm an order with no items", exception.Message);
     }
 
@@ -312,13 +312,13 @@ public class OrderTests
     }
 
     [Fact]
-    public void Cancel_FromDeliveredStatus_ShouldThrowInvalidOperationException()
+    public void Cancel_FromDeliveredStatus_ShouldThrowDomainRuleException()
     {
         // Arrange
         var order = Order.Reconstitute(TestOrderId, 1, DateTimeOffset.UtcNow, OrderStatus.Delivered, DateTimeOffset.UtcNow, []);
 
         // Act & Assert
-        var exception = Assert.Throws<InvalidOperationException>(() => order.Cancel());
+        var exception = Assert.Throws<DomainRuleException>(() => order.Cancel());
         Assert.Equal("Cannot cancel a delivered order", exception.Message);
     }
 

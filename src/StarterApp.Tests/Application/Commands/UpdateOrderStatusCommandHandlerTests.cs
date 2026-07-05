@@ -102,7 +102,7 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
     }
 
     [Fact]
-    public async Task Handle_WithNonExistentOrder_ShouldThrowKeyNotFoundException()
+    public async Task Handle_WithNonExistentOrder_ShouldThrowEntityNotFoundException()
     {
         // Arrange
         await using var context = CreateContext();
@@ -111,12 +111,12 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         var command = new UpdateOrderStatusCommand { OrderId = Guid.NewGuid(), Status = OrderStatus.Confirmed };
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             handler.HandleAsync(command, CancellationToken.None));
     }
 
     [Fact]
-    public async Task Handle_WithInvalidTransition_ShouldThrowInvalidOperationException()
+    public async Task Handle_WithInvalidTransition_ShouldThrowDomainRuleException()
     {
         // Arrange
         await using var context = CreateContext();
@@ -136,7 +136,7 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         var command = new UpdateOrderStatusCommand { OrderId = order.Id, Status = OrderStatus.Delivered };
 
         // Act & Assert — Pending → Delivered is not a valid transition
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await Assert.ThrowsAsync<DomainRuleException>(() =>
             handler.HandleAsync(command, CancellationToken.None));
     }
 

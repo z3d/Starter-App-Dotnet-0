@@ -62,7 +62,7 @@ public class Product
     public void UpdateStock(int quantity)
     {
         if (Stock + quantity < 0)
-            throw new InvalidOperationException("Cannot reduce stock below zero");
+            throw new DomainRuleException("Cannot reduce stock below zero");
 
         Stock += quantity;
         LastUpdated = DateTimeOffset.UtcNow;

@@ -30,7 +30,7 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
         if (customer == null)
         {
             Log.Warning("Customer {Id} not found for update", command.Id);
-            throw new KeyNotFoundException($"Customer with ID {command.Id} not found");
+            throw new EntityNotFoundException($"Customer with ID {command.Id} not found");
         }
 
         _ownerOnlyPolicy.Authorize(customer.OwnerSubject, customer.TenantId);
@@ -46,7 +46,7 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
         }
         catch (DbUpdateException ex) when (ex.IsUniqueConstraintViolation("ix_customers_tenant_id_owner_subject_email"))
         {
-            throw new InvalidOperationException("A customer with that email already exists", ex);
+            throw new DomainRuleException("A customer with that email already exists", ex);
         }
 
         await _cacheInvalidator.InvalidateCustomerAsync(customer.Id, cancellationToken);
@@ -75,6 +75,6 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
                 cancellationToken);
 
         if (emailExists)
-            throw new InvalidOperationException("A customer with that email already exists");
+            throw new DomainRuleException("A customer with that email already exists");
     }
 }

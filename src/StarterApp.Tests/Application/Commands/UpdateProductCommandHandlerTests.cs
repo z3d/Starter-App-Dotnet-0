@@ -143,7 +143,7 @@ public class UpdateProductCommandHandlerTests : PostgresCommandHandlerTestBase
     }
 
     [Fact]
-    public async Task Handle_WithNonExistentProduct_ShouldThrowKeyNotFoundException()
+    public async Task Handle_WithNonExistentProduct_ShouldThrowEntityNotFoundException()
     {
         // Arrange
         await using var context = CreateContext();
@@ -160,7 +160,7 @@ public class UpdateProductCommandHandlerTests : PostgresCommandHandlerTestBase
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(
+        await Assert.ThrowsAsync<EntityNotFoundException>(
             () => handler.HandleAsync(command, CancellationToken.None));
     }
 }

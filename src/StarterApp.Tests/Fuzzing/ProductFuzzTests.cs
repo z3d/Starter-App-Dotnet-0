@@ -33,7 +33,7 @@ public class ProductFuzzTests
                 var excess = initialStock + 1;
                 try
                 { product.UpdateStock(-excess); return false; }
-                catch (InvalidOperationException) { return true; }
+                catch (DomainRuleException) { return true; }
             });
     }
 

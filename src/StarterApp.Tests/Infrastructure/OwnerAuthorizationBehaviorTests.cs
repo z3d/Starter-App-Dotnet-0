@@ -81,8 +81,8 @@ public class OwnerAuthorizationBehaviorTests
     {
         var behavior = CreateBehavior<MarkedCommand>(new OwnerPolicyEvaluationTracker(), "Testing");
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(
-            () => behavior.HandleAsync(new MarkedCommand(), () => Task.FromException<string>(new KeyNotFoundException("not found")), CancellationToken.None));
+        await Assert.ThrowsAsync<EntityNotFoundException>(
+            () => behavior.HandleAsync(new MarkedCommand(), () => Task.FromException<string>(new EntityNotFoundException("not found")), CancellationToken.None));
     }
 
     private sealed class SkippingHandler : IRequestHandler<MarkedCommand, string>

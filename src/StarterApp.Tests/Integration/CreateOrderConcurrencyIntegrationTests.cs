@@ -66,7 +66,7 @@ public class CreateOrderConcurrencyIntegrationTests : IAsyncLifetime
                 await handler.HandleAsync(command, CancellationToken.None);
                 return true;
             }
-            catch (InvalidOperationException)
+            catch (DomainRuleException)
             {
                 return false; // "Insufficient stock" — the atomic UPDATE matched zero rows
             }

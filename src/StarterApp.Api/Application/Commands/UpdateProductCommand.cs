@@ -33,7 +33,7 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         if (product == null)
         {
             Log.Warning("Product {Id} not found for update", command.Id);
-            throw new KeyNotFoundException($"Product with ID {command.Id} not found");
+            throw new EntityNotFoundException($"Product with ID {command.Id} not found");
         }
 
         _ownerOnlyPolicy.Authorize(product.OwnerSubject, product.TenantId);

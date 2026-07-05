@@ -38,7 +38,7 @@ public class CancelOrderCommandHandlerTests : PostgresCommandHandlerTestBase
     }
 
     [Fact]
-    public async Task Handle_WithNonExistentOrder_ShouldThrowKeyNotFoundException()
+    public async Task Handle_WithNonExistentOrder_ShouldThrowEntityNotFoundException()
     {
         // Arrange
         await using var context = CreateContext();
@@ -47,7 +47,7 @@ public class CancelOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         var command = new CancelOrderCommand { OrderId = Guid.NewGuid() };
 
         // Act & Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
             handler.HandleAsync(command, CancellationToken.None));
     }
 

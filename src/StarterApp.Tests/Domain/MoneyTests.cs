@@ -196,7 +196,7 @@ public class MoneyTests
     }
 
     [Fact]
-    public void Add_WithDifferentCurrencies_ShouldThrowInvalidOperationException()
+    public void Add_WithDifferentCurrencies_ShouldThrowDomainRuleException()
     {
         // Arrange
         Log.Information("Testing addition of money with different currencies");
@@ -206,7 +206,7 @@ public class MoneyTests
         // Act & Assert
         Log.Debug("Attempting to add {Amount1} {Currency1} + {Amount2} {Currency2}",
             money1.Amount, money1.Currency, money2.Amount, money2.Currency);
-        var exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<DomainRuleException>(() =>
             money1.Add(money2));
         Assert.Contains("Cannot add money with different currencies", exception.Message);
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);
@@ -244,7 +244,7 @@ public class MoneyTests
     }
 
     [Fact]
-    public void Subtract_WithDifferentCurrencies_ShouldThrowInvalidOperationException()
+    public void Subtract_WithDifferentCurrencies_ShouldThrowDomainRuleException()
     {
         // Arrange
         Log.Information("Testing subtraction of money with different currencies");
@@ -254,7 +254,7 @@ public class MoneyTests
         // Act & Assert
         Log.Debug("Attempting to subtract {Amount1} {Currency1} - {Amount2} {Currency2}",
             money1.Amount, money1.Currency, money2.Amount, money2.Currency);
-        var exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<DomainRuleException>(() =>
             money1.Subtract(money2));
         Assert.Contains("Cannot subtract money with different currencies", exception.Message);
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);

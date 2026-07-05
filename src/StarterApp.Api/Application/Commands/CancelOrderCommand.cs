@@ -27,7 +27,7 @@ public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, Ord
         if (order == null)
         {
             Log.Warning("Order {OrderId} not found for cancellation", command.OrderId);
-            throw new KeyNotFoundException($"Order with ID {command.OrderId} was not found");
+            throw new EntityNotFoundException($"Order with ID {command.OrderId} was not found");
         }
 
         _ownerOnlyPolicy.Authorize(order.OwnerSubject, order.TenantId);

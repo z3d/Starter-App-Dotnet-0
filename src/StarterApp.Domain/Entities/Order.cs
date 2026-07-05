@@ -62,7 +62,7 @@ public class Order : AggregateRoot
         ArgumentNullException.ThrowIfNull(item);
 
         if (Status != OrderStatus.Pending)
-            throw new InvalidOperationException("Cannot add items to a non-pending order");
+            throw new DomainRuleException("Cannot add items to a non-pending order");
 
         EnsureCurrencyMatchesExistingItems(item.UnitPriceExcludingGst.Currency);
 
@@ -75,7 +75,7 @@ public class Order : AggregateRoot
         }
         else if (_items.Count >= MaxItems)
         {
-            throw new InvalidOperationException($"An order cannot contain more than {MaxItems} items");
+            throw new DomainRuleException($"An order cannot contain more than {MaxItems} items");
         }
 
         _items.Add(item);
@@ -86,7 +86,7 @@ public class Order : AggregateRoot
     public OrderItem AddItem(int productId, string productName, int quantity, Money unitPrice, decimal gstRate = OrderItem.DefaultGstRate)
     {
         if (Status != OrderStatus.Pending)
-            throw new InvalidOperationException("Cannot add items to a non-pending order");
+            throw new DomainRuleException("Cannot add items to a non-pending order");
 
         ArgumentNullException.ThrowIfNull(unitPrice);
 
@@ -96,7 +96,7 @@ public class Order : AggregateRoot
         if (existingItem != null)
             _items.Remove(existingItem);
         else if (_items.Count >= MaxItems)
-            throw new InvalidOperationException($"An order cannot contain more than {MaxItems} items");
+            throw new DomainRuleException($"An order cannot contain more than {MaxItems} items");
 
         var item = new OrderItem(productId, productName, quantity, unitPrice, gstRate);
         _items.Add(item);
@@ -109,7 +109,7 @@ public class Order : AggregateRoot
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(productId);
 
         if (Status != OrderStatus.Pending)
-            throw new InvalidOperationException("Cannot remove items from a non-pending order");
+            throw new DomainRuleException("Cannot remove items from a non-pending order");
 
         var item = _items.FirstOrDefault(i => i.ProductId == productId);
         if (item != null)
@@ -122,7 +122,7 @@ public class Order : AggregateRoot
     public void UpdateStatus(OrderStatus newStatus)
     {
         if (!IsValidStatusTransition(Status, newStatus))
-            throw new InvalidOperationException($"Cannot transition from {Status} to {newStatus}");
+            throw new DomainRuleException($"Cannot transition from {Status} to {newStatus}");
 
         var previousStatus = Status;
         Status = newStatus;
@@ -133,7 +133,7 @@ public class Order : AggregateRoot
     public void Confirm()
     {
         if (_items.Count == 0)
-            throw new InvalidOperationException("Cannot confirm an order with no items");
+            throw new DomainRuleException("Cannot confirm an order with no items");
 
         UpdateStatus(OrderStatus.Confirmed);
     }
@@ -156,7 +156,7 @@ public class Order : AggregateRoot
     public void Cancel()
     {
         if (Status == OrderStatus.Delivered)
-            throw new InvalidOperationException("Cannot cancel a delivered order");
+            throw new DomainRuleException("Cannot cancel a delivered order");
 
         UpdateStatus(OrderStatus.Cancelled);
     }
@@ -198,7 +198,7 @@ public class Order : AggregateRoot
         // capture — after the create handler's add-items loop — so the build-then-add-items
         // construction flow is unaffected; an order can never be persisted/published empty.
         if (_items.Count == 0)
-            throw new InvalidOperationException("Cannot create an order with no items");
+            throw new DomainRuleException("Cannot create an order with no items");
 
         RaiseDomainEvent(new OrderCreatedDomainEvent(this));
     }
@@ -210,7 +210,7 @@ public class Order : AggregateRoot
 
         var existingCurrency = _items[0].UnitPriceExcludingGst.Currency;
         if (!string.Equals(existingCurrency, currency, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("All order items must use the same currency");
+            throw new DomainRuleException("All order items must use the same currency");
     }
 
     private static bool IsValidStatusTransition(OrderStatus currentStatus, OrderStatus newStatus)
