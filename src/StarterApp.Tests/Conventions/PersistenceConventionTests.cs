@@ -4,141 +4,63 @@ public class PersistenceConventionTests : ConventionTestBase
 {
     // === Outbox Capture Wiring ===
     // The single-SaveChanges outbox pattern only holds if every EF write entry point funnels through
-    // the domain-event capture step. A handler calling SaveChanges that bypassed capture would silently
-    // drop domain events with no compile error. This scans the actual SaveChanges overrides' IL.
+    // DomainEventsInterceptor's capture step. Wiring that bypassed the interceptor would silently drop
+    // domain events with no compile error. Asserted behaviourally against the real interceptor (more
+    // robust than the IL scan this replaced): save an aggregate that raises a creation event and confirm
+    // the outbox row materializes in the same save — for both the sync and async paths.
+    // AddPersistence_WiresDomainEventsInterceptor pins that the production DI registration actually
+    // attaches the interceptor.
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SaveChangesWithDomainEventsInterceptor_CapturesDomainEventsIntoOutbox(bool useAsync)
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase($"outbox-capture-{Guid.NewGuid()}")
+            .AddInterceptors(new DomainEventsInterceptor())
+            .Options;
+
+        await using var dbContext = new ApplicationDbContext(options);
+        var order = new Order(Guid.CreateVersion7(), 42, "capture-owner", "capture-tenant");
+        order.AddItem(7, "Capture Product", 2, Money.Create(19.99m, "USD"));
+        dbContext.Orders.Add(order);
+
+        if (useAsync)
+        {
+            await dbContext.SaveChangesAsync();
+        }
+        else
+        {
+            // Deliberately exercises the synchronous path — that is the entry point under test here.
+#pragma warning disable CA1849 // Call async methods when in an async method
+            dbContext.SaveChanges();
+#pragma warning restore CA1849
+        }
+
+        // The creation event must land as an outbox row in the SAME save; if the interceptor stopped
+        // capturing, nothing would materialize here.
+        Assert.Contains(await dbContext.OutboxMessages.ToListAsync(),
+            message => message.Type == OrderCreatedDomainEvent.Contract);
+    }
 
     [Fact]
-    public void ApplicationDbContextSaveChanges_MustCaptureDomainEventsIntoOutbox()
+    public void AddPersistence_WiresDomainEventsInterceptor()
     {
-        var contextType = typeof(ApplicationDbContext);
+        // The behavioural test above exercises the interceptor directly; this pins the production seam —
+        // AddPersistence must attach DomainEventsInterceptor to the context options, or the API host
+        // would save aggregates without writing outbox rows and every event would silently vanish.
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddPersistence("Host=localhost;Database=convention-only;Username=x;Password=x");
 
-        // Discover the capture method by behaviour rather than name: whichever instance method
-        // materializes OutboxMessage rows. Renaming the private helper must not silently disable this test.
-        var captureMethodNames = GetAllMethodsIncludingStateMachines(contextType)
-            .Where(ReferencesOutboxMessage)
-            .Select(method => method.Name)
-            .ToHashSet(StringComparer.Ordinal);
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var options = scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>();
 
-        Assert.True(captureMethodNames.Count > 0,
-            "ApplicationDbContext must contain a method that captures domain events into OutboxMessage rows.");
-
-        var entryPoints = new[]
-        {
-            ("SaveChanges(bool)", contextType.GetMethod(nameof(DbContext.SaveChanges), [typeof(bool)])),
-            ("SaveChangesAsync(bool, CancellationToken)",
-                contextType.GetMethod(nameof(DbContext.SaveChangesAsync), [typeof(bool), typeof(CancellationToken)])),
-        };
-
-        var violations = new List<string>();
-        foreach (var (description, method) in entryPoints)
-        {
-            if (method is null || method.DeclaringType != contextType)
-            {
-                violations.Add($"{description} is not overridden on ApplicationDbContext; EF could persist aggregates without capturing their domain events.");
-                continue;
-            }
-
-            if (!SelfAndStateMachine(method).Any(scannable => IlCallsMethodNamed(scannable, captureMethodNames)))
-                violations.Add($"{description} does not call the outbox-capture method before persisting; domain events would be silently dropped.");
-        }
-
-        Assert.True(violations.Count == 0,
-            "Every EF SaveChanges entry point on ApplicationDbContext must capture domain events into the outbox:\n" +
-            string.Join("\n", violations));
-    }
-
-    // OutboxMessage.Create is referenced as a method group (`.Select(OutboxMessage.Create)`), which the
-    // compiler emits as ldftn rather than call/callvirt. Scan the token-bearing member opcodes that can
-    // carry an OutboxMessage reference: call, callvirt, newobj, and the two-byte ldftn/ldvirtftn.
-    private static bool ReferencesOutboxMessage(MethodInfo method)
-    {
-        var body = method.GetMethodBody();
-        if (body == null)
-            return false;
-
-        var il = body.GetILAsByteArray();
-        if (il == null)
-            return false;
-
-        var module = method.Module;
-
-        for (var i = 0; i < il.Length - 4; i++)
-        {
-            int tokenOffset;
-            if (il[i] is 0x28 or 0x6F or 0x73)
-            {
-                tokenOffset = i + 1;
-            }
-            else if (il[i] == 0xFE && i + 1 < il.Length && il[i + 1] is 0x06 or 0x07)
-            {
-                tokenOffset = i + 2;
-            }
-            else
-            {
-                continue;
-            }
-
-            if (tokenOffset + 4 > il.Length)
-                break;
-
-            var token = BitConverter.ToInt32(il, tokenOffset);
-            try
-            {
-                if (module.ResolveMember(token)?.DeclaringType?.Name == nameof(OutboxMessage))
-                    return true;
-            }
-            catch
-            {
-                // Unresolvable generic instantiation — not an OutboxMessage reference.
-            }
-        }
-
-        return false;
-    }
-
-    private static IEnumerable<MethodInfo> SelfAndStateMachine(MethodInfo method)
-    {
-        yield return method;
-
-        // For async methods the body that actually issues the calls lives in the generated state machine.
-        var stateMachine = method.GetCustomAttribute<AsyncStateMachineAttribute>()?.StateMachineType;
-        var moveNext = stateMachine?.GetMethod("MoveNext", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        if (moveNext != null)
-            yield return moveNext;
-    }
-
-    private static bool IlCallsMethodNamed(MethodInfo method, IReadOnlySet<string> methodNames)
-    {
-        var body = method.GetMethodBody();
-        if (body == null)
-            return false;
-
-        var il = body.GetILAsByteArray();
-        if (il == null)
-            return false;
-
-        var module = method.Module;
-
-        for (var i = 0; i < il.Length - 4; i++)
-        {
-            if (il[i] is not (0x28 or 0x6F))
-                continue;
-
-            var token = BitConverter.ToInt32(il, i + 1);
-            try
-            {
-                if (module.ResolveMember(token) is MethodBase called && methodNames.Contains(called.Name))
-                    return true;
-            }
-            catch
-            {
-                // Unresolvable generic instantiation — not the method we are looking for.
-            }
-
-            i += 4;
-        }
-
-        return false;
+        var coreOptions = options.FindExtension<Microsoft.EntityFrameworkCore.Infrastructure.CoreOptionsExtension>();
+        Assert.NotNull(coreOptions);
+        Assert.Contains(coreOptions.Interceptors ?? [], interceptor => interceptor is DomainEventsInterceptor);
     }
 
     // === Entity Configuration ===

@@ -93,14 +93,17 @@ public class CreateOrderConcurrencyIntegrationTests : IAsyncLifetime
     }
 
     private ApplicationDbContext CreateContext() =>
-        new(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(_fixture.ConnectionString).Options);
+        new(new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(_fixture.ConnectionString)
+            .AddInterceptors(new DomainEventsInterceptor())
+            .Options);
 
     private ApplicationDbContext CreateRetryingContext(IInterceptor interceptor)
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql(_fixture.ConnectionString, npgsql =>
                 npgsql.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null))
-            .AddInterceptors(interceptor)
+            .AddInterceptors(interceptor, new DomainEventsInterceptor())
             .Options;
         return new ApplicationDbContext(options);
     }

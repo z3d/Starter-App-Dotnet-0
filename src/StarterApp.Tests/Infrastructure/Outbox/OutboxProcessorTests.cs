@@ -13,6 +13,7 @@ public class OutboxProcessorTests
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(databaseName)
+            .AddInterceptors(new DomainEventsInterceptor())
             .Options;
         return new ApplicationDbContext(options);
     }

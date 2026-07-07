@@ -64,10 +64,13 @@ public static class ServiceCollectionExtensions
         //      retry-safe pattern documented by Microsoft.
         // If a future handler opens BeginTransaction without wrapping in an execution strategy,
         // the first transient fault will throw at runtime with a clear message.
+        // DomainEventsInterceptor is stateless, so a single shared instance serves every context; it is
+        // what funnels aggregates' domain events into the outbox on each SaveChanges (see its header comment).
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString, postgres =>
                 postgres.EnableRetryOnFailure(maxRetryCount: 6, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null))
-                   .EnableSensitiveDataLogging(false));
+                   .EnableSensitiveDataLogging(false)
+                   .AddInterceptors(new DomainEventsInterceptor()));
 
         // Dapper reads use this connection. Query handlers wrap their calls in
         // PostgresRetryPolicy.ExecuteAsync so read-side transient faults get the same retry posture
