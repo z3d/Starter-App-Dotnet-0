@@ -69,7 +69,7 @@ covered by `GatewayIdentityIntegrationTests`.
 
 ## Requirements
 
-- Docker (running)
+- Docker or Podman (running; the script prefers `docker`, falls back to `podman`, override with `CONTAINER_CLI=`)
 - .NET 10 SDK
 - `jq`, `curl`
 

@@ -59,9 +59,15 @@ post_json() {
     curl $post_opts -X POST "$BASE_URL$url" "${AUTH_HEADERS[@]}" -H "Content-Type: application/json" -d "$body" 2>/dev/null
 }
 
+# python3 must be PROVEN runnable, not merely on PATH: Windows ships a Store
+# execution-alias stub named python3 that resolves under `command -v` but cannot run
+# anything, so every JSON parse silently blanks. Probe it once with a real run and
+# share the verdict; fall back to the grep parser when it is absent or the stub.
+if python3 -c "print()" >/dev/null 2>&1; then JSON_VIA_PYTHON=1; else JSON_VIA_PYTHON=0; fi
+
 extract_id() {
     # Extract "id" from JSON — works with python3 or grep fallback
-    if command -v python3 &>/dev/null; then
+    if [ "$JSON_VIA_PYTHON" = "1" ]; then
         python3 -c "import sys,json; print(json.load(sys.stdin)['id'])"
     else
         grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*'

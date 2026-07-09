@@ -13,7 +13,7 @@
 #   TARGET_URL=http://localhost:5164 SKIP_BOOT=1 dast/run-dast.sh
 #                                        # scan an already-running instance
 #
-# Requirements: Docker, .NET 10 SDK, jq.
+# Requirements: Docker or Podman, .NET 10 SDK, jq.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -51,6 +51,14 @@ CONN="Host=localhost;Port=${PG_PORT};Database=${PG_DB};Username=postgres;Passwor
 API_PID=""
 API_LOG="$SCRIPT_DIR/reports/api.log"
 
+# Container CLI: prefer docker, fall back to podman (identical CLI surface for the
+# subcommands used here; podman >= 4.1 honours --add-host host-gateway, which keeps
+# host.docker.internal resolving inside the ZAP container). Override with CONTAINER_CLI=.
+CONTAINER_CLI="${CONTAINER_CLI:-}"
+if [[ -z "$CONTAINER_CLI" ]]; then
+  if command -v docker >/dev/null 2>&1; then CONTAINER_CLI=docker; else CONTAINER_CLI=podman; fi
+fi
+
 log()  { printf '\033[1;34m[dast]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[dast]\033[0m %s\n' "$*"; }
 err()  { printf '\033[1;31m[dast]\033[0m %s\n' "$*" >&2; }
@@ -64,14 +72,14 @@ cleanup() {
   fi
   if [[ "$SKIP_BOOT" != "1" ]]; then
     log "Removing PostgreSQL container"
-    docker rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
+    "$CONTAINER_CLI" rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
   fi
   exit "$code"
 }
 trap cleanup EXIT INT TERM
 
 # --- preflight ----------------------------------------------------------------
-for tool in docker jq; do
+for tool in "$CONTAINER_CLI" jq; do
   command -v "$tool" >/dev/null 2>&1 || { err "Required tool '$tool' not found on PATH."; exit 2; }
 done
 
@@ -80,7 +88,7 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
   command -v dotnet >/dev/null 2>&1 || { err "Required tool 'dotnet' not found on PATH."; exit 2; }
 
   log "Starting PostgreSQL ($PG_IMAGE) on port $PG_PORT"
-  docker run -d --name "$PG_CONTAINER" \
+  "$CONTAINER_CLI" run -d --name "$PG_CONTAINER" \
     -e POSTGRES_PASSWORD=postgres \
     -e POSTGRES_DB="$PG_DB" \
     -p "${PG_PORT}:5432" \
@@ -88,7 +96,7 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
 
   log "Waiting for PostgreSQL to accept connections"
   for _ in $(seq 1 30); do
-    if docker exec "$PG_CONTAINER" pg_isready -U postgres -d "$PG_DB" >/dev/null 2>&1; then break; fi
+    if "$CONTAINER_CLI" exec "$PG_CONTAINER" pg_isready -U postgres -d "$PG_DB" >/dev/null 2>&1; then break; fi
     sleep 1
   done
 
@@ -102,7 +110,7 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
     # makes every by-id/list probe return 404/empty, blinding response-differential
     # injection detection (see dast/seed/dast-seed.sql).
     log "Seeding owner-scoped DAST data (dast/seed/dast-seed.sql)"
-    docker exec -i "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d "$PG_DB" \
+    "$CONTAINER_CLI" exec -i "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U postgres -d "$PG_DB" \
       < "$SCRIPT_DIR/seed/dast-seed.sql"
   else
     log "SKIP_SEED=1 — running without the owner-scoped data seed"
@@ -164,10 +172,10 @@ sed "s/__API_PORT__/${ZAP_PORT}/g" "$SCRIPT_DIR/automation.yaml" > "$RENDERED_PL
 # guards below can produce a clear message.
 # Tee ZAP's stdout to a log so the coverage gate below can read the Automation
 # Framework job summaries ("Job openapi added N URLs", "Job spider found N URLs").
-# PIPESTATUS[0] preserves docker's exit code through the pipe.
+# PIPESTATUS[0] preserves the container CLI's exit code through the pipe.
 ZAP_LOG="$SCRIPT_DIR/reports/zap-autorun.log"
 set +e
-docker run --rm \
+"$CONTAINER_CLI" run --rm \
   --add-host=host.docker.internal:host-gateway \
   -v "$SCRIPT_DIR:/zap/wrk:rw" \
   "$ZAP_IMAGE" \
