@@ -55,7 +55,7 @@
     <!-- Transitive pin: Aspire's host SDK pulls MessagePack 2.5.192, which carries
          GHSA-hv8m-jj95-wg3x (NU1903 fails the build under warnings-as-errors). Remove
          when the Aspire packages move past it. -->
-    <PackageVersion Include="MessagePack" Version="2.5.302" />
+    <PackageVersion Include="MessagePack" Version="3.1.8" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3" />
