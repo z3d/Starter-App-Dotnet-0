@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using StarterApp.Functions;
 using StarterApp.ServiceDefaults.Payloads;
 using StarterApp.Tests.Infrastructure.Payloads;
+using MessageSettlementTests = StarterApp.Tests.Functions.MessageSettlementTests;
 
 namespace StarterApp.Tests.Infrastructure.Functions;
 
@@ -23,7 +24,11 @@ public class PayloadFunctionTests
             contentType: "application/json",
             correlationId: "case-789");
 
-        await function.RunAsync(message, CancellationToken.None);
+        var messageActions = new MessageSettlementTests.RecordingMessageActions();
+
+        await function.RunAsync(message, messageActions, new MessageSettlementTests.StubFunctionContext(), CancellationToken.None);
+
+        Assert.Equal(new[] { "complete" }, messageActions.Calls);
 
         var archiveEntry = store.Lines.Single(pair => pair.Key == "archive/2026-05-03/04/07/case-789.jsonl");
         var entityIndexEntry = store.Lines.Single(pair => pair.Key == "entity-index/order/abc/2026-05-03/04/07/case-789.jsonl");

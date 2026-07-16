@@ -20,48 +20,45 @@ public class InventoryReservationFunction
     public async Task RunAsync(
         [ServiceBusTrigger("domain-events", "inventory-reservation", Connection = "servicebus")]
         ServiceBusReceivedMessage message,
+        ServiceBusMessageActions messageActions,
+        FunctionContext context,
         CancellationToken cancellationToken)
     {
         var correlationId = ResolveCorrelationId(message);
         using var correlationScope = CorrelationContext.Push(correlationId);
         using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = correlationId });
 
-        try
+        await MessageSettlement.SettleAsync(message, messageActions, context.RetryContext, _logger, ProcessAsync, cancellationToken);
+    }
+
+    private async Task ProcessAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken)
+    {
+        var correlationId = ResolveCorrelationId(message);
+        var body = message.Body.ToString();
+
+        await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
         {
-            var body = message.Body.ToString();
+            CorrelationId = correlationId,
+            Direction = "inbound",
+            Channel = PayloadCaptureChannels.ServiceBus,
+            Operation = nameof(InventoryReservationFunction),
+            ContentType = message.ContentType,
+            Payload = body,
+            Metadata = BuildCaptureMetadata(message, "inventory-reservation")
+        }, cancellationToken);
 
-            await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
-            {
-                CorrelationId = correlationId,
-                Direction = "inbound",
-                Channel = PayloadCaptureChannels.ServiceBus,
-                Operation = nameof(InventoryReservationFunction),
-                ContentType = message.ContentType,
-                Payload = body,
-                Metadata = BuildCaptureMetadata(message, "inventory-reservation")
-            }, cancellationToken);
+        _logger.LogInformation("Inventory reservation event received. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
+            message.MessageId, message.Subject, correlationId);
 
-            _logger.LogInformation("Inventory reservation event received. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
-                message.MessageId, message.Subject, correlationId);
-
-            // NOTE: Catalog stock is reserved synchronously and atomically by
-            // CreateOrderCommandHandler (UPDATE products SET stock = stock - qty WHERE stock >= qty)
-            // inside the same unit of work that creates the order. That handler is the single owner
-            // of catalog stock mutation.
-            //
-            // This subscriber is notification/projection-only. Do NOT decrement or otherwise mutate
-            // catalog stock here — doing so would double-reserve. Use this hook for downstream
-            // projections, warehouse/fulfilment integration, or notifications instead.
-            // TODO: Deserialize payload and build the downstream inventory projection (read-only w.r.t. catalog stock).
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "Failed to process inventory reservation. MessageId: {MessageId}, Subject: {Subject}",
-                message.MessageId,
-                message.Subject);
-            throw;
-        }
+        // NOTE: Catalog stock is reserved synchronously and atomically by
+        // CreateOrderCommandHandler (UPDATE products SET stock = stock - qty WHERE stock >= qty)
+        // inside the same unit of work that creates the order. That handler is the single owner
+        // of catalog stock mutation.
+        //
+        // This subscriber is notification/projection-only. Do NOT decrement or otherwise mutate
+        // catalog stock here — doing so would double-reserve. Use this hook for downstream
+        // projections, warehouse/fulfilment integration, or notifications instead.
+        // TODO: Deserialize payload and build the downstream inventory projection (read-only w.r.t. catalog stock).
     }
 
     private static string ResolveCorrelationId(ServiceBusReceivedMessage message)

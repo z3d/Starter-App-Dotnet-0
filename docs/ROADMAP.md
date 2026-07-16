@@ -118,7 +118,11 @@ survives sessions; each item is marked done with its commit, same discipline as 
     discipline guide").
 
 **Deferred (named triggers, decision-on-file)**
-- Dead-letter-with-reason in Functions subscribers — trigger: first real handler logic.
+- ~~Dead-letter-with-reason in Functions subscribers~~ — DELIVERED ahead of the handler-logic
+  trigger: subscribers settle manually (`MessageSettlement`, host.json `autoCompleteMessages:
+  false`) — non-retryable failures dead-letter with the exception type as the reason, transient
+  failures ride the host retry policy and abandon explicitly at exhaustion; unit-tested in
+  `MessageSettlementTests`.
 - Doc-mirror generator — trigger: mirror set grows beyond root pair + skills.
 - Per-stage capture-sink failure isolation — trigger: any deployment opting the HTTP channel
   into FailClosed.

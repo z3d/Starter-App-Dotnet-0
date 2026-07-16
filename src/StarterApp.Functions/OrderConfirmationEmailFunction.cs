@@ -20,45 +20,42 @@ public class OrderConfirmationEmailFunction
     public async Task RunAsync(
         [ServiceBusTrigger("domain-events", "email-notifications", Connection = "servicebus")]
         ServiceBusReceivedMessage message,
+        ServiceBusMessageActions messageActions,
+        FunctionContext context,
         CancellationToken cancellationToken)
     {
         var correlationId = ResolveCorrelationId(message);
         using var correlationScope = CorrelationContext.Push(correlationId);
         using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = correlationId });
 
-        try
+        await MessageSettlement.SettleAsync(message, messageActions, context.RetryContext, _logger, ProcessAsync, cancellationToken);
+    }
+
+    private async Task ProcessAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken)
+    {
+        var correlationId = ResolveCorrelationId(message);
+        var body = message.Body.ToString();
+
+        await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
         {
-            var body = message.Body.ToString();
+            CorrelationId = correlationId,
+            Direction = "inbound",
+            Channel = PayloadCaptureChannels.ServiceBus,
+            Operation = nameof(OrderConfirmationEmailFunction),
+            ContentType = message.ContentType,
+            Payload = body,
+            Metadata = BuildCaptureMetadata(message, "email-notifications")
+        }, cancellationToken);
 
-            await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
-            {
-                CorrelationId = correlationId,
-                Direction = "inbound",
-                Channel = PayloadCaptureChannels.ServiceBus,
-                Operation = nameof(OrderConfirmationEmailFunction),
-                ContentType = message.ContentType,
-                Payload = body,
-                Metadata = BuildCaptureMetadata(message, "email-notifications")
-            }, cancellationToken);
+        _logger.LogInformation("Order confirmation email triggered. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
+            message.MessageId, message.Subject, correlationId);
 
-            _logger.LogInformation("Order confirmation email triggered. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
-                message.MessageId, message.Subject, correlationId);
-
-            // TODO: Deserialize payload and send confirmation email
-            // CONSTRAINT: there is no ordering guarantee into this subscriber — host.json sets
-            // maxConcurrentCalls: 16 and the subscription has no sessions, so order.status-changed.v1
-            // can be processed BEFORE order.created.v1 for the same order. The real implementation
-            // must tolerate out-of-order delivery (e.g. upsert-by-orderId), or the subscription must
-            // move to sessions keyed by order id.
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "Failed to process email notification. MessageId: {MessageId}, Subject: {Subject}",
-                message.MessageId,
-                message.Subject);
-            throw;
-        }
+        // TODO: Deserialize payload and send confirmation email
+        // CONSTRAINT: there is no ordering guarantee into this subscriber — host.json sets
+        // maxConcurrentCalls: 16 and the subscription has no sessions, so order.status-changed.v1
+        // can be processed BEFORE order.created.v1 for the same order. The real implementation
+        // must tolerate out-of-order delivery (e.g. upsert-by-orderId), or the subscription must
+        // move to sessions keyed by order id.
     }
 
     private static string ResolveCorrelationId(ServiceBusReceivedMessage message)

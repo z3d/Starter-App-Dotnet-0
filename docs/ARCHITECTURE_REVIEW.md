@@ -95,7 +95,12 @@ Decisions / watch-items / explained deferrals — no open runtime defects.
 
 ## Deferred with named triggers (from the 2026-06-12 complexity review)
 
-- Dead-letter-with-reason in the Functions subscribers — trigger: first real handler logic.
+- ~~Dead-letter-with-reason in the Functions subscribers~~ — DELIVERED ahead of the
+  handler-logic trigger: `MessageSettlement` settles manually (host.json `autoCompleteMessages:
+  false`) — non-retryable failures dead-letter with the exception type as the reason and a
+  truncated description, transient failures ride the host retry policy in-process and abandon
+  explicitly on the final attempt (prompt redelivery; the subscription's MaxDeliveryCount is the
+  poison backstop). Regression tests: `MessageSettlementTests`.
 - Doc-mirror generator — trigger: the mirror set grows beyond the root pair + skills.
 - Per-stage capture-sink failure isolation — trigger: a deployment opts the HTTP channel into
   FailClosed.
