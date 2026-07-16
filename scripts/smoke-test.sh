@@ -74,6 +74,39 @@ extract_id() {
     fi
 }
 
+json_field() {
+    # Extract a top-level string field from JSON on stdin — python3 or grep fallback
+    local field="$1"
+    if [ "$JSON_VIA_PYTHON" = "1" ]; then
+        python3 -c "import sys,json; print(json.load(sys.stdin).get('$field',''))"
+    else
+        grep -o "\"$field\":\"[^\"]*\"" | head -1 | cut -d'"' -f4
+    fi
+}
+
+await_json_field() {
+    # Poll a GET endpoint until a JSON field reaches the expected value. For state that is only
+    # eventually visible (cache invalidation, projections, outbox-driven flows) a single-shot GET
+    # races the propagation; polling absorbs benign delay while still failing on a real miss.
+    local description="$1" url="$2" field="$3" expected="$4" timeout_seconds="${5:-30}"
+    local get_opts="-s"
+    [[ "$BASE_URL" == https://* ]] && get_opts="-sk"
+    local deadline=$((SECONDS + timeout_seconds))
+    local actual=""
+    while [ $SECONDS -lt $deadline ]; do
+        actual=$(curl $get_opts "$BASE_URL$url" "${AUTH_HEADERS[@]}" 2>/dev/null | json_field "$field" || echo "")
+        if [ "$actual" = "$expected" ]; then
+            echo "  PASS  $description ($field=$actual)"
+            PASS=$((PASS + 1))
+            return 0
+        fi
+        sleep 1
+    done
+    echo "  FAIL  $description (wanted $field=$expected, last saw '$actual' after ${timeout_seconds}s)"
+    FAIL=$((FAIL + 1))
+    return 0
+}
+
 # --- Health Check ---
 
 echo ""
@@ -157,6 +190,9 @@ assert_status "PUT order status Pending→Confirmed" 200 PUT \
     "/api/v1/orders/$CREATED_ORDER_ID/status" \
     -H "Content-Type: application/json" \
     -d "{\"orderId\":\"$CREATED_ORDER_ID\",\"status\":\"Confirmed\"}"
+
+# The by-id read is cache-backed; poll rather than racing the invalidation with a one-shot GET
+await_json_field "GET order reflects Confirmed" "/api/v1/orders/$CREATED_ORDER_ID" "status" "Confirmed" 30
 
 # --- Validator Tests ---
 
