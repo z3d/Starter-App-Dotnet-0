@@ -1,6 +1,5 @@
 using System.Text.Json.Serialization;
 using Scalar.AspNetCore;
-using Serilog.Enrichers.Sensitive;
 using StarterApp.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,17 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 builder.Host.UseSerilog((context, services, configuration) =>
-{
-    configuration
-        .ReadFrom.Configuration(context.Configuration)
-        .ReadFrom.Services(services)
-        .Enrich.FromLogContext()
-        .Enrich.WithSensitiveDataMasking(_ => { });
-
-    var seqUrl = context.Configuration["SEQ_URL"] ?? context.Configuration["SeqUrl"];
-    if (!string.IsNullOrEmpty(seqUrl))
-        configuration.WriteTo.Seq(seqUrl);
-});
+    SerilogConfiguration.Apply(configuration, context.Configuration, services));
 
 var connectionString = builder.Configuration.GetConnectionString("database")
     ?? throw new InvalidOperationException("Connection string 'database' not found. Ensure Aspire is configured correctly.");
