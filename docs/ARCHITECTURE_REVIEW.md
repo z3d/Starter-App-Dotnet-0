@@ -82,7 +82,13 @@ Decisions / watch-items / explained deferrals — no open runtime defects.
   idempotent via its owner-scoped unique email. Residual test gaps recorded in the archive.
 - **Watch-item — `aspire` CI flake (Service Bus emulator readiness).** Cold-runner emulator
   startup can time out `AppHost_ShouldEventuallyExposeHealthyApi`; raise the readiness timeout if
-  it recurs. Mitigation underway: the shared E2E fixture (backlog item 13) cuts the boot count.
+  it recurs. Mitigation underway: the shared E2E fixture (backlog item 13) cuts the boot count,
+  and the fixture now gates every fact on the API readiness probe (5-minute budget) — which
+  transitively proves the migrator and the emulator — instead of each fact polling for itself.
+  The Functions container is deliberately outside that gate (its in-container image rebuild can
+  dwarf every other boot cost); subscriber-dependent facts opt in via
+  `EnsureFunctionsReadyAsync()` (10-minute budget), and `FunctionsContainerTests` pins that the
+  deployable subscriber image actually boots and serves.
 - **ArtifactCaptureSink consume-or-reopen trigger (2026-06-12).** The artifact capture slot
   shipped deliberately ahead of any producer. Trigger: when the first artifact producer lands,
   wire it through `IArtifactCaptureSink`; if a year passes with no producer, reopen the
