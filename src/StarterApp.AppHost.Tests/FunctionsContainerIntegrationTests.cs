@@ -2,11 +2,11 @@ namespace StarterApp.AppHost.Tests;
 
 [Collection("Aspire E2E")]
 [Trait("Category", "Aspire")]
-public class FunctionsContainerTests
+public class FunctionsContainerIntegrationTests
 {
     private readonly AspireE2EFixture _fixture;
 
-    public FunctionsContainerTests(AspireE2EFixture fixture)
+    public FunctionsContainerIntegrationTests(AspireE2EFixture fixture)
     {
         _fixture = fixture;
     }

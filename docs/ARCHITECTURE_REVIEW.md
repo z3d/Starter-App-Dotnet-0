@@ -87,8 +87,8 @@ Decisions / watch-items / explained deferrals — no open runtime defects.
   transitively proves the migrator and the emulator — instead of each fact polling for itself.
   The Functions container is deliberately outside that gate (its in-container image rebuild can
   dwarf every other boot cost); subscriber-dependent facts opt in via
-  `EnsureFunctionsReadyAsync()` (10-minute budget), and `FunctionsContainerTests` pins that the
-  deployable subscriber image actually boots and serves.
+  `EnsureFunctionsReadyAsync()` (10-minute budget), and `FunctionsContainerIntegrationTests`
+  pins that the deployable subscriber image actually boots and serves.
 - **ArtifactCaptureSink consume-or-reopen trigger (2026-06-12).** The artifact capture slot
   shipped deliberately ahead of any producer. Trigger: when the first artifact producer lands,
   wire it through `IArtifactCaptureSink`; if a year passes with no producer, reopen the
