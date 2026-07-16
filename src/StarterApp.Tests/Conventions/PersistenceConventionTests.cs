@@ -270,6 +270,26 @@ public class PersistenceConventionTests : ConventionTestBase
     }
 
     [Fact]
+    public void MigrationScripts_MustBeContiguouslyNumberedFromOne()
+    {
+        var scriptsDir = RequireScriptsDirectory();
+
+        var numbers = Directory.GetFiles(scriptsDir, "*.sql")
+            .Select(Path.GetFileName)
+            .Where(f => f != null && System.Text.RegularExpressions.Regex.IsMatch(f, @"^\d{4}_"))
+            .Select(f => int.Parse(f![..4], System.Globalization.CultureInfo.InvariantCulture))
+            .OrderBy(n => n)
+            .ToList();
+
+        Assert.NotEmpty(numbers);
+
+        // A duplicated number makes DbUp's execution order ambiguous; a gap usually means a
+        // script was renamed or deleted after later ones shipped. Both deserve a deliberate
+        // decision, not a silent pass.
+        Assert.Equal(Enumerable.Range(1, numbers.Count).ToList(), numbers);
+    }
+
+    [Fact]
     public void DbMigratorAssembly_MustEmbedAllSqlMigrationScripts()
     {
         var scriptsDir = RequireScriptsDirectory();
