@@ -16,7 +16,11 @@ RUN dotnet restore src/StarterApp.Functions/StarterApp.Functions.csproj --locked
 
 COPY src/StarterApp.Functions/ src/StarterApp.Functions/
 COPY src/StarterApp.ServiceDefaults/ src/StarterApp.ServiceDefaults/
-RUN dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Release -o /app/publish
+# Style is enforced by the format gate and the CI build on the canonical checkout; the image
+# build only packages. Re-running IDE style analysis here makes the build depend on the
+# checkout's line endings (a CRLF working tree fails IDE0055 under the pinned SDK while the
+# same tree passes locally), so a Windows clone cannot build the image the E2E suite boots.
+RUN dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Release -o /app/publish -p:EnforceCodeStyleInBuild=false
 
 # NOTE on root: the API and DbMigrator images drop to the non-root $APP_UID user, but
 # this Azure Functions base image deliberately stays on its default (root) user model.
