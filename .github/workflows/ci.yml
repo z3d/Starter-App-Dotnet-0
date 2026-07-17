@@ -62,7 +62,10 @@ jobs:
         exit 1
 
     - name: Unit tests
-      run: dotnet test --no-build --configuration Release --verbosity normal --filter "FullyQualifiedName!~Integration"
+      # Category!=Aspire is not redundant with the name filter: an Aspire-collection fact whose
+      # class name lacks "Integration" would otherwise boot the full distributed rig inside this
+      # job, where nothing is provisioned for it.
+      run: dotnet test --no-build --configuration Release --verbosity normal --filter "FullyQualifiedName!~Integration & Category!=Aspire"
 
   integration:
     runs-on: ubuntu-latest
