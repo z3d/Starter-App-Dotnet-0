@@ -19,16 +19,20 @@ public class MessageSettlementTests
     }
 
     [Fact]
-    public async Task SettleAsync_WhenFailureIsNonRetryable_DeadLettersWithReasonAndDescription()
+    public async Task SettleAsync_WhenFailureIsNonRetryable_DeadLettersWithTypeAndCorrelationOnly()
     {
         var actions = new RecordingMessageActions();
 
-        await MessageSettlement.SettleAsync(NewMessage(), actions, retryContext: NewRetryContext(0, 5),
-            NullLogger.Instance, (_, _) => throw new JsonException("unparseable payload"), CancellationToken.None);
+        await MessageSettlement.SettleAsync(NewMessage(correlationId: "corr-42"), actions, retryContext: NewRetryContext(0, 5),
+            NullLogger.Instance, (_, _) => throw new JsonException("payload contains user@example.com"), CancellationToken.None);
 
         Assert.Equal(new[] { "deadletter" }, actions.Calls);
         Assert.Equal(nameof(JsonException), actions.DeadLetterReason);
-        Assert.Contains("unparseable payload", actions.DeadLetterDescription);
+        // The dead-letter description is unredacted broker metadata: it must expose the exception type
+        // and correlation id (to reach the archive) but never the payload-derived exception message.
+        Assert.Contains(nameof(JsonException), actions.DeadLetterDescription);
+        Assert.Contains("corr-42", actions.DeadLetterDescription);
+        Assert.DoesNotContain("user@example.com", actions.DeadLetterDescription);
     }
 
     [Fact]
@@ -83,19 +87,21 @@ public class MessageSettlementTests
     public async Task SettleAsync_WhenDeadLetterDescriptionIsOversized_TruncatesIt()
     {
         var actions = new RecordingMessageActions();
+        // The description is composed from the correlation id; an oversized one must still be capped.
         var oversized = new string('x', 5000);
 
-        await MessageSettlement.SettleAsync(NewMessage(), actions, retryContext: null,
-            NullLogger.Instance, (_, _) => throw new JsonException(oversized), CancellationToken.None);
+        await MessageSettlement.SettleAsync(NewMessage(correlationId: oversized), actions, retryContext: null,
+            NullLogger.Instance, (_, _) => throw new JsonException("boom"), CancellationToken.None);
 
         Assert.NotNull(actions.DeadLetterDescription);
         Assert.True(actions.DeadLetterDescription!.Length <= 2048);
     }
 
-    private static ServiceBusReceivedMessage NewMessage() =>
+    private static ServiceBusReceivedMessage NewMessage(string? correlationId = null) =>
         ServiceBusModelFactory.ServiceBusReceivedMessage(
             body: BinaryData.FromString("{}"),
             messageId: "message-1",
+            correlationId: correlationId,
             subject: "order.created.v1");
 
     private static RetryContext NewRetryContext(int retryCount, int maxRetryCount) =>

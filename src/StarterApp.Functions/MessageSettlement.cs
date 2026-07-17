@@ -9,7 +9,9 @@ namespace StarterApp.Functions;
 // Outcomes:
 //   handler succeeds              -> Complete.
 //   non-retryable failure         -> DeadLetter, with the exception type as the reason — redelivery
-//                                    cannot fix a payload that does not parse.
+//                                    cannot fix a payload that does not parse. The description carries
+//                                    only the type + correlation id (never payload-derived text; see
+//                                    DescribeFailure), so this broker metadata stays PII-free.
 //   transient, retries remaining  -> rethrow so the host retry policy re-runs in-process while the
 //                                    lock is held; FunctionsHostConfigConventionTests pins the
 //                                    worst-case retry window inside maxAutoLockRenewalDuration.
@@ -51,7 +53,7 @@ public static class MessageSettlement
             await messageActions.DeadLetterMessageAsync(
                 message,
                 deadLetterReason: exception.GetType().Name,
-                deadLetterErrorDescription: Truncate(exception.Message),
+                deadLetterErrorDescription: DescribeFailure(exception, message),
                 cancellationToken: cancellationToken);
         }
         catch (Exception exception) when (HasRetriesRemaining(retryContext))
@@ -80,6 +82,15 @@ public static class MessageSettlement
 
     private static bool HasRetriesRemaining(RetryContext? retryContext) =>
         retryContext is not null && retryContext.RetryCount < retryContext.MaxRetryCount;
+
+    // The dead-letter description is unredacted broker metadata (no Serilog masking reaches it), so it
+    // must carry no payload-derived text: exception.Message can echo payload content once handlers
+    // deserialize domain events (e.g. a JSON path or a domain-rule message quoting a field value).
+    // Emit only the exception type and the correlation id — support jumps to the correlation-bound,
+    // full-fidelity archive blob for the actual payload. Truncate as a guard against an unexpectedly
+    // long correlation id (the broker enforces a hard ceiling on this field regardless of source).
+    private static string DescribeFailure(Exception exception, ServiceBusReceivedMessage message) =>
+        Truncate($"{exception.GetType().Name}; correlationId={message.CorrelationId}");
 
     private static string Truncate(string value) =>
         value.Length <= MaxReasonDescriptionLength ? value : value[..MaxReasonDescriptionLength];

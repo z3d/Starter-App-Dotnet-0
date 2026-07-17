@@ -35,8 +35,14 @@ public class FunctionsHostConfigConventionTests
 
         // Worst case is bounded by maxRetryCount * maximumInterval; it must fit inside the lock
         // renewal window or retries silently race lock loss and the message redelivers mid-retry.
-        Assert.True(maximumInterval * maxRetryCount <= lockRenewal,
-            $"Retry worst case ({maximumInterval * maxRetryCount}) must fit within maxAutoLockRenewalDuration ({lockRenewal}).");
+        // Require it to stay within 80% of the window rather than exactly on the ceiling: the linear
+        // bound ignores per-attempt handler execution time and renewal jitter, so the remaining 20%
+        // is deliberate headroom. A change that erases the margin (e.g. maximumInterval back to 60s)
+        // fails here instead of shipping a zero-margin config.
+        var worstCaseRetryWindow = maximumInterval * maxRetryCount;
+        Assert.True(worstCaseRetryWindow <= lockRenewal * 0.8,
+            $"Retry worst case ({worstCaseRetryWindow}) must stay within 80% of maxAutoLockRenewalDuration " +
+            $"({lockRenewal}); leave headroom for per-attempt handler execution, not just bare fit.");
     }
 
     // %setting% trigger lookups resolve against IConfiguration, where the environment-variable

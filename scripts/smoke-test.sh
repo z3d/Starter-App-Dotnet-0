@@ -75,10 +75,12 @@ extract_id() {
 }
 
 json_field() {
-    # Extract a top-level string field from JSON on stdin — python3 or grep fallback
+    # Extract a top-level string field from JSON on stdin — python3 or grep fallback.
+    # Pass the field name as an argv parameter, never interpolated into the -c source, so a field
+    # name can never be executed as Python.
     local field="$1"
     if [ "$JSON_VIA_PYTHON" = "1" ]; then
-        python3 -c "import sys,json; print(json.load(sys.stdin).get('$field',''))"
+        python3 -c 'import sys,json; print(json.load(sys.stdin).get(sys.argv[1],""))' "$field"
     else
         grep -o "\"$field\":\"[^\"]*\"" | head -1 | cut -d'"' -f4
     fi

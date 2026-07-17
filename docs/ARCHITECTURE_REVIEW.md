@@ -45,6 +45,33 @@ DAST, both green.
 
 Decisions / watch-items / explained deferrals — no open runtime defects.
 
+- **RESOLVED (2026-07-18) — Aspire-collection trait pairing was not mechanically enforced.**
+  The CI unit job excludes Aspire E2E facts with `Category!=Aspire`; that filter is only sound if
+  every `[Collection("Aspire E2E")]` class also carries `[Trait("Category","Aspire")]`. Both
+  current members did, but nothing prevented a future Aspire test joining the collection without
+  the trait (and without "Integration" in its name) from booting the full distributed rig inside
+  the unit job, where nothing is provisioned for it. Fixed by
+  `AspireCollectionTraitConventionTests.EveryAspireCollectionMember_MustCarryTheAspireCategoryTrait`,
+  which reflects over the AppHost.Tests assembly and fails the build on any collection member
+  missing the trait.
+- **RESOLVED (2026-07-18) — Dead-letter description could echo payload-derived text.**
+  `MessageSettlement` wrote `exception.Message` into the Service Bus dead-letter description —
+  unredacted broker metadata no Serilog masking reaches. Harmless today (subscribers don't yet
+  deserialize payloads; the only non-retryable types carry JSON paths, not values), but a latent
+  PII leak once handlers parse domain events. Fixed pre-emptively: the description now carries only
+  the exception type + correlation id (support jumps to the correlation-bound archive for the full
+  payload); regression asserts the payload-derived message is absent. `MessageSettlementTests`.
+- **RESOLVED (2026-07-18) — Functions retry window sat exactly on the lock-renewal ceiling.**
+  `FunctionsHostConfigConventionTests` asserted `maximumInterval * maxRetryCount <=
+  maxAutoLockRenewalDuration`, which passed only at the exact boundary (`60s * 5 = 300s = 300s`)
+  and ignored per-attempt handler execution time. Fixed by requiring the worst-case window to stay
+  within 80% of the lock window and dropping `maximumInterval` to 45s (worst case now 225s ≤ 240s),
+  so a future nudge that erases the margin fails the build instead of shipping a zero-margin config.
+- **RESOLVED (2026-07-18) — Field name interpolated into `python3 -c` in the smoke test.**
+  `scripts/smoke-test.sh` `json_field()` built the Python source by interpolating `$field`; only
+  script-literal constants were ever passed, but the field name is now passed via `sys.argv` so it
+  can never be executed as code.
+
 - **RESOLVED (2026-07-05) — Blanket BCL-exception → client-fault status mapping.**
   `ResolveExceptionStatusCode` mapped every `InvalidOperationException` to 409 and every
   `KeyNotFoundException` to 404, so a stray BCL throw from a genuine server bug (LINQ
