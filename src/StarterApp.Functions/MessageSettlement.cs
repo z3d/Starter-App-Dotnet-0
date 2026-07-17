@@ -44,11 +44,17 @@ public static class MessageSettlement
         {
             throw;
         }
+        // The failure branches deliberately do NOT attach the exception object to log calls: this
+        // worker's logs flow to OpenTelemetry with no redaction stage (the Serilog masking stack lives
+        // in the API only), and exception.Message can echo payload text once handlers deserialize
+        // domain events. Log the exception type + correlation id instead — the full payload lives in
+        // the correlation-bound archive. The host runtime still logs rethrown exceptions itself; that
+        // residual channel is recorded in docs/ARCHITECTURE_REVIEW.md with the deserialization trigger.
         catch (Exception exception) when (IsNonRetryable(exception))
         {
-            logger.LogError(exception,
-                "Dead-lettering message {MessageId} ({Subject}): {FailureType} cannot succeed on redelivery",
-                message.MessageId, message.Subject, exception.GetType().Name);
+            logger.LogError(
+                "Dead-lettering message {MessageId} ({Subject}, correlation {CorrelationId}): {FailureType} cannot succeed on redelivery",
+                message.MessageId, message.Subject, message.CorrelationId, exception.GetType().Name);
 
             await messageActions.DeadLetterMessageAsync(
                 message,
@@ -58,18 +64,18 @@ public static class MessageSettlement
         }
         catch (Exception exception) when (HasRetriesRemaining(retryContext))
         {
-            logger.LogWarning(exception,
-                "Transient failure on message {MessageId} ({Subject}); attempt {Attempt} of {TotalAttempts}, host retry re-runs in-process",
-                message.MessageId, message.Subject,
+            logger.LogWarning(
+                "Transient {FailureType} on message {MessageId} ({Subject}, correlation {CorrelationId}); attempt {Attempt} of {TotalAttempts}, host retry re-runs in-process",
+                exception.GetType().Name, message.MessageId, message.Subject, message.CorrelationId,
                 retryContext!.RetryCount + 1, retryContext.MaxRetryCount + 1);
 
             throw;
         }
         catch (Exception exception)
         {
-            logger.LogError(exception,
-                "Abandoning message {MessageId} ({Subject}) after in-process retries; broker redelivery takes over",
-                message.MessageId, message.Subject);
+            logger.LogError(
+                "Abandoning message {MessageId} ({Subject}, correlation {CorrelationId}) after in-process retries ({FailureType}); broker redelivery takes over",
+                message.MessageId, message.Subject, message.CorrelationId, exception.GetType().Name);
 
             await messageActions.AbandonMessageAsync(message, cancellationToken: cancellationToken);
         }
@@ -83,9 +89,10 @@ public static class MessageSettlement
     private static bool HasRetriesRemaining(RetryContext? retryContext) =>
         retryContext is not null && retryContext.RetryCount < retryContext.MaxRetryCount;
 
-    // The dead-letter description is unredacted broker metadata (no Serilog masking reaches it), so it
-    // must carry no payload-derived text: exception.Message can echo payload content once handlers
-    // deserialize domain events (e.g. a JSON path or a domain-rule message quoting a field value).
+    // The dead-letter description is unredacted broker metadata — and nothing in this worker is
+    // redacted (see the comment on the failure branches above) — so it must carry no payload-derived
+    // text: exception.Message can echo payload content once handlers deserialize domain events
+    // (e.g. a JSON path or a domain-rule message quoting a field value).
     // Emit only the exception type and the correlation id — support jumps to the correlation-bound,
     // full-fidelity archive blob for the actual payload. Truncate as a guard against an unexpectedly
     // long correlation id (the broker enforces a hard ceiling on this field regardless of source).

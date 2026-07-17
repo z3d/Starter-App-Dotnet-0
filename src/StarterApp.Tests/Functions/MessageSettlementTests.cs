@@ -1,5 +1,6 @@
 ﻿using Azure.Messaging.ServiceBus;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using StarterApp.Functions;
 
@@ -7,6 +8,37 @@ namespace StarterApp.Tests.Functions;
 
 public class MessageSettlementTests
 {
+    [Fact]
+    public async Task SettleAsync_LogsNeverCarryTheExceptionObjectOrItsMessageText()
+    {
+        // The Functions worker's logs flow to OpenTelemetry with no redaction stage, so settlement
+        // must never attach the exception object (whose Message can echo payload text once handlers
+        // deserialize domain events) to a log entry. Drive every failure branch with a PII sentinel
+        // in the exception message and assert it reaches neither the log output nor the log event.
+        const string sentinel = "payload contains user@example.com";
+        var logger = new RecordingLogger();
+
+        // Non-retryable -> dead-letter branch.
+        await MessageSettlement.SettleAsync(NewMessage(), new RecordingMessageActions(), retryContext: NewRetryContext(0, 5),
+            logger, (_, _) => throw new JsonException(sentinel), CancellationToken.None);
+
+        // Transient with retries remaining -> rethrow branch.
+        await Assert.ThrowsAsync<TimeoutException>(() =>
+            MessageSettlement.SettleAsync(NewMessage(), new RecordingMessageActions(), retryContext: NewRetryContext(0, 5),
+                logger, (_, _) => throw new TimeoutException(sentinel), CancellationToken.None));
+
+        // Transient exhausted -> abandon branch.
+        await MessageSettlement.SettleAsync(NewMessage(), new RecordingMessageActions(), retryContext: NewRetryContext(5, 5),
+            logger, (_, _) => throw new TimeoutException(sentinel), CancellationToken.None);
+
+        Assert.Equal(3, logger.Entries.Count);
+        Assert.All(logger.Entries, entry =>
+        {
+            Assert.Null(entry.Exception);
+            Assert.DoesNotContain(sentinel, entry.RenderedMessage);
+        });
+    }
+
     [Fact]
     public async Task SettleAsync_WhenHandlerSucceeds_CompletesTheMessage()
     {
@@ -125,6 +157,19 @@ public class MessageSettlementTests
         public override FunctionDefinition FunctionDefinition => null!;
         public override IDictionary<object, object> Items { get; set; } = new Dictionary<object, object>();
         public override IInvocationFeatures Features => null!;
+    }
+
+    private sealed class RecordingLogger : Microsoft.Extensions.Logging.ILogger
+    {
+        public List<(string RenderedMessage, Exception? Exception)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((formatter(state, exception), exception));
     }
 
     public sealed class RecordingMessageActions : ServiceBusMessageActions

@@ -71,6 +71,22 @@ Decisions / watch-items / explained deferrals — no open runtime defects.
   `scripts/smoke-test.sh` `json_field()` built the Python source by interpolating `$field`; only
   script-literal constants were ever passed, but the field name is now passed via `sys.argv` so it
   can never be executed as code.
+- **RESOLVED (2026-07-18) — Functions worker logged exception objects to an unredacted OTel sink.**
+  Found by the post-commit security audit of the dead-letter fix above: `MessageSettlement` still
+  attached the full exception object to its three failure-branch log calls, and the Functions
+  worker has **no** redaction stage — its logs flow to OpenTelemetry via ServiceDefaults, while the
+  `Serilog.Enrichers.Sensitive` masking stack lives only in the API. Same latent class as the
+  dead-letter description: harmless until handlers deserialize payloads, then `exception.Message`
+  leaks payload text into logs. Fixed: the log calls now emit exception type + correlation id as
+  structured properties, never the exception object; regression
+  (`SettleAsync_LogsNeverCarryTheExceptionObjectOrItsMessageText`) drives all three branches with a
+  PII sentinel and asserts it reaches neither the rendered message nor the log event.
+  **Residual channel (watch-item, same trigger):** the transient branch rethrows, and the Functions
+  host runtime logs rethrown invocation failures itself, unredacted and outside settlement's
+  control. Close when real event parsing lands: either filter host invocation-failure logging or
+  add a redaction processor to the worker's OTel logging pipeline. Until then payload-echoing
+  exceptions cannot occur (subscribers do not deserialize; `JsonException` carries paths, not
+  values).
 
 - **RESOLVED (2026-07-05) — Blanket BCL-exception → client-fault status mapping.**
   `ResolveExceptionStatusCode` mapped every `InvalidOperationException` to 409 and every
