@@ -45,7 +45,7 @@
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.3.0" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.2.0" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery.Yarp" Version="10.2.0" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <!-- Transitive pin: Microsoft.AspNetCore.OpenApi 10.0.3 pulls Microsoft.OpenApi 2.0.0, which
          carries GHSA-v5pm-xwqc-g5wc (stack overflow on a circular schema reference; NU1903 fails
          the build under warnings-as-errors). Fixed upstream in 2.7.5; pin to 2.7.6. Remove when
