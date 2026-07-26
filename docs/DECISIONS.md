@@ -1,0 +1,126 @@
+# Recorded Decisions and Subsystem Notes
+
+Long-form rationale that `CLAUDE.md` only summarises. Read the relevant section when you are about to touch that subsystem — not before.
+
+Each recorded decision states what was chosen, what was rejected, and the **re-add trigger**: the specific falsifiable fact that would justify revisiting it. Absent that fact, the decision stands. See also [`DERIVATION-PRUNING.md`](DERIVATION-PRUNING.md), which applies the same trigger discipline to removing features from a derived project.
+
+## Exceptions are the app-wide error model
+
+Intentional failure signals use dedicated types keyed in `ResolveExceptionStatusCode`: `DomainRuleException` → 409, `EntityNotFoundException` → 404, `ForbiddenAccessException` → 403. Bare BCL `InvalidOperationException`/`KeyNotFoundException` are bugs and fall through to 500 — the BCL throws those itself (LINQ `.Single()`, dictionary misses), so mapping them to client-fault codes would disguise server bugs as 409/404 and hide them from 5xx alerting. `ExceptionConventionTests` blocks them from Domain and Application code via IL `newobj` inspection. Queries still signal not-found by returning null; endpoints map null to 404.
+
+**Why not `Result<T>`/ErrorOr:**
+
+1. The exception channel is unavoidable — `DbUpdateConcurrencyException` → 409 is already in the mapping table, and Npgsql constraint violations, cancellation, and `FeatureDisabledException` all throw. `Result<T>` would be a *second* error channel beside it, not a replacement.
+2. Pipeline behaviors compose over bare `T`: `CachingBehavior` would have to decide whether to cache failures, and `OwnerAuthorizationBehavior`'s post-handler assertion relies on failed handlers throwing.
+3. The always-valid entity pattern (validating public constructors) can't return Results without switching to factory methods.
+4. A single closed mapping table is one mechanical rule; `Result<T>` reintroduces a per-throw-site judgment call about which failures belong in the Result.
+
+**Re-add trigger (local only):** a component with expected, frequent, locally-handled failures — a batch import or parsing pipeline — may use `Result<T>` internally. Never as the app-wide model, and never crossing the mediator or endpoint boundary.
+
+## The domain event is the integration/wire contract
+
+There is deliberately no separate `IIntegrationEvent`/`ExternalEvent` type and no in-process domain-event dispatcher. The single `IDomainEvent` an aggregate raises is the same object serialized into the outbox, published to the `domain-events` topic, consumed by the Functions subscribers, and archived full-fidelity (so it may contain PII).
+
+The usual reason to split the two — keeping an internal model from leaking into a contract consumers depend on — is handled mechanically instead: each event exposes a stable versioned `EventType` via a `const Contract` (e.g. `order.created.v1`), `OutboxMessage.Create` persists that contract rather than the CLR type name, and `EventContractSnapshotTests` renders every event through the real create path and byte-compares against fixtures in `src/StarterApp.Tests/Contracts/snapshots/`. A property rename, removal, or reorder under the same contract id fails the build with a pinned-vs-actual diff, so a class rename cannot silently break a subscriber.
+
+The assumption this bakes in: **every domain event is a public, archived contract.** Any property added to one is also a wire-contract and a data-retention decision.
+
+Updating a contract deliberately: `UPDATE_EVENT_SNAPSHOTS=1 dotnet test --filter EventContractSnapshot`, then choose between a compatible change, an `OutboxMessage.SchemaVersion` bump, and a new `.v2` contract. New events need a representative instance plus fixture — completeness is test-enforced.
+
+**Re-add trigger for a translation layer:** the first time a domain event needs a property the external contract shouldn't expose (rich internal state, entity references, PII you don't want archived), **or** the first time you need an in-process, same-transaction reaction to a domain event.
+
+## Payload capture runs first
+
+`UsePayloadCapture()` is deliberately the first middleware, ahead of exception handling, gateway identity, and rate limiting. Rejected traffic (401/403/429, 404 junk) is captured *by design* as part of the full-fidelity audit posture. Request-path amplification is bounded by `MaxPayloadBytes`, `CapturedContentTypes`, and `MaxEntityReferences`; total inbound volume is the upstream gateway's problem.
+
+The only exclusions are the four platform probe routes (`/health`, `/health/ready`, `/health/live`, `/alive`) — exact-match and hardcoded, with a test pinning that the skip list can never cover the business surface. Response capture runs on an unlinked token, and still runs when the client aborts, so a deliberate disconnect can't suppress the audit record.
+
+**Re-add trigger:** none. Moving capture behind the rate limiter requires a new recorded decision.
+
+## AppHost projects are exempt from lock files
+
+`StarterApp.AppHost` and `StarterApp.AppHost.Tests` set `RestorePackagesWithLockFile=false` and commit no `packages.lock.json`. The Aspire SDK injects host-RID-specific *direct* packages (`Aspire.Dashboard.Sdk.<rid>`, `Aspire.Hosting.Orchestration.<rid>`) chosen by whichever machine runs restore — `osx-arm64` from a Mac, `win-x64` from Windows, `linux-x64` in CI. No single lock file satisfies `--locked-mode` on all three, which caused recurring CI churn: every developer's restore flipped the RID and broke Linux CI.
+
+The other six lock files are RID-agnostic and stay locked, so reproducible locked restore is preserved everywhere else.
+
+**Re-add trigger:** none. Do not re-add lock files to these projects or switch CI to `--force-evaluate` to "fix" a recurrence — the exemption *is* the fix.
+
+## NuGet signature validation is deliberately off
+
+The repo-root `NuGet.config` `<clear/>`s inherited sources, declares only nuget.org, and binds every package id via `<packageSourceMapping>` — the primary dependency-confusion defense. It is COPY'd into all three Docker builds so container restores honour it.
+
+`signatureValidationMode=require` + `<trustedSigners>` is **not** enabled: trusting only the current nuget.org repository cert breaks restore on older packages carrying a pre-rotation countersignature (e.g. `System.Security.Cryptography.ProtectedData 4.5.0` → NU3034), and enforcement differs by OS (passes macOS, fails Linux/Docker). Tamper detection is already covered by lock-file content hashes plus locked-mode restore.
+
+**Re-add trigger:** a clean-cache Linux restore passes across the full package set with `trustedSigners` enabled.
+
+## Cache refresh runs on the caller, never a background scope
+
+Cached entries are wrapped in an envelope carrying `RefreshAfterUtc`. Inside the final `CacheRefreshWindow` of a key's TTL, exactly one request per replica recomputes **inline** via in-process single-flight while concurrent requests keep serving the cached value, so a hot key never expires under load. Unreadable or pre-envelope entries degrade to a miss and are rewritten.
+
+The recompute deliberately runs on the caller rather than in a background scope: cache keys for owner-scoped queries include the verified tenant and subject, and a background scope has no gateway identity — recomputing there would populate an owner-scoped key from the wrong (or no) identity. That is cache poisoning, not a stale read.
+
+A failed refresh-ahead recompute logs a warning and serves the still-within-TTL cached value rather than turning a cache hit into a 500 (the RFC 5861 serve-stale-on-error shape). Cancellation rethrows; a plain miss still propagates. Invalidation is likewise best-effort — `CacheInvalidator` catches non-cancellation failures and logs, because a transient cache outage must not turn an already-committed write into a 500. The stale entry self-heals at its TTL.
+
+**Re-add trigger for list caching:** if list queries ever need caching, use a versioned-namespace approach rather than relaxing the by-id rule — `IDistributedCache` still has no pattern deletion.
+
+---
+
+## Outbox and eventing
+
+Domain events are raised inside aggregates and persisted to `outbox_messages` by `ApplicationDbContext` during a single `SaveChangesAsync` (behaviourally pinned by `PersistenceConventionTests`). Single-save means no user transaction, which keeps `EnableRetryOnFailure` safe for transient PostgreSQL faults.
+
+`OutboxProcessor` claims a batch in a short transaction using `ProcessingId`/`LockedUntilUtc` plus `FOR UPDATE SKIP LOCKED`, publishes **outside** the lock, then persists outcomes in one save. A row whose claim was stolen by another replica is detached so the rest of the batch's outcomes still persist. Errored rows are skipped on later polls; `ProcessedOnUtc` strictly means published.
+
+Recovery is the DbMigrator replay verb, not manual SQL:
+
+```bash
+dotnet run --project src/StarterApp.DbMigrator -- replay-outbox --id <guid>
+dotnet run --project src/StarterApp.DbMigrator -- replay-outbox --all-errored
+```
+
+Replayed publishes carry `Replay`/`ReplayCount` application properties so audit can distinguish a republish from a first delivery. Dead-lettered subscription messages follow [`runbooks/event-replay.md`](runbooks/event-replay.md).
+
+Retention: processed and errored rows past `OutboxProcessor:RetentionDays` (default 30) are purged; pending and locked rows are never touched. Background work leaves a queryable trail in `job_runs` via `IJobRunRecorder` — one aggregate health row per `HealthRowIntervalMinutes` (default 15) that saw activity, never per message. Recording is a fail-open sidecar; a history write never breaks the job.
+
+Service Bus registration is conditional on `ConnectionStrings:servicebus` — a no-op when absent, **but only in Development/Testing**. Other environments fail startup loudly so a typo'd connection string can't silently disable eventing.
+
+Topology (topic, subscription names, filters, TTLs, dedup, delivery counts) is centralized in `ServiceBusTopology`; AppHost wires it through the fluent API from those constants. Deployed posture is a 24h TTL with `DeadLetteringOnMessageExpiration`, so events outliving a consumer outage dead-letter for replay instead of silently vanishing. Duplicate detection uses a 5-minute window keyed on `MessageId` = outbox row Guid, absorbing at-least-once republishes.
+
+On the consuming side, Azure Functions subscribe through topic subscriptions with correlation filters (`email-notifications`, `inventory-reservation`); AppHost runs the Functions project through the Functions Docker runtime so trigger listeners are active without extra local tooling. `host.json` pairs the subscriptions with an exponentialBackoff retry policy **sized to fit inside the lock-renewal window** — a transient capture or blob outage backs off instead of burning `MaxDeliveryCount` in seconds.
+
+**The emulator caveat is load-bearing:** the Service Bus emulator crash-loops on any TTL above 1 hour (exit 139), so run mode clamps every TTL through `ServiceBusTopology.ClampForEmulator` while publish mode keeps the 24h posture. Never assign the 24h constants to emulator topology directly. Further emulator gotchas are in `.claude/skills/development-workflow/SKILL.md`.
+
+## Gateway identity
+
+The API sits behind APIM or an equivalent trusted gateway that authenticates callers, strips inbound `X-Authenticated-*` and `X-Gateway-Assertion` headers, and projects a normalized identity contract: `X-Authenticated-Subject`, `X-Authenticated-Principal-Type`, `X-Authenticated-Tenant-Id`, `X-Authenticated-Scopes`, optional `X-Authenticated-Amr`, and `X-Correlation-ID`. Header names live in `ServiceDefaults/GatewayIdentity/GatewayIdentityHeaderNames.cs` so signer and verifier share one contract.
+
+`X-Gateway-Assertion` is `v1.<base64url payload>.<base64url HMAC-SHA256 signature>`. It signs issuer, audience, subject, principal type, tenant, scopes, correlation id, method, path, lifetime (`iat`/`exp` with skew and a max-lifetime cap), key id, and the authentication methods (`amr`) as **first-class individually-signed fields**. There is deliberately no projected-header hash: it would cover nothing not already signed, and a canonicalization hash invites signer/verifier mismatch bugs. The header reader fail-closes on any undocumented `X-Authenticated-*` header and on duplicate or malformed values.
+
+Modes: production-like environments run `GatewayIdentity:Mode=Required` with a ≥32-byte `SigningKey` (options-validated at startup, fail-fast). `UnsignedDevelopment` trusts projected headers without an assertion and is allowed only in Development or Testing. No key is baked in anywhere.
+
+The correlation id is contract-bound under gateway identity: `[A-Za-z0-9._-]{1,128}`, **rejected rather than sanitized** when out of contract — see the corresponding rule in `CLAUDE.md`. A real APIM normalizes `:`-delimited trace ids before forwarding, so an out-of-charset trace id is rejected at the API rather than silently rewritten. `PayloadCaptureMiddleware` therefore leaves a *present* correlation id on the request unchanged — it injects a generated one only when the caller sends none — so the gateway layer validates the exact signed value. The echoed and archived id stays sanitized so no raw client input is reflected, and lossy sanitization appends a short raw-bound hash suffix so distinct raw ids never collapse into one archive stream.
+
+Owner-scoped resources (Customer, Product, Order) go further than the gateway: create handlers stamp `OwnerSubject`/`TenantId` from `ICurrentUser`, query handlers filter by owner scope, and mutation handlers call `IOwnerOnlyPolicy` before touching a loaded aggregate. Cross-owner reads are hidden as not-found or empty lists; cross-owner mutations return 403. Policy invocation is verified structurally, not just by convention: non-create commands implement `IOwnerAuthorizedMutation`, `OwnerOnlyPolicy.Authorize` records its evaluation on a scoped tracker, and `OwnerAuthorizationBehavior` asserts afterwards that the policy actually ran — throwing in Development/Testing so the suite catches inject-but-never-call, and logging an error in production (the mutation is already persisted; failing the response wouldn't undo it).
+
+Rate limiting partitions by verified tenant/subject for protected endpoints and falls back to IP only for public requests. The k6 perf gate lifts `PermitLimit` because its entire load runs under one gateway identity.
+
+## Payload archive and PII audit
+
+Every inbound and outbound payload is captured through the shared capture service: HTTP request/response bodies, outbound Service Bus messages, inbound Function messages, and generated artifacts via `IArtifactCaptureSink`.
+
+- **Archive** blobs are correlation-bound JSONL under `archive/{yyyy-MM-dd}/{HH}/{mm}/{correlationId}.jsonl` — all operations for one correlation id in that minute append to the same file.
+- **Audit** blobs are time-window JSONL under `audit/{yyyy-MM-dd}/{HH}/{mm}/payload-audit.jsonl`. HTTP audit rows carry a business-action taxonomy (`action`: Create/Read/Update/Delete/StatusChange — verb-derived on request rows, override-aware via `WithAuditAction(...)` on response rows) plus the verified subject/tenant, so support can answer "all deletes by subject X" from audit rows alone.
+- **Entity index** blobs under `entity-index/{entityType}/{entityId}/…` are pointer-only. They must not duplicate the payload. Entity-reference extraction consults `SensitivePropertyNames` and requires a real `Id`/`_id` suffix, so a sensitive `*Id` (e.g. `nationalId`) never becomes a blob path segment.
+
+Append-blob writes are atomic per record: a JSONL line exceeding one 4 MiB append block goes to a single-writer `<blobName>.oversize-<id>.jsonl` sidecar (same minute path, so retention covers it) and the shared stream gets a pointer line. Multi-block appends into a shared blob could interleave with concurrent writers and splice records.
+
+Archive and audit are full-fidelity and may contain PII; **logs must stay redacted** — use the shared JSON redactor plus `Serilog.Enrichers.Sensitive`, and never log raw `{Body}` values. Capture logs must include the archive, audit, and entity-index blob names so support can jump from a log line to the artifact.
+
+Failure policy is **per channel**, because an audit sidecar must not take down synchronous user traffic. `PayloadCapture:HttpFailureMode` and `PayloadCapture:ServiceBusFailureMode` both default to `FailOpen` in code so standalone dev and tests with no archive store never break. Production-like orchestrations set `RequireArchiveStore=true` and `ServiceBusFailureMode=FailClosed`; HTTP stays `FailOpen` unless a compliance domain opts in. Under `FailClosed`, `OutboxProcessor` treats a capture failure as **pause-the-batch** rather than poisoning the message — so no event publishes without a durable audit record, and none is permanently lost.
+
+`PayloadArchiveCleanupFunction` is timer-triggered from `PayloadCapture:CleanupCron`, supplied via the `PayloadCapture__CleanupCron` environment variable. The trigger's `%…%` lookup must use the `:` config-key form because the env provider normalizes `__`; a convention test enforces this. The Functions image bakes an hourly default so a missing setting can't fail function indexing and take down the Service Bus subscribers in the same worker.
+
+## Perf and security gates
+
+- **k6** (`tests/k6/`): `smoke.js` and `load.js` run against an Aspire-started API. `.github/workflows/perf.yml` runs nightly plus on dispatch via `run-perf.sh`, which boots a throwaway PostgreSQL, migrates, bulk-seeds 20k owner-scoped rows so list and index paths run at realistic volume, provisions a throwaway Redis so by-id reads measure a prod-like round trip, and fails on any threshold breach. List checks enforce a volume floor so a fast-but-empty response can't pass. Details in `tests/k6/README.md`.
+- **DAST** (`dast/run-dast.sh`): OWASP ZAP against a seeded throwaway stack, failing at or above `FAIL_RISK`. The gate also fails on a dead scan — a non-clean ZAP exit is not swallowed, and a URL-discovery floor rejects a green-but-reached-nothing report. A scripted cross-owner probe afterwards catches the IDOR class a single-identity scan is blind to. False positives are suppressed by narrow scoped `alertFilter` entries, never by widening exclusions. Details in `dast/README.md`.

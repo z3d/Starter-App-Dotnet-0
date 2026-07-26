@@ -1,123 +1,34 @@
 ---
 name: cqrs-patterns
-description: CQRS implementation — commands use EF Core DbContext, queries use Dapper IDbConnection. Use when implementing or modifying command/query handlers.
+description: Writing command and query handlers — the CQRS split, single dispatch path, owner scoping, validator coverage. Use when implementing or modifying a handler, command, query, or validator.
 user-invocable: false
 ---
 
 # CQRS Implementation Patterns
 
-## Core CQRS Separation
+Read a real handler before writing one. `docs/exemplars/command-handlers/` and `docs/exemplars/query-handlers/` hold the pinned exemplars the consistency cohorts measure drift against — they are the shape to match, and they stay current in a way a snippet here would not.
 
-- **Commands → DTOs**: Write operations return DTOs for client communication
-- **Queries → ReadModels**: Read operations return ReadModels optimized for display
-- **Never mix**: Don't return DTOs from queries or ReadModels from commands
+## The rules
 
-## Interface Definitions
+- **Commands use `ApplicationDbContext` and return DTOs; queries use Dapper on `IDbConnection` and return ReadModels.** Never cross. `CqrsConventionTests` enforces both directions, positively and negatively.
+- **No repository layer.** DbContext is already unit-of-work plus repository; the indirection bought nothing.
+- **A command declares `ICommand` *and* `IRequest<T>`.** `ICommand` is a bare marker. A query declares only `IQuery<T>`, which already extends `IRequest<T>`. A command with no natural result returns `IRequest<Unit>` — there is no non-generic `IRequest`.
+- **Commands:** load tracked entities with `.Include()`, mutate through domain methods, one `SaveChangesAsync(cancellationToken)`, invalidate the cache key *after* the save.
+- **Queries:** list columns explicitly (no `SELECT *`), wrap every Dapper read in `PostgresRetryPolicy.ExecuteAsync`, return `null` on a miss rather than throwing.
+- **Inject `IOwnerOnlyPolicy` and actually invoke it.** Convention tests IL-scan through async state machines for a real call — injecting without calling fails the build. → [reference/owner-scoping.md](reference/owner-scoping.md)
+- **Every command and every query needs an `IValidator<T>`**, including trivial ones. This is deliberate for an agent-maintained codebase: it removes the judgment call about which requests "need" validation. Validators shadow domain guards, so when you change one, check the other — the guard throws as a last defense, the validator returns structured multi-error output for API UX.
 
-```csharp
-public interface ICommand { }
-public interface IQuery<TResult> { }
+Registration is one line — `builder.Services.AddMediator(Assembly.GetExecutingAssembly())` — and discovers every handler.
 
-public interface ICommandHandler<TCommand> where TCommand : ICommand
-{
-    Task HandleAsync(TCommand command, CancellationToken cancellationToken = default);
-}
+## Depth
 
-public interface IQueryHandler<TQuery, TResult> where TQuery : IQuery<TResult>
-{
-    Task<TResult> HandleAsync(TQuery query, CancellationToken cancellationToken = default);
-}
-```
+| Topic | Reference |
+|---|---|
+| Owner scoping: the four convention rules, SQL predicates, create-vs-mutate asymmetry, `OwnerAuthorizationBehavior` | [reference/owner-scoping.md](reference/owner-scoping.md) |
+| Mediator interface definitions and the marker-interface pairings | [reference/interfaces.md](reference/interfaces.md) |
 
-## Return Type Standards
+## Related skills
 
-```csharp
-// CORRECT - Commands return DTOs
-public async Task<ActionResult<CustomerDto>> CreateCustomer(CreateCustomerCommand command)
-public async Task<ActionResult<ProductDto>> UpdateProduct(int id, UpdateProductCommand command)
-
-// CORRECT - Queries return ReadModels
-public async Task<ActionResult<CustomerReadModel>> GetCustomer(int id)
-public async Task<ActionResult<IEnumerable<ProductReadModel>>> GetAllProducts()
-
-// WRONG - Mixed concerns
-// public async Task<ActionResult<CustomerDto>> GetCustomer(int id)      // Should be ReadModel
-// public async Task<ActionResult<CustomerReadModel>> CreateCustomer()   // Should be DTO
-```
-
-## Data Access Design
-
-**Commands use DbContext directly** — no repository abstraction:
-- DbContext already implements Unit of Work and Repository patterns internally
-- A repository layer added indirection without value
-- Direct DbContext usage is simpler, more explicit, and easier to debug
-- Load entities as **tracked** (no `AsNoTracking`) so EF detects only changed properties
-- Use `.Include()` to load navigations (e.g., `Orders.Include(o => o.Items)`)
-- Mutate through domain methods, then single `SaveChangesAsync(cancellationToken)`
-- **Never** use `AsNoTracking` + `Reconstitute` + `Update` in handlers — it marks all columns modified and creates lost-update risks
-
-**Queries use Dapper** for optimized reads directly against SQL, returning lightweight ReadModels.
-
-## Command Handler Example
-
-```csharp
-public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerCommand, CustomerDto>
-{
-    private readonly ApplicationDbContext _dbContext;
-
-    public CreateCustomerCommandHandler(ApplicationDbContext dbContext)
-    {
-        _dbContext = dbContext;
-    }
-
-    public async Task<CustomerDto> HandleAsync(CreateCustomerCommand command, CancellationToken cancellationToken)
-    {
-        var email = Email.Create(command.Email);
-        var customer = new Customer(command.Name, email);
-
-        _dbContext.Customers.Add(customer);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        return MapToDto(customer); // Explicit mapping
-    }
-}
-```
-
-## Query Handler Example
-
-```csharp
-public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, CustomerReadModel>
-{
-    private readonly IDbConnection _connection;
-
-    public GetCustomerQueryHandler(IDbConnection connection)
-    {
-        _connection = connection;
-    }
-
-    public async Task<CustomerReadModel> HandleAsync(GetCustomerQuery query, CancellationToken cancellationToken)
-    {
-        const string sql = "SELECT Id, Name, Email FROM Customers WHERE Id = @Id";
-        var customer = await _connection.QuerySingleOrDefaultAsync<CustomerReadModel>(sql, new { query.Id });
-        if (customer == null)
-            throw new KeyNotFoundException($"Customer with ID {query.Id} not found");
-        return customer;
-    }
-}
-```
-
-## Auto-Registration
-
-```csharp
-// In Program.cs - Single line registers ALL handlers
-builder.Services.AddMediator(Assembly.GetExecutingAssembly());
-
-// Auto-discovers and registers:
-// - All command handlers implementing IRequestHandler<,>
-// - All query handlers implementing IRequestHandler<,>
-// - Zero manual registration needed
-```
-
-## Dual Interface Requirement
-
-Commands must implement both `ICommand` (marker) AND `IRequest<T>`/`IRequest` (mediator dispatch). Same for queries: `IQuery<T>` AND `IRequest<T>`. Convention tests enforce this bidirectionally.
+- `ddd-implementation` — the aggregates handlers mutate
+- `data-access` — EF configuration and migrations behind the command side
+- `api-design` — how endpoints dispatch into the mediator

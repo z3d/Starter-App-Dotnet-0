@@ -1,66 +1,28 @@
 ---
 name: technology-stack
-description: Core dependencies and versions, custom mediator implementation. Use when adding dependencies or checking version compatibility.
+description: Why the custom mediator exists, its dispatch pipeline, and where dependency versions live. Use when adding dependencies or working on the mediator pipeline.
 user-invocable: false
 ---
 
 # Technology Stack
 
-## Core Dependencies
+Every package version is pinned in `Directory.Packages.props` — read it rather than any list in a doc. `.csproj` files carry versionless `PackageReference` entries; a `Version=` attribute is a CPM error.
 
-### Framework & Hosting
-- **.NET 10.0**: Latest framework
-- **Aspire.Hosting.AppHost** (13.2.3+): Service orchestration
-- **Aspire.Hosting.PostgreSQL** (13.2.3+): Database container management
-- **Aspire.Hosting.Seq** (13.2.3+): Structured logging
-- **Aspire.Hosting.DevTunnels** (13.2.3+): Expose local services to internet
+## The rules
 
-### Data Access
-- **Entity Framework Core 10.0.8+**: Write operations
-- **Npgsql.EntityFrameworkCore.PostgreSQL 10.0.2+**: EF Core PostgreSQL provider
-- **Npgsql 10.0.3+**: PostgreSQL connectivity
-- **Dapper 2.1.35+**: Optimized read operations
+- **FsCheck is on 3.x** — a major bump from 2.x with a different API surface (`Gen.OneOf` and friends). Don't paste 2.x examples.
+- **The Aspire AppHost SDK version must match the `Aspire.Hosting.AppHost` package version** — a convention test pins the pair.
+- **MediatR is prohibited** (commercial licence); the custom mediator in `Api/Infrastructure/Mediator/` replaces it. The request pipeline is, in order: feature-toggle gate → validators → pipeline behaviors (registration order, first = outermost) → handler.
+- **`[FeatureToggle("name")]` is checked before validators and every behavior**, so a disabled feature is never served from cache — `FeatureDisabledException` → 503. Request types only, unique names, explicit config entry per toggle (convention-enforced); missing entry means enabled.
+- **Don't reintroduce per-call reflection into dispatch.** The typed wrapper is built once per request type and cached; every send after that is a dictionary lookup plus a typed call. → [reference/mediator-internals.md](reference/mediator-internals.md)
 
-### Logging & Observability
-- **Serilog.AspNetCore 10.0.0+**: Structured logging
-- **OpenTelemetry**: Metrics, tracing, telemetry
-- **Aspire Dashboard**: Development-time observability
+## Depth
 
-### API & Documentation
-- **Microsoft.AspNetCore.OpenApi 10.0.3+**: Native .NET 10 OpenAPI
-- **Scalar.AspNetCore 2.11+**: API reference UI (at `/scalar/v1`)
+| Topic | Reference |
+|---|---|
+| Dispatch internals: wrapper caching, `SendAsync` shape, behavior composition | [reference/mediator-internals.md](reference/mediator-internals.md) |
 
-### Testing
-- **xUnit**: Primary testing framework
-- **FsCheck 2.16.6 + FsCheck.Xunit**: Property-based (fuzz) testing
-- **Testcontainers.PostgreSql**: Database integration testing
-- **Microsoft.AspNetCore.Mvc.Testing**: API integration testing
-- **Moq**: Mocking framework
-- **Best.Conventional**: Architectural rule enforcement
+## Related skills
 
-## Custom Mediator Implementation
-
-**Custom CQRS Mediator** (replaces commercial MediatR):
-
-```csharp
-public interface IMediator
-{
-    Task<TResult> SendAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default);
-}
-
-public class Mediator : IMediator
-{
-    private readonly IServiceProvider _serviceProvider;
-
-    public async Task<TResult> SendAsync<TResult>(IRequest<TResult> request, CancellationToken cancellationToken = default)
-    {
-        var handlerType = typeof(IRequestHandler<,>).MakeGenericType(request.GetType(), typeof(TResult));
-        var handler = _serviceProvider.GetRequiredService(handlerType);
-        var method = handlerType.GetMethod("HandleAsync");
-        var task = (Task<TResult>)method!.Invoke(handler, new object[] { request, cancellationToken })!;
-        return await task;
-    }
-}
-```
-
-Benefits: No commercial licensing, simple transparent implementation, full control over dispatch, zero reflection overhead in handlers.
+- `cqrs-patterns` — the handler contracts this dispatches to
+- `data-access` — EF Core and Npgsql configuration

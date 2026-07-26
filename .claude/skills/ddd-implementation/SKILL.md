@@ -1,109 +1,29 @@
 ---
 name: ddd-implementation
-description: Domain entity and value object patterns — private setters, factory methods, Reconstitute. Use when creating or modifying domain models.
+description: Domain entities, value objects, ownership stamping, and the test-only Reconstitute pattern. Use when creating or modifying domain models.
 user-invocable: false
 ---
 
-# Domain-Driven Design Implementation
+# Domain Model Implementation
 
-## Domain Entities
+Read `src/StarterApp.Domain/` before adding a type; `Product`, `Customer`, `Order`, `Money`, and `Email` establish the idiom.
 
-**Core Pattern**: Entities with private setters, public constructors, and domain behavior.
+## The rules
 
-```csharp
-public class Product
-{
-    public int Id { get; private set; }
-    public string Name { get; private set; } = string.Empty;
-    public Money Price { get; private set; } = null!;
-    public int Stock { get; private set; }
+- **Entities:** private setters, protected parameterless constructor for EF, a public constructor that establishes every invariant, behaviour methods for every mutation. No public `SetId()`.
+- **Owner-scoped aggregates take `ownerSubject`/`tenantId` in the public constructor** and validate via `OwnershipDefaults.Validate(...)`. An aggregate constructible without ownership will eventually be constructed without it — `DomainConventionTests.OwnerScopedAggregates_MustNotExposeOwnerlessPublicConstructors` closes that door.
+- **Aggregates overriding `RecordCreation()` mint `Guid.CreateVersion7()` in the constructor.** Creation events are captured into the outbox *before* `SaveChanges`, so a database-generated Id doesn't exist yet.
+- **Value objects: static factory that validates and normalizes**, `Equals`/`GetHashCode` overridden plus `IEquatable<T>`, embedded in the owning entity — never a parallel entity/value pair. Normalization is the easy-to-skip part: `Money.Create` rounds to whole minor units, upper-cases, and requires exactly three ISO letters.
+- **`Reconstitute` is test-only.** It exists so property tests can build aggregates in arbitrary states without walking the state machine. Production handlers load tracked entities — `AsNoTracking` + `Reconstitute` + `Update` marks every column modified and loses concurrent writes.
+- **`DateTimeOffset`, never `DateTime`** (convention-enforced).
 
-    protected Product() { } // EF Core constructor
+## Depth
 
-    public Product(string name, string description, Money price, int stock)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(price);
-        ArgumentOutOfRangeException.ThrowIfNegative(stock);
+| Topic | Reference |
+|---|---|
+| Full entity/value-object code shapes, the Reconstitute rationale | [reference/model-shapes.md](reference/model-shapes.md) |
 
-        Name = name;
-        Description = description;
-        Price = price;
-        Stock = stock;
-    }
+## Related skills
 
-    public void UpdateDetails(string name, Money price)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(price);
-        Name = name;
-        Price = price;
-    }
-}
-```
-
-## Value Objects
-
-**Core Pattern**: Immutable objects with static factory methods and proper equality.
-
-```csharp
-public class Money
-{
-    public decimal Amount { get; private set; }
-    public string Currency { get; private set; } = string.Empty;
-
-    private Money(decimal amount, string currency)
-    {
-        Amount = amount;
-        Currency = currency;
-    }
-
-    public static Money Create(decimal amount, string currency)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegative(amount);
-        ArgumentException.ThrowIfNullOrWhiteSpace(currency);
-        if (currency.Length > 3)
-            throw new ArgumentException("Currency code cannot exceed 3 characters", nameof(currency));
-        return new Money(amount, currency);
-    }
-
-    // Must override Equals(object) and GetHashCode() — convention tests enforce this
-}
-```
-
-## Entity-Value Object Integration
-
-**Use single entity with embedded value objects** (not dual representation):
-
-```csharp
-// CORRECT - Single entity with embedded value objects
-public class Customer
-{
-    public int Id { get; private set; }
-    public string Name { get; private set; } = string.Empty;
-    public Email Email { get; private set; } = null!; // Embedded value object
-
-    public void UpdateEmail(Email newEmail)
-    {
-        ArgumentNullException.ThrowIfNull(newEmail);
-        Email = newEmail;
-    }
-}
-
-// AVOID - Dual representation creates unnecessary complexity
-// public class CustomerValue { }  // Don't create this
-// public class CustomerEntity { } // When you already have Customer
-```
-
-## Reconstitute Pattern (Test-Only)
-
-`internal static` factory method for rebuilding aggregates in arbitrary states. Visible to the test project via `InternalsVisibleTo`.
-
-```csharp
-internal static Order Reconstitute(int id, int customerId, DateTime orderDate,
-    OrderStatus status, DateTime lastUpdated, List<OrderItem> items)
-```
-
-**Why it exists**: The public `Order(customerId)` constructor enforces creation-time invariants (status = Pending, empty items). Property-based fuzz tests need to create orders in arbitrary states (e.g., Shipped, Delivered) without going through the full state machine.
-
-**Not for production handlers**: Command handlers load aggregates via EF Core with `.Include(o => o.Items)` on a tracked entity, mutate through domain methods, and call `SaveChangesAsync`. EF Core detects only the changed properties. Do not use `AsNoTracking` + `Reconstitute` + `Update` — that marks all columns modified and creates lost-update risks.
+- `cqrs-patterns` — how handlers drive these aggregates
+- `data-access` — how EF maps entities and embedded value objects
