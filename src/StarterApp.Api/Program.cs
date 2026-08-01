@@ -48,6 +48,13 @@ try
     {
         app.MapOpenApi();
         app.MapScalarApiReference();
+
+        // Dev-only interactive walkthrough (wwwroot/demo.html) plus the config probe it uses to
+        // find the token endpoint. Static hosting and the endpoint are both dev-gated; nothing
+        // under wwwroot ships in other environments.
+        app.UseStaticFiles();
+        app.MapGet("/demo/config", (Microsoft.Extensions.Options.IOptions<StarterApp.Api.Infrastructure.Identity.JwtIdentityOptions> identity) =>
+            Results.Ok(new { authority = identity.Value.Authority }));
     }
     else
     {

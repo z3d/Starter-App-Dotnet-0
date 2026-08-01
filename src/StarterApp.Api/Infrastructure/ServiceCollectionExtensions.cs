@@ -235,7 +235,7 @@ public static class ServiceCollectionExtensions
             // The no-op fallback exists for tests and standalone dev only. In production-like
             // environments a missing/typo'd connection string would otherwise boot green, pass
             // /health/ready (database-only), and silently accumulate outbox rows forever — so
-            // fail startup loudly, mirroring the GatewayIdentity:Mode environment gate.
+            // fail startup loudly, mirroring the Identity options environment gate.
             if (!IsDevelopmentLike(environment))
                 throw new InvalidOperationException(
                     "ConnectionStrings:servicebus is required outside Development/Testing environments. " +

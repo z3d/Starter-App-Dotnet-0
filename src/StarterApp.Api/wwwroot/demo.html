@@ -95,12 +95,12 @@
 
 <header>
   <div class="masthead">
-    <h1>StarterApp walkthrough<small>browser → gateway → API → Postgres → Service Bus → Functions, the whole signed pipeline live</small></h1>
-    <div class="env">local rig · gateway-signed identity · <b id="mode">checking…</b></div>
+    <h1>StarterApp walkthrough<small>browser → Keycloak → API → Postgres → Service Bus → Functions, the whole pipeline live</small></h1>
+    <div class="env">local rig · OIDC/JWT identity · <b id="mode">checking…</b></div>
   </div>
   <div class="wire" id="wire">
     <div class="stop" data-n="you">browser<small>this page</small></div><div class="seg"></div>
-    <div class="stop" data-n="gw">gateway<small>signs assertion</small></div><div class="seg"></div>
+    <div class="stop" data-n="gw">keycloak<small>mints token</small></div><div class="seg"></div>
     <div class="stop" data-n="api">api<small>verify + handle</small></div><div class="seg"></div>
     <div class="stop" data-n="db">postgres<small>row + outbox</small></div><div class="seg"></div>
     <div class="stop" data-n="sb">service bus<small>topics</small></div><div class="seg"></div>
@@ -114,7 +114,7 @@
   <section class="step" id="s1">
     <div class="kicker">01 / PROBE</div>
     <h2>Check the rig is healthy</h2>
-    <p class="blurb"><code>GET /healthiness</code> runs real round-trips against the durable resources: Postgres, the cache, a Service Bus AMQP link, the payload archive — every check tagged <code>durable</code>. No identity required — probes sit in front of the gateway contract.</p>
+    <p class="blurb"><code>GET /healthiness</code> runs real round-trips against the durable resources: Postgres, the cache, a Service Bus AMQP link, the payload archive — every check tagged <code>durable</code>. No token required — probes are anonymous by design.</p>
     <div class="row">
       <button class="run" id="bProbe">run healthiness</button>
       <button class="quiet" id="bLive">liveness</button>
@@ -125,14 +125,13 @@
 
   <section class="step locked" id="s2">
     <div class="kicker">02 / IDENTITY</div>
-    <h2>Say who is calling</h2>
-    <p class="blurb">In a deployed environment APIM derives this from your token. Here you state it; the gateway normalises it and signs it into <code>X-Gateway-Assertion</code>. The API trusts the signature, never the raw headers. Drop <code>orders:write</code> or <code>mfa</code> later and the order step will refuse you.</p>
+    <h2>Sign in — mint a real token</h2>
+    <p class="blurb">In a deployed environment your IdP issues the token. Here the local Keycloak realm does: a password grant for the dev user returns an RS256-signed JWT with audience <code>starterapp-api</code>. The API validates issuer, audience, signature, and expiry itself — zero trust, no perimeter assumptions. The scopes you tick below are requested on the token; untick <code>orders:write</code> later, sign in again, and the order step will refuse you with a 403.</p>
     <div class="row">
-      <div class="field"><label>subject</label><input type="text" id="fSubject" value="demo.user"></div>
-      <div class="field"><label>tenant</label><input type="text" id="fTenant" value="demo-tenant"></div>
-      <div class="field"><label>principal</label><select id="fPty"><option>User</option><option>Service</option></select></div>
+      <div class="field"><label>username</label><input type="text" id="fUsername" value="dev-user"></div>
+      <div class="field"><label>password</label><input type="password" id="fPassword" value="dev-password"></div>
     </div>
-    <div class="field"><label>scopes</label>
+    <div class="field"><label>scopes (requested on the token)</label>
       <div class="ticks" id="fScopes">
         <label><input type="checkbox" value="customers:read" checked>customers:read</label>
         <label><input type="checkbox" value="customers:write" checked>customers:write</label>
@@ -142,20 +141,14 @@
         <label><input type="checkbox" value="orders:write" checked>orders:write</label>
       </div>
     </div>
-    <div class="field" style="margin-top:.6rem"><label>amr</label>
-      <div class="ticks" id="fAmr">
-        <label><input type="checkbox" value="mfa" checked>mfa</label>
-        <label><input type="checkbox" value="pwd" checked>pwd</label>
-      </div>
-    </div>
-    <div class="row" style="margin-top:1rem"><button class="run" id="bIdentity">apply identity</button></div>
+    <div class="row" style="margin-top:1rem"><button class="run" id="bIdentity">sign in</button></div>
     <pre class="out" id="oIdentity"></pre>
   </section>
 
   <section class="step locked" id="s3">
     <div class="kicker">03 / PRODUCT</div>
     <h2>Add a product to the catalog</h2>
-    <p class="blurb"><code>POST /api/v1/products</code> is a synchronous write: validate → EF Core insert → <code>201</code> with the new id. This becomes the line item the order in step 05 reserves stock against. Needs <code>products:write</code> and <code>mfa</code> in the signed assertion.</p>
+    <p class="blurb"><code>POST /api/v1/products</code> is a synchronous write: validate → EF Core insert → <code>201</code> with the new id. This becomes the line item the order in step 05 reserves stock against. Needs <code>products:write</code> on the token and <code>mfa</code> in its <code>amr</code>.</p>
     <div class="row">
       <div class="field"><label>name</label><input type="text" id="fProdName" style="min-width:180px"></div>
       <div class="field"><label>price</label><input type="text" id="fProdPrice" class="mono" value="19.99" style="min-width:90px"></div>
@@ -197,23 +190,23 @@
       <span class="ls" data-s="confirmed">Confirmed</span>
     </div>
     <pre class="out" id="oOrder"></pre>
-    <p class="aside">Authorisation demo: back in step 02, untick <code>orders:write</code> or <code>mfa</code>, re-apply, retry this button. 403 — decided from the signed scopes, nothing else.</p>
+    <p class="aside">Authorisation demo: back in step 02, untick <code>orders:write</code>, sign in again, retry this button. 403 — decided from the token's scopes, nothing else. (The dev realm always stamps <code>mfa</code> into <code>amr</code>; a real IdP earns it.)</p>
   </section>
 
   <section class="step locked" id="s6">
     <div class="kicker">06 / END</div>
     <h2>That's the pipeline</h2>
-    <p class="blurb">Signed identity in, verified by the API in Required mode; synchronous writes for catalog and customers; a transactional outbox that publishes order events to Service Bus topics; idempotent Functions consumers off those subscriptions. Payloads captured throughout. Keep going in <a href="/scalar/v1">Scalar</a> (same origin — try-it just works) or the Aspire dashboard for traces.</p>
+    <p class="blurb">IdP-issued tokens in, verified by the API itself (issuer, audience, signature, expiry); synchronous writes for catalog and customers; a transactional outbox that publishes order events to Service Bus topics; idempotent Functions consumers off those subscriptions. Payloads captured throughout. Keep going in <a href="/scalar/v1">Scalar</a> (same origin — try-it just works) or the Aspire dashboard for traces.</p>
   </section>
 
 </main>
-<footer>Served by the dev-only gateway emulator. None of this page ships anywhere.</footer>
+<footer>Served by the API in Development only. None of this page ships anywhere.</footer>
 
 <script>
 (() => {
   "use strict";
   const $ = (s) => document.querySelector(s);
-  const state = { headers: {}, productId: null, customerId: null, orderId: null };
+  const state = { token: null, productId: null, customerId: null, orderId: null };
 
   // wire strip
   const stops = [...document.querySelectorAll(".stop")];
@@ -263,7 +256,7 @@
   async function call(method, path, { body, identity } = {}) {
     const headers = {};
     if (body !== undefined) headers["Content-Type"] = "application/json";
-    if (identity) Object.assign(headers, state.headers);
+    if (identity && state.token) headers["Authorization"] = "Bearer " + state.token;
     const t0 = performance.now();
     const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
     const ms = Math.round(performance.now() - t0);
@@ -301,28 +294,46 @@
     });
     $("#probeTable").hidden = false;
     await sleep(500);
-    if (r.status === 200) { visited("you"); setMode("healthy", "ok"); settle("healthy — state an identity next"); unlock("#s1", "#s2"); }
+    if (r.status === 200) { visited("you"); setMode("healthy", "ok"); settle("healthy — sign in next"); unlock("#s1", "#s2"); }
     else { setMode("unhealthy", "warn"); settle("unhealthy — see the table"); }
   });
   $("#bLive").addEventListener("click", async () => show("#oProbe", "GET", "/liveness", await call("GET", "/liveness")));
 
-  // 02 identity
+  // 02 identity — password grant against the local Keycloak realm
+  const decodeJwtPayload = (jwt) => {
+    const b64 = jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(b64));
+  };
   $("#bIdentity").addEventListener("click", async () => {
     const scopes = [...document.querySelectorAll("#fScopes input:checked")].map(i => i.value).join(" ");
-    const amr = [...document.querySelectorAll("#fAmr input:checked")].map(i => i.value).join(" ");
-    state.headers = {
-      "X-Authenticated-Subject": $("#fSubject").value.trim(),
-      "X-Authenticated-Principal-Type": $("#fPty").value,
-      "X-Authenticated-Tenant-Id": $("#fTenant").value.trim(),
-      "X-Authenticated-Scopes": scopes,
-    };
-    if (amr) state.headers["X-Authenticated-Amr"] = amr;
-    phase(0, 1, "gateway normalises + signs the assertion");
-    $("#oIdentity").textContent = "caller-stated headers (the gateway signs these):\n\n" + fmt(state.headers);
-    await sleep(900);
-    visited("gw");
-    settle("identity staged for every call below");
-    unlock("#s2", "#s3");
+    phase(0, 1, "keycloak authenticates you and mints an RS256 token");
+    try {
+      const cfg = await (await fetch("/demo/config")).json();
+      if (!cfg.authority) { settle("no Identity:Authority configured — run through AppHost so Keycloak is up"); return; }
+      const res = await fetch(cfg.authority.replace(/\/$/, "") + "/protocol/openid-connect/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "password",
+          client_id: "starterapp-dev",
+          client_secret: "local-dev-client-secret-not-a-secret",
+          username: $("#fUsername").value.trim(),
+          password: $("#fPassword").value,
+          scope: scopes,
+        }),
+      });
+      if (!res.ok) { settle(`keycloak said ${res.status} — check the credentials`); return; }
+      const tokenResponse = await res.json();
+      state.token = tokenResponse.access_token;
+      const claims = decodeJwtPayload(state.token);
+      $("#oIdentity").textContent = "claims the API will verify (signature, iss, aud, exp):\n\n" +
+        fmt({ sub: claims.sub, tid: claims.tid, aud: claims.aud, scope: claims.scope, amr: claims.amr, exp: new Date(claims.exp * 1000).toISOString() });
+      visited("gw");
+      settle("token minted — attached as Authorization: Bearer on every call below");
+      unlock("#s2", "#s3");
+    } catch (err) {
+      settle(`token request failed: ${err}`);
+    }
   });
 
   // 03 product — synchronous write
@@ -337,7 +348,7 @@
     phase(0, 3, "POST products — validate, EF Core insert, one commit");
     const r = await call("POST", "/api/v1/products", { body, identity: true });
     show("#oProduct", "POST", "/api/v1/products", r);
-    if (r.status !== 201) { settle(`api said ${r.status}${r.status === 403 ? " — the signed scopes/amr refused you" : ""}`); return; }
+    if (r.status !== 201) { settle(`api said ${r.status}${r.status === 403 ? " — the token's scopes/amr refused you" : ""}`); return; }
     state.productId = r.json.id;
     $("#prodId").textContent = r.json.id;
     $("#prodStock").textContent = r.json.stock;
@@ -353,7 +364,7 @@
     phase(0, 3, "POST customers — unique-email check, EF Core insert, one commit");
     const r = await call("POST", "/api/v1/customers", { body, identity: true });
     show("#oCustomer", "POST", "/api/v1/customers", r);
-    if (r.status !== 201) { settle(`api said ${r.status}${r.status === 403 ? " — the signed scopes/amr refused you" : ""}`); return; }
+    if (r.status !== 201) { settle(`api said ${r.status}${r.status === 403 ? " — the token's scopes/amr refused you" : ""}`); return; }
     state.customerId = r.json.id;
     $("#custId").textContent = r.json.id;
     $("#custPill").hidden = false;
@@ -371,7 +382,7 @@
     const r = await call("POST", "/api/v1/orders", { body, identity: true });
     show("#oOrder", "POST", "/api/v1/orders", r);
     if (r.status !== 201) {
-      settle(`api said ${r.status}${r.status === 403 ? " — the signed scopes/amr refused you (that's the demo)" : r.status === 503 ? " — order-placement feature toggle is off (kill switch)" : ""}`);
+      settle(`api said ${r.status}${r.status === 403 ? " — the token's scopes/amr refused you (that's the demo)" : r.status === 503 ? " — order-placement feature toggle is off (kill switch)" : ""}`);
       return;
     }
     state.orderId = r.json.id;
@@ -399,7 +410,7 @@
     phase(0, 3, "PUT status — domain transition + OrderStatusChanged event, one commit");
     const r = await call("PUT", `/api/v1/orders/${encodeURIComponent(state.orderId)}/status`, { body, identity: true });
     show("#oOrder", "PUT", `/api/v1/orders/${state.orderId}/status`, r);
-    if (r.status !== 200) { settle(`api said ${r.status} — needs orders:write + mfa from step 02`); return; }
+    if (r.status !== 200) { settle(`api said ${r.status} — needs orders:write on the token (step 02)`); return; }
     phase(3, 5, "OrderStatusChanged → outbox → service bus");
     await sleep(1200);
     const g = await call("GET", `/api/v1/orders/${encodeURIComponent(state.orderId)}`, { identity: true });

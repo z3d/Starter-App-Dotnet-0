@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Aspire.Hosting.Azure;
 using StarterApp.AppHost;
 
@@ -141,52 +140,6 @@ if (keycloak is not null)
        .WaitFor(keycloak);
 }
 
-// Local APIM emulator (opt-in, run mode only): StarterApp.Gateway fronts the API like a trusted
-// gateway — strips inbound caller identity, projects normalized X-Authenticated-* headers
-// (caller-stated or a default dev identity), and signs the X-Gateway-Assertion. The API flips to
-// GatewayIdentity:Mode=Required so local orchestration exercises the production verification path.
-// Opt-in (run with `--gateway` or ENABLE_GATEWAY=true) so the default rig and the AppHost.Tests —
-// which call the API directly with unsigned projected headers — keep working unchanged. Publish
-// mode is untouched: the gateway is a dev-only emulator, never a deployable resource.
-var gatewayEnabled = builder.ExecutionContext.IsRunMode &&
-    (args.Contains("--gateway") || Environment.GetEnvironmentVariable("ENABLE_GATEWAY") == "true");
-
-if (gatewayEnabled)
-{
-    // Per-run key, never persisted or committed: assertions live 60 seconds, so invalidating them
-    // across AppHost restarts costs nothing, and a committed constant would only be a secret-shaped
-    // string to allowlist.
-    var gatewaySigningKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
-    const string gatewayKeyId = "local-dev-gateway";
-
-    api.WithEnvironment("GatewayIdentity__Mode", "Required")
-       .WithEnvironment("GatewayIdentity__SigningKey", gatewaySigningKey)
-       .WithEnvironment("GatewayIdentity__KeyId", gatewayKeyId);
-
-    var gateway = builder.AddProject<Projects.StarterApp_Gateway>("gateway")
-        .WithReference(api)
-        .WithEnvironment("GatewaySigner__SigningKey", gatewaySigningKey)
-        .WithEnvironment("GatewaySigner__KeyId", gatewayKeyId)
-        .WaitFor(api);
-
-    // Dev Tunnel fronts the gateway (the signed door) when the emulator is enabled.
-    if (args.Contains("--devtunnel") || Environment.GetEnvironmentVariable("ENABLE_DEV_TUNNEL") == "true")
-    {
-        // The gateway emulator trusts caller-stated X-Authenticated-* headers and signs them as a
-        // verified identity, so any tunnel caller can claim any identity. Exposing that surface to
-        // the internet must be an explicit, acknowledged decision.
-        if (Environment.GetEnvironmentVariable("DEV_TUNNEL_ACK_HEADER_TRUST_GATEWAY") != "true")
-            throw new InvalidOperationException(
-                "Refusing to start the dev tunnel: the gateway emulator trusts caller-stated " +
-                "X-Authenticated-* headers and signs them as a verified identity, so any tunnel caller " +
-                "can claim any identity. Set DEV_TUNNEL_ACK_HEADER_TRUST_GATEWAY=true to acknowledge " +
-                "exposing this surface through the tunnel.");
-
-        builder.AddDevTunnel("gateway-tunnel")
-               .WithReference(gateway);
-    }
-}
-
 // Add Azure Functions container for Service Bus subscribers.
 // Running through the Functions base image keeps local behavior aligned with the deployed worker runtime.
 builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Functions/Dockerfile")
@@ -214,18 +167,18 @@ builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Functions/Dockerfil
 
 // Dev Tunnel: expose the API to the internet for webhook/mobile testing
 // Enable with: dotnet run -- --devtunnel  OR  set ENABLE_DEV_TUNNEL=true
-// Skipped when the gateway emulator is enabled — that path tunnels the gateway (the signed door) instead.
-if (!gatewayEnabled && (args.Contains("--devtunnel") || Environment.GetEnvironmentVariable("ENABLE_DEV_TUNNEL") == "true"))
+if (args.Contains("--devtunnel") || Environment.GetEnvironmentVariable("ENABLE_DEV_TUNNEL") == "true")
 {
-    // The locally-orchestrated API runs GatewayIdentity:Mode=UnsignedDevelopment — it trusts
-    // projected identity headers without a signed gateway assertion. Exposing that surface to
-    // the internet (even Microsoft-auth-gated dev tunnels) must be an explicit, acknowledged
-    // decision, not a side effect of a convenience flag.
-    if (Environment.GetEnvironmentVariable("DEV_TUNNEL_ACK_UNSIGNED_API") != "true")
+    // The tunneled API accepts tokens minted by the local dev Keycloak, whose realm ships
+    // well-known development credentials — anyone who can reach the tunnel can mint a valid
+    // token. Exposing that surface to the internet (even Microsoft-auth-gated dev tunnels) must
+    // be an explicit, acknowledged decision, not a side effect of a convenience flag.
+    if (Environment.GetEnvironmentVariable("DEV_TUNNEL_ACK_DEV_IDP") != "true")
         throw new InvalidOperationException(
-            "Refusing to start the dev tunnel: the API runs with GatewayIdentity:Mode=UnsignedDevelopment, " +
-            "which trusts identity headers without a signed gateway assertion. Set DEV_TUNNEL_ACK_UNSIGNED_API=true " +
-            "to acknowledge exposing this surface through the tunnel.");
+            "Refusing to start the dev tunnel: the API accepts tokens from the local dev Keycloak, " +
+            "whose realm ships well-known development credentials, so anyone reaching the tunnel can " +
+            "mint a valid token. Set DEV_TUNNEL_ACK_DEV_IDP=true to acknowledge exposing this surface " +
+            "through the tunnel.");
 
     builder.AddDevTunnel("api-tunnel")
            .WithReference(api);

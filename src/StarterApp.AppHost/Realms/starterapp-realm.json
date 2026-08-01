@@ -21,16 +21,17 @@
       "defaultClientScopes": [
         "starterapp-api-audience",
         "starterapp-claims",
+        "profile",
+        "email"
+      ],
+      "optionalClientScopes": [
         "customers:read",
         "customers:write",
         "orders:read",
         "orders:write",
         "products:read",
-        "products:write",
-        "profile",
-        "email"
-      ],
-      "optionalClientScopes": []
+        "products:write"
+      ]
     }
   ],
   "clientScopes": [

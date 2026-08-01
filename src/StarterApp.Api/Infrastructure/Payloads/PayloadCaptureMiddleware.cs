@@ -47,11 +47,10 @@ public sealed class PayloadCaptureMiddleware
         var correlationId = ResolveCorrelationId(context, out var hadInboundCorrelationId);
         context.TraceIdentifier = correlationId;
 
-        // Leave a caller-supplied correlation id on the request unchanged so the gateway-identity layer
-        // validates the exact value the gateway signed (the assertion is signed over the raw id; sanitizing
-        // it here would make the verifier compare against a value the signer never produced). Only inject
-        // the generated id when the caller sent none, so the gateway's required-header check still passes.
-        // The echoed/archived id below stays sanitized, so no raw client input is reflected downstream.
+        // Leave a caller-supplied correlation id on the request unchanged — the request headers are
+        // the caller's own data; the sanitized form is applied wherever the id is reflected or
+        // persisted (TraceIdentifier, the echoed response header, archive naming, log scope). Only
+        // inject the generated id when the caller sent none, so downstream capture always has one.
         if (!hadInboundCorrelationId)
             context.Request.Headers[CorrelationContext.HeaderName] = correlationId;
 
