@@ -58,12 +58,12 @@ devtunnel user login
 Usage requires an explicit security acknowledgment:
 
 ```bash
-DEV_TUNNEL_ACK_UNSIGNED_API=true dotnet run --project src/StarterApp.AppHost -- --devtunnel
+DEV_TUNNEL_ACK_DEV_IDP=true dotnet run --project src/StarterApp.AppHost -- --devtunnel
 # or
-ENABLE_DEV_TUNNEL=true DEV_TUNNEL_ACK_UNSIGNED_API=true dotnet run --project src/StarterApp.AppHost
+ENABLE_DEV_TUNNEL=true DEV_TUNNEL_ACK_DEV_IDP=true dotnet run --project src/StarterApp.AppHost
 ```
 
-The acknowledgment exists because the tunneled API runs `GatewayIdentity:Mode=UnsignedDevelopment` — it trusts projected identity headers without a signed gateway assertion. AppHost refuses to start the tunnel unless you acknowledge exposing that surface.
+The acknowledgment exists because the tunneled API accepts tokens from the local dev Keycloak, whose realm ships well-known development credentials — anyone who can reach the tunnel can mint a valid token. AppHost refuses to start the tunnel unless you acknowledge exposing that surface.
 
 ## Smoke testing a deployment
 

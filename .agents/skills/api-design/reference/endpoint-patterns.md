@@ -7,12 +7,12 @@ public class CustomerEndpoints : IEndpointDefinition
 {
     public void DefineEndpoints(WebApplication app)
     {
-        // Every /api/v1 group MUST call RequireGatewayIdentity(); every route MUST declare
+        // Every /api/v1 group MUST call RequireAuthorization(); every route MUST declare
         // RequireScope("domain:read|write"); every non-GET route MUST also call SecuredBy2Fa().
         // ApiConventionTests enforces all three from the mapped endpoint metadata.
         var customers = app.MapGroup("/api/v1/customers")
             .WithTags("Customers")
-            .RequireGatewayIdentity();
+            .RequireAuthorization();
 
         customers.MapGet("/{id:int}", GetCustomer)
             .WithName("GetCustomer")
@@ -59,7 +59,7 @@ public class CustomerEndpoints : IEndpointDefinition
 
 ## Filters vs middleware
 
-Middleware runs once per request, before routing — efficient for global concerns: request logging, error handling, CORS, compression, security headers, payload capture, gateway identity.
+Middleware runs once per request, before routing — efficient for global concerns: request logging, error handling, CORS, compression, security headers, payload capture, authentication.
 
 Endpoint filters run only for matched endpoints, after routing and parameter binding — right for route-specific logic:
 

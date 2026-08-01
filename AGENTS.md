@@ -37,8 +37,7 @@ Push from the worktree and fast-forward `main` from it. Never revert or overwrit
 - **Load tracked entities and mutate through domain methods.** `AsNoTracking` + `Update` marks every column modified and loses concurrent writes. `Reconstitute` is test-only rehydration, not a write path.
 - **Only by-id queries may be `ICacheable`.** `IDistributedCache` has no pattern-based deletion, so a cached list page is visibly stale after any write. Owner-scoped keys must carry the verified tenant/subject.
 - **Owner authorization is application-layer, not endpoint metadata.** Route metadata enforces identity, scope, and MFA before dispatch, but it cannot know a specific row's owner — those checks belong in query predicates and command handlers.
-- **Don't add ASP.NET authentication or JWT bearer middleware.** The API runs behind a trusted gateway and verifies its signed assertion instead; production code reads identity through `ICurrentUser`, never raw headers.
-- **Don't sanitize the correlation id ahead of the gateway middleware.** The gateway signs the assertion over the raw value, so rewriting it compares against something the signer never saw and rejects valid traffic.
+- **Identity is OIDC/JWT, validated in the API itself (zero trust).** `AddJwtBearer` against the configured authority is the only authentication registration. Self-contained JWTs only — never add token-introspection calls to the request path; discovery and JWKS are cached by the bearer handler. Production code reads identity through `ICurrentUser` (populated in exactly one place from validated claims), never `HttpContext.User`, raw claims, or the `Authorization` header outside `Infrastructure/Identity`.
 - **Migrations run only through `StarterApp.DbMigrator`** — never at API startup, which races across replicas.
 - **Never put `Version=` on a `PackageReference`.** Versions are centralized in `Directory.Packages.props`, and `--force-evaluate` is the only sanctioned way to move a lock file.
 - **Never commit a real secret to the tracked tree.** `appsettings.Development.json` is git-ignored with a tracked `.example` template; the `secret-scan` workflow scans full history with a checksum-verified pinned `gitleaks`, and intentional placeholders belong in `.gitleaks.toml` rather than being worked around.
@@ -71,7 +70,7 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Service Bus emulator, dev tunnels, local CI | `.agents/skills/development-workflow/SKILL.md` |
 | Dependencies, custom mediator | `.agents/skills/technology-stack/SKILL.md` |
 | Architecture audits | `.agents/skills/architecture-review/SKILL.md`, `docs/ARCHITECTURE_REVIEW.md` |
-| Outbox / eventing / gateway identity / payload capture internals | `docs/DECISIONS.md` |
+| Outbox / eventing / OIDC identity / payload capture internals | `docs/DECISIONS.md` |
 | Replaying a stuck or dead-lettered event | `docs/runbooks/event-replay.md` |
 | Recurring async-failure patterns and known defects | `docs/investigations/README.md` |
 | Perf gate, security scan | `tests/k6/README.md`, `dast/README.md` |

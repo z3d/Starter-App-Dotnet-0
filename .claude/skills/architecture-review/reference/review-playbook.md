@@ -16,7 +16,7 @@ Ordered by how often each has actually produced findings here:
 
 For "thorough"/"comprehensive"/"audit everything" requests, and only when multi-agent orchestration has been opted into:
 
-1. **Find** — one finder per subsystem. The eight that map to this repo: security/auth (gateway assertion, scopes, MFA, owner-only policy), CQRS/domain, data-access/persistence, eventing/outbox/Service Bus, payload-capture/PII, build/CI/reproducibility, concurrency/correctness, convention-test rigor. Tell each finder: the bar is high, ground every finding in `file:line` with quoted evidence, and **zero findings is an acceptable answer**.
+1. **Find** — one finder per subsystem. The eight that map to this repo: security/auth (JWT validation, scopes, MFA, owner-only policy), CQRS/domain, data-access/persistence, eventing/outbox/Service Bus, payload-capture/PII, build/CI/reproducibility, concurrency/correctness, convention-test rigor. Tell each finder: the bar is high, ground every finding in `file:line` with quoted evidence, and **zero findings is an acceptable answer**.
 2. **Dedup** — merge by file + normalized title in plain code (a barrier is correct here).
 3. **Verify** — three independent skeptics per candidate, each with a distinct lens:
    - *code-truth*: re-read the path and its callers;
