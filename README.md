@@ -168,7 +168,6 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 
 ## Documentation
 
-- **[Blog Site](https://z3d.github.io/blog/)**: GitHub Pages site for long-form engineering notes ([z3d/blog](https://github.com/z3d/blog))
 - **[API Endpoints](docs/API-ENDPOINTS.md)**: Complete documentation of all Minimal API endpoints with examples and usage patterns
 - **[Architectural Guide](CLAUDE.md)**: Comprehensive guide to the Clean Architecture implementation, patterns, and conventions
 - **[Setup Guides](docs/)**: Step-by-step guides for development environment setup and deployment
