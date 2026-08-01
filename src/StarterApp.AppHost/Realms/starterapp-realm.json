@@ -56,7 +56,7 @@
     },
     {
       "name": "starterapp-claims",
-      "description": "Deterministic dev claims: username-as-sub (so seeds and scripts can reference stable human-readable subjects), tenant id from the user's tenant_id attribute, and hardcoded amr (incl. mfa) mirroring the retired gateway emulator's default dev identity. Real deployments must configure the IdP to emit genuine sub/tid/amr values. The 1h access-token lifespan is a dev-realm pragmatism for long perf/DAST runs; production IdPs keep short lifetimes per docs/DECISIONS.md.",
+      "description": "Deterministic dev claims: username-as-sub, tenant_id attribute -> tid, hardcoded amr incl. mfa. Real IdPs must emit genuine values; rationale and the 1h dev lifespan note live in docs/DECISIONS.md. Keycloak caps this description at 255 chars.",
       "protocol": "openid-connect",
       "attributes": { "include.in.token.scope": "false" },
       "protocolMappers": [
