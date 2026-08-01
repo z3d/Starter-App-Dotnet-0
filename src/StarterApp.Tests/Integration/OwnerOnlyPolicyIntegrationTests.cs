@@ -159,7 +159,7 @@ public class OwnerOnlyPolicyIntegrationTests : IAsyncLifetime
     private static Task<HttpResponseMessage> SendAsAsync(HttpClient client, HttpMethod method, string uri, string subject)
     {
         var request = new HttpRequestMessage(method, uri);
-        TestGatewayIdentity.AddSignedHeaders(request, subject: subject, tenantId: TenantId);
+        TestJwtIdentity.SetBearer(request, subject: subject, tenantId: TenantId);
         return client.SendAsync(request);
     }
 
@@ -169,7 +169,7 @@ public class OwnerOnlyPolicyIntegrationTests : IAsyncLifetime
         {
             Content = JsonContent.Create(body)
         };
-        TestGatewayIdentity.AddSignedHeaders(request, subject: subject, tenantId: TenantId);
+        TestJwtIdentity.SetBearer(request, subject: subject, tenantId: TenantId);
         return client.SendAsync(request);
     }
 }

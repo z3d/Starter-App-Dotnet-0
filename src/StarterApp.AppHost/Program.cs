@@ -131,6 +131,16 @@ var api = builder.AddProject<Projects.StarterApp_Api>("api")
        .WaitFor(serviceBus)
        .WaitForCompletion(migrator);
 
+// Point the API at the dev Keycloak realm. RequireHttpsMetadata=false is dev-only (the local
+// container speaks plain http); options validation rejects it outside Development/Testing.
+if (keycloak is not null)
+{
+    api.WithEnvironment("Identity__Authority",
+            ReferenceExpression.Create($"{keycloak.GetEndpoint("http")}/realms/starterapp"))
+       .WithEnvironment("Identity__RequireHttpsMetadata", "false")
+       .WaitFor(keycloak);
+}
+
 // Local APIM emulator (opt-in, run mode only): StarterApp.Gateway fronts the API like a trusted
 // gateway — strips inbound caller identity, projects normalized X-Authenticated-* headers
 // (caller-stated or a default dev identity), and signs the X-Gateway-Assertion. The API flips to

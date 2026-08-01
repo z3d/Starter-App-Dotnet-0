@@ -25,7 +25,7 @@ builder.Services.AddApiOpenApi();
 builder.Services.AddPersistence(connectionString);
 builder.Services.AddMediator(Assembly.GetExecutingAssembly());
 builder.Services.AddApiCors(builder.Configuration, builder.Environment);
-builder.Services.AddGatewayIdentity(builder.Configuration, builder.Environment);
+builder.Services.AddJwtIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddApiRateLimiting();
 builder.Services.AddApiHealthChecks(builder.Configuration);
 builder.Services.AddServiceBusPublisher(builder.Configuration, builder.Environment);
@@ -60,7 +60,7 @@ try
     app.UseHttpsRedirection();
     app.UseCors();
     app.UseRouting();
-    app.UseGatewayIdentity();
+    app.UseJwtIdentity();
     app.UseRateLimiter();
 
     app.MapApiEndpoints();

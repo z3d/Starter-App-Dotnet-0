@@ -47,7 +47,7 @@ public class DbUpApiTests : IAsyncLifetime
         // Use DbUp to directly insert data - directly inserting values
         var insertScript = $@"
             INSERT INTO products (id, name, description, price_amount, price_currency, stock, last_updated, owner_subject, tenant_id)
-            VALUES ({productId}, '{productName.Replace("'", "''")}', '{productDescription.Replace("'", "''")}', {price.ToString(System.Globalization.CultureInfo.InvariantCulture)}, 'USD', {stock}, now(), '{TestGatewayIdentity.DefaultSubject}', '{TestGatewayIdentity.DefaultTenantId}');
+            VALUES ({productId}, '{productName.Replace("'", "''")}', '{productDescription.Replace("'", "''")}', {price.ToString(System.Globalization.CultureInfo.InvariantCulture)}, 'USD', {stock}, now(), '{TestJwtIdentity.DefaultSubject}', '{TestJwtIdentity.DefaultTenantId}');
         ";
 
         // Configure DbUp to use a custom journal table name with JournalTo

@@ -1,19 +1,19 @@
 namespace StarterApp.Api.Infrastructure.Identity;
 
-internal sealed class GatewayScopeEndpointFilter : IEndpointFilter
+internal sealed class ScopeEndpointFilter : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var requiredScopes = context.HttpContext.GetEndpoint()
             ?.Metadata
-            .GetOrderedMetadata<GatewayScopeRequiredMetadata>() ?? [];
+            .GetOrderedMetadata<ScopeRequiredMetadata>() ?? [];
 
         if (requiredScopes.Count == 0)
             return await next(context);
 
         var currentUser = context.HttpContext.RequestServices.GetService<ICurrentUser>();
         if (currentUser is not { IsAuthenticated: true })
-            return WriteProblem(StatusCodes.Status401Unauthorized, "Unauthorized", "A valid gateway identity is required.");
+            return WriteProblem(StatusCodes.Status401Unauthorized, "Unauthorized", "Authentication is required.");
 
         var missingScope = requiredScopes
             .Select(metadata => metadata.Scope)

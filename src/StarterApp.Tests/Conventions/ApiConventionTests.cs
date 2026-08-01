@@ -33,29 +33,29 @@ public class ApiConventionTests : ConventionTestBase
     }
 
     [Fact]
-    public void ApiRouteEndpoints_MustRequireGatewayIdentity()
+    public void ApiRouteEndpoints_MustRequireAuthorization()
     {
         using var app = BuildEndpointMetadataApp();
         var failures = GetApiRouteEndpoints(app)
-            .Where(endpoint => endpoint.Metadata.GetMetadata<GatewayIdentityRequiredMetadata>() == null)
-            .Select(endpoint => $"{FormatEndpoint(endpoint)} must call RequireGatewayIdentity().")
+            .Where(endpoint => endpoint.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>() == null)
+            .Select(endpoint => $"{FormatEndpoint(endpoint)} must call RequireAuthorization().")
             .ToList();
 
         Assert.True(failures.Count == 0,
-            "API endpoint routes must opt into the trusted gateway identity middleware:\n" + string.Join("\n", failures));
+            "API endpoint routes must require an authenticated JWT bearer identity:\n" + string.Join("\n", failures));
     }
 
     [Fact]
-    public void ApiRouteEndpoints_MustRequireGatewayScope()
+    public void ApiRouteEndpoints_MustRequireScope()
     {
         using var app = BuildEndpointMetadataApp();
         var failures = GetApiRouteEndpoints(app)
-            .Where(endpoint => endpoint.Metadata.GetMetadata<GatewayScopeRequiredMetadata>() == null)
+            .Where(endpoint => endpoint.Metadata.GetMetadata<ScopeRequiredMetadata>() == null)
             .Select(endpoint => $"{FormatEndpoint(endpoint)} must call RequireScope(\"...\").")
             .ToList();
 
         Assert.True(failures.Count == 0,
-            "API endpoint routes must declare the required gateway scope:\n" + string.Join("\n", failures));
+            "API endpoint routes must declare the required token scope:\n" + string.Join("\n", failures));
     }
 
     [Fact]
@@ -79,12 +79,12 @@ public class ApiConventionTests : ConventionTestBase
         using var app = BuildEndpointMetadataApp();
         var failures = GetApiRouteEndpoints(app)
             .Where(IsWriteEndpoint)
-            .Where(endpoint => endpoint.Metadata.GetMetadata<GatewayTwoFactorRequiredMetadata>() == null)
+            .Where(endpoint => endpoint.Metadata.GetMetadata<TwoFactorRequiredMetadata>() == null)
             .Select(endpoint => $"{FormatEndpoint(endpoint)} must call SecuredBy2Fa().")
             .ToList();
 
         Assert.True(failures.Count == 0,
-            "API write routes must require gateway-projected two-factor authentication:\n" + string.Join("\n", failures));
+            "API write routes must require an amr claim proving two-factor authentication:\n" + string.Join("\n", failures));
     }
 
     [Fact]
@@ -110,29 +110,34 @@ public class ApiConventionTests : ConventionTestBase
     }
 
     [Fact]
-    public void GatewayIdentityHeaders_MustOnlyBeReadByIdentityInfrastructure()
+    public void ClaimsPrincipal_MustOnlyBeReadByIdentityInfrastructure()
     {
-        var gatewayHeaderLiteralFailures = ApiAssembly.GetTypes()
+        // JwtIdentityMiddleware is the single writer that projects validated claims onto
+        // ICurrentUser; everything else reads the abstraction. A ClaimsPrincipal (HttpContext.User,
+        // FindFirstValue, ...) reference outside the identity layer bypasses that boundary and
+        // couples business code to one IdP's claim shapes.
+        var claimsPrincipalFailures = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !IsCompilerGenerated(t) && !IsIdentityInfrastructure(t))
+            .Where(type => GetAllMethodsIncludingStateMachines(type)
+                .Any(method => IlReferencesType(method, "ClaimsPrincipal")))
+            .Select(type => $"{type.FullName} references ClaimsPrincipal directly.")
+            .ToList();
+
+        // The retired gateway header contract must not resurface outside the identity layer.
+        var legacyHeaderLiteralFailures = ApiAssembly.GetTypes()
             .Where(t => t.IsClass && !IsCompilerGenerated(t) && !IsIdentityInfrastructure(t))
             .SelectMany(type => ExtractStringLiterals(type)
                 .Where(IsGatewayIdentityHeaderLiteral)
-                .Select(literal => $"{type.FullName} embeds gateway identity header literal '{FormatHeaderLiteral(literal)}'."))
+                .Select(literal => $"{type.FullName} embeds retired gateway identity header literal '{FormatHeaderLiteral(literal)}'."))
             .ToList();
 
-        var gatewayHeaderTypeFailures = ApiAssembly.GetTypes()
-            .Where(t => t.IsClass && !IsCompilerGenerated(t) && !IsIdentityInfrastructure(t))
-            .Where(type => GetAllMethodsIncludingStateMachines(type)
-                .Any(method => IlReferencesType(method, nameof(GatewayIdentityHeaders))))
-            .Select(type => $"{type.FullName} references {nameof(GatewayIdentityHeaders)} directly.")
-            .ToList();
-
-        var failures = gatewayHeaderLiteralFailures
-            .Concat(gatewayHeaderTypeFailures)
+        var failures = claimsPrincipalFailures
+            .Concat(legacyHeaderLiteralFailures)
             .OrderBy(message => message, StringComparer.Ordinal)
             .ToList();
 
         Assert.True(failures.Count == 0,
-            "Production code must not read or define gateway identity headers outside the identity infrastructure:\n" + string.Join("\n", failures));
+            "Production code must read identity only through ICurrentUser, never raw claims or headers:\n" + string.Join("\n", failures));
     }
 
     // === Validator Conventions ===

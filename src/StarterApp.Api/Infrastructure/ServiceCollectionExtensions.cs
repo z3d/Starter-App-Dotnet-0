@@ -1,5 +1,5 @@
-using System.Text;
 using Azure.Messaging.ServiceBus;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using StarterApp.Api.Infrastructure.HealthChecks;
 using StarterApp.Api.Infrastructure.Outbox;
@@ -45,8 +45,8 @@ public static class ServiceCollectionExtensions
                 document.Info.Contact = new() { Name = "Starter App Team" };
 
                 // Scalar renders an Auth panel only for declared security schemes; the identity
-                // layer owns the header names (convention-enforced), so it declares them.
-                GatewayIdentityOpenApi.ApplySecuritySchemes(document);
+                // layer owns the scheme declaration (convention-enforced boundary).
+                JwtIdentityOpenApi.ApplySecuritySchemes(document);
                 return Task.CompletedTask;
             });
         });
@@ -105,26 +105,47 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddGatewayIdentity(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
+    public static IServiceCollection AddJwtIdentity(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
-        services.AddOptions<GatewayIdentityOptions>()
-            .Bind(configuration.GetSection(GatewayIdentityOptions.SectionName))
+        services.AddOptions<JwtIdentityOptions>()
+            .Bind(configuration.GetSection(JwtIdentityOptions.SectionName))
             .ValidateDataAnnotations()
-            .Validate(options => IsDevelopmentLike(environment) || options.Mode == GatewayIdentityMode.Required,
-                "GatewayIdentity:Mode=UnsignedDevelopment is only allowed in Development or Testing environments.")
-            .Validate(options => options.Mode != GatewayIdentityMode.Required || !string.IsNullOrWhiteSpace(options.SigningKey),
-                "GatewayIdentity:SigningKey is required when GatewayIdentity:Mode=Required.")
-            .Validate(options => options.Mode != GatewayIdentityMode.Required ||
-                                 (!string.IsNullOrWhiteSpace(options.SigningKey) && Encoding.UTF8.GetByteCount(options.SigningKey) >= 32),
-                "GatewayIdentity:SigningKey must be at least 32 bytes when GatewayIdentity:Mode=Required.")
+            .Validate(options => IsDevelopmentLike(environment) || !string.IsNullOrWhiteSpace(options.Authority),
+                "Identity:Authority is required outside Development or Testing environments.")
+            .Validate(options => IsDevelopmentLike(environment) || options.RequireHttpsMetadata,
+                "Identity:RequireHttpsMetadata=false is only allowed in Development or Testing environments.")
             .ValidateOnStart();
+
+        // Self-contained JWTs only: the handler's ConfigurationManager caches discovery + JWKS in
+        // memory (rate-limited refresh on unknown kid), so steady-state validation is a CPU-only
+        // asymmetric verify. Never add a token-introspection call to this path.
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer();
+
+        services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .Configure<Microsoft.Extensions.Options.IOptions<JwtIdentityOptions>>((bearer, identityOptions) =>
+            {
+                var identity = identityOptions.Value;
+                if (!string.IsNullOrWhiteSpace(identity.Authority))
+                    bearer.Authority = identity.Authority;
+                bearer.RequireHttpsMetadata = identity.RequireHttpsMetadata;
+                // Keep raw OIDC claim types (sub/tid/scope/amr) — inbound claim remapping would
+                // rename them out from under JwtIdentityMiddleware.
+                bearer.MapInboundClaims = false;
+                bearer.TokenValidationParameters.ValidateAudience = true;
+                bearer.TokenValidationParameters.ValidAudience = identity.Audience;
+                bearer.TokenValidationParameters.ValidateIssuer = true;
+                bearer.TokenValidationParameters.ClockSkew = TimeSpan.FromSeconds(identity.ClockSkewSeconds);
+                bearer.TokenValidationParameters.NameClaimType = "sub";
+            });
+
+        services.AddAuthorization();
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<CurrentUserAccessor>();
         services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<CurrentUserAccessor>());
         services.AddScoped<OwnerPolicyEvaluationTracker>();
         services.AddScoped<IOwnerOnlyPolicy, OwnerOnlyPolicy>();
-        services.AddSingleton<IGatewayAssertionValidator, GatewayAssertionValidator>();
 
         return services;
     }
@@ -159,7 +180,7 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    // Authenticated traffic is partitioned by the verified gateway identity so one tenant
+    // Authenticated traffic is partitioned by the verified token identity so one tenant
     // cannot starve another; only unauthenticated traffic falls back to client IP.
     internal static string ResolveRateLimitPartitionKey(HttpContext httpContext)
     {
