@@ -1,6 +1,6 @@
 # API Endpoints Documentation
 
-This project uses .NET 10 Minimal APIs with endpoint-definition auto-discovery. All business endpoints are under `/api/v1` and require the trusted gateway identity contract; health and OpenAPI/Scalar endpoints remain public.
+This project uses .NET 10 Minimal APIs with endpoint-definition auto-discovery. All business endpoints are under `/api/v1` and require an OIDC/JWT bearer token the API validates itself; health and OpenAPI/Scalar endpoints remain public.
 
 ## Minimal API Structure
 
@@ -17,22 +17,26 @@ src/StarterApp.Api/
 
 Endpoint definitions dispatch through the custom mediator. Command handlers use EF Core; query handlers use Dapper.
 
-## Authentication Headers
+## Authentication
 
-Protected `/api/v1` routes require gateway-projected identity headers:
+Protected `/api/v1` routes require an OIDC bearer token with audience `starterapp-api`:
 
 ```http
+Authorization: Bearer <access-token>
 X-Correlation-ID: demo-correlation-id
-X-Authenticated-Subject: user-123
-X-Authenticated-Principal-Type: User
-X-Authenticated-Tenant-Id: tenant-1
-X-Authenticated-Scopes: products:read products:write customers:read customers:write orders:read orders:write
-X-Authenticated-Amr: mfa
 ```
 
-Production-like environments also require a signed `X-Gateway-Assertion`. Local Development and Testing can use `GatewayIdentity:Mode=UnsignedDevelopment`; the identity headers are still required.
+The API validates issuer, audience, signature, and expiry itself against `Identity:Authority`. Locally, mint a token from the dev Keycloak realm (client `starterapp-dev`, user `dev-user` — well-known dev credentials, see `src/StarterApp.AppHost/Realms/`); request the resource scopes explicitly, they are optional client scopes:
 
-Write routes require the matching `*:write` scope and `X-Authenticated-Amr` containing `mfa`.
+```bash
+curl -s "$KEYCLOAK/realms/starterapp/protocol/openid-connect/token" \
+  -d grant_type=password -d client_id=starterapp-dev \
+  -d client_secret=local-dev-client-secret-not-a-secret \
+  -d username=dev-user -d password=dev-password \
+  -d 'scope=products:read products:write customers:read customers:write orders:read orders:write'
+```
+
+Write routes require the matching `*:write` scope and an `amr` claim containing `mfa` (the dev realm stamps it; a real IdP earns it).
 
 ## Product Catalog
 
@@ -157,11 +161,7 @@ Operational logs remain redacted. Production-like orchestration sets `PayloadCap
 curl -X POST "http://localhost:8080/api/v1/products" \
   -H "Content-Type: application/json" \
   -H "X-Correlation-ID: local-demo-1" \
-  -H "X-Authenticated-Subject: user-123" \
-  -H "X-Authenticated-Principal-Type: User" \
-  -H "X-Authenticated-Tenant-Id: tenant-1" \
-  -H "X-Authenticated-Scopes: products:write" \
-  -H "X-Authenticated-Amr: mfa" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
   -d '{
     "name": "Gaming Laptop",
     "description": "High-performance gaming laptop with RTX graphics",

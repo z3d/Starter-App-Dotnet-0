@@ -43,7 +43,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
 
                 // Inside the refresh window: a hot key would otherwise expire under load and
                 // every concurrent request would recompute at once. Exactly one request
-                // recomputes inline (it carries the correct gateway identity — a background
+                // recomputes inline (it carries the correct caller identity — a background
                 // scope would not, risking cache poisoning on owner-scoped keys); the rest
                 // keep the still-valid cached value.
                 if (!RefreshesInFlight.TryAdd(cacheKey, 0))

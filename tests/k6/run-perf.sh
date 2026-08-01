@@ -2,11 +2,11 @@
 #
 # Performance gate runner for the StarterApp API using k6.
 #
-# Boots a throwaway PostgreSQL, runs DbUp migrations, bulk-seeds owner-scoped
-# data for the k6 gateway identity (tests/k6/seed/perf-seed.sql), starts the
-# API in Development (GatewayIdentity:Mode=UnsignedDevelopment), then runs the
-# k6 script against it. k6 exits non-zero on any threshold breach, which fails
-# the build. The summary lands in tests/k6/reports/ for artifact upload.
+# Boots a throwaway PostgreSQL + dev Keycloak, runs DbUp migrations, bulk-seeds
+# owner-scoped data for the k6 identity (tests/k6/seed/perf-seed.sql), starts
+# the API in Development pointed at the Keycloak realm, mints a k6-user access
+# token, then runs the k6 script against it. k6 exits non-zero on any threshold
+# breach, which fails the build. The summary lands in tests/k6/reports/.
 #
 # Usage:
 #   tests/k6/run-perf.sh                          # full run: boot + seed + load.js
@@ -31,6 +31,7 @@ PG_PORT="${PG_PORT:-55433}"               # distinct from the DAST runner's 5543
 PG_DB="starterapp_perf"
 REDIS_IMAGE="${REDIS_IMAGE:-redis:7-alpine}"
 REDIS_PORT="${REDIS_PORT:-56379}"         # distinct from PG_PORT; dedicated perf-Redis host port
+IDP_PORT="${IDP_PORT:-58080}"             # dev Keycloak host port (DAST uses 58081)
 K6_SCRIPT="${K6_SCRIPT:-$SCRIPT_DIR/load.js}"
 # Volume floor for list-endpoint checks: with the bulk seed in place every list
 # page must come back full. Unseeded runs (SKIP_SEED=1) drop the floor to 1
@@ -48,6 +49,8 @@ REGRESSION_FAIL="${REGRESSION_FAIL:-0}"   # 1 = exit non-zero on regression (def
 RUN_ID="perf-$$"
 PG_CONTAINER="${RUN_ID}-pg"
 REDIS_CONTAINER="${RUN_ID}-redis"
+IDP_CONTAINER="${RUN_ID}-idp"
+source "$REPO_ROOT/scripts/lib/dev-idp.sh"
 CONN="Host=localhost;Port=${PG_PORT};Database=${PG_DB};Username=postgres;Password=postgres"
 # StackExchange.Redis (via Aspire AddRedisDistributedCache("redis")) reads
 # ConnectionStrings:redis as a host:port endpoint. The API only wires Redis when
@@ -76,6 +79,8 @@ cleanup() {
       log "Removing Redis container"
       docker rm -f "$REDIS_CONTAINER" >/dev/null 2>&1 || true
     fi
+    log "Removing Keycloak container"
+    docker rm -f "$IDP_CONTAINER" >/dev/null 2>&1 || true
   fi
   exit "$code"
 }
@@ -128,6 +133,10 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
     log "SKIP_REDIS=1 — no Redis; by-id reads fall back to the in-memory cache (by-id thresholds are not prod-meaningful)"
   fi
 
+  log "Starting dev Keycloak on port $IDP_PORT (committed starterapp realm)"
+  idp_start "$IDP_CONTAINER" "$IDP_PORT" "$REPO_ROOT" \
+    || { err "Keycloak did not become ready."; exit 1; }
+
   log "Running database migrations (DbMigrator)"
   ConnectionStrings__database="$CONN" \
     dotnet run --project "$REPO_ROOT/src/StarterApp.DbMigrator" -c Release
@@ -141,7 +150,7 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
     [[ -z "$K6_MIN_LIST_ROWS_EXPLICIT" ]] && K6_MIN_LIST_ROWS=1
   fi
 
-  # The entire load profile runs under the single k6 gateway identity, so the
+  # The entire load profile runs under the single k6 identity, so the
   # per-identity rate limit must be lifted or the gate measures the limiter
   # (98.6% 429s on the first nightly run), not the API.
   # Pass Redis only when provisioned: an empty ConnectionStrings__redis still
@@ -153,12 +162,14 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
     REDIS_ENV+=("ConnectionStrings__redis=$REDIS_CONN")
   fi
 
-  log "Starting API on port $API_PORT (Development / UnsignedDevelopment)"
+  log "Starting API on port $API_PORT (Development, validating tokens from the dev Keycloak)"
   : > "$API_LOG"
   env \
   ASPNETCORE_ENVIRONMENT=Development \
   ASPNETCORE_URLS="http://0.0.0.0:${API_PORT}" \
   ConnectionStrings__database="$CONN" \
+  Identity__Authority="http://localhost:${IDP_PORT}/realms/starterapp" \
+  Identity__RequireHttpsMetadata=false \
   RateLimiting__PermitLimit=1000000 \
   ${REDIS_ENV[@]+"${REDIS_ENV[@]}"} \
     dotnet run --project "$REPO_ROOT/src/StarterApp.Api" -c Release --no-launch-profile \
@@ -178,12 +189,27 @@ else
   log "SKIP_BOOT=1 — targeting existing instance at $TARGET_URL"
 fi
 
+# --- mint the k6 identity token ------------------------------------------------
+# k6-user's sub/tid (username-as-sub, tenant_id attribute) match the owner
+# columns in tests/k6/seed/perf-seed.sql, so seeded rows are visible to the
+# load profile. SKIP_BOOT callers supply K6_AUTH_TOKEN themselves.
+if [[ -z "${K6_AUTH_TOKEN:-}" ]]; then
+  if [[ "$SKIP_BOOT" == "1" ]]; then
+    err "SKIP_BOOT=1 requires K6_AUTH_TOKEN (mint one against the target's IdP)."
+    exit 2
+  fi
+  log "Minting k6-user access token from the dev Keycloak"
+  K6_AUTH_TOKEN="$(idp_token "http://localhost:${IDP_PORT}" "k6-user" "k6-password")" \
+    || { err "Token request failed."; exit 1; }
+fi
+
 # --- run k6 -------------------------------------------------------------------
 log "Running k6 ($K6_SCRIPT) against $TARGET_URL"
 rm -f "$SUMMARY_OUT"
 
 K6_BASE_URL="$TARGET_URL" \
 K6_MIN_LIST_ROWS="$K6_MIN_LIST_ROWS" \
+K6_AUTH_TOKEN="$K6_AUTH_TOKEN" \
   k6 run --summary-export="$SUMMARY_OUT" "$K6_SCRIPT"
 
 log "PERF PASSED: all thresholds held. Summary: $SUMMARY_OUT"

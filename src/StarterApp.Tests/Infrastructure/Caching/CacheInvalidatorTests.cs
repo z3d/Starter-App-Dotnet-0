@@ -26,7 +26,7 @@ public class CacheInvalidatorTests
         await invalidator.InvalidateProductAsync(42, CancellationToken.None);
 
         // The bare key has no writer (cacheable queries are owner-scoped and unreachable
-        // without a gateway identity), so it must not be touched.
+        // without an authenticated identity), so it must not be touched.
         _cacheMock.Verify(c => c.RemoveAsync(
             It.Is<string>(key => key.StartsWith("Product:42:Owner:", StringComparison.Ordinal)),
             It.IsAny<CancellationToken>()), Times.Once);

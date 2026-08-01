@@ -41,7 +41,7 @@ The runner boots a throwaway PostgreSQL **and a throwaway Redis**, runs DbMigrat
 owner-scoped data for the k6 identity from `tests/k6/seed/perf-seed.sql` (20k customers / 20k
 products / 20k orders with items for the primary `k6-user`, plus ~1k each across four alternate
 owner identities so owner-scope predicates have real cardinality), starts the API in
-`GatewayIdentity:Mode=UnsignedDevelopment`, and runs k6. Any threshold breach makes k6 exit
+validating tokens from a throwaway dev Keycloak (the committed starterapp realm), mints a `k6-user` access token, and runs k6. Any threshold breach makes k6 exit
 non-zero and fails the run; the summary export and API log land in `tests/k6/reports/`
 (git-ignored, uploaded as the `k6-summary` artifact in CI).
 
@@ -86,8 +86,7 @@ See `tests/k6/baseline/README.md`.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `K6_BASE_URL` | `http://localhost:8080` | API base URL (no trailing slash); override for Aspire's assigned API URL |
-| `K6_AUTH_SUBJECT` | `k6-user` | Local gateway identity subject header |
-| `K6_AUTH_TENANT` | `k6-tenant` | Local gateway identity tenant header |
+| `K6_AUTH_TOKEN` | minted by `run-perf.sh` | Bearer token for the load profile; required for `SKIP_BOOT=1` runs |
 | `K6_MIN_LIST_ROWS` | `1` | Volume floor for list checks; the CI gate sets `20` after seeding so a fast-but-empty list response fails the run |
 
 ### `run-perf.sh` runner variables
@@ -112,5 +111,5 @@ See `tests/k6/baseline/README.md`.
 
 - Reset the test database between load test runs for consistent baselines.
 - Seed products are created with 100,000 stock to avoid depletion during load tests.
-- k6 sends normalized local `X-Authenticated-*` headers for `UnsignedDevelopment`, including `X-Authenticated-Amr` for write-route MFA proof.
+- k6 sends `Authorization: Bearer` with a token minted from the dev Keycloak as `k6-user`; the realm's username-as-sub and tenant_id mappers make the token's sub/tid match the seed's owner columns, and its amr carries `mfa` for write routes.
 - Smoke tests attempt cleanup but tolerate `409 Conflict` when order history prevents deletion.

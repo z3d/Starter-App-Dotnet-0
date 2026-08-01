@@ -29,7 +29,7 @@ archive retains it for provenance only. Held below 9 by the folder-only Clean Ar
 deferral and the accepted limitations below, not by open runtime defects.
 
 Verifiable snapshot (re-verify, don't trust): 9 command handlers, 7 query handlers, every
-command/query validated (convention-enforced), 0 CQRS violations, full suite ~680 tests green
+command/query validated (convention-enforced), 0 CQRS violations, full suite ~693 tests green
 plus AppHost integration tests; the nightly k6 perf gate and DAST scan both pass on `main`.
 
 ## Strengths (compressed — the archive carries the full analysis)

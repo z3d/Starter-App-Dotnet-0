@@ -1,7 +1,7 @@
 {
   "realm": "starterapp",
   "enabled": true,
-  "accessTokenLifespan": 600,
+  "accessTokenLifespan": 3600,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
   "registrationAllowed": false,
@@ -56,18 +56,32 @@
     },
     {
       "name": "starterapp-claims",
-      "description": "Deterministic dev claims: tenant id and authentication methods. The hardcoded amr (incl. mfa) mirrors the retired gateway emulator's default dev identity; real deployments must configure the IdP to emit genuine amr values.",
+      "description": "Deterministic dev claims: username-as-sub (so seeds and scripts can reference stable human-readable subjects), tenant id from the user's tenant_id attribute, and hardcoded amr (incl. mfa) mirroring the retired gateway emulator's default dev identity. Real deployments must configure the IdP to emit genuine sub/tid/amr values. The 1h access-token lifespan is a dev-realm pragmatism for long perf/DAST runs; production IdPs keep short lifetimes per docs/DECISIONS.md.",
       "protocol": "openid-connect",
       "attributes": { "include.in.token.scope": "false" },
       "protocolMappers": [
         {
-          "name": "dev-tenant-id",
+          "name": "username-as-sub",
           "protocol": "openid-connect",
-          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "protocolMapper": "oidc-usermodel-property-mapper",
           "consentRequired": false,
           "config": {
+            "user.attribute": "username",
+            "claim.name": "sub",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "tenant-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenant_id",
             "claim.name": "tid",
-            "claim.value": "local-dev-tenant",
             "jsonType.label": "String",
             "access.token.claim": "true",
             "id.token.claim": "true",
@@ -128,9 +142,40 @@
       "emailVerified": true,
       "firstName": "Dev",
       "lastName": "User",
+      "attributes": { "tenant_id": ["local-dev-tenant"] },
       "credentials": [
         { "type": "password", "value": "dev-password", "temporary": false }
       ]
+    },
+    {
+      "username": "k6-user",
+      "enabled": true,
+      "email": "k6-user@example.test",
+      "emailVerified": true,
+      "firstName": "K6",
+      "lastName": "Perf",
+      "attributes": { "tenant_id": ["k6-tenant"] },
+      "credentials": [
+        { "type": "password", "value": "k6-password", "temporary": false }
+      ]
+    },
+    {
+      "username": "dast-user-01",
+      "enabled": true,
+      "email": "dast-user-01@example.test",
+      "emailVerified": true,
+      "firstName": "Dast",
+      "lastName": "One",
+      "attributes": { "tenant_id": ["dast-tenant-01"] },
+      "credentials": [
+        { "type": "password", "value": "dast-password", "temporary": false }
+      ]
+    },
+    {
+      "username": "service-account-starterapp-dev",
+      "enabled": true,
+      "serviceAccountClientId": "starterapp-dev",
+      "attributes": { "tenant_id": ["local-dev-tenant"] }
     }
   ]
 }

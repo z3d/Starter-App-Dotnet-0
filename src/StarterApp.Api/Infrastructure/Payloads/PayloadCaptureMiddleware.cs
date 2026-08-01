@@ -147,7 +147,7 @@ public sealed class PayloadCaptureMiddleware
             ["action"] = AuditAction.Resolve(context)
         };
 
-        // The verified gateway identity makes "all deletes by subject X" answerable from
+        // The verified token identity makes "all deletes by subject X" answerable from
         // audit rows alone. Audit blobs are full-fidelity support artifacts (may contain
         // PII per the payload-capture policy); logs stay redacted as before.
         if (context.RequestServices?.GetService<ICurrentUser>() is { IsAuthenticated: true } currentUser)

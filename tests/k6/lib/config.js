@@ -6,13 +6,12 @@ export const BASE_URL = __ENV.K6_BASE_URL || 'http://localhost:8080';
 // full (see tests/k6/run-perf.sh and tests/k6/seed/perf-seed.sql).
 export const MIN_LIST_ROWS = Math.max(1, parseInt(__ENV.K6_MIN_LIST_ROWS || '1', 10) || 1);
 
+// OIDC access token for the whole load profile — minted by the runner script
+// (tests/k6/run-perf.sh boots the dev Keycloak and does a password grant as
+// k6-user, whose sub/tid match the perf seed's owner columns). Missing token
+// means every request 401s, which the checks surface immediately.
 export const AUTH_HEADERS = {
-  'X-Authenticated-Subject': __ENV.K6_AUTH_SUBJECT || 'k6-user',
-  'X-Authenticated-Principal-Type': 'User',
-  'X-Authenticated-Tenant-Id': __ENV.K6_AUTH_TENANT || 'k6-tenant',
-  'X-Authenticated-Scopes':
-    'customers:read customers:write orders:read orders:write products:read products:write',
-  'X-Authenticated-Amr': __ENV.K6_AUTH_AMR || 'mfa pwd',
+  Authorization: `Bearer ${__ENV.K6_AUTH_TOKEN || ''}`,
 };
 
 export const JSON_HEADERS = {
