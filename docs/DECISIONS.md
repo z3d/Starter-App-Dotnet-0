@@ -112,6 +112,8 @@ Rate limiting partitions by verified tenant/subject for protected endpoints and 
 
 **Re-add trigger for a gateway-verified model:** none — reintroducing perimeter-anchored identity requires a new recorded decision reversing the zero-trust requirement itself.
 
+**Re-add trigger for a local gateway hop (the deleted `StarterApp.Gateway`):** a deployed gateway-interaction bug class that needs local reproduction (forwarded headers, scheme-dependent redirects, auth-header handling across the hop, streaming/buffering or timeout behavior), or production APIM policies starting to mutate requests in ways the API must tolerate. When the trigger fires, prefer the APIM self-hosted gateway container (real policy execution) over a YARP stand-in — YARP reproduces a generic reverse proxy, not APIM behavior. Either way the hop stays a passthrough: identity remains validated in the API, never re-anchored at the proxy.
+
 ## Payload archive and PII audit
 
 Every inbound and outbound payload is captured through the shared capture service: HTTP request/response bodies, outbound Service Bus messages, inbound Function messages, and generated artifacts via `IArtifactCaptureSink`.
