@@ -83,6 +83,31 @@ domainEventsTopic.AddServiceBusSubscription(ServiceBusTopology.InventoryReservat
 serviceBus.RunAsEmulator(emulator => emulator
     .WithLifetime(ContainerLifetime.Persistent));
 
+// Dev IdP: Keycloak with the committed starterapp realm (asymmetric RS256, JWKS published), so
+// local dev exercises the same discovery -> JWKS -> verify path as production. Run mode only —
+// deployed environments use a real identity provider, so the container must never appear in a
+// publish manifest. The realm and admin bootstrap ship well-known development credentials by
+// design. Plain container rather than Aspire.Hosting.Keycloak: that package has no stable
+// release, and this repo does not take preview dependencies.
+IResourceBuilder<ContainerResource>? keycloak = null;
+if (builder.ExecutionContext.IsRunMode)
+{
+    keycloak = builder.AddContainer("keycloak", "quay.io/keycloak/keycloak", "26.4")
+        // Digest-pinned like the Dockerfile base images. Resolve a new digest when bumping:
+        // curl -sI https://quay.io/v2/keycloak/keycloak/manifests/<tag> \
+        //   -H "Accept: application/vnd.oci.image.index.v1+json"
+        .WithImageSHA256("9409c59bdfb65dbffa20b11e6f18b8abb9281d480c7ca402f51ed3d5977e6007")
+        .WithHttpEndpoint(targetPort: 8080, name: "http")
+        .WithHttpEndpoint(targetPort: 9000, name: "management")
+        .WithEnvironment("KC_BOOTSTRAP_ADMIN_USERNAME", "admin")
+        .WithEnvironment("KC_BOOTSTRAP_ADMIN_PASSWORD", "admin")
+        .WithEnvironment("KC_HEALTH_ENABLED", "true")
+        .WithBindMount("Realms", "/opt/keycloak/data/import", isReadOnly: true)
+        .WithArgs("start-dev", "--import-realm")
+        .WithHttpHealthCheck("/health/ready", endpointName: "management")
+        .WithLifetime(ContainerLifetime.Persistent);
+}
+
 // Add the database migrator as a separate service (must complete before API starts)
 var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
        .WithReference(db)
