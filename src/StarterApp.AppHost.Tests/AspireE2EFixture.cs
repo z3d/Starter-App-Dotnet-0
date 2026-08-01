@@ -92,12 +92,21 @@ public sealed class AspireE2EFixture : IAsyncLifetime
     // caches the token and re-mints near expiry because a full E2E run can outlive one token.
     public HttpClient CreateApiClient()
     {
+        // Target the https endpoint directly with redirect-following OFF: HttpClientHandler
+        // strips the Authorization header when it follows a redirect, so riding the
+        // UseHttpsRedirection 307 from the http endpoint silently de-authenticates every
+        // request (the old header-identity model survived redirects; bearer tokens don't).
+        // The dev certificate is accepted because this client only ever talks to the local rig.
         return new HttpClient(new KeycloakTokenHandler(App)
         {
-            InnerHandler = new HttpClientHandler()
+            InnerHandler = new HttpClientHandler
+            {
+                AllowAutoRedirect = false,
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            }
         })
         {
-            BaseAddress = App.GetEndpoint("api")
+            BaseAddress = App.GetEndpoint("api", "https")
         };
     }
 
@@ -110,7 +119,15 @@ public sealed class AspireE2EFixture : IAsyncLifetime
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await GetTokenAsync(cancellationToken));
-            return await base.SendAsync(request, cancellationToken);
+            var response = await base.SendAsync(request, cancellationToken);
+
+            // A 401 here means the API rejected a token this fixture just minted — fail with the
+            // bearer handler's reason (WWW-Authenticate) instead of a bare status code.
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                throw new InvalidOperationException(
+                    $"API rejected a fixture-minted token: {string.Join(" | ", response.Headers.WwwAuthenticate)}");
+
+            return response;
         }
 
         protected override void Dispose(bool disposing)
