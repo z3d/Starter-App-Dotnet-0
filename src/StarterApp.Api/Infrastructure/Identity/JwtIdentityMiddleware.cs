@@ -31,10 +31,17 @@ internal sealed class JwtIdentityMiddleware
 
     private static CurrentUser? Map(ClaimsPrincipal principal, string correlationId)
     {
+        // Both sub and tid are required: owner scoping, cache keys, and rate-limit partitions
+        // key on subject + tenant, so a token missing either maps to no identity (the scope
+        // filter then 401s) rather than authenticating with an empty owner-scope component —
+        // an IdP missing its tenant mapper must fail loudly, not stamp rows with "".
         var subject = principal.FindFirstValue("sub");
-        if (string.IsNullOrWhiteSpace(subject))
+        var tenantId = principal.FindFirstValue("tid");
+        if (string.IsNullOrWhiteSpace(subject) || string.IsNullOrWhiteSpace(tenantId))
             return null;
 
+        // pty is an optional custom claim a deployer's IdP may stamp to mark non-user callers
+        // (daemons, service accounts); anything else — including its absence — maps to User.
         var principalType = string.Equals(principal.FindFirstValue("pty"), nameof(AuthenticatedPrincipalType.Service), StringComparison.Ordinal)
             ? AuthenticatedPrincipalType.Service
             : AuthenticatedPrincipalType.User;
@@ -42,7 +49,7 @@ internal sealed class JwtIdentityMiddleware
         return new CurrentUser(
             subject,
             principalType,
-            principal.FindFirstValue("tid") ?? string.Empty,
+            tenantId,
             ReadMultiValueClaim(principal, "scp", "scope"),
             correlationId,
             ReadMultiValueClaim(principal, "amr"));

@@ -35,7 +35,11 @@ if [ -z "$SMOKE_ACCESS_TOKEN" ]; then
         echo "or run against the local AppHost stack (which exposes /demo/config in Development)."
         exit 2
     fi
-    SMOKE_ACCESS_TOKEN=$(curl -sf "${AUTHORITY%/}/protocol/openid-connect/token" \
+    # Same self-signed-cert allowance as the API calls, keyed off the authority's own scheme
+    # (the IdP may sit on a different host than BASE_URL).
+    AUTHORITY_CURL_OPTS="-sf"
+    [[ "$AUTHORITY" == https://* ]] && AUTHORITY_CURL_OPTS="-sfk"
+    SMOKE_ACCESS_TOKEN=$(curl $AUTHORITY_CURL_OPTS "${AUTHORITY%/}/protocol/openid-connect/token" \
         --data-urlencode "grant_type=password" \
         --data-urlencode "client_id=${SMOKE_CLIENT_ID:-starterapp-dev}" \
         --data-urlencode "client_secret=${SMOKE_CLIENT_SECRET:-local-dev-client-secret-not-a-secret}" \

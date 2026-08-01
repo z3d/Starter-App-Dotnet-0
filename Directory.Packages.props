@@ -45,6 +45,13 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.5" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.3.0" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.2.0" />
+    <!-- Transitive pin: Microsoft.AspNetCore.Authentication.JwtBearer 10.0.3 floors the
+         Microsoft.IdentityModel token-validation family at 8.0.1 while other dependencies
+         already resolve Microsoft.IdentityModel.Abstractions 8.14.0. Pin the top of the
+         family so every IdentityModel assembly resolves at one current version — mixed
+         versions in the signature-validation path are a known source of subtle failures.
+         Remove when JwtBearer's own floor reaches the Abstractions version in this graph. -->
+    <PackageVersion Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.14.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
     <!-- Transitive pin: Microsoft.AspNetCore.OpenApi 10.0.3 pulls Microsoft.OpenApi 2.0.0, which
          carries GHSA-v5pm-xwqc-g5wc (stack overflow on a circular schema reference; NU1903 fails

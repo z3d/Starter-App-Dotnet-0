@@ -47,7 +47,7 @@ internal static class TestJwtIdentity
 
     public static string CreateToken(
         string subject = DefaultSubject,
-        string tenantId = DefaultTenantId,
+        string? tenantId = DefaultTenantId,
         string? scopes = DefaultScopes,
         string? authenticationMethods = DefaultAuthenticationMethods,
         string issuer = Issuer,
@@ -58,9 +58,11 @@ internal static class TestJwtIdentity
     {
         var claims = new Dictionary<string, object>
         {
-            ["sub"] = subject,
-            ["tid"] = tenantId
+            ["sub"] = subject
         };
+
+        if (tenantId != null)
+            claims["tid"] = tenantId;
 
         if (scopes != null)
             claims["scope"] = scopes;

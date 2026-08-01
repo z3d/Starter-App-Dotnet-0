@@ -66,6 +66,16 @@ public class JwtIdentityIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task MissingTenantClaim_Returns401()
+    {
+        // A validly signed token without tid must not authenticate: owner scoping, cache keys,
+        // and rate-limit partitions key on subject + tenant, so an IdP missing its tenant
+        // mapper has to fail loudly instead of stamping rows with an empty tenant.
+        var response = await SendWithTokenAsync(TestJwtIdentity.CreateToken(tenantId: null));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task MissingScope_Returns403()
     {
         var response = await SendWithTokenAsync(TestJwtIdentity.CreateToken(scopes: "customers:read"));
