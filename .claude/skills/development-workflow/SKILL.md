@@ -27,11 +27,11 @@ act -j build
 ./scripts/smoke-test.sh https://localhost:7286        # post-deploy check; non-zero exit on failure
 SMOKE_BASE_URL=https://staging.example.com ./scripts/smoke-test.sh
 
-DEV_TUNNEL_ACK_UNSIGNED_API=true \
+DEV_TUNNEL_ACK_DEV_IDP=true \
   dotnet run --project src/StarterApp.AppHost -- --devtunnel
 ```
 
-The dev-tunnel acknowledgment is a real gate, not ceremony: the tunneled API runs `GatewayIdentity:Mode=UnsignedDevelopment`, which trusts identity headers with no signed assertion, so AppHost refuses to start the tunnel without it.
+The dev-tunnel acknowledgment is a real gate, not ceremony: the tunneled API accepts tokens minted by the local dev Keycloak, whose realm ships well-known development credentials — anyone who can reach the tunnel can mint a valid token. AppHost refuses to start the tunnel without the acknowledgment.
 
 ## Depth
 

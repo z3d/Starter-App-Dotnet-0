@@ -15,7 +15,13 @@ deliberate design stance (patterns are the pedagogy, convention tests are the pr
 accidental weight — a 2026-06-12 juice-vs-squeeze complexity review confirmed the stance and
 pruned what failed it (see `docs/ROADMAP.md`, complexity-review backlog).
 
-**Score: 8.2/10** — last independently re-scored 2026-06-09 (strict production scale).
+**Score: 8.0/10** — self-adjusted 2026-08-01 on the gateway→OIDC identity conversion (was 8.2,
+independently re-scored 2026-06-09, strict production scale). The conversion trades a
+distinctive strength (individually-signed gateway assertions) for zero-trust posture (the API
+verifies the caller's own credential, asymmetric JWKS, no shared secrets); the net dip is the
+open sender-constraining finding below — bearer tokens replay wider than the retired 150s
+method+path-bound assertions did. Recovers when DPoP/mTLS-binding lands or the finding is
+re-accepted with evidence.
 **Read this before trusting the number**: the score is self-assessed by the maintaining agents
 (Claude and Codex across sessions) with no external human validator and no fixed rubric; treat it
 as a maintenance log, not an audit. The historical self-graded 9.7 was stale/monotonic — the
@@ -23,7 +29,7 @@ archive retains it for provenance only. Held below 9 by the folder-only Clean Ar
 deferral and the accepted limitations below, not by open runtime defects.
 
 Verifiable snapshot (re-verify, don't trust): 9 command handlers, 7 query handlers, every
-command/query validated (convention-enforced), 0 CQRS violations, full suite ~680 tests green
+command/query validated (convention-enforced), 0 CQRS violations, full suite ~693 tests green
 plus AppHost integration tests; the nightly k6 perf gate and DAST scan both pass on `main`.
 
 ## Strengths (compressed — the archive carries the full analysis)
@@ -33,8 +39,8 @@ coverage); rich DDD aggregates with client-generated v7 ids for creation-event a
 strict CQRS (EF commands / Dapper reads); transactional outbox with claim/salvage, per-cause
 retry budgets, replay verb + runbook, and pinned event-contract snapshots; full payload
 capture/audit posture with per-channel failure policy, owner-scoped redaction rules, and
-correlation-bound artifact slot; signed gateway identity with every projected value signed
-individually; owner-scoping enforced in predicates, policy, cache keys, and rate-limit
+correlation-bound artifact slot; zero-trust OIDC/JWT identity validated in the API itself
+(asymmetric JWKS, no shared secrets, no bypass mode); owner-scoping enforced in predicates, policy, cache keys, and rate-limit
 partitions, with policy invocation structurally verified in the mediator pipeline; refresh-ahead
 caching with serve-stale-on-error; job-run history; incident knowledge base + reporting pack,
 both schema-guarded; supply-chain hardening (CPM + locked-mode, digest-pinned images, SHA-pinned
@@ -105,15 +111,23 @@ Decisions / watch-items / explained deferrals — no open runtime defects.
   Application because the repository pattern is banned) and deliberately deferred: large
   high-churn refactor for marginal gain at 3 entities. Revisit if the domain grows or a
   compiler-enforced guarantee is required. Full design rationale in the archive.
-- **Gateway-assertion replay window — ACCEPTED (threat-model decision).** A valid assertion
-  replays within its ~150s lifetime (no `jti`/nonce store). Accepted under trusted-gateway + TLS:
-  a replay can only repeat the exact same authorized call. Fix-when-needed: gateway-emitted `jti`
-  checked against the shared Redis with TTL = token lifetime (then hard-requires shared Redis
-  across replicas). Revisit on zero-trust networks or regulated contexts.
-- **Assertion does not sign body or query string — ACCEPTED (threat-model decision).** Signature
-  binds method + path + identity + scopes + amr + expiry; body/query tampering inside the
-  encrypted gateway→API hop is out of the threat model (TLS covers transit). Fix-when-needed:
-  sign the query string (cheap) and a body hash (costly — full-body buffering both sides).
+- **RETIRED (2026-08-01) — the two gateway-assertion acceptances (replay window, unsigned
+  body/query).** Both were conditioned on the trusted perimeter; the zero-trust requirement fired
+  their shared revisit trigger and the assertion model itself was replaced with OIDC/JWT
+  validated in the API (`docs/DECISIONS.md`, "OIDC/JWT identity"; old model at tag
+  `pre-idp-conversion`). Superseded by the two entries below.
+- **OPEN — bearer tokens are not sender-constrained (replay posture regressed vs the retired
+  model).** The retired assertion was bound to method + exact path with a ~150s lifetime; an
+  IdP-issued bearer token is valid for any endpoint in its audience until expiry. Mitigated by
+  short access-token lifetimes and strict audience validation, but honestly a wider replay
+  surface than before. Fix: DPoP (RFC 9449) or mTLS-bound tokens (RFC 8705) — Keycloak supports
+  both locally; note Entra's narrower support constrains the production IdP choice. Trigger to
+  implement: before any production deployment on an untrusted network, or the first time a token
+  is observed outside its intended client.
+- **MFA truth is delegated to the IdP — ACCEPTED (2026-08-01).** `SecuredBy2Fa()` enforces that
+  the validated token's `amr` contains `mfa`, but whether that claim reflects real MFA is IdP
+  realm/policy configuration outside this repo. Deployers: enforce MFA in the IdP; the API-side
+  check is a backstop, not the source of truth.
 - **Audit/archive blobs are not WORM-protected — ACCEPTED (2026-06-10, deployer guidance).**
   Anything with blob-delete rights can destroy audit records inside the retention window; the
   repo cannot express an immutability policy (emulator doesn't enforce it; no IaC by decision).
@@ -123,6 +137,11 @@ Decisions / watch-items / explained deferrals — no open runtime defects.
   commit-succeeded-but-ack-lost retry can insert a duplicate row. The fix (client-generated v7 id
   or a unique business key) is a deliberate stakeholder decision left open; Customer create is
   idempotent via its owner-scoped unique email. Residual test gaps recorded in the archive.
+- **Dev/E2E dependency on the Keycloak container — ACCEPTED (2026-08-01).** The Aspire run mode
+  and AppHost E2E tests depend on the Keycloak container booting with the imported realm; unit
+  and integration tests avoid it via the self-issued RSA test-JWT signer + in-memory JWKS, so
+  only the Aspire-collection facts carry the dependency. Watch for realm-import drift between the
+  committed realm file and what k6/DAST/smoke expect.
 - **Watch-item — `aspire` CI flake (Service Bus emulator readiness).** Cold-runner emulator
   startup can time out `AppHost_ShouldEventuallyExposeHealthyApi`; raise the readiness timeout if
   it recurs. Mitigation underway: the shared E2E fixture (backlog item 13) cuts the boot count,

@@ -1,6 +1,6 @@
 # Owner Scoping in Handlers
 
-Customer, Product, and Order are owner-scoped resources. Gateway identity establishes *who* the caller is; owner scoping establishes *which rows they may see or change*. Route metadata cannot do this — it can enforce identity, scope, and MFA before dispatch, but it has no idea who owns a specific row. So the checks live in query predicates and command handlers.
+Customer, Product, and Order are owner-scoped resources. The validated JWT establishes *who* the caller is; owner scoping establishes *which rows they may see or change*. Route metadata cannot do this — it can enforce identity, scope, and MFA before dispatch, but it has no idea who owns a specific row. So the checks live in query predicates and command handlers.
 
 ## The four convention rules
 
@@ -43,10 +43,10 @@ No `SELECT *` — `QueryHandlers_MustNotUseSelectStar` scans compiled IL for the
 
 ## Caching interaction
 
-Owner-scoped by-id caches include the verified tenant and subject in the cache key, and mutations invalidate the owner-scoped key only. The bare resource key has no writer — cacheable queries are all owner-scoped, and the protected surface is unreachable without a gateway identity — so cached data cannot cross identities.
+Owner-scoped by-id caches include the verified tenant and subject in the cache key, and mutations invalidate the owner-scoped key only. The bare resource key has no writer — cacheable queries are all owner-scoped, and the protected surface is unreachable without an authenticated identity — so cached data cannot cross identities.
 
-This is also why cache refresh-ahead recomputes on the caller rather than in a background scope: a background scope has no gateway identity, so it would populate an owner-scoped key from the wrong one. See `docs/DECISIONS.md`.
+This is also why cache refresh-ahead recomputes on the caller rather than in a background scope: a background scope has no caller identity, so it would populate an owner-scoped key from the wrong one. See `docs/DECISIONS.md`.
 
 ## What this does not cover
 
-Gateway auth and owner scoping are the baseline, not the whole authorization story. Tenant-level permissions, resource-level roles, and domain-sensitive workflow rules still belong in application and domain code, with `IOwnerOnlyPolicy` as the floor.
+Token auth and owner scoping are the baseline, not the whole authorization story. Tenant-level permissions, resource-level roles, and domain-sensitive workflow rules still belong in application and domain code, with `IOwnerOnlyPolicy` as the floor.

@@ -22,7 +22,7 @@ public sealed class OwnerOnlyPolicy : IOwnerOnlyPolicy
     public OwnerScope GetRequiredScope()
     {
         if (!_currentUser.IsAuthenticated)
-            throw new UnauthorizedAccessException("A valid gateway identity is required.");
+            throw new UnauthorizedAccessException("An authenticated identity is required.");
 
         return new OwnerScope(_currentUser.Subject, _currentUser.TenantId);
     }

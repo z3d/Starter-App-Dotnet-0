@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net.Http.Headers;
+using System.Text.Json;
 using Aspire.Hosting;
 using Aspire.Hosting.Testing;
 
@@ -79,20 +81,100 @@ public sealed class AspireE2EFixture : IAsyncLifetime
             await App.DisposeAsync();
     }
 
-    // No identity headers: orchestrator probes (Docker, Kubernetes) carry none, so health
+    // No bearer token: orchestrator probes (Docker, Kubernetes) carry none, so health
     // endpoints must be verifiable anonymously — an authenticated-only client would mask a
-    // regression that accidentally puts gateway identity in front of readiness/liveness.
+    // regression that accidentally puts authentication in front of readiness/liveness.
     public HttpClient CreateAnonymousApiClient() => App.CreateHttpClient("api");
 
+    // Authenticated client: every request rides a real access token minted by the dev Keycloak
+    // realm (client-credentials grant against the committed starterapp-dev client), so E2E facts
+    // exercise the same discovery -> JWKS -> asymmetric-verify path as production. The handler
+    // caches the token and re-mints near expiry because a full E2E run can outlive one token.
     public HttpClient CreateApiClient()
     {
-        var client = CreateAnonymousApiClient();
-        client.DefaultRequestHeaders.Add("X-Authenticated-Subject", "apphost-test-user");
-        client.DefaultRequestHeaders.Add("X-Authenticated-Principal-Type", "User");
-        client.DefaultRequestHeaders.Add("X-Authenticated-Tenant-Id", "apphost-test-tenant");
-        client.DefaultRequestHeaders.Add("X-Authenticated-Scopes", "customers:read customers:write orders:read orders:write products:read products:write");
-        client.DefaultRequestHeaders.Add("X-Authenticated-Amr", "mfa pwd");
-        return client;
+        // Target the https endpoint directly with redirect-following OFF: HttpClientHandler
+        // strips the Authorization header when it follows a redirect, so riding the
+        // UseHttpsRedirection 307 from the http endpoint silently de-authenticates every
+        // request (the old header-identity model survived redirects; bearer tokens don't).
+        // The dev certificate is accepted because this client only ever talks to the local rig.
+        return new HttpClient(new KeycloakTokenHandler(App)
+        {
+            InnerHandler = new HttpClientHandler
+            {
+                AllowAutoRedirect = false,
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            }
+        })
+        {
+            BaseAddress = App.GetEndpoint("api", "https")
+        };
+    }
+
+    private sealed class KeycloakTokenHandler(DistributedApplication app) : DelegatingHandler
+    {
+        private readonly SemaphoreSlim _refreshLock = new(1, 1);
+        private string? _token;
+        private DateTimeOffset _refreshAfter = DateTimeOffset.MinValue;
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await GetTokenAsync(cancellationToken));
+            var response = await base.SendAsync(request, cancellationToken);
+
+            // A 401 here means the API rejected a token this fixture just minted — fail with the
+            // bearer handler's reason (WWW-Authenticate) instead of a bare status code.
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                throw new InvalidOperationException(
+                    $"API rejected a fixture-minted token: {string.Join(" | ", response.Headers.WwwAuthenticate)}");
+
+            return response;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                _refreshLock.Dispose();
+            base.Dispose(disposing);
+        }
+
+        private async Task<string> GetTokenAsync(CancellationToken cancellationToken)
+        {
+            if (_token is not null && DateTimeOffset.UtcNow < _refreshAfter)
+                return _token;
+
+            await _refreshLock.WaitAsync(cancellationToken);
+            try
+            {
+                if (_token is not null && DateTimeOffset.UtcNow < _refreshAfter)
+                    return _token;
+
+                using var keycloak = app.CreateHttpClient("keycloak", "http");
+                using var response = await keycloak.PostAsync(
+                    "/realms/starterapp/protocol/openid-connect/token",
+                    new FormUrlEncodedContent(new Dictionary<string, string>
+                    {
+                        ["grant_type"] = "client_credentials",
+                        ["client_id"] = "starterapp-dev",
+                        ["client_secret"] = "local-dev-client-secret-not-a-secret",
+                        // The resource scopes are optional client scopes so callers (and the demo
+                        // walkthrough) choose what a token carries; request the full set here.
+                        ["scope"] = "customers:read customers:write orders:read orders:write products:read products:write"
+                    }),
+                    cancellationToken);
+                response.EnsureSuccessStatusCode();
+
+                using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+                _token = json.RootElement.GetProperty("access_token").GetString()
+                    ?? throw new InvalidOperationException("Keycloak token response carried no access_token.");
+                var expiresInSeconds = json.RootElement.GetProperty("expires_in").GetInt32();
+                _refreshAfter = DateTimeOffset.UtcNow.AddSeconds(Math.Max(expiresInSeconds - 60, 30));
+                return _token;
+            }
+            finally
+            {
+                _refreshLock.Release();
+            }
+        }
     }
 }
 

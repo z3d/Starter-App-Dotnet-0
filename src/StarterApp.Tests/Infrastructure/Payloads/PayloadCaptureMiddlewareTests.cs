@@ -62,8 +62,8 @@ public class PayloadCaptureMiddlewareTests
 
         await middleware.InvokeAsync(context);
 
-        // The gateway identity layer validates the raw value the gateway signed, so a present correlation id
-        // must reach the downstream pipeline unchanged (not pre-sanitized by this middleware)...
+        // A present correlation id is the caller's own request data and must reach the downstream
+        // pipeline unchanged (not pre-sanitized by this middleware)...
         Assert.Equal("trace:abc", downstreamCorrelationId);
 
         // ...while the echoed correlation id stays sanitized, so raw client input is never reflected

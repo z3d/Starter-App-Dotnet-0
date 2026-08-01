@@ -2,10 +2,11 @@
 #
 # DAST runner for the StarterApp API using OWASP ZAP.
 #
-# Boots a throwaway PostgreSQL, runs DbUp migrations, starts the API in
-# Development (GatewayIdentity:Mode=UnsignedDevelopment), then runs the ZAP
-# Automation Framework plan in dast/automation.yaml against it. Fails the
-# build if any alert at or above the configured risk threshold is found.
+# Boots a throwaway PostgreSQL + dev Keycloak, runs DbUp migrations, starts the
+# API in Development validating tokens from the Keycloak realm, mints a
+# dast-user-01 access token, then runs the ZAP Automation Framework plan in
+# dast/automation.yaml against it. Fails the build if any alert at or above the
+# configured risk threshold is found.
 #
 # Usage:
 #   dast/run-dast.sh                     # full self-contained run (boots DB + API)
@@ -44,8 +45,11 @@ SKIP_SEED="${SKIP_SEED:-0}"               # 1 = skip the owner-scoped data seed
 # (plus the ZAP exit-code guard below) turns a dead/throttled scan into a hard
 # failure. It is the DAST analogue of the k6 gate's K6_MIN_LIST_ROWS volume floor.
 DAST_MIN_URLS="${DAST_MIN_URLS:-5}"
+IDP_PORT="${IDP_PORT:-58081}"             # dev Keycloak host port (perf runner uses 58080)
 RUN_ID="dast-$$"
 PG_CONTAINER="${RUN_ID}-pg"
+IDP_CONTAINER="${RUN_ID}-idp"
+source "$REPO_ROOT/scripts/lib/dev-idp.sh"
 CONN="Host=localhost;Port=${PG_PORT};Database=${PG_DB};Username=postgres;Password=postgres"
 
 API_PID=""
@@ -73,6 +77,7 @@ cleanup() {
   if [[ "$SKIP_BOOT" != "1" ]]; then
     log "Removing PostgreSQL container"
     "$CONTAINER_CLI" rm -f "$PG_CONTAINER" >/dev/null 2>&1 || true
+    "$CONTAINER_CLI" rm -f "$IDP_CONTAINER" >/dev/null 2>&1 || true
   fi
   exit "$code"
 }
@@ -100,6 +105,10 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
     sleep 1
   done
 
+  log "Starting dev Keycloak on port $IDP_PORT (committed starterapp realm)"
+  idp_start "$IDP_CONTAINER" "$IDP_PORT" "$REPO_ROOT" \
+    || { err "Keycloak did not become ready."; exit 1; }
+
   log "Running database migrations (DbMigrator)"
   ConnectionStrings__database="$CONN" \
     dotnet run --project "$REPO_ROOT/src/StarterApp.DbMigrator" -c Release
@@ -116,7 +125,7 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
     log "SKIP_SEED=1 — running without the owner-scoped data seed"
   fi
 
-  log "Starting API on port $API_PORT (Development / UnsignedDevelopment)"
+  log "Starting API on port $API_PORT (Development, validating tokens from the dev Keycloak)"
   : > "$API_LOG"
   # Bind all interfaces (0.0.0.0), not just loopback: ZAP runs inside a Docker
   # container and reaches the API via host.docker.internal (the bridge gateway,
@@ -132,6 +141,8 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
   ASPNETCORE_ENVIRONMENT=Development \
   ASPNETCORE_URLS="http://0.0.0.0:${API_PORT}" \
   ConnectionStrings__database="$CONN" \
+  Identity__Authority="http://localhost:${IDP_PORT}/realms/starterapp" \
+  Identity__RequireHttpsMetadata=false \
   RateLimiting__PermitLimit=1000000 \
     dotnet run --project "$REPO_ROOT/src/StarterApp.Api" -c Release --no-launch-profile \
     >"$API_LOG" 2>&1 &
@@ -157,10 +168,25 @@ log "Running OWASP ZAP ($ZAP_IMAGE)"
 rm -f "$SCRIPT_DIR/reports/dast-report.json" "$SCRIPT_DIR/reports/dast-report.html" "$SCRIPT_DIR/reports/zap-autorun.log"
 chmod -R a+rwX "$SCRIPT_DIR/reports" 2>/dev/null || true
 
-# Render the automation template with the real port (single source of truth lives
-# here, not in the YAML). The rendered plan lands under the git-ignored reports dir.
+# Mint the scanned identity's access token. dast-user-01's sub/tid match the
+# owner columns in dast/seed/dast-seed.sql. SKIP_BOOT callers supply DAST_TOKEN
+# themselves (mint one against the target's IdP).
+if [[ -z "${DAST_TOKEN:-}" ]]; then
+  if [[ "$SKIP_BOOT" == "1" ]]; then
+    err "SKIP_BOOT=1 requires DAST_TOKEN (mint one against the target's IdP)."
+    exit 2
+  fi
+  log "Minting dast-user-01 access token from the dev Keycloak"
+  DAST_TOKEN="$(idp_token "http://localhost:${IDP_PORT}" "dast-user-01" "dast-password")" \
+    || { err "Token request failed."; exit 1; }
+fi
+
+# Render the automation template with the real port and token (single source of
+# truth lives here, not in the YAML). The rendered plan lands under the
+# git-ignored reports dir; the token is a throwaway dev-realm credential.
 RENDERED_PLAN="$SCRIPT_DIR/reports/automation.rendered.yaml"
-sed "s/__API_PORT__/${ZAP_PORT}/g" "$SCRIPT_DIR/automation.yaml" > "$RENDERED_PLAN"
+sed -e "s/__API_PORT__/${ZAP_PORT}/g" -e "s|__DAST_TOKEN__|${DAST_TOKEN}|g" \
+  "$SCRIPT_DIR/automation.yaml" > "$RENDERED_PLAN"
 
 # --add-host makes host.docker.internal resolve to the host on Linux too.
 # Capture ZAP's exit code instead of swallowing it with `|| true`. ZAP autorun
@@ -285,13 +311,9 @@ if [[ "$SKIP_BOOT" != "1" && "$SKIP_SEED" != "1" ]]; then
   XO_PRODUCT_ID=900001
   XO_ORDER_GUID="00000000-0000-0000-0000-0000dad70002"
 
-  # Owner-01 identity headers — must match automation.yaml's replacer rules.
+  # Owner-01 identity — the same dast-user-01 token the ZAP replacer injects.
   idem_headers=(
-    -H "X-Authenticated-Subject: dast-user-01"
-    -H "X-Authenticated-Principal-Type: User"
-    -H "X-Authenticated-Tenant-Id: dast-tenant-01"
-    -H "X-Authenticated-Scopes: customers:read customers:write orders:read orders:write products:read products:write"
-    -H "X-Authenticated-Amr: mfa pwd"
+    -H "Authorization: Bearer ${DAST_TOKEN}"
   )
 
   idor_fail=0

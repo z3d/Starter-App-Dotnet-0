@@ -6,7 +6,7 @@ namespace StarterApp.Api.Infrastructure;
 // verified tenant/subject for authenticated traffic, client IP otherwise). Bound from
 // the RateLimiting section and validated at startup so a deployment tunes limits
 // without a code change — the k6 perf gate relies on overriding PermitLimit because
-// its entire load runs under a single gateway identity.
+// its entire load runs under a single caller identity.
 public class RateLimitingOptions
 {
     public const string SectionName = "RateLimiting";

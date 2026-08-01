@@ -173,7 +173,7 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
 
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
-            configuration.AddInMemoryCollection(TestGatewayIdentity.Configuration);
+            configuration.AddInMemoryCollection(TestJwtIdentity.Configuration);
         });
 
         builder.ConfigureLogging(logging =>
@@ -186,6 +186,7 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
         {
             services.RemoveAll<IPayloadArchiveStore>();
             services.AddSingleton<IPayloadArchiveStore>(PayloadArchiveStore);
+            TestJwtIdentity.ConfigureTestJwtValidation(services);
         });
     }
     public async Task InitializeAsync()
@@ -203,7 +204,7 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
 
             // Then create the client with the configured web host
             ClientOptions.AllowAutoRedirect = false;
-            Client = CreateDefaultClient(new GatewayIdentitySigningHandler());
+            Client = CreateDefaultClient(new JwtSigningHandler());
             Log.Information("Test API client created and ready");
         }
         catch (Exception ex)

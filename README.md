@@ -23,16 +23,11 @@ dotnet run
 - **API**: Available at dynamically assigned port (shown in dashboard)
 - **Scalar API Reference**: `https://localhost:<api-port>/scalar`
 
-#### Optional: local gateway emulator
+#### Identity in the local rig
 
-By default the locally-orchestrated API runs in `GatewayIdentity:Mode=UnsignedDevelopment` and trusts projected `X-Authenticated-*` identity headers directly. To exercise the production verification path locally, opt into the `StarterApp.Gateway` reverse-proxy emulator, which fronts the API, projects the normalized identity headers, and signs the `X-Gateway-Assertion` the API verifies in `Required` mode:
+The AppHost boots a **dev Keycloak** container with the committed `starterapp` realm and points the API's `Identity:Authority` at it, so local dev exercises the exact production path: OIDC discovery → JWKS fetch → asymmetric (RS256) token verification inside the API. There is no unsigned or bypass mode in any environment. Mint a token with the `starterapp-dev` client (secret and dev users are well-known, committed dev credentials — see `src/StarterApp.AppHost/Realms/`).
 
-```powershell
-# From src\StarterApp.AppHost
-dotnet run -- --gateway          # or set ENABLE_GATEWAY=true
-```
-
-With the gateway running, open **`/demo`** on the gateway origin for a self-contained interactive walkthrough: it drives probe → identity → product → customer → order through the signed path with an animated pipeline, same-origin with the proxied API (so its fetches need no CORS). Untick a scope or `mfa` in the identity step to watch the API refuse a write with `403` from the signed assertion alone.
+With the stack running, open **`/demo.html`** on the API origin (Development only) for a self-contained interactive walkthrough: it signs in against Keycloak, then drives probe → token → product → customer → order with an animated pipeline. Untick `orders:write` in the sign-in step to watch the API refuse the order write with `403` decided from the token's scopes alone.
 
 ## What This Project Demonstrates
 
@@ -82,7 +77,6 @@ starterapp/
 │   ├── StarterApp.Api/              # Main Web API (+ outbox processor)
 │   ├── StarterApp.Domain/           # Domain models and interfaces
 │   ├── StarterApp.Functions/        # Azure Functions (Service Bus subscribers)
-│   ├── StarterApp.Gateway/          # Dev-only APIM gateway emulator (reverse proxy + signed identity projection)
 │   ├── StarterApp.DbMigrator/       # Database migration console app
 │   ├── StarterApp.ServiceDefaults/  # Shared Aspire configuration
 │   └── StarterApp.Tests/            # Unit, convention, integration, fuzzing tests
@@ -159,7 +153,7 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 
 - **Clean Architecture**: Separation of concerns with Domain, Application, and Infrastructure layers
 - **Modern .NET Patterns**: Uses C# 13/.NET 10 features like collection expressions, guard clauses, and using declarations
-- **Gateway-Based Authentication**: The API trusts a normalized `X-Authenticated-*` identity contract projected by a front gateway (APIM in production) and verifies a signed `X-Gateway-Assertion` in `Required` mode. `StarterApp.Gateway` is a dev-only reverse-proxy emulator of that gateway, so local orchestration can exercise the signed verification path
+- **Zero-Trust OIDC/JWT Authentication**: The API validates IdP-issued bearer tokens itself (issuer, audience, signature, expiry — asymmetric keys via cached JWKS, no shared secrets, no perimeter assumptions). Locally, Aspire runs a Keycloak container with a committed realm so dev exercises the same verification path as production
 - **Health Checks**: Built-in liveness/readiness probes plus durable dependency checks for the database, distributed cache, Service Bus, and payload archive store
 - **Distributed Caching**: Redis-backed by-id query caching via mediator pipeline behavior; list queries are intentionally not cached because `IDistributedCache` cannot invalidate by pattern
 - **Cache Safety Conventions**: Convention tests enforce non-empty deterministic cache keys, by-id-only caching, and invalidator injection for non-create mutations on cacheable entities
@@ -174,7 +168,6 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 
 ## Documentation
 
-- **[Blog Site](https://z3d.github.io/blog/)**: GitHub Pages site for long-form engineering notes ([z3d/blog](https://github.com/z3d/blog))
 - **[API Endpoints](docs/API-ENDPOINTS.md)**: Complete documentation of all Minimal API endpoints with examples and usage patterns
 - **[Architectural Guide](CLAUDE.md)**: Comprehensive guide to the Clean Architecture implementation, patterns, and conventions
 - **[Setup Guides](docs/)**: Step-by-step guides for development environment setup and deployment

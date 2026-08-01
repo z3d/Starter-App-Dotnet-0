@@ -25,7 +25,7 @@ builder.Services.AddApiOpenApi();
 builder.Services.AddPersistence(connectionString);
 builder.Services.AddMediator(Assembly.GetExecutingAssembly());
 builder.Services.AddApiCors(builder.Configuration, builder.Environment);
-builder.Services.AddGatewayIdentity(builder.Configuration, builder.Environment);
+builder.Services.AddJwtIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddApiRateLimiting();
 builder.Services.AddApiHealthChecks(builder.Configuration);
 builder.Services.AddServiceBusPublisher(builder.Configuration, builder.Environment);
@@ -48,6 +48,13 @@ try
     {
         app.MapOpenApi();
         app.MapScalarApiReference();
+
+        // Dev-only interactive walkthrough (wwwroot/demo.html) plus the config probe it uses to
+        // find the token endpoint. Static hosting and the endpoint are both dev-gated; nothing
+        // under wwwroot ships in other environments.
+        app.UseStaticFiles();
+        app.MapGet("/demo/config", (Microsoft.Extensions.Options.IOptions<StarterApp.Api.Infrastructure.Identity.JwtIdentityOptions> identity) =>
+            Results.Ok(new { authority = identity.Value.Authority }));
     }
     else
     {
@@ -60,7 +67,7 @@ try
     app.UseHttpsRedirection();
     app.UseCors();
     app.UseRouting();
-    app.UseGatewayIdentity();
+    app.UseJwtIdentity();
     app.UseRateLimiter();
 
     app.MapApiEndpoints();

@@ -80,8 +80,8 @@ This will start:
 ### Manual Testing
 1. Open the Scalar API Reference at the API URL
 2. Try the GET `/api/v1/products` endpoint
-3. Add the required gateway identity headers shown in [API-ENDPOINTS.md](../API-ENDPOINTS.md)
-4. Use POST/PUT/DELETE operations with the matching `*:write` scope and `X-Authenticated-Amr: mfa`
+3. Mint a dev token and add the `Authorization: Bearer` header shown in [API-ENDPOINTS.md](../API-ENDPOINTS.md)
+4. Use POST/PUT/DELETE operations with a token carrying the matching `*:write` scope and `mfa` in `amr`
 
 ### Automated Testing
 ```bash

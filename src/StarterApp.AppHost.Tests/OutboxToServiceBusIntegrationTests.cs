@@ -81,7 +81,7 @@ public class OutboxToServiceBusIntegrationTests
     [Fact]
     public async Task HealthEndpoints_ShouldBeReachable()
     {
-        // Arrange — anonymous on purpose: orchestrator probes carry no gateway identity, so a
+        // Arrange — anonymous on purpose: orchestrator probes carry no credentials, so a
         // regression that puts auth in front of readiness/liveness must fail HERE.
         var app = _fixture.App;
         var httpClient = _fixture.CreateAnonymousApiClient();

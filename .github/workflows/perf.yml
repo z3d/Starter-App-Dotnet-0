@@ -56,7 +56,7 @@ jobs:
         k6 version
 
     # Boots a throwaway PostgreSQL, migrates, bulk-seeds owner-scoped data for
-    # the k6 identity, starts the API in UnsignedDevelopment, and runs the k6
+    # the k6 identity, starts the API against a throwaway dev Keycloak, and runs the k6
     # script. Thresholds (latency percentiles, error rate, check pass rate,
     # full-page volume assertions) fail the run on breach. See tests/k6/README.md.
     - name: k6 performance gate

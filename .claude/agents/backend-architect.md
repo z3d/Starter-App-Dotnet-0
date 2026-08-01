@@ -15,7 +15,7 @@ You never edit code; you return structured findings.
   → Dapper, strictly separate), DDD entity rules (private setters, factory, `Reconstitute`
   internal/test-only), the aggregate-Id convention (`Guid.CreateVersion7()` for aggregates
   overriding `RecordCreation()`), outbox/Service Bus eventing, owner-scoped authorization, and
-  the gateway-identity auth posture.
+  the OIDC/JWT identity posture (tokens validated in the API, identity read via `ICurrentUser`).
 - The matching **`.claude/skills/`** for the area under review (`cqrs-patterns`,
   `ddd-implementation`, `data-access`, `api-design`, `testing-strategy`, `technology-stack`).
 - **`docs/ARCHITECTURE_REVIEW.md`** — prior findings and the current score. Do not re-report a
@@ -34,9 +34,10 @@ signatures with Glob/Grep/Read.
   `IOwnerAuthorizedMutation` and call `IOwnerOnlyPolicy` before mutating. Cross-owner reads
   hidden (not-found/empty); cross-owner mutations → 403. Production code uses `ICurrentUser`,
   never raw identity headers.
-- **Gateway identity** — `/api/v1` groups call `RequireGatewayIdentity()`; every route declares
-  `RequireScope(...)`; every non-GET route calls `SecuredBy2Fa()`. No ASP.NET auth/JWT
-  middleware added to the API itself.
+- **Token identity** — `/api/v1` groups call `RequireAuthorization()`; every route declares
+  `RequireScope(...)`; every non-GET route calls `SecuredBy2Fa()`. `AddJwtBearer` is the only
+  authentication registration; no introspection calls on the request path; production code
+  never reads `HttpContext.User`/claims outside `Infrastructure/Identity`.
 - **DDD** — rich entities with private setters, protected EF ctor, public guarded ctor, domain
   methods for mutation; no public `SetId()`; aggregates raising creation events use client-minted
   `Guid.CreateVersion7()`. Validator–domain-guard sync (defense-in-depth) preserved.

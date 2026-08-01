@@ -4,6 +4,13 @@ set -euo pipefail
 # Smoke test for StarterApp API — runs against a live deployment.
 # Usage: ./scripts/smoke-test.sh [BASE_URL]
 # For Aspire, pass the API URL shown in the dashboard.
+#
+# Identity: the API validates OIDC bearer tokens, so the script needs one.
+#   SMOKE_ACCESS_TOKEN=<jwt>          use a caller-supplied token as-is
+#   SMOKE_AUTHORITY=<issuer-url>      mint one via password grant (dev realm defaults)
+#   (neither set)                     discover the authority from the dev-only
+#                                     /demo/config endpoint — works against the
+#                                     local AppHost stack, not deployed targets
 
 BASE_URL="${1:-${SMOKE_BASE_URL:-}}"
 if [ -z "$BASE_URL" ]; then
@@ -13,12 +20,40 @@ if [ -z "$BASE_URL" ]; then
 fi
 
 CURL_OPTS="-sf"
+TOKEN_CURL_OPTS="-sf"
+[[ "$BASE_URL" == https://* ]] && TOKEN_CURL_OPTS="-sfk"
+
+SMOKE_ACCESS_TOKEN="${SMOKE_ACCESS_TOKEN:-}"
+if [ -z "$SMOKE_ACCESS_TOKEN" ]; then
+    AUTHORITY="${SMOKE_AUTHORITY:-}"
+    if [ -z "$AUTHORITY" ]; then
+        AUTHORITY=$(curl $TOKEN_CURL_OPTS "$BASE_URL/demo/config" 2>/dev/null \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("authority") or "")' 2>/dev/null || echo "")
+    fi
+    if [ -z "$AUTHORITY" ]; then
+        echo "No identity available: set SMOKE_ACCESS_TOKEN, or SMOKE_AUTHORITY for a password grant,"
+        echo "or run against the local AppHost stack (which exposes /demo/config in Development)."
+        exit 2
+    fi
+    # Same self-signed-cert allowance as the API calls, keyed off the authority's own scheme
+    # (the IdP may sit on a different host than BASE_URL).
+    AUTHORITY_CURL_OPTS="-sf"
+    [[ "$AUTHORITY" == https://* ]] && AUTHORITY_CURL_OPTS="-sfk"
+    SMOKE_ACCESS_TOKEN=$(curl $AUTHORITY_CURL_OPTS "${AUTHORITY%/}/protocol/openid-connect/token" \
+        --data-urlencode "grant_type=password" \
+        --data-urlencode "client_id=${SMOKE_CLIENT_ID:-starterapp-dev}" \
+        --data-urlencode "client_secret=${SMOKE_CLIENT_SECRET:-local-dev-client-secret-not-a-secret}" \
+        --data-urlencode "username=${SMOKE_USERNAME:-dev-user}" \
+        --data-urlencode "password=${SMOKE_PASSWORD:-dev-password}" \
+        --data-urlencode "scope=customers:read customers:write orders:read orders:write products:read products:write" \
+        | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])') || {
+        echo "Token request against $AUTHORITY failed."
+        exit 2
+    }
+fi
+
 AUTH_HEADERS=(
-    -H "X-Authenticated-Subject: smoke-test-user"
-    -H "X-Authenticated-Principal-Type: User"
-    -H "X-Authenticated-Tenant-Id: smoke-test-tenant"
-    -H "X-Authenticated-Scopes: customers:read customers:write orders:read orders:write products:read products:write"
-    -H "X-Authenticated-Amr: mfa"
+    -H "Authorization: Bearer ${SMOKE_ACCESS_TOKEN}"
 )
 
 # Allow self-signed certs for local HTTPS (Aspire dev certs)

@@ -1,17 +1,16 @@
 # OWASP ZAP Automation Framework plan — DAST scan of the StarterApp API.
 #
-# This is a TEMPLATE: run-dast.sh renders __API_PORT__ to the real port (derived
-# from TARGET_URL / API_PORT) into dast/reports/automation.rendered.yaml before
-# handing it to ZAP — so the port lives in one place (the script), never here.
+# This is a TEMPLATE: run-dast.sh renders __API_PORT__ (derived from
+# TARGET_URL / API_PORT) and __DAST_TOKEN__ (a dast-user-01 access token minted
+# from the throwaway dev Keycloak) into dast/reports/automation.rendered.yaml
+# before handing it to ZAP — so both live in one place (the script), never here.
 # Don't run this file directly; run dast/run-dast.sh.
 #
-# Run via dast/run-dast.sh, which boots a throwaway PostgreSQL + the API in
-# Development (GatewayIdentity:Mode=UnsignedDevelopment) and points ZAP here.
-#
-# The API trusts a gateway and reads a projected identity from request headers.
-# In UnsignedDevelopment mode the HMAC assertion is skipped, so the `replacer`
-# job below injects the five identity headers — that lets ZAP scan the real
-# protected /api/v1 surface instead of bouncing off 401s at the door.
+# The API validates OIDC/JWT bearer tokens itself, so the `replacer` job below
+# injects a real Authorization header — that lets ZAP scan the protected
+# /api/v1 surface instead of bouncing off 401s at the door. The dev realm's 1h
+# access-token lifespan covers the scan window; a longer full scan needs a
+# re-minted token.
 
 env:
   contexts:
@@ -32,36 +31,17 @@ env:
     progressToStdout: true
 
 jobs:
-  # 1. Inject the gateway-projected identity on every request so authenticated
-  #    endpoints are reachable. matchType req_header adds the header if absent.
+  # 1. Attach the scanned identity (dast-user-01) on every request so
+  #    authenticated endpoints are reachable. matchType req_header adds the
+  #    header if absent.
   - type: replacer
     parameters:
       deleteAllRules: true
     rules:
-      - description: "Gateway subject"
+      - description: "OIDC bearer token (dast-user-01, all resource scopes, amr incl. mfa)"
         matchType: req_header
-        matchString: "X-Authenticated-Subject"
-        replacementString: "dast-user-01"
-        tokenProcessing: false
-      - description: "Gateway principal type"
-        matchType: req_header
-        matchString: "X-Authenticated-Principal-Type"
-        replacementString: "User"
-        tokenProcessing: false
-      - description: "Gateway tenant"
-        matchType: req_header
-        matchString: "X-Authenticated-Tenant-Id"
-        replacementString: "dast-tenant-01"
-        tokenProcessing: false
-      - description: "Gateway scopes"
-        matchType: req_header
-        matchString: "X-Authenticated-Scopes"
-        replacementString: "customers:read customers:write orders:read orders:write products:read products:write"
-        tokenProcessing: false
-      - description: "Gateway authentication methods (MFA proof)"
-        matchType: req_header
-        matchString: "X-Authenticated-Amr"
-        replacementString: "mfa pwd"
+        matchString: "Authorization"
+        replacementString: "Bearer __DAST_TOKEN__"
         tokenProcessing: false
 
   # 2. Suppress false positives on the OpenAPI document itself.

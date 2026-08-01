@@ -34,7 +34,7 @@ public class CacheInvalidator : ICacheInvalidator
     private async Task RemoveAsync(string cacheKey, CancellationToken cancellationToken)
     {
         // Only the owner-scoped key is ever written: cacheable queries are owner-scoped and
-        // the protected surface is unreachable without a gateway identity, so the bare key
+        // the protected surface is unreachable without an authenticated identity, so the bare key
         // has no writer and needs no invalidation. Mutations always run authenticated; the
         // guard below is a belt for test harnesses that invalidate without an identity.
         if (!_currentUser.IsAuthenticated)

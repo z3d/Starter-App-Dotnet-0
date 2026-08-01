@@ -6,7 +6,7 @@ public class OrderEndpoints : IEndpointDefinition
     {
         var orders = app.MapGroup("/api/v1/orders")
             .WithTags("Orders")
-            .RequireGatewayIdentity();
+            .RequireAuthorization();
 
         orders.MapGet("/{id:guid}", GetOrder)
             .WithName("GetOrder")

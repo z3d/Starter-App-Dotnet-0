@@ -36,9 +36,16 @@ public static class WebApplicationExtensions
         return app;
     }
 
-    public static WebApplication UseGatewayIdentity(this WebApplication app)
+    public static WebApplication UseJwtIdentity(this WebApplication app)
     {
-        app.UseMiddleware<GatewayIdentityMiddleware>();
+        // Authentication validates the bearer token, authorization enforces the endpoints'
+        // RequireAuthorization metadata, and JwtIdentityMiddleware is the single writer that
+        // projects validated claims onto the scoped ICurrentUser. Runs after UseRouting (the
+        // authorize metadata is per-endpoint) and before UseRateLimiter (partitioning reads
+        // ICurrentUser).
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.UseMiddleware<JwtIdentityMiddleware>();
         return app;
     }
 

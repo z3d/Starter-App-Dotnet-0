@@ -52,7 +52,6 @@ global using StarterApp.Domain.Enums;
 global using StarterApp.Domain.Events;
 global using StarterApp.Domain.Exceptions;
 global using StarterApp.Domain.ValueObjects;
-global using StarterApp.ServiceDefaults.GatewayIdentity;
 global using StarterApp.ServiceDefaults.Jobs;
 global using StarterApp.Tests.Consistency;
 global using StarterApp.Tests.Integration;

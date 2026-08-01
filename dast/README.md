@@ -15,9 +15,9 @@ static convention/security tests in `StarterApp.Tests`.
    (`dast-user-01`) plus a second owner (`dast-user-02`) used by the cross-owner
    probe — so by-id/list endpoints return real rows instead of empty results.
 4. Starts the API in `Development` (so OpenAPI is exposed and
-   `GatewayIdentity:Mode=UnsignedDevelopment` is active), with the per-identity
+   tokens are validated against a throwaway dev Keycloak), with the per-identity
    rate limit lifted (`RateLimiting__PermitLimit=1000000`).
-5. Runs the ZAP Automation Framework plan (`automation.yaml`): inject identity
+5. Runs the ZAP Automation Framework plan (`automation.yaml`): inject a bearer token
    headers → import OpenAPI → spider → passive scan → active scan → reports.
 6. Fails the run if any alert is at/above the risk threshold (default `Medium`),
    if ZAP itself failed/hung (non-zero/non-WARN exit), or if the scan discovered
@@ -56,16 +56,15 @@ owner-02 resources at fixed ids; the probe requests them under owner-01's identi
 and fails the build if a cross-owner read returns the row or a cross-owner
 mutation is accepted (the IDOR regression signal).
 
-### Why identity headers are injected
+### Why a bearer token is injected
 
-The API has no built-in auth — it trusts a gateway and reads a projected identity
-from request headers, optionally bound by a signed `X-Gateway-Assertion`. ZAP
-can't compute the per-request HMAC the signed mode needs, so the scan runs the
-API in **`UnsignedDevelopment`** mode, where the middleware still requires the
-identity headers but skips the signature. The `replacer` job in `automation.yaml`
-injects them on every request, so ZAP reaches the real `/api/v1` surface instead
-of bouncing off `401`s. Assertion forgery / signature validation is already
-covered by `GatewayIdentityIntegrationTests`.
+The API validates OIDC/JWT bearer tokens itself; without one every `/api/v1`
+request 401s at the door and the scan never reaches the application surface.
+`run-dast.sh` boots the dev Keycloak with the committed realm, mints a
+`dast-user-01` access token, and the `replacer` job in `automation.yaml` attaches
+it as `Authorization: Bearer` on every request. Negative-path token validation
+(expiry, audience, issuer, signature, scope, amr) is covered by
+`JwtIdentityIntegrationTests`.
 
 ## Requirements
 
@@ -123,23 +122,22 @@ uploaded as the `dast-reports` artifact every run. The active scan is bounded
 
 ## Scope: Development posture only (by design)
 
-This scan deliberately runs the API in `GatewayIdentity:Mode=UnsignedDevelopment`,
-not the shipped production posture (`Mode=Required` with a signed
-`X-Gateway-Assertion`, plus HSTS). That is an intentional scope decision, not an
-oversight:
+This scan runs the API over plain HTTP with a dev-realm token, not the shipped
+production posture (https with `RequireHttpsMetadata`, HSTS, a production IdP).
+That is an intentional scope decision, not an oversight:
 
-- ZAP cannot compute the per-request HMAC that `Mode=Required` needs, so a signed
-  scan would bounce off `401`s at the door and never reach the `/api/v1` surface.
-  `UnsignedDevelopment` lets ZAP exercise the real application/handler surface and
-  the unsigned identity path.
+- Token *validation* is identical to production — same JwtBearer handler, same
+  issuer/audience/signature/expiry checks, asymmetric keys via JWKS. Only the
+  issuing realm and the transport differ, so the scan exercises the real
+  application/handler surface behind real authentication.
 - The signed-assertion / `Required`-mode path — assertion forgery, signature
   validation, expiry, wrong-audience/path/key rejection — is covered statically by
-  `GatewayIdentityIntegrationTests` (`src/StarterApp.Tests/Integration/GatewayIdentityIntegrationTests.cs`),
+  `JwtIdentityIntegrationTests` (`src/StarterApp.Tests/Integration/JwtIdentityIntegrationTests.cs`),
   not by this dynamic scan.
 
 Consequence: the production transport posture (HSTS, signed-assertion enforcement)
 is **not** dynamically scanned here. Treat ZAP findings as covering the
-application surface under a trusted-gateway assumption; the gateway/transport
+application surface; the edge/transport
 hardening is verified elsewhere.
 
 ## ⚠️ Safety

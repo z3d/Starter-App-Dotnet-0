@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Aspire.Hosting.Azure;
 using StarterApp.AppHost;
 
@@ -83,6 +82,31 @@ domainEventsTopic.AddServiceBusSubscription(ServiceBusTopology.InventoryReservat
 serviceBus.RunAsEmulator(emulator => emulator
     .WithLifetime(ContainerLifetime.Persistent));
 
+// Dev IdP: Keycloak with the committed starterapp realm (asymmetric RS256, JWKS published), so
+// local dev exercises the same discovery -> JWKS -> verify path as production. Run mode only —
+// deployed environments use a real identity provider, so the container must never appear in a
+// publish manifest. The realm and admin bootstrap ship well-known development credentials by
+// design. Plain container rather than Aspire.Hosting.Keycloak: that package has no stable
+// release, and this repo does not take preview dependencies.
+IResourceBuilder<ContainerResource>? keycloak = null;
+if (builder.ExecutionContext.IsRunMode)
+{
+    keycloak = builder.AddContainer("keycloak", "quay.io/keycloak/keycloak", "26.4")
+        // Digest-pinned like the Dockerfile base images. Resolve a new digest when bumping:
+        // curl -sI https://quay.io/v2/keycloak/keycloak/manifests/<tag> \
+        //   -H "Accept: application/vnd.oci.image.index.v1+json"
+        .WithImageSHA256("9409c59bdfb65dbffa20b11e6f18b8abb9281d480c7ca402f51ed3d5977e6007")
+        .WithHttpEndpoint(targetPort: 8080, name: "http")
+        .WithHttpEndpoint(targetPort: 9000, name: "management")
+        .WithEnvironment("KC_BOOTSTRAP_ADMIN_USERNAME", "admin")
+        .WithEnvironment("KC_BOOTSTRAP_ADMIN_PASSWORD", "admin")
+        .WithEnvironment("KC_HEALTH_ENABLED", "true")
+        .WithBindMount("Realms", "/opt/keycloak/data/import", isReadOnly: true)
+        .WithArgs("start-dev", "--import-realm")
+        .WithHttpHealthCheck("/health/ready", endpointName: "management")
+        .WithLifetime(ContainerLifetime.Persistent);
+}
+
 // Add the database migrator as a separate service (must complete before API starts)
 var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
        .WithReference(db)
@@ -106,50 +130,14 @@ var api = builder.AddProject<Projects.StarterApp_Api>("api")
        .WaitFor(serviceBus)
        .WaitForCompletion(migrator);
 
-// Local APIM emulator (opt-in, run mode only): StarterApp.Gateway fronts the API like a trusted
-// gateway — strips inbound caller identity, projects normalized X-Authenticated-* headers
-// (caller-stated or a default dev identity), and signs the X-Gateway-Assertion. The API flips to
-// GatewayIdentity:Mode=Required so local orchestration exercises the production verification path.
-// Opt-in (run with `--gateway` or ENABLE_GATEWAY=true) so the default rig and the AppHost.Tests —
-// which call the API directly with unsigned projected headers — keep working unchanged. Publish
-// mode is untouched: the gateway is a dev-only emulator, never a deployable resource.
-var gatewayEnabled = builder.ExecutionContext.IsRunMode &&
-    (args.Contains("--gateway") || Environment.GetEnvironmentVariable("ENABLE_GATEWAY") == "true");
-
-if (gatewayEnabled)
+// Point the API at the dev Keycloak realm. RequireHttpsMetadata=false is dev-only (the local
+// container speaks plain http); options validation rejects it outside Development/Testing.
+if (keycloak is not null)
 {
-    // Per-run key, never persisted or committed: assertions live 60 seconds, so invalidating them
-    // across AppHost restarts costs nothing, and a committed constant would only be a secret-shaped
-    // string to allowlist.
-    var gatewaySigningKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
-    const string gatewayKeyId = "local-dev-gateway";
-
-    api.WithEnvironment("GatewayIdentity__Mode", "Required")
-       .WithEnvironment("GatewayIdentity__SigningKey", gatewaySigningKey)
-       .WithEnvironment("GatewayIdentity__KeyId", gatewayKeyId);
-
-    var gateway = builder.AddProject<Projects.StarterApp_Gateway>("gateway")
-        .WithReference(api)
-        .WithEnvironment("GatewaySigner__SigningKey", gatewaySigningKey)
-        .WithEnvironment("GatewaySigner__KeyId", gatewayKeyId)
-        .WaitFor(api);
-
-    // Dev Tunnel fronts the gateway (the signed door) when the emulator is enabled.
-    if (args.Contains("--devtunnel") || Environment.GetEnvironmentVariable("ENABLE_DEV_TUNNEL") == "true")
-    {
-        // The gateway emulator trusts caller-stated X-Authenticated-* headers and signs them as a
-        // verified identity, so any tunnel caller can claim any identity. Exposing that surface to
-        // the internet must be an explicit, acknowledged decision.
-        if (Environment.GetEnvironmentVariable("DEV_TUNNEL_ACK_HEADER_TRUST_GATEWAY") != "true")
-            throw new InvalidOperationException(
-                "Refusing to start the dev tunnel: the gateway emulator trusts caller-stated " +
-                "X-Authenticated-* headers and signs them as a verified identity, so any tunnel caller " +
-                "can claim any identity. Set DEV_TUNNEL_ACK_HEADER_TRUST_GATEWAY=true to acknowledge " +
-                "exposing this surface through the tunnel.");
-
-        builder.AddDevTunnel("gateway-tunnel")
-               .WithReference(gateway);
-    }
+    api.WithEnvironment("Identity__Authority",
+            ReferenceExpression.Create($"{keycloak.GetEndpoint("http")}/realms/starterapp"))
+       .WithEnvironment("Identity__RequireHttpsMetadata", "false")
+       .WaitFor(keycloak);
 }
 
 // Add Azure Functions container for Service Bus subscribers.
@@ -179,18 +167,18 @@ builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Functions/Dockerfil
 
 // Dev Tunnel: expose the API to the internet for webhook/mobile testing
 // Enable with: dotnet run -- --devtunnel  OR  set ENABLE_DEV_TUNNEL=true
-// Skipped when the gateway emulator is enabled — that path tunnels the gateway (the signed door) instead.
-if (!gatewayEnabled && (args.Contains("--devtunnel") || Environment.GetEnvironmentVariable("ENABLE_DEV_TUNNEL") == "true"))
+if (args.Contains("--devtunnel") || Environment.GetEnvironmentVariable("ENABLE_DEV_TUNNEL") == "true")
 {
-    // The locally-orchestrated API runs GatewayIdentity:Mode=UnsignedDevelopment — it trusts
-    // projected identity headers without a signed gateway assertion. Exposing that surface to
-    // the internet (even Microsoft-auth-gated dev tunnels) must be an explicit, acknowledged
-    // decision, not a side effect of a convenience flag.
-    if (Environment.GetEnvironmentVariable("DEV_TUNNEL_ACK_UNSIGNED_API") != "true")
+    // The tunneled API accepts tokens minted by the local dev Keycloak, whose realm ships
+    // well-known development credentials — anyone who can reach the tunnel can mint a valid
+    // token. Exposing that surface to the internet (even Microsoft-auth-gated dev tunnels) must
+    // be an explicit, acknowledged decision, not a side effect of a convenience flag.
+    if (Environment.GetEnvironmentVariable("DEV_TUNNEL_ACK_DEV_IDP") != "true")
         throw new InvalidOperationException(
-            "Refusing to start the dev tunnel: the API runs with GatewayIdentity:Mode=UnsignedDevelopment, " +
-            "which trusts identity headers without a signed gateway assertion. Set DEV_TUNNEL_ACK_UNSIGNED_API=true " +
-            "to acknowledge exposing this surface through the tunnel.");
+            "Refusing to start the dev tunnel: the API accepts tokens from the local dev Keycloak, " +
+            "whose realm ships well-known development credentials, so anyone reaching the tunnel can " +
+            "mint a valid token. Set DEV_TUNNEL_ACK_DEV_IDP=true to acknowledge exposing this surface " +
+            "through the tunnel.");
 
     builder.AddDevTunnel("api-tunnel")
            .WithReference(api);

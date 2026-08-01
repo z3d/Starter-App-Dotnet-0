@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Infrastructure.Identity;
 
-internal sealed class GatewayTwoFactorEndpointFilter : IEndpointFilter
+internal sealed class TwoFactorEndpointFilter : IEndpointFilter
 {
     public const string RequiredAuthenticationMethod = "mfa";
 
@@ -8,14 +8,14 @@ internal sealed class GatewayTwoFactorEndpointFilter : IEndpointFilter
     {
         var requiredMethods = context.HttpContext.GetEndpoint()
             ?.Metadata
-            .GetOrderedMetadata<GatewayTwoFactorRequiredMetadata>() ?? [];
+            .GetOrderedMetadata<TwoFactorRequiredMetadata>() ?? [];
 
         if (requiredMethods.Count == 0)
             return await next(context);
 
         var currentUser = context.HttpContext.RequestServices.GetService<ICurrentUser>();
         if (currentUser is not { IsAuthenticated: true })
-            return WriteProblem(StatusCodes.Status401Unauthorized, "Unauthorized", "A valid gateway identity is required.");
+            return WriteProblem(StatusCodes.Status401Unauthorized, "Unauthorized", "Authentication is required.");
 
         var missingAuthenticationMethod = requiredMethods
             .Select(metadata => metadata.AuthenticationMethod)
