@@ -16,11 +16,13 @@ DEV_IDP_SCOPES="customers:read customers:write orders:read orders:write products
 
 # idp_start <container-name> <host-port> <repo-root>
 # Boots Keycloak with the committed realm imported and waits for the realm
-# endpoint to answer. Caller owns container cleanup (docker rm -f <name>).
+# endpoint to answer. Honors the caller's CONTAINER_CLI (run-dast.sh selects
+# docker or podman; run-perf.sh is docker-only), defaulting to docker. Caller
+# owns container cleanup ($CONTAINER_CLI rm -f <name>).
 idp_start() {
   local container="$1" port="$2" repo_root="$3"
 
-  docker run -d --name "$container" \
+  "${CONTAINER_CLI:-docker}" run -d --name "$container" \
     -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
     -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
     -v "${repo_root}/src/StarterApp.AppHost/Realms:/opt/keycloak/data/import:ro" \
