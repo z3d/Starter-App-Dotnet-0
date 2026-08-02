@@ -41,13 +41,12 @@ public static class CorrelationContext
         if (trimmed.Length == 0)
             return Create();
 
+        // The output contract is ASCII [A-Za-z0-9._-]{1,128} — it feeds archive blob names and
+        // the echoed X-Correlation-ID response header, so only this exact set may pass.
         var chars = trimmed
-            .Where(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.')
+            .Where(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '-' or '_' or '.')
             .Take(MaxSanitizedLength)
             .ToArray();
-
-        if (chars.Length == 0)
-            return Create();
 
         var sanitized = new string(chars);
         if (sanitized.Length == trimmed.Length)
@@ -55,8 +54,15 @@ public static class CorrelationContext
 
         // Lossy sanitization (stripped characters or truncation) can collapse distinct raw ids
         // onto one sanitized id, co-mingling unrelated requests in the same archive stream. Bind
-        // the sanitized form to the raw input with a short hash so distinct raws stay distinct.
+        // the sanitized form to the raw input with a short hash so distinct raws stay apart —
+        // including when nothing survives the filter: a stable raw-bound "invalid.<hash>" keeps
+        // one caller-supplied id in one archive stream, where a random fallback would split it
+        // across requests. This guards against accidental collisions only; the id is
+        // unauthenticated caller input, so the suffix is not an adversarial boundary.
         var rawHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(trimmed)))[..HashSuffixLength].ToLowerInvariant();
+        if (sanitized.Length == 0)
+            return $"invalid.{rawHash}";
+
         var maxBaseLength = MaxSanitizedLength - HashSuffixLength - 1;
         var truncatedBase = sanitized.Length > maxBaseLength ? sanitized[..maxBaseLength] : sanitized;
         return $"{truncatedBase}.{rawHash}";

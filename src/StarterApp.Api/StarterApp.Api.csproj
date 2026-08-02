@@ -3,6 +3,14 @@
   <PropertyGroup>
   </PropertyGroup>
   <ItemGroup>
+    <!-- wwwroot holds only the dev walkthrough page, which embeds well-known dev-realm
+         credentials. Serving is already dev-gated in Program.cs; excluding the files from
+         Release output keeps them out of published/container images too. Side effect: a local
+         `dotnet run -c Release` (perf/DAST runners) serves no /demo.html, which nothing in
+         those flows uses. -->
+    <Content Remove="wwwroot\**" Condition="'$(Configuration)' == 'Release'" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" />
     <PackageReference Include="Azure.Messaging.ServiceBus" />
     <PackageReference Include="Dapper" />

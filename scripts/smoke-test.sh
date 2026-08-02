@@ -19,9 +19,22 @@ if [ -z "$BASE_URL" ]; then
     exit 2
 fi
 
-CURL_OPTS="-sf"
-TOKEN_CURL_OPTS="-sf"
-[[ "$BASE_URL" == https://* ]] && TOKEN_CURL_OPTS="-sfk"
+# TLS verification policy: -k (skip certificate verification) only for loopback targets
+# (Aspire dev certs) or under an explicit SMOKE_INSECURE_TLS=1 opt-in — never implicitly for
+# a remote host. The token request POSTs live credentials (client secret, username, password),
+# so a scheme-keyed -k would hand them to any MITM on the path to a real IdP. The host match
+# admits only an optional numeric port then /?# or end, so a userinfo URL like
+# https://localhost@remote.example (curl's real host: remote.example) cannot earn -k.
+tls_insecure_for() {
+    local url="$1"
+    if [[ "${SMOKE_INSECURE_TLS:-0}" == "1" ]]; then
+        echo "k"
+    elif [[ "$url" =~ ^https://(localhost|127\.0\.0\.1|\[::1\])(:[0-9]+)?([/?#]|$) ]]; then
+        echo "k"
+    fi
+}
+
+TOKEN_CURL_OPTS="-sf$(tls_insecure_for "$BASE_URL")"
 
 SMOKE_ACCESS_TOKEN="${SMOKE_ACCESS_TOKEN:-}"
 if [ -z "$SMOKE_ACCESS_TOKEN" ]; then
@@ -35,10 +48,9 @@ if [ -z "$SMOKE_ACCESS_TOKEN" ]; then
         echo "or run against the local AppHost stack (which exposes /demo/config in Development)."
         exit 2
     fi
-    # Same self-signed-cert allowance as the API calls, keyed off the authority's own scheme
-    # (the IdP may sit on a different host than BASE_URL).
-    AUTHORITY_CURL_OPTS="-sf"
-    [[ "$AUTHORITY" == https://* ]] && AUTHORITY_CURL_OPTS="-sfk"
+    # The IdP may sit on a different host than BASE_URL, so the loopback rule is evaluated
+    # against the authority's own URL. A remote https authority gets full verification.
+    AUTHORITY_CURL_OPTS="-sf$(tls_insecure_for "$AUTHORITY")"
     SMOKE_ACCESS_TOKEN=$(curl $AUTHORITY_CURL_OPTS "${AUTHORITY%/}/protocol/openid-connect/token" \
         --data-urlencode "grant_type=password" \
         --data-urlencode "client_id=${SMOKE_CLIENT_ID:-starterapp-dev}" \
@@ -56,11 +68,6 @@ AUTH_HEADERS=(
     -H "Authorization: Bearer ${SMOKE_ACCESS_TOKEN}"
 )
 
-# Allow self-signed certs for local HTTPS (Aspire dev certs)
-if [[ "$BASE_URL" == https://* ]]; then
-    CURL_OPTS="-sfk"
-fi
-
 PASS=0
 FAIL=0
 CREATED_PRODUCT_ID=""
@@ -74,8 +81,7 @@ RUN_ID="$(date +%s)"
 assert_status() {
     local description="$1" expected="$2" method="$3" url="$4"
     shift 4
-    local assert_opts="-s"
-    [[ "$BASE_URL" == https://* ]] && assert_opts="-sk"
+    local assert_opts="-s$(tls_insecure_for "$BASE_URL")"
     local actual
     actual=$(curl $assert_opts -o /dev/null -w "%{http_code}" -X "$method" "$BASE_URL$url" "${AUTH_HEADERS[@]}" "$@" 2>/dev/null || echo "000")
     if [ "$actual" = "$expected" ]; then
@@ -89,8 +95,7 @@ assert_status() {
 
 post_json() {
     local url="$1" body="$2"
-    local post_opts="-s"
-    [[ "$BASE_URL" == https://* ]] && post_opts="-sk"
+    local post_opts="-s$(tls_insecure_for "$BASE_URL")"
     curl $post_opts -X POST "$BASE_URL$url" "${AUTH_HEADERS[@]}" -H "Content-Type: application/json" -d "$body" 2>/dev/null
 }
 
@@ -126,8 +131,7 @@ await_json_field() {
     # eventually visible (cache invalidation, projections, outbox-driven flows) a single-shot GET
     # races the propagation; polling absorbs benign delay while still failing on a real miss.
     local description="$1" url="$2" field="$3" expected="$4" timeout_seconds="${5:-30}"
-    local get_opts="-s"
-    [[ "$BASE_URL" == https://* ]] && get_opts="-sk"
+    local get_opts="-s$(tls_insecure_for "$BASE_URL")"
     local deadline=$((SECONDS + timeout_seconds))
     local actual=""
     while [ $SECONDS -lt $deadline ]; do
@@ -153,8 +157,7 @@ echo "================================"
 echo ""
 echo "Health"
 # Health check may return 503 under Aspire (service discovery probes) — warn but don't fail
-health_opts="-s"
-[[ "$BASE_URL" == https://* ]] && health_opts="-sk"
+health_opts="-s$(tls_insecure_for "$BASE_URL")"
 HEALTH_STATUS=$(curl $health_opts -o /dev/null -w "%{http_code}" "$BASE_URL/health" 2>/dev/null || echo "000")
 if [ "$HEALTH_STATUS" = "200" ]; then
     echo "  PASS  GET /health ($HEALTH_STATUS)"

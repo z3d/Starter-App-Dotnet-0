@@ -50,6 +50,12 @@ RUN_ID="perf-$$"
 PG_CONTAINER="${RUN_ID}-pg"
 REDIS_CONTAINER="${RUN_ID}-redis"
 IDP_CONTAINER="${RUN_ID}-idp"
+# This script is docker-only by design (header: "Requirements: Docker" — PG, Redis, and every
+# cleanup call are hardcoded docker). Pin the shared helper to docker too: dev-idp.sh honors
+# CONTAINER_CLI for the DAST runner's podman fallback, and inheriting that here would start
+# Keycloak under podman while `docker rm -f` cleanup misses it, leaking the container and
+# holding port ${IDP_PORT} against every later run.
+CONTAINER_CLI=docker
 source "$REPO_ROOT/scripts/lib/dev-idp.sh"
 CONN="Host=localhost;Port=${PG_PORT};Database=${PG_DB};Username=postgres;Password=postgres"
 # StackExchange.Redis (via Aspire AddRedisDistributedCache("redis")) reads
