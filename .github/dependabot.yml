@@ -20,6 +20,13 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    groups:
+      # init and analyze are separate Dependabot dependencies but the same action: a PR
+      # bumping only one fails with "Loaded a configuration file for version X, but
+      # running version Y". Group them so they always move in a single commit.
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
 
   # Base images in the three Dockerfiles (dotnet sdk/aspnet, azure-functions runtime).
   - package-ecosystem: "docker"
