@@ -53,6 +53,20 @@ The repo-root `NuGet.config` `<clear/>`s inherited sources, declares only nuget.
 
 **Re-add trigger:** a clean-cache Linux restore passes across the full package set with `trustedSigners` enabled.
 
+## Reads go through Dapper, not EF Core raw SQL
+
+Query handlers read through Dapper over a **transient** `IDbConnection` (registered in `ServiceCollectionExtensions.AddPersistence`), not through the scoped `DbContext`'s raw-SQL surface (`SqlQuery<T>` / `FromSql`). The CQRS read/write split is a wiring fact, not a naming convention:
+
+- Each resolving handler gets its own `NpgsqlConnection`, so concurrent query handlers in one request scope can't collide — Npgsql has no MARS and `DbContext` is not thread-safe. Pooling reuses the physical sockets, so per-resolution connections are cheap.
+- Reads carry no change tracker and no ambient transaction; there is nothing to accidentally mutate, save, or enlist.
+- Transient-fault retry is explicit and enforced: every Dapper call is wrapped in `PostgresRetryPolicy.ExecuteAsync`, pinned by `DapperConventionTests.QueryHandlers_MustUsePostgresRetryPolicy` (IL-level, with a meta-test so the check can't go vacuously green). Writes get the same posture from EF's `EnableRetryOnFailure`.
+- Parameterization is injection-safe by default: anonymous-object parameters (`new { query.CustomerId, ownerScope.OwnerSubject, ownerScope.TenantId }`) are the only idiom, on queries that carry the verified tenant/subject. There is no raw-string overload to misroute an interpolated value into.
+- Dapper capabilities the EF raw-SQL surface lacks stay available: multi-mapping (`splitOn`), `QueryMultiple`, custom type handlers.
+
+The EF alternatives were rejected on their own terms, not just by comparison. `FromSql<TEntity>` returns tracked entities and demands every mapped column — the opposite of a projected read model, and a collision with `DapperConventionTests.QueryHandlers_MustNotUseSelectStar`. `SqlQuery<T>` is closer but runs on the scoped `DbContext` (single connection, thread-affine), has no multi-mapping or multiple result sets, and splits into `SqlQueryRaw`/interpolated overloads where an interpolated string routed to the `Raw` overload is a live SQL-injection hole.
+
+**Re-add trigger for EF-raw-SQL reads:** a cross-cutting requirement that *all* SQL flow through EF interceptors/diagnostics (query tagging, audit), or Dapper blocking a .NET/Npgsql upgrade. If the trigger fires, converge in one deliberate change that also rewrites `DapperConventionTests` — never mix the two read idioms per-handler.
+
 ## Cache refresh runs on the caller, never a background scope
 
 Cached entries are wrapped in an envelope carrying `RefreshAfterUtc`. Inside the final `CacheRefreshWindow` of a key's TTL, exactly one request per replica recomputes **inline** via in-process single-flight while concurrent requests keep serving the cached value, so a hot key never expires under load. Unreadable or pre-envelope entries degrade to a miss and are rewritten.
