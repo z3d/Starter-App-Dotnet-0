@@ -54,10 +54,11 @@ public static class CorrelationContext
 
         // Lossy sanitization (stripped characters or truncation) can collapse distinct raw ids
         // onto one sanitized id, co-mingling unrelated requests in the same archive stream. Bind
-        // the sanitized form to the raw input with a short hash so distinct raws stay distinct —
+        // the sanitized form to the raw input with a short hash so distinct raws stay apart —
         // including when nothing survives the filter: a stable raw-bound "invalid.<hash>" keeps
         // one caller-supplied id in one archive stream, where a random fallback would split it
-        // across requests.
+        // across requests. This guards against accidental collisions only; the id is
+        // unauthenticated caller input, so the suffix is not an adversarial boundary.
         var rawHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(trimmed)))[..HashSuffixLength].ToLowerInvariant();
         if (sanitized.Length == 0)
             return $"invalid.{rawHash}";

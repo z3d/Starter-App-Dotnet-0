@@ -9,8 +9,11 @@ namespace StarterApp.Tests.Fuzzing;
 // caller-controlled correlation id (the retired gateway header parser used to reject
 // out-of-contract ids at the door). Its output feeds archive blob names (PayloadBlobNaming)
 // and the echoed X-Correlation-ID response header, so the contract is load-bearing:
-// every output matches [A-Za-z0-9._-]{1,128}, and distinct raw ids never collapse onto one
-// sanitized id (the raw-bound hash suffix carries that guarantee).
+// every output matches [A-Za-z0-9._-]{1,128}, and distinct raw ids do not accidentally
+// collapse onto one sanitized id (the raw-bound hash suffix carries that guarantee against
+// benign collisions only — a caller can always construct a contract-valid id equal to a lossy
+// raw's output, but the id is unauthenticated input, so the suffix was never an adversarial
+// boundary).
 public class CorrelationIdFuzzTests
 {
     private const string ContractPattern = "^[A-Za-z0-9._-]{1,128}$";
@@ -77,10 +80,14 @@ public class CorrelationIdFuzzTests
     }
 
     [Property(MaxTest = 400)]
-    public Property Sanitize_DistinctRawIds_NeverCollapseToOneSanitizedId()
+    public Property Sanitize_DistinctRawIds_DoNotAccidentallyCollapse()
     {
-        // The whole point of the raw-bound hash suffix: hostile ids that sanitize to the same
-        // base ("a:b" vs "a|b", "cliché" vs "cliche") must never share an archive stream.
+        // The raw-bound hash suffix keeps ids that sanitize to the same base ("a:b" vs "a|b",
+        // "cliché" vs "cliche") out of each other's archive streams. This is a benign-collision
+        // guarantee, not an adversarial one: a contract-valid raw constructed to equal a lossy
+        // raw's exact output ("abcdef.<its hash>") round-trips verbatim and collides — but the
+        // generator only produces such a pair by guessing an 8-hex hash, and a caller who wants
+        // into another stream can just send that stream's id directly.
         return Prop.ForAll(RawIdArb(), RawIdArb(), (first, second) =>
             (first.Trim() == second.Trim() ||
              CorrelationContext.Sanitize(first) != CorrelationContext.Sanitize(second))
