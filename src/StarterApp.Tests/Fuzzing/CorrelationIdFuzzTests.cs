@@ -55,17 +55,13 @@ public class CorrelationIdFuzzTests
     }
 
     [Property(MaxTest = 200)]
-    public Property Sanitize_IsDeterministic_WhenAnythingSurvivesSanitization()
+    public Property Sanitize_IsDeterministic_ForAnyNonEmptyInput()
     {
-        // Degenerate inputs (empty, whitespace-only, all characters stripped) deliberately get a
-        // freshly generated id each call, so determinism only holds when a contract character
-        // survives.
+        // Every non-empty trimmed input must sanitize stably — including ids whose characters are
+        // all stripped, which bind to the raw value as "invalid.<hash>". Only empty/whitespace
+        // input (no caller-supplied id at all) gets a freshly generated one.
         return Prop.ForAll(RawIdArb(), raw =>
-        {
-            var retainsAnything = raw.Trim().Any(c =>
-                c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '-' or '_' or '.');
-            return !retainsAnything || CorrelationContext.Sanitize(raw) == CorrelationContext.Sanitize(raw);
-        });
+            raw.Trim().Length == 0 || CorrelationContext.Sanitize(raw) == CorrelationContext.Sanitize(raw));
     }
 
     [Property(MaxTest = 200)]

@@ -22,17 +22,18 @@ fi
 # TLS verification policy: -k (skip certificate verification) only for loopback targets
 # (Aspire dev certs) or under an explicit SMOKE_INSECURE_TLS=1 opt-in — never implicitly for
 # a remote host. The token request POSTs live credentials (client secret, username, password),
-# so a scheme-keyed -k would hand them to any MITM on the path to a real IdP.
+# so a scheme-keyed -k would hand them to any MITM on the path to a real IdP. The host match
+# admits only an optional numeric port then /?# or end, so a userinfo URL like
+# https://localhost@remote.example (curl's real host: remote.example) cannot earn -k.
 tls_insecure_for() {
     local url="$1"
     if [[ "${SMOKE_INSECURE_TLS:-0}" == "1" ]]; then
         echo "k"
-    elif [[ "$url" =~ ^https://(localhost|127\.0\.0\.1|\[::1\])([:/]|$) ]]; then
+    elif [[ "$url" =~ ^https://(localhost|127\.0\.0\.1|\[::1\])(:[0-9]+)?([/?#]|$) ]]; then
         echo "k"
     fi
 }
 
-CURL_OPTS="-sf$(tls_insecure_for "$BASE_URL")"
 TOKEN_CURL_OPTS="-sf$(tls_insecure_for "$BASE_URL")"
 
 SMOKE_ACCESS_TOKEN="${SMOKE_ACCESS_TOKEN:-}"

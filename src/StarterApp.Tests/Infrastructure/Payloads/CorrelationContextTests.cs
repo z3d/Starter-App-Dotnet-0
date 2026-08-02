@@ -64,4 +64,19 @@ public class CorrelationContextTests
         Assert.Matches("^[A-Za-z0-9._-]{1,128}$", first);
         Assert.NotEqual(first, second);
     }
+
+    [Fact]
+    public void Sanitize_WhenEveryCharacterIsStripped_ShouldStayStableAndRawBound()
+    {
+        // A caller that sends the same all-stripped id on every request must land in one archive
+        // stream, not a fresh random one per request; distinct all-stripped ids must stay apart.
+        var first = CorrelationContext.Sanitize("标识符");
+        var second = CorrelationContext.Sanitize("标识符");
+        var other = CorrelationContext.Sanitize("Ωμέγα");
+
+        Assert.Equal(first, second);
+        Assert.StartsWith("invalid.", first, StringComparison.Ordinal);
+        Assert.Matches("^[A-Za-z0-9._-]{1,128}$", first);
+        Assert.NotEqual(first, other);
+    }
 }

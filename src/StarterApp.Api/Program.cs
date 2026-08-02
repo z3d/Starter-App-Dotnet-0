@@ -64,14 +64,15 @@ try
     app.UsePayloadCapture();
     app.UseExceptionHandling();
     app.UseSecurityHeaders();
+    app.UseHttpsRedirection();
 
     // Dev-only static hosting for the walkthrough page. Deliberately behind payload capture
-    // (the capture-first recorded decision admits no exceptions) and the security headers, so
-    // wwwroot responses are audited and hardened like everything else.
+    // (the capture-first recorded decision admits no exceptions), the security headers, and
+    // the https redirect, so wwwroot responses are audited, hardened, and never served over
+    // plain http.
     if (app.Environment.IsDevelopment())
         app.UseStaticFiles();
 
-    app.UseHttpsRedirection();
     app.UseCors();
     app.UseRouting();
     app.UseJwtIdentity();
