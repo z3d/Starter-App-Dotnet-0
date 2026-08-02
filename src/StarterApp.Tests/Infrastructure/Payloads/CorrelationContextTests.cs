@@ -44,7 +44,24 @@ public class CorrelationContextTests
     [Fact]
     public void Sanitize_Output_ShouldAlwaysMatchTheCorrelationIdContractCharset()
     {
-        foreach (var raw in new[] { "trace:abc", "a|b", new string('x', 300), "  spaced value  " })
+        // The non-ASCII cases are the regression guard: char.IsLetterOrDigit is Unicode-wide, so
+        // an all-non-ASCII-letters id once passed through verbatim (length-equality early return,
+        // no hash suffix) into blob names and the echoed X-Correlation-ID header.
+        foreach (var raw in new[]
+                 {
+                     "trace:abc", "a|b", new string('x', 300), "  spaced value  ",
+                     "città", "трейс-123", "标识符", "🔥trace🔥"
+                 })
             Assert.Matches("^[A-Za-z0-9._-]{1,128}$", CorrelationContext.Sanitize(raw));
+    }
+
+    [Fact]
+    public void Sanitize_WithNonAsciiLetters_ShouldStripThemAndKeepDistinctRawIdsDistinct()
+    {
+        var first = CorrelationContext.Sanitize("cliché-a");
+        var second = CorrelationContext.Sanitize("cliche-a");
+
+        Assert.Matches("^[A-Za-z0-9._-]{1,128}$", first);
+        Assert.NotEqual(first, second);
     }
 }

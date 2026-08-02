@@ -49,10 +49,10 @@ try
         app.MapOpenApi();
         app.MapScalarApiReference();
 
-        // Dev-only interactive walkthrough (wwwroot/demo.html) plus the config probe it uses to
-        // find the token endpoint. Static hosting and the endpoint are both dev-gated; nothing
-        // under wwwroot ships in other environments.
-        app.UseStaticFiles();
+        // Config probe for the dev-only walkthrough (wwwroot/demo.html, served further down the
+        // pipeline). Serving is dev-gated here, and Release builds exclude wwwroot/** from output
+        // entirely (see the Content Remove in the csproj) — the page embeds well-known dev-realm
+        // credentials, so it must not ride along in production images as a dead file.
         app.MapGet("/demo/config", (Microsoft.Extensions.Options.IOptions<StarterApp.Api.Infrastructure.Identity.JwtIdentityOptions> identity) =>
             Results.Ok(new { authority = identity.Value.Authority }));
     }
@@ -64,6 +64,13 @@ try
     app.UsePayloadCapture();
     app.UseExceptionHandling();
     app.UseSecurityHeaders();
+
+    // Dev-only static hosting for the walkthrough page. Deliberately behind payload capture
+    // (the capture-first recorded decision admits no exceptions) and the security headers, so
+    // wwwroot responses are audited and hardened like everything else.
+    if (app.Environment.IsDevelopment())
+        app.UseStaticFiles();
+
     app.UseHttpsRedirection();
     app.UseCors();
     app.UseRouting();

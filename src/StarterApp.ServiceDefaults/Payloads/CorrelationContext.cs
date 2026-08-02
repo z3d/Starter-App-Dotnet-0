@@ -41,8 +41,13 @@ public static class CorrelationContext
         if (trimmed.Length == 0)
             return Create();
 
+        // ASCII-only on purpose: char.IsLetterOrDigit is Unicode-wide, which let non-ASCII
+        // letters/digits through — and an all-non-ASCII id then took the length-equality early
+        // return below verbatim, with no hash suffix. The sanitized id feeds archive blob names
+        // and the echoed X-Correlation-ID response header, both of which promise the
+        // [A-Za-z0-9._-]{1,128} contract.
         var chars = trimmed
-            .Where(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.')
+            .Where(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '-' or '_' or '.')
             .Take(MaxSanitizedLength)
             .ToArray();
 

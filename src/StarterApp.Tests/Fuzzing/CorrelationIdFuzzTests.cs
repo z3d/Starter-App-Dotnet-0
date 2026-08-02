@@ -1,0 +1,93 @@
+using FsCheck;
+using FsCheck.Fluent;
+using FsCheck.Xunit;
+using StarterApp.ServiceDefaults.Payloads;
+
+namespace StarterApp.Tests.Fuzzing;
+
+// Property-based coverage of CorrelationContext.Sanitize, the only remaining gate on the
+// caller-controlled correlation id (the retired gateway header parser used to reject
+// out-of-contract ids at the door). Its output feeds archive blob names (PayloadBlobNaming)
+// and the echoed X-Correlation-ID response header, so the contract is load-bearing:
+// every output matches [A-Za-z0-9._-]{1,128}, and distinct raw ids never collapse onto one
+// sanitized id (the raw-bound hash suffix carries that guarantee).
+public class CorrelationIdFuzzTests
+{
+    private const string ContractPattern = "^[A-Za-z0-9._-]{1,128}$";
+
+    // Raw ids the way hostile or sloppy callers actually send them: contract-valid tokens,
+    // ASCII noise (separators, whitespace, control chars), non-ASCII letters/digits that
+    // char.IsLetterOrDigit would have admitted, surrogate pairs, and overlong runs.
+    private static Gen<string> RawIdGen()
+    {
+        var contractValid = Gen.Choose(1, 40).SelectMany(length =>
+            Gen.ArrayOf(Gen.Elements("abcXYZ0123456789-_.".ToCharArray()), length)
+               .Select(cs => new string(cs)));
+
+        var asciiNoise = Gen.Choose(0, 60).SelectMany(length =>
+            Gen.ArrayOf(Gen.Choose(0x20, 0x7E).Select(i => (char)i), length)
+               .Select(cs => new string(cs)));
+
+        var unicode = Gen.Elements(
+            "città", "трейс-123", "标识符", "Ωμέγα", "٣٢١", "🔥trace🔥", "trace:🙂:abc",
+            "éclair", "​zero-width", "ｆｕｌｌｗｉｄｔｈ１２３");
+
+        var overlong = Gen.Choose(129, 400).SelectMany(length =>
+            Gen.Elements('a', 'ü', ':', '7').Select(c => new string(c, length)));
+
+        var whitespace = Gen.Elements("", " ", "\t\t", "  spaced value  ", "\r\n");
+
+        return Gen.Frequency(
+            (3, contractValid),
+            (3, asciiNoise),
+            (3, unicode),
+            (1, overlong),
+            (1, whitespace));
+    }
+
+    private static Arbitrary<string> RawIdArb() => RawIdGen().ToArbitrary();
+
+    [Property(MaxTest = 400)]
+    public Property Sanitize_AlwaysProducesAContractValidId()
+    {
+        return Prop.ForAll(RawIdArb(), raw =>
+            System.Text.RegularExpressions.Regex.IsMatch(CorrelationContext.Sanitize(raw), ContractPattern));
+    }
+
+    [Property(MaxTest = 200)]
+    public Property Sanitize_IsDeterministic_WhenAnythingSurvivesSanitization()
+    {
+        // Degenerate inputs (empty, whitespace-only, all characters stripped) deliberately get a
+        // freshly generated id each call, so determinism only holds when a contract character
+        // survives.
+        return Prop.ForAll(RawIdArb(), raw =>
+        {
+            var retainsAnything = raw.Trim().Any(c =>
+                c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '-' or '_' or '.');
+            return !retainsAnything || CorrelationContext.Sanitize(raw) == CorrelationContext.Sanitize(raw);
+        });
+    }
+
+    [Property(MaxTest = 200)]
+    public Property Sanitize_ContractValidInput_RoundTripsUnchanged()
+    {
+        var contractValid = Gen.Choose(1, 128).SelectMany(length =>
+                Gen.ArrayOf(Gen.Elements("abcXYZ0123456789-_.".ToCharArray()), length)
+                   .Select(cs => new string(cs)))
+            .ToArbitrary();
+
+        return Prop.ForAll(contractValid, raw =>
+            CorrelationContext.Sanitize(raw) == raw);
+    }
+
+    [Property(MaxTest = 400)]
+    public Property Sanitize_DistinctRawIds_NeverCollapseToOneSanitizedId()
+    {
+        // The whole point of the raw-bound hash suffix: hostile ids that sanitize to the same
+        // base ("a:b" vs "a|b", "cliché" vs "cliche") must never share an archive stream.
+        return Prop.ForAll(RawIdArb(), RawIdArb(), (first, second) =>
+            (first.Trim() == second.Trim() ||
+             CorrelationContext.Sanitize(first) != CorrelationContext.Sanitize(second))
+            .Label($"'{first}' and '{second}' collapsed onto one sanitized id"));
+    }
+}
