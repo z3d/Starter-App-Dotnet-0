@@ -18,4 +18,9 @@ public sealed class JwtIdentityOptions
 
     [Range(0, 300)]
     public int ClockSkewSeconds { get; set; } = 30;
+
+    // Advisory acr_values advertised in the RFC 9470 step-up challenge when a write lacks the
+    // mfa amr — the ACR the deployer's IdP uses to mean "MFA performed" (Keycloak LoA name,
+    // Entra auth-context id). Optional: when unset the challenge carries the error code alone.
+    public string? StepUpAcrValues { get; set; }
 }

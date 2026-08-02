@@ -20,6 +20,7 @@ internal static class TestJwtIdentity
     public const string DefaultTenantId = "test-tenant-01";
     public const string DefaultScopes = "customers:read customers:write orders:read orders:write products:read products:write";
     public const string DefaultAuthenticationMethods = "mfa pwd";
+    public const string StepUpAcrValues = "urn:starterapp-tests:loa:mfa";
 
     public static RsaSecurityKey SigningKey { get; } = CreateKey("test-key-1");
 
@@ -31,7 +32,10 @@ internal static class TestJwtIdentity
         // No Authority: ConfigureTestJwtValidation injects the issuer and signing key directly,
         // so no discovery/JWKS fetch happens in tests.
         ["Identity:Audience"] = Audience,
-        ["Identity:ClockSkewSeconds"] = "0"
+        ["Identity:ClockSkewSeconds"] = "0",
+        // Gives the RFC 9470 step-up challenge an acr_values to advertise, so the suite can
+        // assert the configured value flows through to WWW-Authenticate.
+        ["Identity:StepUpAcrValues"] = StepUpAcrValues
     };
 
     public static void ConfigureTestJwtValidation(IServiceCollection services)
