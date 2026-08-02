@@ -22,7 +22,7 @@ WORKDIR "/src/src/StarterApp.DbMigrator"
 RUN dotnet publish "StarterApp.DbMigrator.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime stage — lightweight, no ODBC tools needed
-FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:7644f992230d35cf230017189d4038c0ae0f7388b13f4f7ae1900a155bafb597 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:f1126d438ccc359f51cc6d4701a8deae513856cf10f5fe645d29ea6403dcac6b AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 
