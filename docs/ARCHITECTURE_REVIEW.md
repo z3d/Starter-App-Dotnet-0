@@ -5,6 +5,8 @@ and dismissed-false-positive record through 2026-06-12) is preserved verbatim in
 [docs/reviews/ARCHITECTURE_REVIEW-2026-06-archive.md](reviews/ARCHITECTURE_REVIEW-2026-06-archive.md).
 The post-IdP conversion review and its four open findings are recorded in
 [docs/reviews/ARCHITECTURE_REVIEW-2026-08-04-post-idp.md](reviews/ARCHITECTURE_REVIEW-2026-08-04-post-idp.md).
+The same-day runtime-hardening review and its five open findings are recorded in
+[docs/reviews/ARCHITECTURE_REVIEW-2026-08-04-runtime-hardening.md](reviews/ARCHITECTURE_REVIEW-2026-08-04-runtime-hardening.md).
 Skeptics verifying "was this already dismissed?" consult the archive; this file answers "what is
 true and open right now".
 
@@ -17,14 +19,14 @@ deliberate design stance (patterns are the pedagogy, convention tests are the pr
 accidental weight — a 2026-06-12 juice-vs-squeeze complexity review confirmed the stance and
 pruned what failed it (see `docs/ROADMAP.md`, complexity-review backlog).
 
-**Score: 7.7/10** — reduced 2026-08-04 after the post-IdP review found two functional and two
-enforcement/tooling gaps (was 8.0 after the gateway→OIDC identity conversion, independently
-re-scored 2026-06-09 on a strict production scale). The conversion trades a
-distinctive strength (individually-signed gateway assertions) for zero-trust posture (the API
-verifies the caller's own credential, asymmetric JWKS, no shared secrets); the net dip is the
-open sender-constraining finding plus the four 2026-08-04 findings below. Recover the 0.3 review
-dip when those four fixes and their regression tests land; revisit the remaining identity posture
-when DPoP/mTLS-binding lands or the replay finding is re-accepted with evidence.
+**Score: 7.1/10** — reduced 2026-08-04 after the runtime-hardening review found one high and four
+medium runtime gaps (was 7.7 after the same-day post-IdP review and 8.0 after the gateway→OIDC
+identity conversion, independently re-scored 2026-06-09 on a strict production scale). The
+conversion trades a distinctive strength (individually-signed gateway assertions) for zero-trust
+posture (the API verifies the caller's own credential, asymmetric JWKS, no shared secrets); the net
+dip is the open sender-constraining finding plus the nine 2026-08-04 findings below. Recover the 0.9
+review dip when those nine fixes and their regression tests land; revisit the remaining identity
+posture when DPoP/mTLS-binding lands or the replay finding is re-accepted with evidence.
 **Read this before trusting the number**: the score is self-assessed by the maintaining agents
 (Claude and Codex across sessions) with no external human validator and no fixed rubric; treat it
 as a maintenance log, not an audit. The historical self-graded 9.7 was stale/monotonic — the
@@ -54,6 +56,8 @@ DAST, both green.
 
 Detailed evidence and verification for the four 2026-08-04 findings lives in the
 [post-IdP review](reviews/ARCHITECTURE_REVIEW-2026-08-04-post-idp.md).
+Detailed evidence and verification for the five runtime findings lives in the
+[runtime-hardening review](reviews/ARCHITECTURE_REVIEW-2026-08-04-runtime-hardening.md).
 
 - **OPEN (2026-08-04) — CORS does not expose bearer challenges.** Scope and MFA shortfalls put
   the machine-actionable response in `WWW-Authenticate`, but `AddApiCors` never exposes that
@@ -71,6 +75,25 @@ Detailed evidence and verification for the four 2026-08-04 findings lives in the
   invokes `python3` before the smoke test's capability fallback, and the shared IdP helper invokes
   it while DAST/performance requirements omit it. Make parsing portable or require and preflight
   Python consistently.
+- **OPEN (2026-08-04) — quoted database passwords can leak into logs.** The regex mask used by the
+  migrator and Development API stops at the first semicolon, so a valid quoted password can expose
+  its suffix. Parse and sanitize structurally, centralize the helper, and regression-test quoted
+  values.
+- **OPEN (2026-08-04) — errored outbox rows can lose their replay-retention window.** Cleanup ages
+  failures from the event's `OccurredOnUtc`, not from when the row became permanently errored. Add
+  `ErroredOnUtc`, retain from failure time, and keep both replay paths in sync.
+- **OPEN (2026-08-04) — payload cleanup has a fixed throughput ceiling below modest traffic.** The
+  hourly job deletes at most 500 blobs per prefix by default while the archive creates roughly one
+  blob per request, so expired PII accumulates whenever ingestion outpaces deletion. Drain bounded
+  pages and expose cleanup-backlog health.
+- **OPEN (2026-08-04) — concurrent customer creation can return another request's row.** The
+  natural-key recovery lookup runs on the execution strategy's first invocation as well as retries,
+  allowing a same-email race to return the winner's representation as a successful create. Separate
+  retry recovery from first-attempt conflict handling and add a PostgreSQL race test.
+- **OPEN (2026-08-04) — Redis failures take healthy reads down.** Cache get, tombstone, and set
+  exceptions escape the caching behavior, so a Redis outage can return `500` before or after a
+  successful database read. Fail open on non-cancellation cache failures without weakening the
+  tombstone guard.
 
 Decisions / watch-items / explained deferrals follow.
 
