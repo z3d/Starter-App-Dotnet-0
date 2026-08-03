@@ -3,6 +3,8 @@
 Living state only. Narrative review history (every dated session note, resolved-finding table,
 and dismissed-false-positive record through 2026-06-12) is preserved verbatim in
 [docs/reviews/ARCHITECTURE_REVIEW-2026-06-archive.md](reviews/ARCHITECTURE_REVIEW-2026-06-archive.md).
+The post-IdP conversion review and its four open findings are recorded in
+[docs/reviews/ARCHITECTURE_REVIEW-2026-08-04-post-idp.md](reviews/ARCHITECTURE_REVIEW-2026-08-04-post-idp.md).
 Skeptics verifying "was this already dismissed?" consult the archive; this file answers "what is
 true and open right now".
 
@@ -15,18 +17,19 @@ deliberate design stance (patterns are the pedagogy, convention tests are the pr
 accidental weight — a 2026-06-12 juice-vs-squeeze complexity review confirmed the stance and
 pruned what failed it (see `docs/ROADMAP.md`, complexity-review backlog).
 
-**Score: 8.0/10** — self-adjusted 2026-08-01 on the gateway→OIDC identity conversion (was 8.2,
-independently re-scored 2026-06-09, strict production scale). The conversion trades a
+**Score: 7.7/10** — reduced 2026-08-04 after the post-IdP review found two functional and two
+enforcement/tooling gaps (was 8.0 after the gateway→OIDC identity conversion, independently
+re-scored 2026-06-09 on a strict production scale). The conversion trades a
 distinctive strength (individually-signed gateway assertions) for zero-trust posture (the API
 verifies the caller's own credential, asymmetric JWKS, no shared secrets); the net dip is the
-open sender-constraining finding below — bearer tokens replay wider than the retired 150s
-method+path-bound assertions did. Recovers when DPoP/mTLS-binding lands or the finding is
-re-accepted with evidence.
+open sender-constraining finding plus the four 2026-08-04 findings below. Recover the 0.3 review
+dip when those four fixes and their regression tests land; revisit the remaining identity posture
+when DPoP/mTLS-binding lands or the replay finding is re-accepted with evidence.
 **Read this before trusting the number**: the score is self-assessed by the maintaining agents
 (Claude and Codex across sessions) with no external human validator and no fixed rubric; treat it
 as a maintenance log, not an audit. The historical self-graded 9.7 was stale/monotonic — the
-archive retains it for provenance only. Held below 9 by the folder-only Clean Architecture
-deferral and the accepted limitations below, not by open runtime defects.
+archive retains it for provenance only. Held below 9 by the open findings, folder-only Clean
+Architecture deferral, and accepted limitations below.
 
 Verifiable snapshot (re-verify, don't trust): 9 command handlers, 7 query handlers, every
 command/query validated (convention-enforced), 0 CQRS violations, full suite ~693 tests green
@@ -49,7 +52,27 @@ DAST, both green.
 
 ## Open Findings
 
-Decisions / watch-items / explained deferrals — no open runtime defects.
+Detailed evidence and verification for the four 2026-08-04 findings lives in the
+[post-IdP review](reviews/ARCHITECTURE_REVIEW-2026-08-04-post-idp.md).
+
+- **OPEN (2026-08-04) — CORS does not expose bearer challenges.** Scope and MFA shortfalls put
+  the machine-actionable response in `WWW-Authenticate`, but `AddApiCors` never exposes that
+  response header, so cross-origin browser clients cannot read the advertised scope or
+  `acr_values`. Fix both CORS branches and add an Origin-based regression test.
+- **OPEN (2026-08-04) — malformed OIDC authorities pass startup validation.** The application
+  validates only that `Identity:Authority` is nonblank; malformed, relative, or scheme-incompatible
+  values fail later in the bearer metadata path. Validate an absolute URI and its HTTPS posture at
+  startup, with negative option tests.
+- **OPEN (2026-08-04) — the identity convention misses raw Authorization-header reads.** The
+  convention scans for `ClaimsPrincipal` and retired gateway headers but not
+  `Request.Headers.Authorization`, `HeaderNames.Authorization`, or the literal. Extend the IL scan
+  and prove it against an injected violation before reverting to green.
+- **OPEN (2026-08-04) — converted OIDC tooling has an undeclared Python dependency.** Token parsing
+  invokes `python3` before the smoke test's capability fallback, and the shared IdP helper invokes
+  it while DAST/performance requirements omit it. Make parsing portable or require and preflight
+  Python consistently.
+
+Decisions / watch-items / explained deferrals follow.
 
 - **RESOLVED (2026-07-18) — Aspire-collection trait pairing was not mechanically enforced.**
   The CI unit job excludes Aspire E2E facts with `Category!=Aspire`; that filter is only sound if
