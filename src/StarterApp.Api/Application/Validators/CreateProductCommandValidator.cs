@@ -12,7 +12,9 @@ public class CreateProductCommandValidator : IValidator<CreateProductCommand>
         if (request.Description?.Length > Product.MaxDescriptionLength)
             yield return new ValidationError(nameof(request.Description), $"Description must not exceed {Product.MaxDescriptionLength} characters");
 
-        if (request.Price < 0)
+        if (request.Price is null)
+            yield return new ValidationError(nameof(request.Price), "Price is required");
+        else if (request.Price < 0)
             yield return new ValidationError(nameof(request.Price), "Price cannot be negative");
         else if (request.Price > Money.MaxAmount)
             yield return new ValidationError(nameof(request.Price), $"Price must not exceed {Money.MaxAmount}");
@@ -22,7 +24,9 @@ public class CreateProductCommandValidator : IValidator<CreateProductCommand>
         else if (!Money.IsValidCurrencyCode(request.Currency))
             yield return new ValidationError(nameof(request.Currency), "Currency must be a 3-letter ISO code");
 
-        if (request.Stock < 0)
+        if (request.Stock is null)
+            yield return new ValidationError(nameof(request.Stock), "Stock is required");
+        else if (request.Stock < 0)
             yield return new ValidationError(nameof(request.Stock), "Stock cannot be negative");
     }
 }

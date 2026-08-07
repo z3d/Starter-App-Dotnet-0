@@ -27,6 +27,40 @@ public class CommandValidatorBoundaryTests
     }
 
     [Fact]
+    public void CreateProductValidator_WithAbsentPrice_ShouldFailValidation()
+    {
+        // A non-nullable Price deserialized an absent "price" field to 0m, so a request that
+        // forgot the field silently created a free product. Null must be rejected as missing.
+        var validator = new CreateProductCommandValidator();
+        var command = new CreateProductCommand { Name = "Widget", Description = "d", Price = null, Currency = "USD", Stock = 1 };
+
+        var errors = validator.Validate(command).ToList();
+
+        Assert.Contains(errors, error => error.PropertyName == nameof(command.Price) && error.ErrorMessage == "Price is required");
+    }
+
+    [Fact]
+    public void CreateProductValidator_WithAbsentStock_ShouldFailValidation()
+    {
+        var validator = new CreateProductCommandValidator();
+        var command = new CreateProductCommand { Name = "Widget", Description = "d", Price = 1m, Currency = "USD", Stock = null };
+
+        var errors = validator.Validate(command).ToList();
+
+        Assert.Contains(errors, error => error.PropertyName == nameof(command.Stock) && error.ErrorMessage == "Stock is required");
+    }
+
+    [Fact]
+    public void CreateProductValidator_WithExplicitZeroPriceAndStock_ShouldPassValidation()
+    {
+        // Zero stays a legitimate explicit value (a free, unstocked product) — only absence fails.
+        var validator = new CreateProductCommandValidator();
+        var command = new CreateProductCommand { Name = "Widget", Description = "d", Price = 0m, Currency = "USD", Stock = 0 };
+
+        Assert.Empty(validator.Validate(command));
+    }
+
+    [Fact]
     public void UpdateProductValidator_WithPriceAboveMaxAmount_ShouldFailValidation()
     {
         var validator = new UpdateProductCommandValidator();
