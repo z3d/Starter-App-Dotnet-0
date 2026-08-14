@@ -81,6 +81,11 @@
     <PackageVersion Include="Serilog.Sinks.OpenTelemetry" Version="4.1.0" />
     <PackageVersion Include="Serilog.Sinks.Seq" Version="8.0.0" />
     <PackageVersion Include="Serilog.Sinks.XUnit" Version="3.0.5" />
+    <!-- Transitive pin: Testcontainers.PostgreSql 4.12.0 pulls SSH.NET 2025.1.0, which
+         carries GHSA-q939-rpr3-3284 (arbitrary file write during recursive SCP downloads;
+         NU1903 fails the build under warnings-as-errors). Fixed upstream in 2026.0.0.
+         Remove when Testcontainers' own floor moves past it. -->
+    <PackageVersion Include="SSH.NET" Version="2026.0.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.12.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
