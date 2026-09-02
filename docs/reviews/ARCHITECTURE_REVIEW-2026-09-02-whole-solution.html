@@ -1,0 +1,301 @@
+<title>StarterApp Whole-Solution Review</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F6F8F7; --panel:#EEF2F1; --ink:#17212B; --ink-2:#3A4650; --muted:#6B7680;
+  --rule:#D5DCDA; --accent:#1F5F73; --accent-soft:#DCEBEF;
+  --med:#B4650F; --med-soft:#F5E6D3; --low:#4A6B8A; --low-soft:#DFE7EF;
+  --dis:#7A8590; --dis-soft:#E6E9EB; --ok:#2E7D5B;
+  --display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12181D; --panel:#1A2229; --ink:#E4E9EC; --ink-2:#C2CBD1; --muted:#8B98A3;
+    --rule:#2B3640; --accent:#6FB6CC; --accent-soft:#173039;
+    --med:#E0A15A; --med-soft:#3A2A15; --low:#8FB3D4; --low-soft:#1E2E3D;
+    --dis:#8B98A3; --dis-soft:#232D35; --ok:#6CC59A;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12181D; --panel:#1A2229; --ink:#E4E9EC; --ink-2:#C2CBD1; --muted:#8B98A3;
+  --rule:#2B3640; --accent:#6FB6CC; --accent-soft:#173039;
+  --med:#E0A15A; --med-soft:#3A2A15; --low:#8FB3D4; --low-soft:#1E2E3D;
+  --dis:#8B98A3; --dis-soft:#232D35; --ok:#6CC59A;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1.55;
+  font-optical-sizing:auto}
+a{color:var(--accent)}
+code{font-family:var(--mono);font-size:.82em;background:var(--panel);padding:.08em .35em;border-radius:3px;color:var(--ink)}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.15}
+.wrap{max-width:1160px;margin:0 auto;padding:40px 24px 80px}
+header{border-bottom:1px solid var(--rule);padding-bottom:28px;margin-bottom:28px}
+.eyebrow{font-family:var(--display);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:500}
+h1{font-size:clamp(30px,4.2vw,46px);font-weight:700;margin:6px 0 10px}
+.lede{max-width:66ch;color:var(--ink-2);font-size:18px;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:10px 22px;margin-top:16px;font-family:var(--mono);font-size:13px;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:500}
+
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;border:1px solid var(--rule);border-radius:6px;overflow:hidden;margin-bottom:36px;background:var(--panel)}
+.cell{padding:14px 16px;border-right:1px solid var(--rule)}
+.cell:last-child{border-right:0}
+.cell .k{font-family:var(--display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.cell .v{font-family:var(--display);font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px;line-height:1.1}
+.cell .v small{font-size:14px;font-weight:500;color:var(--muted);margin-left:6px}
+.v.med{color:var(--med)} .v.ok{color:var(--ok)} .v.low{color:var(--low)} .v.dis{color:var(--dis)} .v.score{color:var(--accent)}
+
+.grid{display:grid;grid-template-columns:230px minmax(0,1fr);gap:40px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:1fr}.index{position:static}}
+.index{position:sticky;top:20px;font-family:var(--display);font-size:13.5px}
+.index h2{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;margin-bottom:10px}
+.index ol{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:5px}
+.index a{color:var(--ink-2);text-decoration:none;display:grid;grid-template-columns:22px 1fr;gap:6px;line-height:1.3}
+.index a:hover,.index a:focus-visible{color:var(--accent)}
+.index a .n{font-family:var(--mono);color:var(--muted);font-size:12px;padding-top:1px}
+.index a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+
+.main h2{font-size:24px;font-weight:700;margin:44px 0 18px;padding-top:18px;border-top:1px solid var(--rule)}
+.main h2:first-child{margin-top:0;border-top:0;padding-top:0}
+.main>p{max-width:68ch;margin:0 0 14px;color:var(--ink-2)}
+
+.finding{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;padding:22px 0;border-top:1px solid var(--rule)}
+.finding:first-of-type{border-top:0}
+.finding .num{font-family:var(--mono);font-size:14px;color:var(--muted);padding-top:6px}
+.finding h3{font-size:20px;font-weight:700;margin:0 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.chip{font-family:var(--display);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;padding:3px 9px;border-radius:999px}
+.chip.med{background:var(--med-soft);color:var(--med)}
+.chip.low{background:var(--low-soft);color:var(--low)}
+.chip.dis{background:var(--dis-soft);color:var(--dis)}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}
+.files{font-family:var(--mono);font-size:12.5px;color:var(--muted);overflow-x:auto;white-space:nowrap;padding-bottom:2px}
+.finding p{max-width:68ch;margin:10px 0 0;color:var(--ink-2)}
+.fix{margin-top:12px;padding:10px 14px;border-left:3px solid var(--accent);background:var(--panel);max-width:68ch;border-radius:0 4px 4px 0}
+.fix b{font-family:var(--display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:2px}
+
+.lows{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+.low-card{border:1px solid var(--rule);border-radius:6px;padding:14px 16px;background:var(--paper);display:flex;flex-direction:column;gap:6px}
+.low-card .t{display:grid;grid-template-columns:28px 1fr;gap:6px;font-family:var(--display);font-weight:700;font-size:15.5px;line-height:1.3}
+.low-card .t .n{font-family:var(--mono);font-weight:400;color:var(--muted);font-size:12px;padding-top:2px}
+.low-card .files{font-size:11.5px}
+.low-card p{margin:0;font-size:15px;color:var(--ink-2)}
+.low-card .f{font-size:14px;color:var(--ink-2)}
+.low-card .f b{font-family:var(--display);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-right:6px;font-weight:700}
+
+.dismissed .finding h3{color:var(--ink-2);font-weight:500}
+.order{counter-reset:o;list-style:none;padding:0;margin:0;max-width:68ch}
+.order li{display:grid;grid-template-columns:28px 1fr;gap:8px;padding:8px 0;border-top:1px solid var(--rule);color:var(--ink-2)}
+.order li:first-child{border-top:0}
+.order li::before{counter-increment:o;content:counter(o);font-family:var(--mono);color:var(--muted);font-size:13px;padding-top:3px}
+table{border-collapse:collapse;width:100%;font-size:15px}
+.tblwrap{overflow-x:auto}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.n{font-family:var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:12.5px;color:var(--muted);line-height:1.7}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Architecture review · Starter-App-Dotnet-0</div>
+  <h1>Whole-solution review, 2 September 2026</h1>
+  <p class="lede">Every source file read by one finder per subsystem, every Medium candidate sent to an independent verifier told to refute it. The architecture holds; what survived is a set of cross-cutting middleware and tooling gaps that sit on error paths and platforms the CI runner never exercises. All twenty-two were fixed the next day in one change, with the four code-level Medium regression tests proven to fail on the old code.</p>
+  <div class="meta">
+    <span>snapshot <b>d9f60ed</b></span>
+    <span>recorded in <b>7c54480</b></span>
+    <span>fixed in <b>47d20e7</b></span>
+    <span>doc <b>docs/reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md</b></span>
+  </div>
+</header>
+
+<div class="strip" role="list">
+  <div class="cell" role="listitem"><div class="k">Score</div><div class="v score">8.0<small>6.9 → 7.1 → 8.0</small></div></div>
+  <div class="cell" role="listitem"><div class="k">High</div><div class="v">0</div></div>
+  <div class="cell" role="listitem"><div class="k">Medium</div><div class="v med">5</div></div>
+  <div class="cell" role="listitem"><div class="k">Low</div><div class="v low">17</div></div>
+  <div class="cell" role="listitem"><div class="k">Dismissed on verification</div><div class="v dis">3</div></div>
+  <div class="cell" role="listitem"><div class="k">Resolved 3 Sep</div><div class="v ok">22 / 22</div></div>
+  <div class="cell" role="listitem"><div class="k">Open from 4 Aug</div><div class="v ok">0<small>9 fixed 3 Sep</small></div></div>
+</div>
+
+<div class="grid">
+<nav class="index" aria-label="Findings index">
+  <h2>Medium</h2>
+  <ol>
+    <li><a href="#f1"><span class="n">1</span><span>Error responses shed headers and correlation id</span></a></li>
+    <li><a href="#f2"><span class="n">2</span><span>Health check mints a credential per probe</span></a></li>
+    <li><a href="#f3"><span class="n">3</span><span>Route-path references skip the PII screen</span></a></li>
+    <li><a href="#f4"><span class="n">4</span><span>Raw IL byte loops in convention tests</span></a></li>
+    <li><a href="#f5"><span class="n">5</span><span>Emulator reset script fails on macOS</span></a></li>
+  </ol>
+  <h2>Sections</h2>
+  <ol>
+    <li><a href="#lows"><span class="n">6–22</span><span>Low findings</span></a></li>
+    <li><a href="#dismissed"><span class="n">×</span><span>Dismissed candidates</span></a></li>
+    <li><a href="#order"><span class="n">✓</span><span>Fix order</span></a></li>
+    <li><a href="#verify"><span class="n">✓</span><span>What was verified</span></a></li>
+  </ol>
+</nav>
+
+<div class="main">
+<h2>Assessment</h2>
+<p>Every load-bearing control was re-derived from code rather than trusted: JWT validation parameters, the single <code>ICurrentUser</code> writer, owner scoping in every SQL predicate and every mutation handler, owner-hashed cache keys, one <code>SaveChangesAsync</code> per handler with the order id minted outside the retry delegate, outbox claim and salvage under <code>SKIP LOCKED</code>, the Service Bus topology bijection, and the exception-to-status table. None has regressed since 4 August, and the nine findings recorded then are all still open.</p>
+<p>The two findings that matter operationally are the loss of every security header and the correlation-id echo on exception-mapped responses, and a health check that builds a fresh Azure credential per probe on two unthrottled, unauthenticated routes. Three candidates that looked like high-value convention gaps were dismissed because an analyzer, an existing test, or a recorded decision already closes them.</p>
+
+<h2>Medium findings</h2>
+
+<article class="finding" id="f1">
+  <div class="num">1</div>
+  <div>
+    <div class="chips"><span class="chip med">Medium</span><span class="chip ok">Fixed · 47d20e7</span></div>
+    <h3>Exception-mapped responses lose every security header and the correlation-id echo</h3>
+    <div class="files">src/StarterApp.Api/Program.cs:61-66 · Infrastructure/WebApplicationExtensions.cs:7-22 · Infrastructure/Payloads/PayloadCaptureMiddleware.cs:57</div>
+    <p>Payload capture sets <code>X-Correlation-ID</code> before calling next, and the security-headers middleware appends CSP, frame options and referrer policy before calling next. The exception handler sits between them and calls <code>Response.Clear()</code> before writing ProblemDetails, wiping every header set so far without re-running downstream middleware. HSTS is eager too. Every validation 400, 404, 409, 503 and 500 therefore ships with no security headers and no correlation id, which breaks the documented support workflow on exactly the responses support gets asked about. CORS survives only because it uses <code>OnStarting</code>. No test asserts a header on an error response.</p>
+    <div class="fix"><b>Fix applied</b>Register both header sets via <code>Response.OnStarting</code>. Reordering the middleware does not help. Add one integration test that triggers a 409 and asserts the correlation id and security headers.</div>
+  </div>
+</article>
+
+<article class="finding" id="f2">
+  <div class="num">2</div>
+  <div>
+    <div class="chips"><span class="chip med">Medium</span><span class="chip ok">Fixed · 47d20e7</span></div>
+    <h3>The payload-archive health check builds a blob client and Azure credential per probe</h3>
+    <div class="files">Infrastructure/HealthChecks/PayloadArchiveHealthCheck.cs:17-26 · Infrastructure/ServiceCollectionExtensions.cs:217 · Program.cs:87</div>
+    <p>The check constructs its client in the constructor and is registered only through <code>AddCheck&lt;T&gt;</code>, so the health service activates a fresh instance every run. In managed-identity mode each probe creates a <code>DefaultAzureCredential</code> with an empty per-instance cache and performs a full chain walk plus an IMDS token fetch. It is reachable from the unpredicated <code>/health</code>, which runs every registered check and is hammered by the k6 smoke, and from <code>/healthiness</code>. Both are unauthenticated and rate-limit-exempt. IMDS throttling would flip both probes to 503 on a healthy storage account. The three sibling checks inject their clients and a warm singleton already exists.</p>
+    <div class="fix"><b>Fix applied</b>Expose the singleton <code>BlobServiceClient</code> in DI and inject it, collapsing the duplicated connection-string resolution. Consider a predicate on <code>/health</code>.</div>
+  </div>
+</article>
+
+<article class="finding" id="f3">
+  <div class="num">3</div>
+  <div>
+    <div class="chips"><span class="chip med">Medium</span><span class="chip ok">Fixed · 47d20e7</span></div>
+    <h3>Route-path entity references bypass the sensitive-name filter</h3>
+    <div class="files">src/StarterApp.ServiceDefaults/Payloads/PayloadEntityReferenceExtractor.cs:57,178-194,274-286</div>
+    <p>The extractor's own comment and the decisions log say a sensitive <code>*Id</code> such as <code>nationalId</code> never becomes a blob path segment. The metadata and JSON-body branches honour that through <code>IsSensitivePropertyName</code>; the route branch never receives the token list and <code>AddReference</code> does no screening. Capture runs before routing and authentication and records 404 traffic by design, so an unauthenticated <code>GET /api/v1/nationalId/123-45-6789</code> lands the value in an entity-index blob name and an Information-level log line the Serilog masking stack does not touch. Today no template route carries PII in its path, so the leaked value is caller-supplied; the exposure is a broken documented invariant that a derived project inherits silently. A sibling worktree has staged a value-level screen, which does not cover the name-level case.</p>
+    <div class="fix"><b>Fix applied</b>Thread <code>sensitiveTokens</code> into <code>AddRouteReference</code> and screen caller-supplied <code>EntityReferences</code> the same way. Extend the existing sensitive-name test with a route-derived case.</div>
+  </div>
+</article>
+
+<article class="finding" id="f4">
+  <div class="num">4</div>
+  <div>
+    <div class="chips"><span class="chip med">Medium</span><span class="chip ok">Fixed · 47d20e7</span></div>
+    <h3>Four hand-rolled raw IL byte loops remain, two behind negative assertions</h3>
+    <div class="files">Tests/Conventions/DomainConventionTests.cs:303 · CachingConventionTests.cs:216 · AppHost.Tests/PayloadCaptureConventionTests.cs:51 · ProductionAssemblyConventionTests.cs:81</div>
+    <p>The testing skill says never to hand-roll a raw IL byte loop, and <code>IlInstructionWalker</code> exists for that reason. These four scan bytes for <code>0x28</code> or <code>0x6F</code> and only advance past operands after a call-looking byte, so every other opcode's operand bytes are read as opcodes. The verifier corrected the finder: garbage tokens throw inside a swallowed catch, so the hazard is not a false positive but a skipped genuine call. That is a silent pass for the two negative checks (no <code>RaiseDomainEvent</code> from constructors, no <code>DateTime.UtcNow</code> in production code) and for the cohort filter that decides which handlers the cache-invalidation rule covers. No meta convention forbids the pattern.</p>
+    <div class="fix"><b>Fix applied</b>Rewrite the two Tests sites over <code>IlInstructionWalker.Walk</code>. Link the walker file into AppHost.Tests and rewrite the other two. Add a housekeeping convention that fails on the raw opcode literals outside the walker.</div>
+  </div>
+</article>
+
+<article class="finding" id="f5">
+  <div class="num">5</div>
+  <div>
+    <div class="chips"><span class="chip med">Medium</span><span class="chip ok">Fixed · 47d20e7</span></div>
+    <h3>The emulator reset script cannot run on macOS and performs half the documented recovery</h3>
+    <div class="files">scripts/reset-servicebus-emulator.sh:18,27 · .claude/skills/development-workflow/reference/service-bus-emulator.md:85-90</div>
+    <p><code>mapfile</code> is a bash 4 builtin. The documented Apple Silicon dev target ships bash 3.2.57 as <code>/bin/bash</code>, so the script exits 127 under <code>set -e</code> before touching a container. It also removes only the two containers while the skill calls the stale Aspire network the most common reason a clean retry fails, then prints that state is cleared. Nothing references the script. It is the only bash 4 construct in the repo and there is no shell lint in CI.</p>
+    <div class="fix"><b>Fix applied</b>Replace <code>mapfile</code> with a <code>while read</code> loop over an initialised array, add the network removal, link the script from the skill's recovery section, and filter on Aspire's DCP label rather than a name prefix.</div>
+  </div>
+</article>
+
+<h2 id="lows">Low findings</h2>
+<p>Each was verified against the cited lines by the reviewing agent and fixed in the same change as the Mediums. None touches data integrity or identity.</p>
+<div class="lows">
+
+<div class="low-card"><div class="t"><span class="n">6</span><span>Migration-safety tests scan only the top of Scripts/</span></div><div class="files">Tests/Conventions/PersistenceConventionTests.cs:264,277,322,417</div><p>Embedding and DbUp execution are recursive; the numbering and named-constraint tests are not. Nested scripts would also run after every top-level one. Latent, no subdirectory exists.</p><div class="f"><b>Fixed</b><code>SearchOption.AllDirectories</code> at all four sites.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">7</span><span><code>Money.Add</code> bypasses <code>Money.Create</code></span></div><div class="files">Domain/ValueObjects/Money.cs:63</div><p>The one construction path that can exceed <code>MaxAmount</code> and lacks the null guard. No production caller today.</p><div class="f"><b>Fixed</b>Route through <code>Create</code>; fix the stale mapper comment.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">8</span><span>Order line totals have no validator bound</span></div><div class="files">Validators/CreateOrderCommandValidator.cs:32 · Domain/Entities/OrderItem.cs:55</div><p>A ceiling-priced product with a large quantity passes validation and throws a BCL exception from outbox capture. The transaction rolls back, but the 400 carries a BCL message instead of a structured error.</p><div class="f"><b>Fixed</b>Bound quantity; add a domain guard on the line total.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">9</span><span>Create and update disagree on whether Currency may be absent</span></div><div class="files">Commands/CreateProductCommand.cs:11 · UpdateProductCommand.cs:9</div><p>The same body creates a USD product on POST and fails with "Currency is required" on PUT.</p><div class="f"><b>Fixed</b>Make create's Currency nullable and required, or document the default and relax update.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">10</span><span>Product read and write contracts name the same values differently</span></div><div class="files">DTOs/ProductDto.cs:8 · ReadModels/ProductReadModel.cs:8</div><p>POST returns <code>price</code>/<code>currency</code>; GET returns <code>priceAmount</code>/<code>priceCurrency</code>.</p><div class="f"><b>Fixed</b>Alias the read SQL and rename the read model.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">11</span><span>A failed job-run purge orphans a successful insert</span></div><div class="files">ServiceDefaults/Jobs/JobRunRecording.cs:38-60,110-124</div><p>The purge shares the insert's try and is due on every first run. A failing delete returns an empty id, so the row is never completed and the reporting pack reports a crash.</p><div class="f"><b>Fixed</b>Own try for the purge; stamp the purge time only on success.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">12</span><span>Subscribers resolve the correlation id twice</span></div><div class="files">Functions/InventoryReservationFunction.cs:27,36 · OrderConfirmationEmailFunction.cs:27,36</div><p>The fallback mints a fresh value each call, so a resubmitted message with neither source is logged under one id and archived under another.</p><div class="f"><b>Fixed</b>Read the pushed id in <code>ProcessAsync</code>.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">13</span><span><code>Environment.Exit</code> skips the log flush in both hosts</span></div><div class="files">DbMigrator/Program.cs:45-78 · Api/Program.cs:104-112</div><p>Seq and OpenTelemetry sinks batch, so the line explaining a failed migration or fatal startup can be lost.</p><div class="f"><b>Fixed</b>Return an exit code so <code>finally</code> runs.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">14</span><span>DbMigrator carries an unused ServiceDefaults reference and file sink</span></div><div class="files">DbMigrator/StarterApp.DbMigrator.csproj:21,31</div><p>Pulls Azure, OpenTelemetry and the ASP.NET framework into a 68-package closure for a job that needs DbUp, Npgsql and Serilog.</p><div class="f"><b>Fixed</b>Drop both; regenerate the lock with <code>--force-evaluate</code>.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">15</span><span>Three redundant indexes on write-path tables</span></div><div class="files">DbMigrator/Scripts/0001_CreatePostgresSchema.sql:32,56,105</div><p>One partial outbox index is a strict subset of its neighbour; two owner-scope indexes are prefixes of wider ones.</p><div class="f"><b>Fixed</b>A <code>0005</code> script dropping the three by name.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">16</span><span>A stalled outbox looks identical to an idle one in job_runs</span></div><div class="files">Infrastructure/Outbox/OutboxProcessor.cs:165,193 · OutboxRunAggregator.cs:21-35</div><p>Both pause branches break without touching the aggregator, which emits nothing for an all-zero window.</p><div class="f"><b>Fixed</b>A paused counter that reports Degraded.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">17</span><span><code>/liveness</code> and <code>/healthiness</code> are payload-captured on every poll</span></div><div class="files">Payloads/PayloadCaptureMiddleware.cs:31-37 · ProbeEndpoints.cs:19,25</div><p>The exact-match skip set predates the two external-monitor routes; each poll writes four blob lines.</p><div class="f"><b>Fixed</b>Add both to the skip set; update the guarding test and the decisions doc.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">18</span><span>Rate-limit queueing stalls requests; 429 has no Retry-After</span></div><div class="files">ServiceCollectionExtensions.cs:168-177 · RateLimitingOptions.cs:21</div><p>Queue of five on a fixed window blocks requests 101 to 105 until the next window.</p><div class="f"><b>Fixed</b><code>QueueLimit = 0</code> and an <code>OnRejected</code> handler.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">19</span><span>Read retry policy has no jitter and retries exhaustion for a minute</span></div><div class="files">Persistence/PostgresRetryPolicy.cs:15-17,86</div><p>A deterministic 1-2-4-8-16-30 second ladder holds saturated reads open for 61 seconds in lockstep.</p><div class="f"><b>Fixed</b>Jitter plus an overall deadline.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">20</span><span>A housekeeping test walks gitignored sibling worktrees</span></div><div class="files">Tests/Conventions/HousekeepingConventionTests.cs:198-206,249-257</div><p>Another agent's uncommitted branch under <code>.claude/worktrees</code> can fail this one's build. CI is unaffected.</p><div class="f"><b>Fixed</b>Scope to <code>src/</code> plus root props.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">21</span><span>Dead code and hygiene</span></div><div class="files">Tests/Consistency/IlInstructionWalker.cs:64 · ASPIRE_SETUP_COMPLETE.md · .gitignore</div><p>An uncalled operand-size helper, an orphaned root doc that omits Keycloak, untracked <code>graphify-out/</code>, and Gateway build residue on disk.</p><div class="f"><b>Fixed</b>Delete, ignore, remove.</div></div>
+
+<div class="low-card"><div class="t"><span class="n">22</span><span>CLAUDE.md calls the unit filter "fast" without saying it needs Docker</span></div><div class="files">CLAUDE.md · AGENTS.md · .github/workflows/ci.yml:49-56</div><p>55 handler tests in that filter share a Testcontainers PostgreSQL fixture. A Docker-less machine sees 55 failures.</p><div class="f"><b>Fixed</b>One clause in both mirrors.</div></div>
+
+</div>
+
+<h2 id="dismissed">Dismissed after verification</h2>
+<p>Recorded in the review playbook's known-false-positive list so they are not re-raised without new evidence.</p>
+<div class="dismissed">
+<article class="finding">
+  <div class="num">×</div>
+  <div>
+    <div class="chips"><span class="chip dis">Noise</span></div>
+    <h3>Endpoints bind a CancellationToken but nothing checks it is forwarded</h3>
+    <p><code>AnalysisMode=All</code> applies the SDK's global config, which promotes CA2016 to a warning, and warnings are errors here. Every endpoint handler is a named method group, so the analyzer's lambda blind spot does not apply. The convention test covers the declaring half; the compiler covers the forwarding half.</p>
+  </div>
+</article>
+<article class="finding">
+  <div class="num">×</div>
+  <div>
+    <div class="chips"><span class="chip dis">Noise</span></div>
+    <h3>Exported-only cohort discovery lets an internal handler escape the owner-policy conventions</h3>
+    <p>The every-command-has-a-handler test enumerates commands with all types and handlers with exported types only, so an internal handler fails the build as a missing implementation. Coverage is transitive rather than intrinsic; switching the helper is an optional one-line hardening.</p>
+  </div>
+</article>
+<article class="finding">
+  <div class="num">×</div>
+  <div>
+    <div class="chips"><span class="chip dis">Recorded decision</span></div>
+    <h3>Unauthenticated traffic bypasses the rate limiter because it runs after authorization</h3>
+    <p>Mechanically true and deliberate. The decisions log delegates inbound volume to the upstream gateway and scopes the in-app limiter to fairness between verified identities. Changing it is a new decision, not a bug.</p>
+  </div>
+</article>
+</div>
+
+<h2 id="order">Fix order (all landed 3 Sep)</h2>
+<ol class="order">
+  <li>Headers via <code>OnStarting</code> and one integration test. Smallest change, largest operational effect.</li>
+  <li>Inject the singleton blob client into the health check; consider a predicate on the root probe.</li>
+  <li>Thread the sensitive tokens into the route branch and add a route-derived test case.</li>
+  <li>Portable reset script, network removal, link from the skill.</li>
+  <li>Walker migration for the four IL sites and a meta convention.</li>
+  <li>Lows in any order. Findings 6, 7, 11, 13 and 17 are each a few lines.</li>
+</ol>
+
+<h2 id="verify">What was verified</h2>
+<div class="tblwrap">
+<table>
+  <tr><th>Stage</th><th>Method</th><th>Outcome</th></tr>
+  <tr><td>Find</td><td>Five finders, one per subsystem, each reading every file in its area and told zero findings is acceptable</td><td>29 candidates</td></tr>
+  <tr><td>Verify</td><td>Eight Medium candidates to independent verifiers instructed to refute, line by line</td><td>3 dismissed, 2 downgraded, 3 confirmed with corrections</td></tr>
+  <tr><td>Self-check</td><td>Low candidates verified directly against the cited lines</td><td>All 17 confirmed</td></tr>
+  <tr><td>Build</td><td><code>dotnet build</code> and the fast filter locally, then the full suite in the pre-commit hook once Podman was started</td><td class="n">551 pass, then full suite green</td></tr>
+  <tr><td>Resolve</td><td>All 22 fixed with regression tests; the four code-level Medium tests run against the pre-fix files first</td><td class="n">4 fail on old code, 718 pass after</td></tr>
+</table>
+</div>
+<p>The nine findings from the 4 August reviews (one High: quoted database passwords leaking through a regex mask; eight Medium) were fixed the same day in a second change, with twelve of thirteen new regression tests proven to fail on the old code. Fix-by-fix detail is in the Resolution sections of the committed review docs. The score recovered to 8.0.</p>
+</div>
+</div>
+
+<footer>
+  Self-assessed by the maintaining agents with no external validator. The live number and open list are in docs/ARCHITECTURE_REVIEW.md; treat both as claims to verify.
+</footer>
+</div>

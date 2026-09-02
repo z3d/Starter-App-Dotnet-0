@@ -9,7 +9,9 @@ The same-day runtime-hardening review and its five open findings are recorded in
 [docs/reviews/ARCHITECTURE_REVIEW-2026-08-04-runtime-hardening.md](reviews/ARCHITECTURE_REVIEW-2026-08-04-runtime-hardening.md).
 The 2026-09-02 whole-solution review (five Medium, seventeen Low, three dismissed candidates) is
 recorded in
-[docs/reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md).
+[docs/reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md)
+(a rendered, shareable version of the same findings sits beside it as
+[ARCHITECTURE_REVIEW-2026-09-02-whole-solution.html](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.html)).
 Skeptics verifying "was this already dismissed?" consult the archive; this file answers "what is
 true and open right now".
 
