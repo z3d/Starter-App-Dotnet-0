@@ -10,11 +10,17 @@ namespace StarterApp.Api.Infrastructure.Persistence;
 //
 // The operation Func is invoked per attempt; Dapper reopens connections from the
 // pool as needed, so broken connections are recycled automatically.
+//
+// Backoff is jittered and capped by a total delay budget. A deterministic ladder makes every
+// saturated reader retry in lockstep and hold its request open for the whole ladder, which
+// amplifies the very exhaustion (53300) it is retrying; the EF write path already jitters via
+// NpgsqlRetryingExecutionStrategy, so reads now match it.
 public static class PostgresRetryPolicy
 {
-    private const int MaxRetries = 6;
-    private const int BaseDelayMs = 1000;
-    private const int MaxDelayMs = 30_000;
+    private const int MaxRetries = 5;
+    private const int BaseDelayMs = 500;
+    private const int MaxDelayMs = 5_000;
+    internal static readonly TimeSpan DefaultTotalDelayBudget = TimeSpan.FromSeconds(10);
 
     private static readonly HashSet<string> TransientSqlStates =
     [
@@ -40,17 +46,20 @@ public static class PostgresRetryPolicy
         return ExecuteAsync(operation, IsTransientException, MaxRetries, cancellationToken);
     }
 
-    // Test-friendly overload: the retry predicate and retry count are injected so unit tests
-    // don't have to fabricate provider-specific exceptions.
+    // Test-friendly overload: the retry predicate, retry count and delay budget are injected so
+    // unit tests don't have to fabricate provider-specific exceptions or wait out real backoff.
     internal static async Task<T> ExecuteAsync<T>(
         Func<CancellationToken, Task<T>> operation,
         Func<Exception, bool> shouldRetry,
         int maxRetries,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeSpan? totalDelayBudget = null)
     {
         ArgumentNullException.ThrowIfNull(operation);
         ArgumentNullException.ThrowIfNull(shouldRetry);
 
+        var budget = totalDelayBudget ?? DefaultTotalDelayBudget;
+        var totalDelay = TimeSpan.Zero;
         var attempt = 0;
         while (true)
         {
@@ -58,10 +67,14 @@ public static class PostgresRetryPolicy
             {
                 return await operation(cancellationToken);
             }
-            catch (Exception ex) when (shouldRetry(ex) && attempt < maxRetries)
+            catch (Exception ex) when (shouldRetry(ex) && attempt < maxRetries && totalDelay < budget)
             {
                 attempt++;
                 var delay = ComputeBackoff(attempt);
+                if (totalDelay + delay > budget)
+                    delay = budget - totalDelay;
+
+                totalDelay += delay;
                 await Task.Delay(delay, cancellationToken);
             }
         }
@@ -81,7 +94,18 @@ public static class PostgresRetryPolicy
 
     internal static bool IsTransientSqlStateForTesting(string sqlState) => TransientSqlStates.Contains(sqlState);
 
+    // Full jitter on an exponential ceiling: each delay lands uniformly in [ceiling / 2, ceiling],
+    // so concurrent retries spread out instead of hitting the server in the same instant.
     internal static TimeSpan ComputeBackoff(int attempt)
+    {
+        var ceiling = ComputeBackoffCeiling(attempt);
+        // Not a security decision, but RandomNumberGenerator is what the analyzer set admits and
+        // it is cheap at this call rate (one draw per retry, never per request).
+        var factor = 0.5 + System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 1001) / 2000.0;
+        return TimeSpan.FromMilliseconds(ceiling.TotalMilliseconds * factor);
+    }
+
+    internal static TimeSpan ComputeBackoffCeiling(int attempt)
     {
         var delayMs = Math.Min(BaseDelayMs * Math.Pow(2, attempt - 1), MaxDelayMs);
         return TimeSpan.FromMilliseconds(delayMs);

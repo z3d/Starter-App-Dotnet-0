@@ -186,7 +186,7 @@ public class ProductApiTests : IAsyncLifetime
         Assert.NotNull(updatedProduct);
         Assert.Equal(updateCommand.Name, updatedProduct.Name);
         Assert.Equal(updateCommand.Description, updatedProduct.Description);
-        Assert.Equal(updateCommand.Price!.Value, updatedProduct.PriceAmount);
+        Assert.Equal(updateCommand.Price!.Value, updatedProduct.Price);
         Assert.Equal(updateCommand.Stock!.Value, updatedProduct.Stock);
     }
 
@@ -226,7 +226,7 @@ public class ProductApiTests : IAsyncLifetime
         Assert.NotNull(persistedProduct);
         Assert.Equal(newProduct.Name, persistedProduct.Name);
         Assert.Equal(newProduct.Description, persistedProduct.Description);
-        Assert.Equal(newProduct.Price, persistedProduct.PriceAmount);
+        Assert.Equal(newProduct.Price, persistedProduct.Price);
         Assert.Equal(newProduct.Stock, persistedProduct.Stock);
     }
 
@@ -268,7 +268,7 @@ public class ProductApiTests : IAsyncLifetime
         Assert.NotNull(persistedProduct);
         Assert.Equal(newProduct.Name, persistedProduct.Name);
         Assert.Equal(newProduct.Description, persistedProduct.Description);
-        Assert.Equal(newProduct.Price, persistedProduct.PriceAmount);
+        Assert.Equal(newProduct.Price, persistedProduct.Price);
         Assert.Equal(newProduct.Stock, persistedProduct.Stock);
     }
 

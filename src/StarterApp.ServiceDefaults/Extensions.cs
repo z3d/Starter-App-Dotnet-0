@@ -115,20 +115,28 @@ public static class Extensions
         builder.Services.AddSingleton<IPayloadRedactor, JsonPayloadRedactor>();
         builder.Services.AddSingleton<IPayloadCaptureSink, PayloadCaptureSink>();
         builder.Services.AddSingleton<IArtifactCaptureSink, ArtifactCaptureSink>();
+        // One BlobServiceClient per process. The archive store and the API's payload-archive health
+        // check both take it from DI, so a health probe reuses the warm client and its credential's
+        // token cache instead of re-walking the DefaultAzureCredential chain on every call.
+        if (PayloadArchiveConfiguration.IsConfigured(builder.Configuration))
+        {
+            builder.Services.TryAddSingleton(provider =>
+            {
+                var options = provider.GetRequiredService<IOptions<PayloadCaptureOptions>>().Value;
+                var source = PayloadArchiveConfiguration.ResolveClientSource(options, builder.Configuration);
+                return source.ConnectionString is not null
+                    ? new BlobServiceClient(source.ConnectionString)
+                    : new BlobServiceClient(source.AccountUri!, new DefaultAzureCredential());
+            });
+        }
+
         builder.Services.AddSingleton<IPayloadArchiveStore>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<PayloadCaptureOptions>>();
-            var connectionString = options.Value.ConnectionString
-                ?? builder.Configuration.GetConnectionString("payloadarchive")
-                ?? builder.Configuration.GetConnectionString("payloadstorage");
-
-            if (!string.IsNullOrWhiteSpace(connectionString))
-                return new AzureBlobPayloadArchiveStore(new BlobServiceClient(connectionString), options);
-
-            if (!string.IsNullOrWhiteSpace(options.Value.AccountUri))
-                return new AzureBlobPayloadArchiveStore(new BlobServiceClient(new Uri(options.Value.AccountUri), new DefaultAzureCredential()), options);
-
-            return new NullPayloadArchiveStore();
+            var client = provider.GetService<BlobServiceClient>();
+            return client is not null
+                ? new AzureBlobPayloadArchiveStore(client, options)
+                : new NullPayloadArchiveStore();
         });
 
         return builder;
@@ -136,10 +144,7 @@ public static class Extensions
 
     private static bool HasPayloadArchiveStore(PayloadCaptureOptions options, IConfiguration configuration)
     {
-        return !string.IsNullOrWhiteSpace(options.ConnectionString) ||
-            !string.IsNullOrWhiteSpace(options.AccountUri) ||
-            !string.IsNullOrWhiteSpace(configuration.GetConnectionString("payloadarchive")) ||
-            !string.IsNullOrWhiteSpace(configuration.GetConnectionString("payloadstorage"));
+        return PayloadArchiveConfiguration.ResolveClientSource(options, configuration).IsConfigured;
     }
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)

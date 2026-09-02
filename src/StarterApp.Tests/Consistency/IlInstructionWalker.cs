@@ -5,8 +5,9 @@ namespace StarterApp.Tests.Consistency;
 /// <summary>
 /// Walks IL byte arrays on instruction boundaries, yielding each opcode and its operand
 /// position/size. Uses System.Reflection.Emit.OpCodes metadata for authoritative operand
-/// sizes. Consumed by IlInspector (opcode-level feature extraction) and the Conventions
-/// ConventionTestBase IL helpers to avoid duplicating operand-size logic.
+/// sizes. Consumed by IlInspector (opcode-level feature extraction), the Conventions IL helpers,
+/// and (as a linked file) the StarterApp.AppHost.Tests convention scans, so no test hand-rolls a
+/// raw IL byte loop.
 /// </summary>
 public static class IlInstructionWalker
 {
@@ -57,26 +58,11 @@ public static class IlInstructionWalker
         }
     }
 
-    /// <summary>
-    /// Returns the operand byte count for a given opcode.
-    /// Returns -1 for switch (0x45) to signal variable length.
-    /// </summary>
-    public static int GetOperandSize(byte opcode, byte secondByte = 0)
-    {
-        if (opcode == 0xFE)
-            return secondByte < TwoByteOperandSizes.Length ? TwoByteOperandSizes[secondByte] : 0;
-
-        if (opcode == 0x45)
-            return -1;
-
-        return SingleByteOperandSizes[opcode];
-    }
-
     private static int[] BuildSingleByteTable()
     {
         var table = new int[256];
 
-        foreach (var field in typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static))
+        foreach (var field in typeof(OpCodes).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
         {
             if (field.FieldType != typeof(OpCode))
                 continue;
@@ -96,7 +82,7 @@ public static class IlInstructionWalker
     {
         var table = new int[256];
 
-        foreach (var field in typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static))
+        foreach (var field in typeof(OpCodes).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
         {
             if (field.FieldType != typeof(OpCode))
                 continue;

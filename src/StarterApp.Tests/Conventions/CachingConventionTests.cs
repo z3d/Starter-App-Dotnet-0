@@ -216,37 +216,34 @@ public class CachingConventionTests : ConventionTestBase
     private static IEnumerable<MemberInfo> ResolveCalledMembers(MethodInfo method)
     {
         var body = method.GetMethodBody();
-        if (body == null)
-            yield break;
-
-        var il = body.GetILAsByteArray();
+        var il = body?.GetILAsByteArray();
         if (il == null)
-            yield break;
+            return [];
 
         var module = method.Module;
+        var members = new List<MemberInfo>();
 
-        for (var i = 0; i < il.Length - 4; i++)
+        // This feeds the cohort filter for the cache-invalidation rule, so a skipped call would
+        // silently drop a handler from the rule's scope — walk on instruction boundaries.
+        IlInstructionWalker.Walk(il, (opcode, _, operandStart, operandSize) =>
         {
             // call / callvirt, each followed by a 4-byte metadata token.
-            if (il[i] is not (0x28 or 0x6F))
-                continue;
+            if (opcode is not (0x28 or 0x6F) || operandSize < 4 || operandStart + 3 >= il.Length)
+                return;
 
-            var token = BitConverter.ToInt32(il, i + 1);
-            MemberInfo? member = null;
+            var token = BitConverter.ToInt32(il, operandStart);
             try
             {
-                member = module.ResolveMember(token);
+                if (module.ResolveMember(token) is { } member)
+                    members.Add(member);
             }
             catch
             {
                 // Unresolvable generic instantiation — skip.
             }
+        });
 
-            if (member != null)
-                yield return member;
-
-            i += 4;
-        }
+        return members;
     }
 
     private static ICacheable CreateDefaultInstance(Type type) => CreateInstance(type, identity: 1);

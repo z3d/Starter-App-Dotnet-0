@@ -242,7 +242,7 @@ public class PayloadCaptureMiddlewareTests
         // The skip list is hardcoded and exact-match on purpose. If this test is failing,
         // someone is trying to exclude business traffic from the audit artifact — that
         // requires a new recorded decision, not an entry here.
-        Assert.Equal(4, PayloadCaptureMiddleware.ProbeSkipRoutes.Count);
+        Assert.Equal(6, PayloadCaptureMiddleware.ProbeSkipRoutes.Count);
         Assert.All(PayloadCaptureMiddleware.ProbeSkipRoutes, route =>
         {
             Assert.False(route.StartsWith("/api", StringComparison.OrdinalIgnoreCase));

@@ -337,4 +337,29 @@ public class ProblemDetailsTests : IAsyncLifetime
 
         Assert.Contains(propertyErrors.EnumerateArray(), error => error.GetString() == errorMessage);
     }
+
+    [Fact]
+    public async Task ErrorResponses_ShouldKeepSecurityHeadersAndCorrelationId()
+    {
+        // UseExceptionHandler clears the response before writing ProblemDetails. The security
+        // headers and the correlation echo are applied via OnStarting so they survive that reset;
+        // this pins it on both a mapped 404 and a validation 400.
+        var notFound = await _fixture.Client.GetAsync("/api/v1/products/999999");
+        Assert.Equal(HttpStatusCode.NotFound, notFound.StatusCode);
+        AssertHardenedErrorResponse(notFound);
+
+        var badRequest = await _fixture.Client.PostAsJsonAsync("/api/v1/customers",
+            new CreateCustomerCommand { Name = "John Doe", Email = "invalid-email-format" });
+        Assert.Equal(HttpStatusCode.BadRequest, badRequest.StatusCode);
+        AssertHardenedErrorResponse(badRequest);
+    }
+
+    private static void AssertHardenedErrorResponse(HttpResponseMessage response)
+    {
+        Assert.True(response.Headers.TryGetValues("X-Correlation-ID", out var correlation) && correlation.Single().Length > 0,
+            "error responses must echo X-Correlation-ID so support can find the archive blob");
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        Assert.Equal("strict-origin-when-cross-origin", response.Headers.GetValues("Referrer-Policy").Single());
+    }
 }

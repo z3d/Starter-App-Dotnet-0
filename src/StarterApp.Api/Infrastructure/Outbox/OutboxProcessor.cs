@@ -162,6 +162,7 @@ public class OutboxProcessor : BackgroundService
                     _logger.LogWarning(captureEx,
                         "Payload capture failed for outbox message {MessageId} ({Type}) before publish; pausing batch until the archive store recovers (retry budget untouched)",
                         message.Id, message.Type);
+                    _runAggregator.AddPaused();
                     break;
                 }
 
@@ -190,6 +191,7 @@ public class OutboxProcessor : BackgroundService
                 {
                     _logger.LogWarning(ex, "Transient dependency error publishing outbox message {MessageId} ({Type}); pausing batch until claim lock expires",
                         message.Id, message.Type);
+                    _runAggregator.AddPaused();
                     break;
                 }
 

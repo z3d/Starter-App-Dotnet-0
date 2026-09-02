@@ -175,6 +175,16 @@ public static class ServiceCollectionExtensions
             });
 
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.OnRejected = (rejection, _) =>
+            {
+                if (rejection.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    rejection.HttpContext.Response.Headers.RetryAfter =
+                        Math.Ceiling(retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+
+                return ValueTask.CompletedTask;
+            };
         });
 
         return services;
@@ -213,18 +223,15 @@ public static class ServiceCollectionExtensions
         if (!string.IsNullOrEmpty(configuration.GetConnectionString("servicebus")))
             healthChecks.AddCheck<ServiceBusHealthCheck>("servicebus", tags: ["durable"]);
 
-        if (HasPayloadArchiveConfiguration(configuration))
+        if (StarterApp.ServiceDefaults.Payloads.PayloadArchiveConfiguration.IsConfigured(configuration))
+        {
+            // AddCheck<T> alone activates a fresh instance on every health run. Registering the
+            // check in DI makes HealthCheckService reuse one instance and the shared client.
+            services.AddSingleton<PayloadArchiveHealthCheck>();
             healthChecks.AddCheck<PayloadArchiveHealthCheck>("payload-archive", tags: ["durable"]);
+        }
 
         return services;
-    }
-
-    private static bool HasPayloadArchiveConfiguration(IConfiguration configuration)
-    {
-        return !string.IsNullOrWhiteSpace(configuration["PayloadCapture:ConnectionString"]) ||
-            !string.IsNullOrWhiteSpace(configuration["PayloadCapture:AccountUri"]) ||
-            !string.IsNullOrWhiteSpace(configuration.GetConnectionString("payloadarchive")) ||
-            !string.IsNullOrWhiteSpace(configuration.GetConnectionString("payloadstorage"));
     }
 
     public static IServiceCollection AddServiceBusPublisher(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)

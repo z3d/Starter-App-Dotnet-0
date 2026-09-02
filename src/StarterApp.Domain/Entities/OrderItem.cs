@@ -2,6 +2,9 @@ namespace StarterApp.Domain.Entities;
 
 public class OrderItem
 {
+    // Mirrored by CreateOrderCommandValidator (Validator–Domain Guard Sync Rule). Bounds the line
+    // total so it stays a validation error rather than a BCL exception from the outbox capture.
+    public const int MaxQuantity = 10_000;
     public const decimal DefaultGstRate = 0.10m; // 10% GST
 
     public int Id { get; private set; }
@@ -31,6 +34,7 @@ public class OrderItem
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(productId);
         ArgumentException.ThrowIfNullOrWhiteSpace(productName);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(quantity);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(quantity, MaxQuantity);
         ArgumentNullException.ThrowIfNull(unitPriceExcludingGst);
         ArgumentOutOfRangeException.ThrowIfNegative(gstRate);
 

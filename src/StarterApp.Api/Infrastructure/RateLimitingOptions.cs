@@ -17,6 +17,9 @@ public class RateLimitingOptions
     [Range(1, 3600)]
     public int WindowSeconds { get; set; } = 60;
 
+    // Zero by default: a fixed-window limiter grants queued leases only at the next window
+    // boundary, so any queue turns a fast 429 into a request that stalls for the rest of the
+    // window while holding a connection. Deployments that prefer smoothing can opt in.
     [Range(0, 10_000)]
-    public int QueueLimit { get; set; } = 5;
+    public int QueueLimit { get; set; }
 }

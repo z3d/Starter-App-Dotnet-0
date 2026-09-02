@@ -55,7 +55,7 @@ public class RateLimitingTests
         var defaults = new RateLimitingOptions();
         Assert.Equal(100, defaults.PermitLimit);
         Assert.Equal(60, defaults.WindowSeconds);
-        Assert.Equal(5, defaults.QueueLimit);
+        Assert.Equal(0, defaults.QueueLimit);
     }
 
     [Fact]

@@ -33,7 +33,9 @@ public class InventoryReservationFunction
 
     private async Task ProcessAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken)
     {
-        var correlationId = ResolveCorrelationId(message);
+        // RunAsync resolved and pushed the id; resolving again would mint a second one for a
+        // message that carries none, splitting its log scope and its archive blob.
+        var correlationId = CorrelationContext.GetOrCreate();
         var body = message.Body.ToString();
 
         await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest

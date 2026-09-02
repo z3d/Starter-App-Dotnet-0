@@ -1,6 +1,7 @@
 using System.Reflection;
 using StarterApp.Functions;
 using StarterApp.ServiceDefaults.Payloads;
+using StarterApp.Tests.Consistency;
 
 namespace StarterApp.AppHost.Tests;
 
@@ -59,26 +60,27 @@ public class PayloadCaptureConventionTests
             return false;
 
         var module = method.Module;
+        var found = false;
 
-        for (var i = 0; i < il.Length - 4; i++)
+        // Walked on instruction boundaries (IlInstructionWalker is linked from StarterApp.Tests) so
+        // an operand byte is never misread as a call opcode.
+        IlInstructionWalker.Walk(il, (opcode, _, operandStart, operandSize) =>
         {
-            if (il[i] is not (0x28 or 0x6F))
-                continue;
+            if (found || opcode is not (0x28 or 0x6F) || operandSize < 4 || operandStart + 3 >= il.Length)
+                return;
 
-            var token = BitConverter.ToInt32(il, i + 1);
+            var token = BitConverter.ToInt32(il, operandStart);
             try
             {
                 if (module.ResolveMember(token)?.DeclaringType?.Name == typeName)
-                    return true;
+                    found = true;
             }
             catch
             {
                 // Unresolvable generic instantiation — not the member we are looking for.
             }
+        });
 
-            i += 4;
-        }
-
-        return false;
+        return found;
     }
 }

@@ -43,8 +43,8 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasColumnName("xmin")
             .IsRowVersion();
 
-        builder.HasIndex(o => new { o.TenantId, o.OwnerSubject })
-            .HasDatabaseName("ix_orders_tenant_id_owner_subject");
+        // No (tenant_id, owner_subject) index: the two wider indexes below serve that prefix
+        // (0005_DropRedundantIndexes.sql).
 
         builder.HasIndex(o => new { o.TenantId, o.OwnerSubject, o.CustomerId })
             .HasDatabaseName("ix_orders_tenant_id_owner_subject_customer_id");

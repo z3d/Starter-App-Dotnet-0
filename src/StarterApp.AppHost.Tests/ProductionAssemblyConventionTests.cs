@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using StarterApp.Functions;
+using StarterApp.Tests.Consistency;
 
 namespace StarterApp.AppHost.Tests;
 
@@ -88,28 +89,30 @@ public class ProductionAssemblyConventionTests
         if (il == null)
             return false;
 
-        for (var i = 0; i < il.Length - 4; i++)
-        {
-            if (il[i] is not (0x28 or 0x6F))
-                continue;
+        var found = false;
 
-            var token = BitConverter.ToInt32(il, i + 1);
+        // Negative assertion over every production assembly: a raw byte loop that skipped a real
+        // call would pass silently, so walk on instruction boundaries.
+        IlInstructionWalker.Walk(il, (opcode, _, operandStart, operandSize) =>
+        {
+            if (found || opcode is not (0x28 or 0x6F) || operandSize < 4 || operandStart + 3 >= il.Length)
+                return;
+
+            var token = BitConverter.ToInt32(il, operandStart);
             try
             {
                 var member = method.Module.ResolveMember(token);
                 if (member?.DeclaringType == typeof(DateTime) &&
                     member.Name is "get_Now" or "get_UtcNow" or "get_Today")
-                    return true;
+                    found = true;
             }
             catch
             {
                 // Some generic instantiations cannot be resolved from raw IL tokens. They are not DateTime calls.
             }
+        });
 
-            i += 4;
-        }
-
-        return false;
+        return found;
     }
 
     private static bool IsCompilerGenerated(Type type)

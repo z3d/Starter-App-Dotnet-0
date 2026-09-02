@@ -195,6 +195,31 @@ public class HousekeepingConventionTests : ConventionTestBase
         }
     }
 
+    [Fact]
+    public void TestSourcesThatReadIl_MustWalkOnInstructionBoundaries()
+    {
+        // A raw for-loop over GetILAsByteArray() reads operand bytes as opcodes; a false hit skips
+        // the next four bytes and can hide a genuine call from a negative assertion, so the test
+        // passes having checked nothing. IlInstructionWalker.Walk is the only sanctioned scan
+        // (testing-strategy skill: "never hand-roll a raw IL byte loop").
+        var testSources = Directory.EnumerateFiles(Path.Combine(FindRepoRoot(), "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(file => !IsInIgnoredDirectory(file))
+            .Where(file => file.Contains(".Tests" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            .Where(file => !file.EndsWith("IlInstructionWalker.cs", StringComparison.Ordinal))
+            .Where(file => File.ReadAllText(file).Contains("GetILAsByteArray", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.NotEmpty(testSources);
+
+        var violations = testSources
+            .Where(file => !File.ReadAllText(file).Contains("IlInstructionWalker.Walk", StringComparison.Ordinal))
+            .Select(FormatPath)
+            .ToList();
+
+        Assert.True(violations.Count == 0,
+            "Test sources that read IL bytes must scan them through IlInstructionWalker.Walk:\n" + string.Join("\n", violations));
+    }
+
     private static IEnumerable<string> EnumerateProjectFiles()
     {
         var root = FindRepoRoot();
@@ -252,8 +277,10 @@ public class HousekeepingConventionTests : ConventionTestBase
             .Replace(Path.DirectorySeparatorChar, '/')
             .Replace(Path.AltDirectorySeparatorChar, '/');
 
+        // .claude holds gitignored sibling worktrees (CLAUDE.md, "Working alongside other
+        // sessions"); another agent's uncommitted branch must not decide this branch's verdict.
         return relative.Split('/')
-            .Any(segment => segment is "bin" or "obj" or ".git");
+            .Any(segment => segment is "bin" or "obj" or ".git" or ".claude");
     }
 
     private static string FormatPath(string file)

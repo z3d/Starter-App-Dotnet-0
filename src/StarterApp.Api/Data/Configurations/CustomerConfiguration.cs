@@ -40,8 +40,8 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.IsActive)
             .HasColumnName("is_active");
 
-        builder.HasIndex(c => new { c.TenantId, c.OwnerSubject })
-            .HasDatabaseName("ix_customers_tenant_id_owner_subject");
+        // No (tenant_id, owner_subject) index: the unique (tenant_id, owner_subject, email) index
+        // below serves that prefix (0005_DropRedundantIndexes.sql).
 
         // NOTE: the per-owner unique email index `ix_customers_tenant_id_owner_subject_email`
         // (DbUp baseline 0001_CreatePostgresSchema.sql) is intentionally NOT mirrored here.

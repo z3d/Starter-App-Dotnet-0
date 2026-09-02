@@ -33,7 +33,7 @@ Updating a contract deliberately: `UPDATE_EVENT_SNAPSHOTS=1 dotnet test --filter
 
 `UsePayloadCapture()` is deliberately the first middleware, ahead of exception handling, authentication, and rate limiting. Rejected traffic (401/403/429, 404 junk) is captured *by design* as part of the full-fidelity audit posture. Request-path amplification is bounded by `MaxPayloadBytes`, `CapturedContentTypes`, and `MaxEntityReferences`; total inbound volume is the upstream gateway's problem.
 
-The only exclusions are the four platform probe routes (`/health`, `/health/ready`, `/health/live`, `/alive`) — exact-match and hardcoded, with a test pinning that the skip list can never cover the business surface. Response capture runs on an unlinked token, and still runs when the client aborts, so a deliberate disconnect can't suppress the audit record.
+The only exclusions are the six platform probe routes (`/health`, `/health/ready`, `/health/live`, `/alive`, `/liveness`, `/healthiness`) — exact-match and hardcoded, with a test pinning that the skip list can never cover the business surface. Response capture runs on an unlinked token, and still runs when the client aborts, so a deliberate disconnect can't suppress the audit record.
 
 **Re-add trigger:** none. Moving capture behind the rate limiter requires a new recorded decision.
 

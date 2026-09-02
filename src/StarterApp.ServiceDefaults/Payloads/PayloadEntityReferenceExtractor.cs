@@ -51,10 +51,16 @@ public static class PayloadEntityReferenceExtractor
         var references = new Dictionary<string, PayloadEntityReference>(StringComparer.OrdinalIgnoreCase);
         var contextEntityType = InferRootEntityType(request.Operation, request.Metadata);
 
+        // Every reference source passes the same name screen. The route path is caller-controlled
+        // and captured before routing, so an unauthenticated GET /api/v1/nationalId/{value} would
+        // otherwise publish {value} through the one door the JSON and metadata paths close.
         foreach (var reference in request.EntityReferences)
-            AddReference(reference.EntityType, reference.EntityId, references);
+        {
+            if (!IsSensitivePropertyName(reference.EntityType, sensitiveTokens))
+                AddReference(reference.EntityType, reference.EntityId, references);
+        }
 
-        AddRouteReference(request.Operation, request.Metadata, references);
+        AddRouteReference(request.Operation, request.Metadata, sensitiveTokens, references);
 
         foreach (var metadata in request.Metadata)
             AddReferenceFromName(metadata.Key, metadata.Value, contextEntityType, sensitiveTokens, references);
@@ -178,6 +184,7 @@ public static class PayloadEntityReferenceExtractor
     private static void AddRouteReference(
         string operation,
         IReadOnlyDictionary<string, string> metadata,
+        HashSet<string> sensitiveTokens,
         Dictionary<string, PayloadEntityReference> references)
     {
         var pathSegments = SplitPath(ResolvePath(operation, metadata));
@@ -187,6 +194,9 @@ public static class PayloadEntityReferenceExtractor
             var entitySegment = pathSegments[index];
             var idSegment = pathSegments[index + 1];
             if (!IsEntitySegment(entitySegment) || !IsLikelyIdentifier(idSegment))
+                continue;
+
+            if (IsSensitivePropertyName(entitySegment, sensitiveTokens))
                 continue;
 
             AddReference(entitySegment, idSegment, references);

@@ -146,3 +146,6 @@ tests/k6/reports/
 
 # Local-only working documents (never published from this public repo)
 docs/_local/
+
+# graphify code-graph tool output (local analysis artifact)
+graphify-out/

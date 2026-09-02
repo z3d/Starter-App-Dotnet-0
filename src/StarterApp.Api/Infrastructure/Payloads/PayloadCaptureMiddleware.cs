@@ -33,7 +33,9 @@ public sealed class PayloadCaptureMiddleware
         "/health",
         "/health/ready",
         "/health/live",
-        "/alive"
+        "/alive",
+        "/liveness",
+        "/healthiness"
     };
 
     public async Task InvokeAsync(HttpContext context)
@@ -55,6 +57,16 @@ public sealed class PayloadCaptureMiddleware
             context.Request.Headers[CorrelationContext.HeaderName] = correlationId;
 
         context.Response.Headers[CorrelationContext.HeaderName] = correlationId;
+
+        // UseExceptionHandler clears every response header before writing ProblemDetails. The
+        // OnStarting callback survives that reset, so the echo reaches error responses too and
+        // support can still jump from a failed call's correlation id to its archive blob.
+        context.Response.OnStarting(static state =>
+        {
+            var (response, id) = ((HttpResponse, string))state;
+            response.Headers[CorrelationContext.HeaderName] = id;
+            return Task.CompletedTask;
+        }, (context.Response, correlationId));
 
         using var correlationScope = CorrelationContext.Push(correlationId);
         using var logScope = LogContext.PushProperty("CorrelationId", correlationId);

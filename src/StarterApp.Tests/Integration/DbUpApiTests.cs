@@ -72,7 +72,7 @@ public class DbUpApiTests : IAsyncLifetime
         Assert.Equal(productId, retrievedProduct.Id);
         Assert.Equal(productName, retrievedProduct.Name);
         Assert.Equal(productDescription, retrievedProduct.Description);
-        Assert.Equal(price, retrievedProduct.PriceAmount);
+        Assert.Equal(price, retrievedProduct.Price);
         Assert.Equal(stock, retrievedProduct.Stock);
     }
 

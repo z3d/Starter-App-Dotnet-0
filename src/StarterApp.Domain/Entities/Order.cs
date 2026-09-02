@@ -65,6 +65,7 @@ public class Order : AggregateRoot
             throw new DomainRuleException("Cannot add items to a non-pending order");
 
         EnsureCurrencyMatchesExistingItems(item.UnitPriceExcludingGst.Currency);
+        EnsureLineTotalWithinMaxAmount(item.ProductId, item.UnitPriceExcludingGst, item.Quantity);
 
         // Check if item with same product already exists
         var existingItem = _items.FirstOrDefault(i => i.ProductId == item.ProductId);
@@ -91,6 +92,7 @@ public class Order : AggregateRoot
         ArgumentNullException.ThrowIfNull(unitPrice);
 
         EnsureCurrencyMatchesExistingItems(unitPrice.Currency);
+        EnsureLineTotalWithinMaxAmount(productId, unitPrice, quantity);
 
         var existingItem = _items.FirstOrDefault(i => i.ProductId == productId);
         if (existingItem != null)
@@ -102,6 +104,14 @@ public class Order : AggregateRoot
         _items.Add(item);
         LastUpdated = DateTimeOffset.UtcNow;
         return item;
+    }
+
+    // Last line of defence behind the validator's quantity ceiling: without it the total first
+    // fails inside OrderCreatedDomainEvent during outbox capture, as a bare ArgumentOutOfRange.
+    private static void EnsureLineTotalWithinMaxAmount(int productId, Money unitPrice, int quantity)
+    {
+        if (unitPrice.Amount * quantity > Money.MaxAmount)
+            throw new DomainRuleException($"Line total for product {productId} exceeds the maximum order value of {Money.MaxAmount}");
     }
 
     public void RemoveItem(int productId)

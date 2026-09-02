@@ -49,7 +49,18 @@ public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
             command.Parameters.AddWithValue("startedOnUtc", startedOnUtc);
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-            await PurgeIfDueAsync(connection, cancellationToken).ConfigureAwait(false);
+            // The purge is a best-effort sidecar and must never turn a committed start row into an
+            // orphan: when it shared this try, a failed delete discarded runId, CompleteRunAsync
+            // skipped, and job-run-history.sql reported the run as a crash.
+            try
+            {
+                await PurgeIfDueAsync(connection, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Job-run retention purge failed; it will be retried on a later run");
+            }
+
             return runId;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -113,12 +124,13 @@ public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
         var nowUtc = DateTimeOffset.UtcNow;
         if (nowUtc - _lastPurgeUtc < TimeSpan.FromHours(24))
             return;
-        _lastPurgeUtc = nowUtc;
 
         await using var command = new NpgsqlCommand(
             "DELETE FROM job_runs WHERE started_on_utc < @cutoffUtc", connection);
         command.Parameters.AddWithValue("cutoffUtc", nowUtc.AddDays(-_retentionDays));
         var purged = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        // Stamped only after success so a failed purge is retried on the next run, not in 24 hours.
+        _lastPurgeUtc = nowUtc;
         if (purged > 0)
             _logger.LogInformation("Job-run retention purge deleted {Count} rows older than {RetentionDays} days", purged, _retentionDays);
     }

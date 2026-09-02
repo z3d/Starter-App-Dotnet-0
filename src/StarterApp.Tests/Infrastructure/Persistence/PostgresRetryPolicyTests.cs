@@ -133,4 +133,40 @@ public class PostgresRetryPolicyTests
         Assert.False(PostgresRetryPolicy.IsTransientSqlStateForTesting(sqlState),
             $"SQLSTATE {sqlState} must not be classified as transient; retrying would mask a real logical error.");
     }
+
+    [Fact]
+    public void ComputeBackoff_IsJitteredBetweenHalfAndFullCeiling()
+    {
+        for (var attempt = 1; attempt <= 6; attempt++)
+        {
+            var ceiling = PostgresRetryPolicy.ComputeBackoffCeiling(attempt);
+            for (var sample = 0; sample < 50; sample++)
+            {
+                var delay = PostgresRetryPolicy.ComputeBackoff(attempt);
+                Assert.InRange(delay, ceiling / 2, ceiling);
+            }
+        }
+
+        // The ceiling still climbs monotonically and caps.
+        Assert.True(PostgresRetryPolicy.ComputeBackoffCeiling(2) > PostgresRetryPolicy.ComputeBackoffCeiling(1));
+        Assert.Equal(PostgresRetryPolicy.ComputeBackoffCeiling(10), PostgresRetryPolicy.ComputeBackoffCeiling(20));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_StopsRetrying_WhenTheDelayBudgetIsExhausted()
+    {
+        // A saturated server must not be held open for the whole ladder: once the cumulative
+        // backoff reaches the budget the next transient failure propagates.
+        var callCount = 0;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            PostgresRetryPolicy.ExecuteAsync<int>(
+                _ => { callCount++; throw new InvalidOperationException("transient"); },
+                _ => true,
+                maxRetries: 6,
+                CancellationToken.None,
+                totalDelayBudget: TimeSpan.Zero));
+
+        Assert.Equal(1, callCount);
+    }
 }

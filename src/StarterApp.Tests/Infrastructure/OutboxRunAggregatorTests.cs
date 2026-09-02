@@ -32,7 +32,7 @@ public class OutboxRunAggregatorTests
         Assert.Equal(1, window.Retried);
         Assert.Equal(7, window.Purged);
         Assert.Equal("Degraded", window.Outcome);
-        Assert.Equal("{\"published\":2,\"errored\":1,\"retried\":1,\"purged\":7}", window.ToSummaryJson());
+        Assert.Equal("{\"published\":2,\"errored\":1,\"retried\":1,\"purged\":7,\"paused\":0}", window.ToSummaryJson());
 
         // Counters reset; the next interval with no activity emits nothing.
         Assert.Null(aggregator.TryFlush(T0.AddMinutes(30)));
@@ -51,5 +51,23 @@ public class OutboxRunAggregatorTests
         Assert.NotNull(window);
         Assert.Equal(T0.AddMinutes(16), window.StartedOnUtc);
         Assert.Equal("Succeeded", window.Outcome);
+    }
+
+    [Fact]
+    public void TryFlush_AfterInterval_WithOnlyPausedBatches_EmitsDegradedWindow()
+    {
+        // A batch that pauses on a dependency fault publishes nothing and errors nothing. Without a
+        // paused count, hours of a fully stalled outbox looked identical to an idle one.
+        var aggregator = new OutboxRunAggregator(TimeSpan.FromMinutes(15), T0);
+        aggregator.AddPaused();
+        aggregator.AddPaused();
+
+        var window = aggregator.TryFlush(T0.AddMinutes(15));
+
+        Assert.NotNull(window);
+        Assert.Equal(2, window.Paused);
+        Assert.Equal(0, window.Published);
+        Assert.Equal("Degraded", window.Outcome);
+        Assert.Contains("\"paused\":2", window.ToSummaryJson(), StringComparison.Ordinal);
     }
 }

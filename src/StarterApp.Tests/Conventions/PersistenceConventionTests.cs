@@ -261,7 +261,7 @@ public class PersistenceConventionTests : ConventionTestBase
     {
         var scriptsDir = RequireScriptsDirectory();
 
-        var badScripts = Directory.GetFiles(scriptsDir, "*.sql")
+        var badScripts = Directory.GetFiles(scriptsDir, "*.sql", SearchOption.AllDirectories)
             .Select(Path.GetFileName)
             .Where(f => f != null && !System.Text.RegularExpressions.Regex.IsMatch(f, @"^\d{4}_"))
             .ToList();
@@ -274,7 +274,7 @@ public class PersistenceConventionTests : ConventionTestBase
     {
         var scriptsDir = RequireScriptsDirectory();
 
-        var numbers = Directory.GetFiles(scriptsDir, "*.sql")
+        var numbers = Directory.GetFiles(scriptsDir, "*.sql", SearchOption.AllDirectories)
             .Select(Path.GetFileName)
             .Where(f => f != null && System.Text.RegularExpressions.Regex.IsMatch(f, @"^\d{4}_"))
             .Select(f => int.Parse(f![..4], System.Globalization.CultureInfo.InvariantCulture))
@@ -319,7 +319,7 @@ public class PersistenceConventionTests : ConventionTestBase
 
         var violations = new List<string>();
 
-        foreach (var file in Directory.GetFiles(scriptsDir, "*.sql").OrderBy(f => f))
+        foreach (var file in Directory.GetFiles(scriptsDir, "*.sql", SearchOption.AllDirectories).OrderBy(f => f))
         {
             var fileName = Path.GetFileName(file);
             if (!int.TryParse(fileName.AsSpan(0, 4), out var scriptNumber) || scriptNumber < firstEnforcedScript)
@@ -405,6 +405,9 @@ public class PersistenceConventionTests : ConventionTestBase
         }
     }
 
+    // Every guard enumerates recursively: the csproj embeds Scripts\**\*.sql and DbUp executes every
+    // embedded .sql resource (ordered by full resource name, so a nested script would even run after
+    // every top-level one), so a subdirectory must not escape the numbering and naming rules.
     private static string RequireScriptsDirectory()
     {
         var scriptsDir = ResolveScriptsDirectory();
@@ -414,7 +417,7 @@ public class PersistenceConventionTests : ConventionTestBase
         // working directory), the migration-safety guards below would otherwise pass having
         // validated nothing — turning a documented hard invariant into a vacuous green.
         Assert.NotNull(scriptsDir);
-        Assert.NotEmpty(Directory.GetFiles(scriptsDir, "*.sql"));
+        Assert.NotEmpty(Directory.GetFiles(scriptsDir, "*.sql", SearchOption.AllDirectories));
         return scriptsDir;
     }
 

@@ -29,8 +29,8 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, I
                 id AS ""Id"",
                 name AS ""Name"",
                 description AS ""Description"",
-                price_amount AS ""PriceAmount"",
-                price_currency AS ""PriceCurrency"",
+                price_amount AS ""Price"",
+                price_currency AS ""Currency"",
                 stock AS ""Stock"",
                 last_updated AS ""LastUpdated""
             FROM products

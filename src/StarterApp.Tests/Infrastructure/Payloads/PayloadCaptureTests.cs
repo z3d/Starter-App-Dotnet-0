@@ -527,4 +527,27 @@ public class PayloadCaptureTests
             throw new InvalidOperationException("redactor unavailable");
         }
     }
+
+    [Fact]
+    public void Extract_WithSensitiveRoutePathOrCallerSuppliedReferences_ShouldNotEmitThem()
+    {
+        // Capture runs before routing and authentication, so the path is attacker-controlled. The
+        // route branch and the caller-supplied list must pass the same sensitive-name screen the
+        // JSON body does, or GET /api/v1/nationalId/{value} publishes {value} as a blob path segment.
+        var request = new PayloadCaptureRequest
+        {
+            Operation = "GET /api/v1/nationalId/123-45-6789",
+            Channel = "http",
+            ContentType = "application/json",
+            Metadata = { ["path"] = "/api/v1/nationalId/123-45-6789" },
+            EntityReferences = { new PayloadEntityReference("passportId", "PA1234567"), new PayloadEntityReference("order", "77") }
+        };
+
+        var references = PayloadEntityReferenceExtractor.Extract(request, 64, out _);
+
+        Assert.DoesNotContain(references, reference => reference.EntityType.Contains("national", StringComparison.Ordinal));
+        Assert.DoesNotContain(references, reference => reference.EntityId == "123-45-6789");
+        Assert.DoesNotContain(references, reference => reference.EntityType.Contains("passport", StringComparison.Ordinal));
+        Assert.Contains(references, reference => reference.EntityType == "order" && reference.EntityId == "77");
+    }
 }

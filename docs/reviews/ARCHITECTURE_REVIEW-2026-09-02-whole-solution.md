@@ -387,3 +387,39 @@ the pre-pull; the root doc does not, so a fresh agent on a Docker-less machine s
 
 Per `docs/ARCHITECTURE_REVIEW.md`: each fix lands with a regression test proven to fail on the
 injected regression, and the score recovers only on verified fixes.
+
+## Resolution (2026-09-03)
+
+All twenty-two findings were fixed in a single change on `main`, with the full test project
+(718 tests, integration included) and the AppHost convention tests green. Regression tests for
+the four code-level Mediums were proven to fail against the pre-fix files before the fix was
+restored; the script was verified under macOS `/bin/bash` 3.2.57.
+
+| # | Fix | Regression test |
+|---|---|---|
+| 1 | Security headers, HSTS and the correlation echo applied via `Response.OnStarting` in `UseSecurityHeaders` and `PayloadCaptureMiddleware`; `UseHsts()` removed; API start-up failure returns an exit code so `finally` flushes | `ProblemDetailsTests.ErrorResponses_ShouldKeepSecurityHeadersAndCorrelationId` |
+| 2 | One `BlobServiceClient` per process registered by `AddPayloadCapture`, shared by the store and a singleton `PayloadArchiveHealthCheck`; `PayloadArchiveConfiguration` is the single resolution-order owner | `PayloadArchiveHealthCheckRegistrationTests` (two facts) |
+| 3 | `sensitiveTokens` threaded into `AddRouteReference`; caller-supplied `EntityReferences` screened | `PayloadCaptureTests.Extract_WithSensitiveRoutePathOrCallerSuppliedReferences_ShouldNotEmitThem` |
+| 4 | Four scans rewritten over `IlInstructionWalker.Walk`; walker linked into AppHost.Tests; `GetOperandSize` deleted | `HousekeepingConventionTests.TestSourcesThatReadIl_MustWalkOnInstructionBoundaries` |
+| 5 | Script rewritten without bash 4 builtins; removes the pair's Aspire networks; linked from the skill | Manual: runs under bash 3.2.57 |
+| 6 | Migration-safety guards enumerate `Scripts/` recursively | Existing guards now cover nested scripts |
+| 7 | `Money.Add` routes through `Create`; both operators null-guard | `MoneyArithmeticTests` |
+| 8 | `OrderItem.MaxQuantity` (10 000) mirrored in the validator; `Order.AddItem` rejects a line total above `Money.MaxAmount` with `DomainRuleException` | `OrderLineTotalTests`, `ValidatorBoundaryTests` |
+| 9 | `CreateProductCommand.Currency` nullable and required, matching update | `ValidatorBoundaryTests.CreateProductCommandValidator_WithAbsentCurrency_ShouldReturnValidationError` |
+| 10 | `ProductReadModel` and both product read SQLs use `Price`/`Currency` | Existing `ProductApiTests`, `DbUpApiTests` (assertions updated) |
+| 11 | Purge isolated in its own try; `_lastPurgeUtc` stamped only after success | None dedicated (needs fault injection into the delete); existing `JobRunRecorderTests` still green |
+| 12 | `ProcessAsync` reads the pushed correlation id via `CorrelationContext.GetOrCreate()` | None dedicated |
+| 13 | Migrator returns exit codes instead of `Environment.Exit`; API returns 1 on fatal start-up | None dedicated |
+| 14 | ServiceDefaults reference and `Serilog.Sinks.File` dropped from DbMigrator; lock regenerated with `--force-evaluate`; Dockerfile COPY lines removed | Build and integration migrations |
+| 15 | `0005_DropRedundantIndexes.sql`; matching `HasIndex` calls removed from EF configurations | Integration fixture runs the script |
+| 16 | `OutboxRunAggregator.AddPaused()`, `Paused` in the window and summary JSON, `Degraded` when non-zero; both pause branches count | `OutboxRunAggregatorTests.TryFlush_AfterInterval_WithOnlyPausedBatches_EmitsDegradedWindow` |
+| 17 | `/liveness` and `/healthiness` added to `ProbeSkipRoutes`; DECISIONS.md updated | `ProbeSkipRoutes_CanNeverExcludeTheBusinessSurface` (count 6) |
+| 18 | `QueueLimit` default 0; `OnRejected` sets `Retry-After` from limiter metadata | `RateLimitingTests` defaults assertion |
+| 19 | Jittered backoff on a 0.5-to-5 second ceiling with a 10 second cumulative budget | `PostgresRetryPolicyTests` (jitter bounds, budget exhaustion) |
+| 20 | `.claude` excluded from the housekeeping walk | Existing `ProjectFiles_MustNotReferenceBinOrObjArtifacts` |
+| 21 | `GetOperandSize` and `ASPIRE_SETUP_COMPLETE.md` deleted; `graphify-out/` ignored | Build |
+| 22 | CLAUDE.md and AGENTS.md note that the fast filter's handler tests need Docker | `AgentDocsConventionTests` mirror check |
+
+Not changed: the unreachable domain methods listed under finding 21 (`Customer.Activate`,
+`Order.RemoveItem`, `Money.FromDecimal`, `MapDefaultEndpoints`) were left in place as template
+surface; remove them in a derived project.

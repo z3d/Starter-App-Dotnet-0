@@ -4,24 +4,56 @@ public static class WebApplicationExtensions
 {
     public static WebApplication UseSecurityHeaders(this WebApplication app)
     {
-        app.Use(async (context, next) =>
+        var isDevelopment = app.Environment.IsDevelopment();
+
+        app.Use((context, next) =>
         {
-            context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
-            context.Response.Headers.Append("X-Frame-Options", "DENY");
-            // "0" is the current OWASP recommendation: modern browsers no longer ship the XSS
-            // auditor, and enabling it ("1; mode=block") created XS-Leak side channels in the
-            // browsers that did.
-            context.Response.Headers.Append("X-XSS-Protection", "0");
-            context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+            // Registered as an OnStarting callback rather than written eagerly. UseExceptionHandler
+            // calls Response.Clear() before it writes ProblemDetails, which wipes every header set
+            // so far; OnStarting callbacks live on the response feature and survive that reset, so
+            // error responses carry the same posture as successes. Reordering the middleware does
+            // not help — the clear runs regardless of where the writer sits.
+            context.Response.OnStarting(static state =>
+            {
+                var (httpContext, development) = ((HttpContext, bool))state;
+                ApplySecurityHeaders(httpContext, development);
+                return Task.CompletedTask;
+            }, (context, isDevelopment));
 
-            if (!app.Environment.IsDevelopment())
-                context.Response.Headers.Append("Content-Security-Policy",
-                    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'");
-
-            await next();
+            return next();
         });
 
         return app;
+    }
+
+    internal static void ApplySecurityHeaders(HttpContext context, bool isDevelopment)
+    {
+        var headers = context.Response.Headers;
+        headers["X-Content-Type-Options"] = "nosniff";
+        headers["X-Frame-Options"] = "DENY";
+        // "0" is the current OWASP recommendation: modern browsers no longer ship the XSS
+        // auditor, and enabling it ("1; mode=block") created XS-Leak side channels in the
+        // browsers that did.
+        headers["X-XSS-Protection"] = "0";
+        headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+
+        if (isDevelopment)
+            return;
+
+        headers["Content-Security-Policy"] =
+            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'";
+
+        // Replaces app.UseHsts(), whose middleware writes the header eagerly and loses it on the
+        // same reset. Same policy as HstsMiddleware's defaults: 30-day max-age, https requests
+        // only, loopback hosts excluded so a local https run never pins the browser.
+        if (context.Request.IsHttps && !IsLoopbackHost(context.Request.Host.Host))
+            headers["Strict-Transport-Security"] = "max-age=2592000";
+    }
+
+    private static bool IsLoopbackHost(string host)
+    {
+        return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+            || host is "127.0.0.1" or "[::1]" or "::1";
     }
 
     public static WebApplication UseExceptionHandling(this WebApplication app)

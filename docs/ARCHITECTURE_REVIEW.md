@@ -22,19 +22,15 @@ deliberate design stance (patterns are the pedagogy, convention tests are the pr
 accidental weight — a 2026-06-12 juice-vs-squeeze complexity review confirmed the stance and
 pruned what failed it (see `docs/ROADMAP.md`, complexity-review backlog).
 
-**Score: 6.9/10** — reduced 2026-09-02 after a whole-solution review found five medium
-cross-cutting gaps (error responses shed every security header and the correlation-id echo; a
-health check mints an Azure credential per probe on two unthrottled routes; route-path entity
-references skip the sensitive-name screen; four raw IL byte loops in convention tests; the
-emulator reset script cannot run on macOS) and seventeen lows, none touching data integrity or
-identity (was 7.1 after the 2026-08-04 runtime-hardening review found one high and four
-medium runtime gaps, 7.7 after the same-day post-IdP review and 8.0 after the gateway→OIDC
+**Score: 7.1/10** — recovered 2026-09-03 when all twenty-two findings from the 2026-09-02
+whole-solution review landed with regression tests in one change (was 6.9 after that review found
+five medium cross-cutting gaps and seventeen lows, 7.1 after the 2026-08-04 runtime-hardening
+review found one high and four medium runtime gaps, 7.7 after the same-day post-IdP review and 8.0 after the gateway→OIDC
 identity conversion, independently re-scored 2026-06-09 on a strict production scale). The
 conversion trades a distinctive strength (individually-signed gateway assertions) for zero-trust
 posture (the API verifies the caller's own credential, asymmetric JWKS, no shared secrets); the net
-dip is the open sender-constraining finding plus the nine 2026-08-04 findings and the five
-2026-09-02 findings below. Recover the 1.1 review dip when those fourteen fixes and their
-regression tests land; revisit the remaining identity
+dip is the open sender-constraining finding plus the nine 2026-08-04 findings below. Recover the
+0.9 review dip when those nine fixes and their regression tests land; revisit the remaining identity
 posture when DPoP/mTLS-binding lands or the replay finding is re-accepted with evidence.
 **Read this before trusting the number**: the score is self-assessed by the maintaining agents
 (Claude and Codex across sessions) with no external human validator and no fixed rubric; treat it
@@ -43,7 +39,7 @@ archive retains it for provenance only. Held below 9 by the open findings, folde
 Architecture deferral, and accepted limitations below.
 
 Verifiable snapshot (re-verify, don't trust): 9 command handlers, 7 query handlers, every
-command/query validated (convention-enforced), 0 CQRS violations, full suite ~693 tests green
+command/query validated (convention-enforced), 0 CQRS violations, full suite ~718 tests green
 plus AppHost integration tests; the nightly k6 perf gate and DAST scan both pass on `main`.
 
 ## Strengths (compressed — the archive carries the full analysis)
@@ -69,34 +65,9 @@ Detailed evidence and verification for the five runtime findings lives in the
 [runtime-hardening review](reviews/ARCHITECTURE_REVIEW-2026-08-04-runtime-hardening.md).
 Detailed evidence, the seventeen Low findings, and the three dismissed candidates from the
 2026-09-02 pass live in the
-[whole-solution review](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md).
+[whole-solution review](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md); all
+twenty-two were resolved on 2026-09-03 (its Resolution section, and the RESOLVED entries below).
 
-- **OPEN (2026-09-02) — exception-mapped responses lose every security header and the
-  correlation-id echo.** Payload capture, HSTS and `UseSecurityHeaders` all write headers eagerly;
-  `UseExceptionHandler` calls `Response.Clear()` before writing ProblemDetails, so every 400/404/
-  409/503/500 ships without CSP, `X-Frame-Options`, `Strict-Transport-Security` or
-  `X-Correlation-ID`. Register both header sets via `Response.OnStarting` (reordering does not
-  help) and assert the headers on a 409 in an integration test.
-- **OPEN (2026-09-02) — the payload-archive health check builds a `BlobServiceClient` and
-  `DefaultAzureCredential` per probe.** Registered only via `AddCheck<T>`, so it is activated per
-  run; in managed-identity mode each probe walks the credential chain and hits IMDS, reachable
-  from the unpredicated `/health` and from `/healthiness`, both rate-limit-exempt. Inject the
-  existing singleton client.
-- **OPEN (2026-09-02) — route-path entity references bypass the sensitive-name filter.** The
-  metadata and JSON-body branches screen with `IsSensitivePropertyName`; the route branch and
-  caller-supplied `EntityReferences` do not, so an unauthenticated
-  `GET /api/v1/nationalId/<value>` lands the value in a blob name and an Information log line,
-  contradicting the extractor's own comment and `docs/DECISIONS.md`. Thread `sensitiveTokens`
-  through and add a route-derived test case.
-- **OPEN (2026-09-02) — four raw IL byte loops remain in convention tests.** `DomainConventionTests`,
-  `CachingConventionTests`, and both AppHost.Tests IL helpers scan bytes without operand
-  advancement, so a false hit skips the next four bytes; that is a silent pass for the two
-  negative checks and the cache-invalidation cohort filter. Migrate to `IlInstructionWalker`
-  (link the file into AppHost.Tests) and add a meta convention.
-- **OPEN (2026-09-02) — `scripts/reset-servicebus-emulator.sh` fails on bash 3.2 and skips the
-  network step.** `mapfile` is bash 4; macOS ships 3.2, so the script exits 127 before touching a
-  container. It also omits the `docker network rm` the skill calls essential and is referenced
-  from nowhere. Make it portable, add the network step, link it from the skill.
 
 - **OPEN (2026-08-04) — CORS does not expose bearer challenges.** Scope and MFA shortfalls put
   the machine-actionable response in `WWW-Authenticate`, but `AddApiCors` never exposes that
@@ -135,6 +106,38 @@ Detailed evidence, the seventeen Low findings, and the three dismissed candidate
   tombstone guard.
 
 Decisions / watch-items / explained deferrals follow.
+
+- **RESOLVED (2026-09-03) — exception-mapped responses lost every security header and the
+  correlation-id echo.** `UseSecurityHeaders` and `PayloadCaptureMiddleware` now register
+  `Response.OnStarting` callbacks, which survive the `Response.Clear()` inside
+  `UseExceptionHandler`; HSTS moved into the same callback in place of `UseHsts()`. Regression:
+  `ProblemDetailsTests.ErrorResponses_ShouldKeepSecurityHeadersAndCorrelationId` (404 and 400),
+  proven to fail on the pre-fix pipeline.
+- **RESOLVED (2026-09-03) — the payload-archive health check built a `BlobServiceClient` and
+  `DefaultAzureCredential` per probe.** `AddPayloadCapture` registers one `BlobServiceClient`
+  per process (gated by `PayloadArchiveConfiguration.IsConfigured`, which also replaced the API's
+  duplicate of the resolution order); the archive store and the check both take it, and the check
+  is a DI singleton. Regression: `PayloadArchiveHealthCheckRegistrationTests`.
+- **RESOLVED (2026-09-03) — route-path entity references bypassed the sensitive-name filter.**
+  `sensitiveTokens` is threaded into `AddRouteReference` and applied to caller-supplied
+  `EntityReferences`, so every source passes the same screen. Regression:
+  `PayloadCaptureTests.Extract_WithSensitiveRoutePathOrCallerSuppliedReferences_ShouldNotEmitThem`.
+- **RESOLVED (2026-09-03) — four raw IL byte loops in convention tests.** All four sites walk via
+  `IlInstructionWalker` (linked into `StarterApp.AppHost.Tests`, which has no reference to
+  `StarterApp.Tests`). Meta convention
+  `HousekeepingConventionTests.TestSourcesThatReadIl_MustWalkOnInstructionBoundaries` fails any
+  test source that reads IL bytes without walking; proven against the pre-fix
+  `DomainConventionTests`.
+- **RESOLVED (2026-09-03) — `scripts/reset-servicebus-emulator.sh` failed on bash 3.2 and skipped
+  the network step.** Rewritten without bash 4 builtins, removes the pair's Aspire networks after
+  the containers, linked from the development-workflow skill's recovery section. Verified by
+  running under macOS `/bin/bash` 3.2.57.
+- **RESOLVED (2026-09-03) — the seventeen Low findings from the same review** (validator/domain
+  drift on order totals and product currency, product contract naming, job-run purge orphaning,
+  duplicate correlation ids, `Environment.Exit` skipping the log flush, migrator references,
+  redundant indexes, stalled-outbox visibility, probe capture, rate-limit queueing and
+  `Retry-After`, read-retry jitter and budget, worktree-scoped housekeeping, dead code, doc
+  precision). Each fix and its test are listed in the whole-solution review's Resolution section.
 
 - **RESOLVED (2026-07-18) — Aspire-collection trait pairing was not mechanically enforced.**
   The CI unit job excludes Aspire E2E facts with `Category!=Aspire`; that filter is only sound if

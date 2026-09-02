@@ -56,14 +56,12 @@ try
         app.MapGet("/demo/config", (Microsoft.Extensions.Options.IOptions<StarterApp.Api.Infrastructure.Identity.JwtIdentityOptions> identity) =>
             Results.Ok(new { authority = identity.Value.Authority }));
     }
-    else
-    {
-        app.UseHsts();
-    }
 
+    // HSTS is emitted by UseSecurityHeaders (an OnStarting callback) rather than app.UseHsts(),
+    // so it survives the response reset UseExceptionHandler performs on error responses.
     app.UsePayloadCapture();
-    app.UseExceptionHandling();
     app.UseSecurityHeaders();
+    app.UseExceptionHandling();
     app.UseHttpsRedirection();
 
     // Dev-only static hosting for the walkthrough page. Deliberately behind payload capture
@@ -104,12 +102,16 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "Application start-up failed: {ExMessage}", ex.Message);
-    Environment.Exit(1);
+    // A returned exit code lets the finally block flush the batching sinks; Environment.Exit
+    // would terminate before it ran and lose the one line explaining the crash.
+    return 1;
 }
 finally
 {
     Log.CloseAndFlush();
 }
+
+return 0;
 
 static string? MaskConnectionStringPassword(string? connectionString)
 {

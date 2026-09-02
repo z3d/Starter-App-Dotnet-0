@@ -88,3 +88,7 @@ Remove the containers **and** the Aspire network before retrying — a stale net
 docker rm -f <containers>
 docker network rm <aspire-network>
 ```
+
+`scripts/reset-servicebus-emulator.sh` does both steps for the emulator pair (finds the two
+containers, records their Aspire networks, removes the containers, then the networks). It runs on
+the stock macOS bash 3.2; set `CONTAINER_ENGINE=podman` if you are not on Docker.

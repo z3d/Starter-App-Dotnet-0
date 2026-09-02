@@ -302,28 +302,30 @@ public class DomainConventionTests : ConventionTestBase
 
     private static bool ContainsCallToMethod(byte[] il, Module module, string methodName)
     {
-        // IL opcodes: call = 0x28, callvirt = 0x6F — both followed by a 4-byte metadata token
-        for (var i = 0; i < il.Length; i++)
-        {
-            if (il[i] is not (0x28 or 0x6F) || i + 4 >= il.Length)
-                continue;
+        // call = 0x28, callvirt = 0x6F, each followed by a 4-byte metadata token. Walked on
+        // instruction boundaries via IlInstructionWalker: a raw byte loop reads operand bytes as
+        // opcodes, and a false hit there skips the next four bytes — which can hide the genuine
+        // call the negative assertion above exists to catch.
+        var found = false;
 
-            var token = BitConverter.ToInt32(il, i + 1);
+        IlInstructionWalker.Walk(il, (opcode, _, operandStart, operandSize) =>
+        {
+            if (found || opcode is not (0x28 or 0x6F) || operandSize < 4 || operandStart + 3 >= il.Length)
+                return;
+
+            var token = BitConverter.ToInt32(il, operandStart);
             try
             {
-                var member = module.ResolveMember(token);
-                if (member is MethodInfo method && method.Name == methodName)
-                    return true;
+                if (module.ResolveMember(token) is MethodInfo method && method.Name == methodName)
+                    found = true;
             }
             catch (Exception)
             {
                 // Token may not resolve (e.g. generic instantiation) — skip safely
             }
+        });
 
-            i += 4; // skip the 4-byte token
-        }
-
-        return false;
+        return found;
     }
 
     // === Event Contract ===
