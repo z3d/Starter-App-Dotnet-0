@@ -32,6 +32,9 @@ Most candidates on this codebase are false positives. The value is in the filter
 - **`Money.Subtract` negative escape** — routes through `Create()`, which rejects negatives.
 - **The AppHost `packages.lock.json` exemption** — intentional; Aspire injects host-RID packages. See `docs/DECISIONS.md`.
 - **"Convention tests assert presence, not behaviour"** — as a blanket claim, stale; most have been hardened to IL/SQL behaviour checks. Specific new instances are still valid findings.
+- **"Endpoints bind a `CancellationToken` but nothing checks it is forwarded"** — CA2016 is promoted to warning by `AnalysisMode=All` and to an error by `TreatWarningsAsErrors`; every endpoint handler is a named method group, so the analyzer covers the forwarding half.
+- **"`GetExportedTypes` lets an `internal` handler escape the owner-policy/cache-invalidation conventions"** — `EveryCommand_MustHaveAHandler` enumerates commands with `GetTypes()` and handlers with the exported-only helper, so an internal handler fails the build as a missing implementation.
+- **"Unauthenticated traffic bypasses the rate limiter because it runs after authorization"** — deliberate; `docs/DECISIONS.md` delegates inbound volume to the upstream gateway and scopes the in-app limiter to fairness between verified identities. Reversing it is a new decision, not a bug.
 
 Never trust a score embedded in skill or doc text — the live number is in `docs/ARCHITECTURE_REVIEW.md`, and even that is a claim to verify, not a fact.
 

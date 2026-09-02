@@ -7,6 +7,9 @@ The post-IdP conversion review and its four open findings are recorded in
 [docs/reviews/ARCHITECTURE_REVIEW-2026-08-04-post-idp.md](reviews/ARCHITECTURE_REVIEW-2026-08-04-post-idp.md).
 The same-day runtime-hardening review and its five open findings are recorded in
 [docs/reviews/ARCHITECTURE_REVIEW-2026-08-04-runtime-hardening.md](reviews/ARCHITECTURE_REVIEW-2026-08-04-runtime-hardening.md).
+The 2026-09-02 whole-solution review (five Medium, seventeen Low, three dismissed candidates) is
+recorded in
+[docs/reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md).
 Skeptics verifying "was this already dismissed?" consult the archive; this file answers "what is
 true and open right now".
 
@@ -19,13 +22,19 @@ deliberate design stance (patterns are the pedagogy, convention tests are the pr
 accidental weight — a 2026-06-12 juice-vs-squeeze complexity review confirmed the stance and
 pruned what failed it (see `docs/ROADMAP.md`, complexity-review backlog).
 
-**Score: 7.1/10** — reduced 2026-08-04 after the runtime-hardening review found one high and four
-medium runtime gaps (was 7.7 after the same-day post-IdP review and 8.0 after the gateway→OIDC
+**Score: 6.9/10** — reduced 2026-09-02 after a whole-solution review found five medium
+cross-cutting gaps (error responses shed every security header and the correlation-id echo; a
+health check mints an Azure credential per probe on two unthrottled routes; route-path entity
+references skip the sensitive-name screen; four raw IL byte loops in convention tests; the
+emulator reset script cannot run on macOS) and seventeen lows, none touching data integrity or
+identity (was 7.1 after the 2026-08-04 runtime-hardening review found one high and four
+medium runtime gaps, 7.7 after the same-day post-IdP review and 8.0 after the gateway→OIDC
 identity conversion, independently re-scored 2026-06-09 on a strict production scale). The
 conversion trades a distinctive strength (individually-signed gateway assertions) for zero-trust
 posture (the API verifies the caller's own credential, asymmetric JWKS, no shared secrets); the net
-dip is the open sender-constraining finding plus the nine 2026-08-04 findings below. Recover the 0.9
-review dip when those nine fixes and their regression tests land; revisit the remaining identity
+dip is the open sender-constraining finding plus the nine 2026-08-04 findings and the five
+2026-09-02 findings below. Recover the 1.1 review dip when those fourteen fixes and their
+regression tests land; revisit the remaining identity
 posture when DPoP/mTLS-binding lands or the replay finding is re-accepted with evidence.
 **Read this before trusting the number**: the score is self-assessed by the maintaining agents
 (Claude and Codex across sessions) with no external human validator and no fixed rubric; treat it
@@ -58,6 +67,36 @@ Detailed evidence and verification for the four 2026-08-04 findings lives in the
 [post-IdP review](reviews/ARCHITECTURE_REVIEW-2026-08-04-post-idp.md).
 Detailed evidence and verification for the five runtime findings lives in the
 [runtime-hardening review](reviews/ARCHITECTURE_REVIEW-2026-08-04-runtime-hardening.md).
+Detailed evidence, the seventeen Low findings, and the three dismissed candidates from the
+2026-09-02 pass live in the
+[whole-solution review](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md).
+
+- **OPEN (2026-09-02) — exception-mapped responses lose every security header and the
+  correlation-id echo.** Payload capture, HSTS and `UseSecurityHeaders` all write headers eagerly;
+  `UseExceptionHandler` calls `Response.Clear()` before writing ProblemDetails, so every 400/404/
+  409/503/500 ships without CSP, `X-Frame-Options`, `Strict-Transport-Security` or
+  `X-Correlation-ID`. Register both header sets via `Response.OnStarting` (reordering does not
+  help) and assert the headers on a 409 in an integration test.
+- **OPEN (2026-09-02) — the payload-archive health check builds a `BlobServiceClient` and
+  `DefaultAzureCredential` per probe.** Registered only via `AddCheck<T>`, so it is activated per
+  run; in managed-identity mode each probe walks the credential chain and hits IMDS, reachable
+  from the unpredicated `/health` and from `/healthiness`, both rate-limit-exempt. Inject the
+  existing singleton client.
+- **OPEN (2026-09-02) — route-path entity references bypass the sensitive-name filter.** The
+  metadata and JSON-body branches screen with `IsSensitivePropertyName`; the route branch and
+  caller-supplied `EntityReferences` do not, so an unauthenticated
+  `GET /api/v1/nationalId/<value>` lands the value in a blob name and an Information log line,
+  contradicting the extractor's own comment and `docs/DECISIONS.md`. Thread `sensitiveTokens`
+  through and add a route-derived test case.
+- **OPEN (2026-09-02) — four raw IL byte loops remain in convention tests.** `DomainConventionTests`,
+  `CachingConventionTests`, and both AppHost.Tests IL helpers scan bytes without operand
+  advancement, so a false hit skips the next four bytes; that is a silent pass for the two
+  negative checks and the cache-invalidation cohort filter. Migrate to `IlInstructionWalker`
+  (link the file into AppHost.Tests) and add a meta convention.
+- **OPEN (2026-09-02) — `scripts/reset-servicebus-emulator.sh` fails on bash 3.2 and skips the
+  network step.** `mapfile` is bash 4; macOS ships 3.2, so the script exits 127 before touching a
+  container. It also omits the `docker network rm` the skill calls essential and is referenced
+  from nowhere. Make it portable, add the network step, link it from the skill.
 
 - **OPEN (2026-08-04) — CORS does not expose bearer challenges.** Scope and MFA shortfalls put
   the machine-actionable response in `WWW-Authenticate`, but `AddApiCors` never exposes that
