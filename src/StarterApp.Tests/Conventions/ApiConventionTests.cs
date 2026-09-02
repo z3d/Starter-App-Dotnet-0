@@ -131,8 +131,22 @@ public class ApiConventionTests : ConventionTestBase
                 .Select(literal => $"{type.FullName} embeds retired gateway identity header literal '{FormatHeaderLiteral(literal)}'."))
             .ToList();
 
+        // The raw bearer token is the other door around ICurrentUser: Request.Headers.Authorization,
+        // the HeaderNames.Authorization constant, or the literal. The composition root is exempt —
+        // its CORS allow-list names the request header without reading it.
+        var authorizationHeaderFailures = ApiAssembly.GetTypes()
+            .Where(t => t.IsClass && !IsCompilerGenerated(t) && !IsIdentityInfrastructure(t) && !IsCompositionRoot(t))
+            .Where(type =>
+                GetAllMethodsIncludingStateMachines(type).Any(method =>
+                    IlReferencesMember(method, "IHeaderDictionary", "get_Authorization") ||
+                    IlReferencesMember(method, "HeaderNames", "Authorization")) ||
+                ExtractStringLiterals(type).Any(literal => string.Equals(literal, "Authorization", StringComparison.OrdinalIgnoreCase)))
+            .Select(type => $"{type.FullName} reads the raw Authorization header.")
+            .ToList();
+
         var failures = claimsPrincipalFailures
             .Concat(legacyHeaderLiteralFailures)
+            .Concat(authorizationHeaderFailures)
             .OrderBy(message => message, StringComparer.Ordinal)
             .ToList();
 
@@ -343,6 +357,11 @@ public class ApiConventionTests : ConventionTestBase
 
         var name = type.Name[..type.Name.IndexOf('`')];
         return $"{name}<{string.Join(", ", type.GetGenericArguments().Select(FormatTypeName))}>";
+    }
+
+    private static bool IsCompositionRoot(Type type)
+    {
+        return type == typeof(StarterApp.Api.Infrastructure.ServiceCollectionExtensions);
     }
 
     private static bool IsIdentityInfrastructure(Type type)

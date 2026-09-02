@@ -39,7 +39,7 @@ try
     Log.Information("Starting up application");
 
     if (app.Environment.IsDevelopment())
-        Log.Information("Database connection configured: {ConnectionString}", MaskConnectionStringPassword(connectionString));
+        Log.Information("Database connection configured: {ConnectionString}", StarterApp.ServiceDefaults.ConnectionStringDescriptor.Describe(connectionString));
     else
         Log.Information("Database connection configured successfully");
 
@@ -112,15 +112,3 @@ finally
 }
 
 return 0;
-
-static string? MaskConnectionStringPassword(string? connectionString)
-{
-    if (string.IsNullOrEmpty(connectionString))
-        return connectionString;
-
-    return System.Text.RegularExpressions.Regex.Replace(
-        connectionString,
-        @"(password|pwd)\s*=\s*[^;]+",
-        "$1=***MASKED***",
-        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-}

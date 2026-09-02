@@ -40,6 +40,21 @@ idp_start() {
   [[ "$ready" == "1" ]] || return 1
 }
 
+# idp_json_string_field <field>
+# Prints a top-level string field from JSON on stdin. Prefers jq, then a python3 that is
+# proven runnable (Windows ships a Store execution-alias stub named python3 that resolves
+# under `command -v` but cannot run), then a sed extraction — so no caller needs Python.
+idp_json_string_field() {
+  local field="$1"
+  if command -v jq >/dev/null 2>&1; then
+    jq -r --arg f "$field" '.[$f] // empty'
+  elif python3 -c "print()" >/dev/null 2>&1; then
+    python3 -c 'import json,sys; print(json.load(sys.stdin).get(sys.argv[1], ""))' "$field"
+  else
+    sed -n "s/.*\"${field}\":\"\([^\"]*\)\".*/\1/p" | head -1
+  fi
+}
+
 # idp_token <idp-base-url> <username> <password> [scopes]
 # Prints an access token minted via the password grant. Scopes default to the
 # full resource-scope set (they are optional client scopes in the realm, so
@@ -54,5 +69,5 @@ idp_token() {
     --data-urlencode "username=${username}" \
     --data-urlencode "password=${password}" \
     --data-urlencode "scope=${scopes}" \
-  | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])'
+  | idp_json_string_field access_token
 }

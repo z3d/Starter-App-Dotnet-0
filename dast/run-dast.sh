@@ -14,7 +14,7 @@
 #   TARGET_URL=http://localhost:5164 SKIP_BOOT=1 dast/run-dast.sh
 #                                        # scan an already-running instance
 #
-# Requirements: Docker or Podman, .NET 10 SDK, jq.
+# Requirements: Docker or Podman, .NET 10 SDK, jq (also used for token parsing; python3 is not required).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

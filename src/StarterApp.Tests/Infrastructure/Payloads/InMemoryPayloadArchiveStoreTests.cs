@@ -37,8 +37,10 @@ public class InMemoryPayloadArchiveStoreTests
     }
 
     [Fact]
-    public async Task DeleteOlderThan_ShouldCapDeletionsPerPrefixAtCleanupBatchSize()
+    public async Task DeleteOlderThan_ShouldDrainSuccessivePagesBeyondCleanupBatchSize()
     {
+        // A single capped pass used to delete at most CleanupBatchSize blobs per prefix per run, so
+        // ingestion above that rate accumulated expired PII forever. Pages are drained until caught up.
         var options = new PayloadCaptureOptions { CleanupBatchSize = 2 };
         var store = new InMemoryPayloadArchiveStore(options);
         for (var i = 0; i < 5; i++)
@@ -46,7 +48,8 @@ public class InMemoryPayloadArchiveStoreTests
 
         var result = await store.DeleteOlderThanAsync(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero), CancellationToken.None);
 
-        Assert.Equal(2, result.ArchiveDeleted);
-        Assert.Equal(3, store.Lines.Count);
+        Assert.Equal(5, result.ArchiveDeleted);
+        Assert.False(result.BudgetExhausted);
+        Assert.Empty(store.Lines);
     }
 }

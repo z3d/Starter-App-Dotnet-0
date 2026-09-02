@@ -75,8 +75,9 @@ public class OutboxProcessor : BackgroundService
     }
 
     // Outbox rows carry full event payloads. Processed rows are pure history after publish, and
-    // errored rows are a manual-replay surface that RetentionDays bounds; both are purged so the
-    // table cannot grow forever. Unprocessed (pending/locked) rows are never touched.
+    // errored rows are a manual-replay surface that RetentionDays bounds — counted from the failure
+    // (ErroredOnUtc), never from the event time, so a permanent failure always gets a full replay
+    // window. Both are purged so the table cannot grow forever. Unprocessed rows are never touched.
     internal async Task<int> CleanupExpiredMessagesAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -88,7 +89,7 @@ public class OutboxProcessor : BackgroundService
         {
             deleted = await dbContext.OutboxMessages
                 .Where(m => (m.ProcessedOnUtc != null && m.ProcessedOnUtc < cutoffUtc) ||
-                            (m.Error != null && m.OccurredOnUtc < cutoffUtc))
+                            (m.ErroredOnUtc != null && m.ErroredOnUtc < cutoffUtc))
                 .ExecuteDeleteAsync(cancellationToken);
         }
         else
@@ -96,7 +97,7 @@ public class OutboxProcessor : BackgroundService
             // InMemory fallback (tests): ExecuteDeleteAsync is not supported on that provider.
             var expired = await dbContext.OutboxMessages
                 .Where(m => (m.ProcessedOnUtc != null && m.ProcessedOnUtc < cutoffUtc) ||
-                            (m.Error != null && m.OccurredOnUtc < cutoffUtc))
+                            (m.ErroredOnUtc != null && m.ErroredOnUtc < cutoffUtc))
                 .ToListAsync(cancellationToken);
             dbContext.OutboxMessages.RemoveRange(expired);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -199,7 +200,7 @@ public class OutboxProcessor : BackgroundService
 
                 if (message.RetryCount >= _options.MaxRetries)
                 {
-                    message.MarkAsError(ex.Message);
+                    message.MarkAsError(ex.Message, DateTimeOffset.UtcNow);
                     _runAggregator.AddErrored();
                     _logger.LogError(ex, "Outbox message {MessageId} ({Type}) permanently failed after {RetryCount} attempts",
                         message.Id, message.Type, message.RetryCount);

@@ -107,3 +107,12 @@ the smoke test's non-Python fallback if portability remains an intended feature.
 Each finding remains open until its regression test is proven red against an injected regression,
 the regression is reverted, and the relevant suite passes. Update both this record and
 `docs/ARCHITECTURE_REVIEW.md` when closing a finding.
+
+## Resolution (2026-09-03)
+
+| # | Fix | Regression test |
+|---|---|---|
+| 1 | Both CORS branches expose `WWW-Authenticate`, `X-Correlation-ID`, `Retry-After` | `CorsPolicyTests` (Development and Production branches) |
+| 2 | `AuthorityIsWellFormed` startup validation: absolute http(s) URI, https unless `RequireHttpsMetadata=false` | `JwtIdentityOptionsTests` (six new cases) |
+| 3 | Convention scans `IHeaderDictionary.get_Authorization`, `HeaderNames.Authorization`, and the literal outside `Infrastructure/Identity`; composition root exempt | Injected endpoint-side read failed the test, then reverted |
+| 4 | Smoke test parses via its python3-or-grep helper from the first call; `dev-idp.sh` uses jq, then proven python3, then sed | Manual: token parse with python3 and jq removed from `PATH` |

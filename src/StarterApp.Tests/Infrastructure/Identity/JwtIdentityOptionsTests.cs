@@ -74,4 +74,63 @@ public class JwtIdentityOptionsTests
         services.AddJwtIdentity(configuration, environment.Object);
         return services.BuildServiceProvider();
     }
+
+    [Theory]
+    [InlineData("realms/starterapp")]
+    [InlineData("not a uri")]
+    [InlineData("ftp://idp.example.com/realms/starterapp")]
+    public void MalformedAuthority_FailsValidation(string authority)
+    {
+        var provider = BuildProvider("Production", new Dictionary<string, string?>
+        {
+            ["Identity:Authority"] = authority,
+            ["Identity:Audience"] = "starterapp-api"
+        });
+
+        var exception = Assert.Throws<OptionsValidationException>(
+            () => provider.GetRequiredService<IOptions<JwtIdentityOptions>>().Value);
+        Assert.Contains("absolute http(s) URI", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void HttpAuthority_FailsValidation_WhenHttpsMetadataIsRequired()
+    {
+        // Development still defaults RequireHttpsMetadata to true, so an http authority there is a
+        // misconfiguration too — the local Keycloak setup sets the flag explicitly.
+        var provider = BuildProvider("Development", new Dictionary<string, string?>
+        {
+            ["Identity:Authority"] = "http://localhost:8080/realms/starterapp",
+            ["Identity:Audience"] = "starterapp-api"
+        });
+
+        Assert.Throws<OptionsValidationException>(
+            () => provider.GetRequiredService<IOptions<JwtIdentityOptions>>().Value);
+    }
+
+    [Fact]
+    public void HttpAuthority_IsAllowed_WhenHttpsMetadataIsNotRequired_InDevelopment()
+    {
+        var provider = BuildProvider("Development", new Dictionary<string, string?>
+        {
+            ["Identity:Authority"] = "http://localhost:8080/realms/starterapp",
+            ["Identity:Audience"] = "starterapp-api",
+            ["Identity:RequireHttpsMetadata"] = "false"
+        });
+
+        Assert.Equal("http://localhost:8080/realms/starterapp",
+            provider.GetRequiredService<IOptions<JwtIdentityOptions>>().Value.Authority);
+    }
+
+    [Fact]
+    public void HttpsAuthority_PassesValidation_InProduction()
+    {
+        var provider = BuildProvider("Production", new Dictionary<string, string?>
+        {
+            ["Identity:Authority"] = "https://idp.example.com/realms/starterapp",
+            ["Identity:Audience"] = "starterapp-api"
+        });
+
+        Assert.Equal("https://idp.example.com/realms/starterapp",
+            provider.GetRequiredService<IOptions<JwtIdentityOptions>>().Value.Authority);
+    }
 }

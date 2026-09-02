@@ -439,7 +439,7 @@ public class OutboxProcessorTests
         await using (var setupContext = CreateDbContext(dbName))
         {
             var erroredMessage = CreateTestMessage();
-            erroredMessage.MarkAsError("Previous failure");
+            erroredMessage.MarkAsError("Previous failure", DateTimeOffset.UtcNow);
             setupContext.OutboxMessages.Add(erroredMessage);
             setupContext.OutboxMessages.Add(CreateTestMessage());
             await setupContext.SaveChangesAsync();
@@ -563,11 +563,16 @@ public class OutboxProcessorTests
             processedRecent.MarkAsProcessed(now.AddDays(-1));
 
             var erroredOld = CreateTestMessage(occurredOnUtc: now.AddDays(-60));
-            erroredOld.MarkAsError("permanent failure");
+            erroredOld.MarkAsError("permanent failure", now.AddDays(-60));
+
+            // An old event that only just failed (e.g. after a long outage) must keep a full replay
+            // window: retention for errored rows counts from ErroredOnUtc, not OccurredOnUtc.
+            var erroredRecentlyOnOldEvent = CreateTestMessage(occurredOnUtc: now.AddDays(-60));
+            erroredRecentlyOnOldEvent.MarkAsError("failed after recovery", now);
 
             var pendingOld = CreateTestMessage(occurredOnUtc: now.AddDays(-60));
 
-            setupContext.OutboxMessages.AddRange(processedOld, processedRecent, erroredOld, pendingOld);
+            setupContext.OutboxMessages.AddRange(processedOld, processedRecent, erroredOld, erroredRecentlyOnOldEvent, pendingOld);
             await setupContext.SaveChangesAsync();
         }
 
@@ -579,9 +584,10 @@ public class OutboxProcessorTests
 
         await using var verifyContext = CreateDbContext(dbName);
         var remaining = await verifyContext.OutboxMessages.ToListAsync();
-        Assert.Equal(2, remaining.Count);
+        Assert.Equal(3, remaining.Count);
         Assert.Contains(remaining, m => m.ProcessedOnUtc != null);   // recent processed row kept
         Assert.Contains(remaining, m => m.ProcessedOnUtc == null && m.Error == null); // pending kept regardless of age
+        Assert.Contains(remaining, m => m.Error == "failed after recovery"); // recently errored old event kept for replay
     }
 
     private static OutboxProcessor CreateProcessor(

@@ -9,7 +9,7 @@ FROM outbox_messages
 WHERE processed_on_utc IS NULL;
 
 -- Errored rows in full (the replay-decision surface)
-SELECT id, type, correlation_id, occurred_on_utc, retry_count, replay_count, replayed_on_utc, error
+SELECT id, type, correlation_id, occurred_on_utc, errored_on_utc, retry_count, replay_count, replayed_on_utc, error
 FROM outbox_messages
 WHERE error IS NOT NULL AND processed_on_utc IS NULL
 ORDER BY occurred_on_utc;

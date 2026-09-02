@@ -14,7 +14,7 @@ public class OutboxReplayMessageTests
     {
         var message = CreateMessage();
         message.IncrementRetry();
-        message.MarkAsError("boom");
+        message.MarkAsError("boom", DateTimeOffset.UtcNow);
         var replayedAt = DateTimeOffset.UtcNow;
 
         message.ResetForReplay(replayedAt);
@@ -61,7 +61,7 @@ public class OutboxReplayMessageTests
     public void BuildServiceBusMessage_ForReplayedMessage_CarriesReplayMarker()
     {
         var message = CreateMessage();
-        message.MarkAsError("boom");
+        message.MarkAsError("boom", DateTimeOffset.UtcNow);
         message.ResetForReplay(DateTimeOffset.UtcNow);
 
         var serviceBusMessage = OutboxProcessor.BuildServiceBusMessage(message);

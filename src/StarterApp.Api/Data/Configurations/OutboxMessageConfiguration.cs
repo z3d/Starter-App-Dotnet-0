@@ -40,6 +40,9 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
         builder.Property(message => message.Error)
             .HasColumnName("error");
 
+        builder.Property(message => message.ErroredOnUtc)
+            .HasColumnName("errored_on_utc");
+
         builder.Property(message => message.ProcessingId)
             .HasColumnName("processing_id")
             .IsConcurrencyToken();

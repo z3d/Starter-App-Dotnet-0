@@ -19,6 +19,9 @@ public class OutboxMessage
     public DateTimeOffset? ProcessedOnUtc { get; private set; }
     public int RetryCount { get; private set; }
     public string? Error { get; private set; }
+    // When the row became permanently errored. Retention for errored rows counts from here, not
+    // from OccurredOnUtc, so an old event that fails after a long outage keeps a full replay window.
+    public DateTimeOffset? ErroredOnUtc { get; private set; }
     public Guid? ProcessingId { get; private set; }
     public DateTimeOffset? LockedUntilUtc { get; private set; }
     public int ReplayCount { get; private set; }
@@ -40,10 +43,11 @@ public class OutboxMessage
         ClearClaim();
     }
 
-    public void MarkAsError(string error)
+    public void MarkAsError(string error, DateTimeOffset erroredOnUtc)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(error);
         Error = error;
+        ErroredOnUtc = erroredOnUtc;
         ClearClaim();
     }
 
@@ -58,6 +62,7 @@ public class OutboxMessage
             throw new InvalidOperationException("Only errored outbox messages can be replayed.");
 
         Error = null;
+        ErroredOnUtc = null;
         RetryCount = 0;
         ReplayCount++;
         ReplayedOnUtc = replayedOnUtc;

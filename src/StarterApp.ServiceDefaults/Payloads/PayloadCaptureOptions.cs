@@ -58,8 +58,16 @@ public class PayloadCaptureOptions
     [Range(1, 3650)]
     public int RetentionDays { get; set; } = 30;
 
+    // Page size for one delete pass, not a per-run ceiling: cleanup drains successive pages until
+    // a prefix is caught up or CleanupTimeBudgetSeconds is spent (PayloadArchiveCleanupDrain).
     [Range(1, 10000)]
     public int CleanupBatchSize { get; set; } = 500;
+
+    // Wall-clock budget for one cleanup run across all three prefixes. Kept under the hourly
+    // CleanupCron so runs never overlap; a run that hits it reports BudgetExhausted (Degraded in
+    // job_runs) so an archive that is falling behind is visible instead of silent.
+    [Range(1, 3600)]
+    public int CleanupTimeBudgetSeconds { get; set; } = 1200;
 
     [Range(1, 104_857_600)]
     public int MaxPayloadBytes { get; set; } = 1_048_576;

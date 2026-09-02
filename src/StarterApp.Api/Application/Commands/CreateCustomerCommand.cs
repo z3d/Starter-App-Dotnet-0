@@ -32,28 +32,43 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         // Commit-ambiguity idempotency: with EnableRetryOnFailure, a SaveChanges whose commit
         // succeeded but whose ack was lost is re-run by the execution strategy. Email is the
         // natural key (unique per owner scope) and uniqueness was verified above, so finding the
-        // row inside a retry means our own insert committed — return it instead of throwing a
+        // row inside a RETRY means our own insert committed — return it instead of throwing a
         // spurious duplicate-email 409. Same failure mode CreateOrderCommandHandler guards with
         // its pre-generated stable order Id.
+        //
+        // Only a retry may recover this way. On the first attempt a same-email row can only be a
+        // concurrent request that won the race after our pre-check, and returning its row would
+        // hand this caller someone else's representation as a successful create; the unique
+        // constraint turns that into the 409 it should be. A retry additionally requires the
+        // stored row to match what we asked to insert, for the same reason.
         var strategy = _dbContext.Database.CreateExecutionStrategy();
         Customer? savedCustomer = null;
+        var attempt = 0;
 
         await strategy.ExecuteAsync(cancellationToken, async ct =>
         {
+            attempt++;
+
             // Clear tracker so a prior failed attempt's tracked entity does not leak into this
             // retry — otherwise two Added customers would be inserted on a second pass.
             _dbContext.ChangeTracker.Clear();
 
-            var committedCustomer = await _dbContext.Customers
-                .FirstOrDefaultAsync(c =>
-                    c.Email.Value == email.Value &&
-                    c.OwnerSubject == ownerScope.OwnerSubject &&
-                    c.TenantId == ownerScope.TenantId,
-                    ct);
-            if (committedCustomer != null)
+            if (attempt > 1)
             {
-                savedCustomer = committedCustomer;
-                return;
+                var committedCustomer = await _dbContext.Customers
+                    .FirstOrDefaultAsync(c =>
+                        c.Email.Value == email.Value &&
+                        c.OwnerSubject == ownerScope.OwnerSubject &&
+                        c.TenantId == ownerScope.TenantId,
+                        ct);
+                if (committedCustomer != null)
+                {
+                    if (!string.Equals(committedCustomer.Name, command.Name, StringComparison.Ordinal))
+                        throw new DomainRuleException("A customer with that email already exists");
+
+                    savedCustomer = committedCustomer;
+                    return;
+                }
             }
 
             var customer = new Customer(command.Name, email, ownerScope.OwnerSubject, ownerScope.TenantId);

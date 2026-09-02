@@ -96,6 +96,42 @@ public abstract class ConventionTestBase
         return found;
     }
 
+    // Like IlReferencesType, but matches a specific member (method or field) on the named
+    // declaring type — e.g. IHeaderDictionary.get_Authorization or the HeaderNames.Authorization field.
+    internal static bool IlReferencesMember(MethodInfo method, string declaringTypeName, string memberName)
+    {
+        var body = method.GetMethodBody();
+        var il = body?.GetILAsByteArray();
+        if (il == null)
+            return false;
+
+        var module = method.Module;
+        var found = false;
+
+        IlInstructionWalker.Walk(il, (opcode, _, operandStart, operandSize) =>
+        {
+            if (found || opcode is not (0x28 or 0x6F or 0x7B or 0x7C or 0x7D or 0x7E or 0x7F or 0x80))
+                return;
+
+            if (operandSize < 4 || operandStart + 3 >= il.Length)
+                return;
+
+            var token = BitConverter.ToInt32(il, operandStart);
+            try
+            {
+                var member = module.ResolveMember(token);
+                if (member?.DeclaringType?.Name == declaringTypeName && member.Name == memberName)
+                    found = true;
+            }
+            catch
+            {
+                // Unresolvable generic instantiation — skip.
+            }
+        });
+
+        return found;
+    }
+
     internal static IEnumerable<string> ExtractStringLiterals(Type type)
     {
         return GetAllMethodsIncludingStateMachines(type)

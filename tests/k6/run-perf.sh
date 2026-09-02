@@ -14,7 +14,8 @@
 #   TARGET_URL=http://localhost:5164 SKIP_BOOT=1 tests/k6/run-perf.sh
 #                                                 # run against an already-running instance
 #
-# Requirements: Docker, .NET 10 SDK, k6.
+# Requirements: Docker, .NET 10 SDK, k6. Token parsing uses jq or python3 when present and
+# falls back to sed, so neither is required.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

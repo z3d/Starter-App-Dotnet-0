@@ -100,6 +100,8 @@ public class OutboxReplayTests : IAsyncLifetime
         var viaEntity = await LoadAsync(entityResetId);
 
         Assert.Equal(viaSql.Error, viaEntity.Error);
+        Assert.Equal(viaSql.ErroredOnUtc, viaEntity.ErroredOnUtc);
+        Assert.Null(viaSql.ErroredOnUtc);
         Assert.Equal(viaSql.RetryCount, viaEntity.RetryCount);
         Assert.Equal(viaSql.ReplayCount, viaEntity.ReplayCount);
         Assert.Equal(viaSql.ProcessingId, viaEntity.ProcessingId);
@@ -117,7 +119,7 @@ public class OutboxReplayTests : IAsyncLifetime
         var message = OutboxMessage.Create(new OrderCreatedDomainEvent(order));
 
         if (markErrored)
-            message.MarkAsError("intentional test failure");
+            message.MarkAsError("intentional test failure", DateTimeOffset.UtcNow);
         if (markProcessed)
             message.MarkAsProcessed(DateTimeOffset.UtcNow);
 

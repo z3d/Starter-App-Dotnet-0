@@ -48,17 +48,29 @@ public sealed class InMemoryPayloadArchiveStore : IPayloadArchiveStore
 
     // Cleanup mirrors AzureBlobPayloadArchiveStore semantics so the tests that run against this
     // double exercise the same contract: only blobs under the three configured prefixes are
-    // deleted, and each prefix sweep is capped at CleanupBatchSize per invocation.
-    public Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
+    // deleted, in pages of CleanupBatchSize drained until the prefix is caught up. The double has
+    // no wall clock, so the budget never runs out here.
+    public async Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
     {
-        lock (_gate)
-        {
-            var archiveDeleted = DeletePrefixOlderThan(_options.ArchivePrefix, cutoffUtc);
-            var auditDeleted = DeletePrefixOlderThan(_options.AuditPrefix, cutoffUtc);
-            var entityIndexDeleted = DeletePrefixOlderThan(_options.EntityIndexPrefix, cutoffUtc);
+        var archive = await DrainPrefixAsync(_options.ArchivePrefix, cutoffUtc, cancellationToken);
+        var audit = await DrainPrefixAsync(_options.AuditPrefix, cutoffUtc, cancellationToken);
+        var entityIndex = await DrainPrefixAsync(_options.EntityIndexPrefix, cutoffUtc, cancellationToken);
+        return new PayloadArchiveDeleteResult(archive.Deleted, audit.Deleted, entityIndex.Deleted);
+    }
 
-            return Task.FromResult(new PayloadArchiveDeleteResult(archiveDeleted, auditDeleted, entityIndexDeleted));
-        }
+    private Task<(int Deleted, bool BudgetExhausted)> DrainPrefixAsync(string prefix, DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
+    {
+        return PayloadArchiveCleanupDrain.DrainAsync(
+            _ =>
+            {
+                lock (_gate)
+                {
+                    return Task.FromResult(DeletePrefixOlderThan(prefix, cutoffUtc));
+                }
+            },
+            _options.CleanupBatchSize,
+            static () => false,
+            cancellationToken);
     }
 
     private int DeletePrefixOlderThan(string prefix, DateTimeOffset cutoffUtc)

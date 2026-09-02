@@ -48,9 +48,7 @@ try
         return -1;
     }
 
-    // Log connection string with password masked for security
-    var maskedConnectionString = MaskConnectionStringPassword(connectionString);
-    Log.Information("Using database connection: {ConnectionString}", maskedConnectionString);
+    Log.Information("Using database connection: {ConnectionString}", ConnectionStringDescriptor.Describe(connectionString));
 
     if (isReplayVerb)
     {
@@ -80,19 +78,3 @@ finally
 {
     Log.CloseAndFlush();
 }
-
-// Helper method to mask passwords in connection strings
-static string MaskConnectionStringPassword(string connectionString)
-{
-    if (string.IsNullOrEmpty(connectionString))
-        return connectionString;
-
-    return System.Text.RegularExpressions.Regex.Replace(
-        connectionString,
-        @"(password|pwd)\s*=\s*[^;]+",
-        "$1=***MASKED***",
-        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-}
-
-
-

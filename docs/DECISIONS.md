@@ -94,7 +94,7 @@ dotnet run --project src/StarterApp.DbMigrator -- replay-outbox --all-errored
 
 Replayed publishes carry `Replay`/`ReplayCount` application properties so audit can distinguish a republish from a first delivery. Dead-lettered subscription messages follow [`runbooks/event-replay.md`](runbooks/event-replay.md).
 
-Retention: processed and errored rows past `OutboxProcessor:RetentionDays` (default 30) are purged; pending and locked rows are never touched. Background work leaves a queryable trail in `job_runs` via `IJobRunRecorder` — one aggregate health row per `HealthRowIntervalMinutes` (default 15) that saw activity, never per message. Recording is a fail-open sidecar; a history write never breaks the job.
+Retention: processed rows past `OutboxProcessor:RetentionDays` (default 30, counted from `ProcessedOnUtc`) and errored rows past it counted from `ErroredOnUtc` (the moment they became permanently errored, never the event time, so a failure after a long outage always gets a full replay window) are purged; pending and locked rows are never touched. Background work leaves a queryable trail in `job_runs` via `IJobRunRecorder` — one aggregate health row per `HealthRowIntervalMinutes` (default 15) that saw activity, never per message. Recording is a fail-open sidecar; a history write never breaks the job.
 
 Service Bus registration is conditional on `ConnectionStrings:servicebus` — a no-op when absent, **but only in Development/Testing**. Other environments fail startup loudly so a typo'd connection string can't silently disable eventing.
 

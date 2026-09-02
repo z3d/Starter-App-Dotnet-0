@@ -13,9 +13,11 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
 {
     private readonly BlobContainerClient _containerClient;
     private readonly PayloadCaptureOptions _options;
+    private readonly TimeProvider _timeProvider;
 
-    public AzureBlobPayloadArchiveStore(BlobServiceClient blobServiceClient, IOptions<PayloadCaptureOptions> options)
+    public AzureBlobPayloadArchiveStore(BlobServiceClient blobServiceClient, IOptions<PayloadCaptureOptions> options, TimeProvider? timeProvider = null)
     {
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _options = options.Value;
         _containerClient = blobServiceClient.GetBlobContainerClient(_options.ContainerName);
     }
@@ -93,10 +95,27 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
     {
         await _containerClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
 
-        var archiveDeleted = await DeletePrefixOlderThanAsync(_options.ArchivePrefix, cutoffUtc, cancellationToken);
-        var auditDeleted = await DeletePrefixOlderThanAsync(_options.AuditPrefix, cutoffUtc, cancellationToken);
-        var entityIndexDeleted = await DeletePrefixOlderThanAsync(_options.EntityIndexPrefix, cutoffUtc, cancellationToken);
-        return new PayloadArchiveDeleteResult(archiveDeleted, auditDeleted, entityIndexDeleted);
+        var started = _timeProvider.GetTimestamp();
+        var budget = TimeSpan.FromSeconds(_options.CleanupTimeBudgetSeconds);
+        bool BudgetExhausted() => _timeProvider.GetElapsedTime(started) >= budget;
+
+        var archive = await DrainPrefixAsync(_options.ArchivePrefix, cutoffUtc, BudgetExhausted, cancellationToken);
+        var audit = await DrainPrefixAsync(_options.AuditPrefix, cutoffUtc, BudgetExhausted, cancellationToken);
+        var entityIndex = await DrainPrefixAsync(_options.EntityIndexPrefix, cutoffUtc, BudgetExhausted, cancellationToken);
+        return new PayloadArchiveDeleteResult(
+            archive.Deleted, audit.Deleted, entityIndex.Deleted,
+            archive.BudgetExhausted || audit.BudgetExhausted || entityIndex.BudgetExhausted);
+    }
+
+    private Task<(int Deleted, bool BudgetExhausted)> DrainPrefixAsync(string prefix, DateTimeOffset cutoffUtc, Func<bool> budgetExhausted, CancellationToken cancellationToken)
+    {
+        // Each page re-lists from the start of the prefix; deleted blobs no longer appear, so the
+        // next page sees the next batch of expired names.
+        return PayloadArchiveCleanupDrain.DrainAsync(
+            ct => DeletePrefixOlderThanAsync(prefix, cutoffUtc, ct),
+            _options.CleanupBatchSize,
+            budgetExhausted,
+            cancellationToken);
     }
 
     private async Task<int> DeletePrefixOlderThanAsync(string prefix, DateTimeOffset cutoffUtc, CancellationToken cancellationToken)

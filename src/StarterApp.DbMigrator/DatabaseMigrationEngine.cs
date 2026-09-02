@@ -4,9 +4,7 @@ public static class DatabaseMigrationEngine
 {
     public static bool MigrateDatabase(string connectionString, Assembly scriptsAssembly)
     {
-        // Mask the connection string password for logging
-        var maskedConnectionString = MaskConnectionStringPassword(connectionString);
-        Console.WriteLine($"Starting database migration with connection: {maskedConnectionString}");
+        Console.WriteLine($"Starting database migration with connection: {ConnectionStringDescriptor.Describe(connectionString)}");
 
         // Ensure database exists
         EnsureDatabase.For.PostgresqlDatabase(connectionString);
@@ -39,18 +37,4 @@ public static class DatabaseMigrationEngine
     {
         return MigrateDatabase(connectionString, Assembly.GetExecutingAssembly());
     }
-
-    private static string MaskConnectionStringPassword(string connectionString)
-    {
-        if (string.IsNullOrEmpty(connectionString))
-            return connectionString;
-
-        return System.Text.RegularExpressions.Regex.Replace(
-            connectionString,
-            @"(password|pwd)\s*=\s*[^;]+",
-            "$1=***MASKED***",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-    }
 }
-
-

@@ -85,6 +85,8 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    internal static readonly string[] ExposedResponseHeaders = ["WWW-Authenticate", "X-Correlation-ID", "Retry-After"];
+
     public static IServiceCollection AddApiCors(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         services.AddCors(options =>
@@ -99,6 +101,11 @@ public static class ServiceCollectionExtensions
                           // X-Correlation-ID is a documented client-settable request header (echoed on
                           // responses); omitting it here blocks browser callers from supplying their own.
                           .WithHeaders("Authorization", "Content-Type", "X-Correlation-ID");
+
+                // Browsers hide non-safelisted response headers from cross-origin scripts unless the
+                // policy exposes them. WWW-Authenticate carries the machine-actionable scope/step-up
+                // challenge, X-Correlation-ID is the support handle, Retry-After the 429 back-off.
+                policy.WithExposedHeaders(ExposedResponseHeaders);
             });
         });
 
@@ -114,6 +121,8 @@ public static class ServiceCollectionExtensions
                 "Identity:Authority is required outside Development or Testing environments.")
             .Validate(options => IsDevelopmentLike(environment) || options.RequireHttpsMetadata,
                 "Identity:RequireHttpsMetadata=false is only allowed in Development or Testing environments.")
+            .Validate(AuthorityIsWellFormed,
+                "Identity:Authority must be an absolute http(s) URI, and https unless Identity:RequireHttpsMetadata is false.")
             .ValidateOnStart();
 
         // Self-contained JWTs only: the handler's ConfigurationManager caches discovery + JWKS in
@@ -198,6 +207,23 @@ public static class ServiceCollectionExtensions
         return currentUser is { IsAuthenticated: true }
             ? $"identity:{currentUser.TenantId}:{currentUser.Subject}"
             : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+    }
+
+    // Fail at startup, not on the first token: a relative or malformed authority, or a plain-http
+    // authority alongside RequireHttpsMetadata, otherwise surfaces only when the bearer handler
+    // builds its metadata address. Presence is validated separately (environment-gated).
+    internal static bool AuthorityIsWellFormed(JwtIdentityOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.Authority))
+            return true;
+
+        if (!Uri.TryCreate(options.Authority, UriKind.Absolute, out var authority))
+            return false;
+
+        if (authority.Scheme == Uri.UriSchemeHttps)
+            return true;
+
+        return authority.Scheme == Uri.UriSchemeHttp && !options.RequireHttpsMetadata;
     }
 
     private static bool IsDevelopmentLike(IHostEnvironment environment)

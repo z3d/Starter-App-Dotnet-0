@@ -320,4 +320,62 @@ public class CachingBehaviorTests
     private static byte[] Envelope(string value, DateTimeOffset refreshAfterUtc)
         => System.Text.Encoding.UTF8.GetBytes(
             $"{{\"Value\":{JsonSerializer.Serialize(value)},\"RefreshAfterUtc\":{JsonSerializer.Serialize(refreshAfterUtc)}}}");
+
+    [Fact]
+    public async Task HandleAsync_WhenCacheReadThrows_TreatsItAsAMissAndReturnsTheHandlerResult()
+    {
+        var request = new TestQuery { Id = 31 };
+        _cacheMock.Setup(c => c.GetAsync($"Test:{request.Id}", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("redis down"));
+
+        var result = await _behavior.HandleAsync(request, () =>
+        {
+            _nextWasCalled = true;
+            return Task.FromResult("from database");
+        }, CancellationToken.None);
+
+        Assert.True(_nextWasCalled);
+        Assert.Equal("from database", result);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenTombstoneCheckThrows_ReturnsTheResultWithoutRepopulating()
+    {
+        var request = new TestQuery { Id = 32 };
+        _cacheMock.Setup(c => c.GetAsync($"Test:{request.Id}", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((byte[]?)null);
+        _cacheMock.Setup(c => c.GetAsync(It.Is<string>(key => key.EndsWith(":inv", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("redis down"));
+
+        var result = await _behavior.HandleAsync(request, () => Task.FromResult("from database"), CancellationToken.None);
+
+        Assert.Equal("from database", result);
+        // Unknown tombstone state: never write back a value that might already be stale.
+        _cacheMock.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<DistributedCacheEntryOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenCacheWriteThrows_StillReturnsTheHandlerResult()
+    {
+        var request = new TestQuery { Id = 33 };
+        _cacheMock.Setup(c => c.GetAsync($"Test:{request.Id}", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((byte[]?)null);
+        _cacheMock.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<DistributedCacheEntryOptions>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("redis down"));
+
+        var result = await _behavior.HandleAsync(request, () => Task.FromResult("from database"), CancellationToken.None);
+
+        Assert.Equal("from database", result);
+    }
+
+    [Fact]
+    public async Task HandleAsync_WhenCacheReadIsCancelled_PropagatesCancellation()
+    {
+        var request = new TestQuery { Id = 34 };
+        _cacheMock.Setup(c => c.GetAsync($"Test:{request.Id}", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _behavior.HandleAsync(request, () => Task.FromResult("never"), CancellationToken.None));
+    }
 }

@@ -39,7 +39,7 @@ public class OutboxMessageTests
         var domainEvent = new InventoryReservedDomainEvent(1, 1, null, DateTimeOffset.UtcNow);
         var message = OutboxMessage.Create(domainEvent);
 
-        message.MarkAsError("Connection refused");
+        message.MarkAsError("Connection refused", DateTimeOffset.UtcNow);
 
         Assert.Equal("Connection refused", message.Error);
     }
@@ -50,9 +50,9 @@ public class OutboxMessageTests
         var domainEvent = new InventoryReservedDomainEvent(1, 1, null, DateTimeOffset.UtcNow);
         var message = OutboxMessage.Create(domainEvent);
 
-        Assert.Throws<ArgumentNullException>(() => message.MarkAsError(null!));
-        Assert.Throws<ArgumentException>(() => message.MarkAsError(""));
-        Assert.Throws<ArgumentException>(() => message.MarkAsError("   "));
+        Assert.Throws<ArgumentNullException>(() => message.MarkAsError(null!, DateTimeOffset.UtcNow));
+        Assert.Throws<ArgumentException>(() => message.MarkAsError("", DateTimeOffset.UtcNow));
+        Assert.Throws<ArgumentException>(() => message.MarkAsError("   ", DateTimeOffset.UtcNow));
     }
 
     [Fact]
@@ -77,5 +77,20 @@ public class OutboxMessageTests
         DateTimeOffset OccurredOnUtc) : IDomainEvent
     {
         public string EventType => "inventory.reserved.v1";
+    }
+
+    [Fact]
+    public void MarkAsError_StampsErroredOnUtc_AndResetForReplayClearsIt()
+    {
+        var domainEvent = new InventoryReservedDomainEvent(1, 1, null, DateTimeOffset.UtcNow);
+        var message = OutboxMessage.Create(domainEvent);
+        var erroredAt = new DateTimeOffset(2026, 9, 3, 8, 0, 0, TimeSpan.Zero);
+
+        message.MarkAsError("Connection refused", erroredAt);
+        Assert.Equal(erroredAt, message.ErroredOnUtc);
+
+        message.ResetForReplay(erroredAt.AddMinutes(5));
+        Assert.Null(message.ErroredOnUtc);
+        Assert.Null(message.Error);
     }
 }

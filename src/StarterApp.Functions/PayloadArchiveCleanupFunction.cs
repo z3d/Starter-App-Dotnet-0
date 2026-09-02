@@ -52,10 +52,17 @@ public sealed class PayloadArchiveCleanupFunction
                 result.EntityIndexDeleted,
                 result.TotalDeleted);
 
+            if (result.BudgetExhausted)
+            {
+                _logger.LogWarning(
+                    "Payload archive cleanup stopped at its time budget ({BudgetSeconds}s) before catching up; expired payloads remain past RetentionDays. Raise CleanupBatchSize, the budget, or the schedule frequency.",
+                    _options.CleanupTimeBudgetSeconds);
+            }
+
             var summary = string.Create(
                 CultureInfo.InvariantCulture,
-                $"{{\"archiveDeleted\":{result.ArchiveDeleted},\"auditDeleted\":{result.AuditDeleted},\"entityIndexDeleted\":{result.EntityIndexDeleted},\"totalDeleted\":{result.TotalDeleted}}}");
-            await _jobRunRecorder.CompleteRunAsync(runId, _timeProvider.GetUtcNow(), "Succeeded", summary, cancellationToken);
+                $"{{\"archiveDeleted\":{result.ArchiveDeleted},\"auditDeleted\":{result.AuditDeleted},\"entityIndexDeleted\":{result.EntityIndexDeleted},\"totalDeleted\":{result.TotalDeleted},\"budgetExhausted\":{(result.BudgetExhausted ? "true" : "false")}}}");
+            await _jobRunRecorder.CompleteRunAsync(runId, _timeProvider.GetUtcNow(), result.BudgetExhausted ? "Degraded" : "Succeeded", summary, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

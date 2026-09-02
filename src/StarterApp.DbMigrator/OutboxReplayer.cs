@@ -13,6 +13,7 @@ public static class OutboxReplayer
     private const string ReplayByIdSql = """
         UPDATE outbox_messages
         SET error = NULL,
+            errored_on_utc = NULL,
             processing_id = NULL,
             locked_until_utc = NULL,
             retry_count = 0,
@@ -26,6 +27,7 @@ public static class OutboxReplayer
     private const string ReplayAllErroredSql = """
         UPDATE outbox_messages
         SET error = NULL,
+            errored_on_utc = NULL,
             processing_id = NULL,
             locked_until_utc = NULL,
             retry_count = 0,

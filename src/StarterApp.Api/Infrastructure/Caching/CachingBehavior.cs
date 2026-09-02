@@ -29,7 +29,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
             return await next();
 
         var cacheKey = ResolveCacheKey(cacheable);
-        var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
+        var cached = await TryGetAsync(cacheKey, cancellationToken);
         if (cached is not null)
         {
             var envelope = TryDeserializeEnvelope(cached);
@@ -87,12 +87,39 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         return result;
     }
 
+    // The cache is best-effort infrastructure: a Redis outage must degrade to uncached database
+    // reads, never turn a healthy read into a 500 (before or after PostgreSQL has answered).
+    // Cancellation always propagates. Mirrors the fail-open posture of CacheInvalidator.
+    private async Task<string?> TryGetAsync(string cacheKey, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _cache.GetStringAsync(cacheKey, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Cache read failed for {CacheKey}; treating as a miss", cacheKey);
+            return null;
+        }
+    }
+
     private async Task StoreAsync(string cacheKey, ICacheable cacheable, TResponse result, CancellationToken cancellationToken)
     {
         // Skip repopulation if a mutation invalidated this key while the handler was reading: the
         // tombstone means our just-fetched value may already be stale, and writing it back would
-        // re-poison the key for the full TTL.
-        var tombstone = await _cache.GetStringAsync(CacheTombstone.KeyFor(cacheKey), cancellationToken);
+        // re-poison the key for the full TTL. If the tombstone cannot be checked at all, skip the
+        // write for the same reason — fail open on the read, fail safe on the repopulation.
+        string? tombstone;
+        try
+        {
+            tombstone = await _cache.GetStringAsync(CacheTombstone.KeyFor(cacheKey), cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Invalidation tombstone check failed for {CacheKey}; skipping cache repopulation", cacheKey);
+            return;
+        }
+
         if (tombstone is not null)
         {
             _logger.LogDebug("Skipping cache repopulation for {CacheKey}; invalidation tombstone present", cacheKey);
@@ -105,7 +132,15 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         {
             AbsoluteExpirationRelativeToNow = cacheable.CacheDuration
         };
-        await _cache.SetStringAsync(cacheKey, serialized, options, cancellationToken);
+
+        try
+        {
+            await _cache.SetStringAsync(cacheKey, serialized, options, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Cache write failed for {CacheKey}; the handler result is returned uncached", cacheKey);
+        }
     }
 
     private static CacheEnvelope? TryDeserializeEnvelope(string cached)

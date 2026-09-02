@@ -34,6 +34,36 @@ tls_insecure_for() {
     fi
 }
 
+# JSON helpers are defined before the first parse: the authority and token responses below
+# go through the same python3-or-grep fallback as every later field, so a host without a
+# runnable python3 still authenticates.
+# python3 must be PROVEN runnable, not merely on PATH: Windows ships a Store
+# execution-alias stub named python3 that resolves under `command -v` but cannot run
+# anything, so every JSON parse silently blanks. Probe it once with a real run and
+# share the verdict; fall back to the grep parser when it is absent or the stub.
+if python3 -c "print()" >/dev/null 2>&1; then JSON_VIA_PYTHON=1; else JSON_VIA_PYTHON=0; fi
+
+extract_id() {
+    # Extract "id" from JSON — works with python3 or grep fallback
+    if [ "$JSON_VIA_PYTHON" = "1" ]; then
+        python3 -c "import sys,json; print(json.load(sys.stdin)['id'])"
+    else
+        grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*'
+    fi
+}
+
+json_field() {
+    # Extract a top-level string field from JSON on stdin — python3 or grep fallback.
+    # Pass the field name as an argv parameter, never interpolated into the -c source, so a field
+    # name can never be executed as Python.
+    local field="$1"
+    if [ "$JSON_VIA_PYTHON" = "1" ]; then
+        python3 -c 'import sys,json; print(json.load(sys.stdin).get(sys.argv[1],""))' "$field"
+    else
+        grep -o "\"$field\":\"[^\"]*\"" | head -1 | cut -d'"' -f4
+    fi
+}
+
 TOKEN_CURL_OPTS="-sf$(tls_insecure_for "$BASE_URL")"
 
 SMOKE_ACCESS_TOKEN="${SMOKE_ACCESS_TOKEN:-}"
@@ -41,7 +71,7 @@ if [ -z "$SMOKE_ACCESS_TOKEN" ]; then
     AUTHORITY="${SMOKE_AUTHORITY:-}"
     if [ -z "$AUTHORITY" ]; then
         AUTHORITY=$(curl $TOKEN_CURL_OPTS "$BASE_URL/demo/config" 2>/dev/null \
-            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("authority") or "")' 2>/dev/null || echo "")
+            | json_field authority 2>/dev/null || echo "")
     fi
     if [ -z "$AUTHORITY" ]; then
         echo "No identity available: set SMOKE_ACCESS_TOKEN, or SMOKE_AUTHORITY for a password grant,"
@@ -58,7 +88,7 @@ if [ -z "$SMOKE_ACCESS_TOKEN" ]; then
         --data-urlencode "username=${SMOKE_USERNAME:-dev-user}" \
         --data-urlencode "password=${SMOKE_PASSWORD:-dev-password}" \
         --data-urlencode "scope=customers:read customers:write orders:read orders:write products:read products:write" \
-        | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])') || {
+        | json_field access_token) || {
         echo "Token request against $AUTHORITY failed."
         exit 2
     }
@@ -97,33 +127,6 @@ post_json() {
     local url="$1" body="$2"
     local post_opts="-s$(tls_insecure_for "$BASE_URL")"
     curl $post_opts -X POST "$BASE_URL$url" "${AUTH_HEADERS[@]}" -H "Content-Type: application/json" -d "$body" 2>/dev/null
-}
-
-# python3 must be PROVEN runnable, not merely on PATH: Windows ships a Store
-# execution-alias stub named python3 that resolves under `command -v` but cannot run
-# anything, so every JSON parse silently blanks. Probe it once with a real run and
-# share the verdict; fall back to the grep parser when it is absent or the stub.
-if python3 -c "print()" >/dev/null 2>&1; then JSON_VIA_PYTHON=1; else JSON_VIA_PYTHON=0; fi
-
-extract_id() {
-    # Extract "id" from JSON — works with python3 or grep fallback
-    if [ "$JSON_VIA_PYTHON" = "1" ]; then
-        python3 -c "import sys,json; print(json.load(sys.stdin)['id'])"
-    else
-        grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*'
-    fi
-}
-
-json_field() {
-    # Extract a top-level string field from JSON on stdin — python3 or grep fallback.
-    # Pass the field name as an argv parameter, never interpolated into the -c source, so a field
-    # name can never be executed as Python.
-    local field="$1"
-    if [ "$JSON_VIA_PYTHON" = "1" ]; then
-        python3 -c 'import sys,json; print(json.load(sys.stdin).get(sys.argv[1],""))' "$field"
-    else
-        grep -o "\"$field\":\"[^\"]*\"" | head -1 | cut -d'"' -f4
-    fi
 }
 
 await_json_field() {

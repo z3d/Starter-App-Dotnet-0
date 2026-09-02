@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <!-- Selects the migrator namespace inside the linked ConnectionStringDescriptor.cs. -->
+    <DefineConstants>$(DefineConstants);DBMIGRATOR</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,6 +21,12 @@
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.Seq" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shared with the API: the only sanctioned way to log a database connection. Linked rather
+         than referenced so the migrator keeps its minimal package closure. -->
+    <Compile Include="..\StarterApp.ServiceDefaults\ConnectionStringDescriptor.cs" Link="ConnectionStringDescriptor.cs" />
   </ItemGroup>
 
   <ItemGroup>

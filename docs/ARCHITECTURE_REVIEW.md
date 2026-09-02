@@ -22,16 +22,16 @@ deliberate design stance (patterns are the pedagogy, convention tests are the pr
 accidental weight — a 2026-06-12 juice-vs-squeeze complexity review confirmed the stance and
 pruned what failed it (see `docs/ROADMAP.md`, complexity-review backlog).
 
-**Score: 7.1/10** — recovered 2026-09-03 when all twenty-two findings from the 2026-09-02
-whole-solution review landed with regression tests in one change (was 6.9 after that review found
-five medium cross-cutting gaps and seventeen lows, 7.1 after the 2026-08-04 runtime-hardening
-review found one high and four medium runtime gaps, 7.7 after the same-day post-IdP review and 8.0 after the gateway→OIDC
-identity conversion, independently re-scored 2026-06-09 on a strict production scale). The
-conversion trades a distinctive strength (individually-signed gateway assertions) for zero-trust
-posture (the API verifies the caller's own credential, asymmetric JWKS, no shared secrets); the net
-dip is the open sender-constraining finding plus the nine 2026-08-04 findings below. Recover the
-0.9 review dip when those nine fixes and their regression tests land; revisit the remaining identity
-posture when DPoP/mTLS-binding lands or the replay finding is re-accepted with evidence.
+**Score: 8.0/10** — recovered 2026-09-03 when the nine 2026-08-04 findings (one high, eight
+medium) landed with regression tests, recovering the 0.9 dip those reviews recorded (was 7.1 after
+the twenty-two 2026-09-02 whole-solution findings were resolved the same day; 6.9 after that review
+found them; 7.1 after the 2026-08-04 runtime-hardening review; 7.7 after the same-day post-IdP
+review; 8.0 after the gateway→OIDC identity conversion, independently re-scored 2026-06-09 on a
+strict production scale). The conversion trades a distinctive strength (individually-signed
+gateway assertions) for zero-trust posture (the API verifies the caller's own credential,
+asymmetric JWKS, no shared secrets); the remaining dip is the open sender-constraining finding.
+Revisit the identity posture when DPoP/mTLS-binding lands or the replay finding is re-accepted
+with evidence.
 **Read this before trusting the number**: the score is self-assessed by the maintaining agents
 (Claude and Codex across sessions) with no external human validator and no fixed rubric; treat it
 as a maintenance log, not an audit. The historical self-graded 9.7 was stale/monotonic — the
@@ -39,7 +39,7 @@ archive retains it for provenance only. Held below 9 by the open findings, folde
 Architecture deferral, and accepted limitations below.
 
 Verifiable snapshot (re-verify, don't trust): 9 command handlers, 7 query handlers, every
-command/query validated (convention-enforced), 0 CQRS violations, full suite ~718 tests green
+command/query validated (convention-enforced), 0 CQRS violations, full suite ~740 tests green
 plus AppHost integration tests; the nightly k6 perf gate and DAST scan both pass on `main`.
 
 ## Strengths (compressed — the archive carries the full analysis)
@@ -59,53 +59,61 @@ DAST, both green.
 
 ## Open Findings
 
-Detailed evidence and verification for the four 2026-08-04 findings lives in the
-[post-IdP review](reviews/ARCHITECTURE_REVIEW-2026-08-04-post-idp.md).
-Detailed evidence and verification for the five runtime findings lives in the
-[runtime-hardening review](reviews/ARCHITECTURE_REVIEW-2026-08-04-runtime-hardening.md).
+Detailed evidence and verification for the four 2026-08-04 post-IdP findings and the five
+runtime-hardening findings live in their dated records; all nine were resolved on 2026-09-03 (see
+the RESOLVED entries below and each record's Resolution section).
 Detailed evidence, the seventeen Low findings, and the three dismissed candidates from the
 2026-09-02 pass live in the
 [whole-solution review](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md); all
 twenty-two were resolved on 2026-09-03 (its Resolution section, and the RESOLVED entries below).
 
 
-- **OPEN (2026-08-04) — CORS does not expose bearer challenges.** Scope and MFA shortfalls put
-  the machine-actionable response in `WWW-Authenticate`, but `AddApiCors` never exposes that
-  response header, so cross-origin browser clients cannot read the advertised scope or
-  `acr_values`. Fix both CORS branches and add an Origin-based regression test.
-- **OPEN (2026-08-04) — malformed OIDC authorities pass startup validation.** The application
-  validates only that `Identity:Authority` is nonblank; malformed, relative, or scheme-incompatible
-  values fail later in the bearer metadata path. Validate an absolute URI and its HTTPS posture at
-  startup, with negative option tests.
-- **OPEN (2026-08-04) — the identity convention misses raw Authorization-header reads.** The
-  convention scans for `ClaimsPrincipal` and retired gateway headers but not
-  `Request.Headers.Authorization`, `HeaderNames.Authorization`, or the literal. Extend the IL scan
-  and prove it against an injected violation before reverting to green.
-- **OPEN (2026-08-04) — converted OIDC tooling has an undeclared Python dependency.** Token parsing
-  invokes `python3` before the smoke test's capability fallback, and the shared IdP helper invokes
-  it while DAST/performance requirements omit it. Make parsing portable or require and preflight
-  Python consistently.
-- **OPEN (2026-08-04) — quoted database passwords can leak into logs.** The regex mask used by the
-  migrator and Development API stops at the first semicolon, so a valid quoted password can expose
-  its suffix. Parse and sanitize structurally, centralize the helper, and regression-test quoted
-  values.
-- **OPEN (2026-08-04) — errored outbox rows can lose their replay-retention window.** Cleanup ages
-  failures from the event's `OccurredOnUtc`, not from when the row became permanently errored. Add
-  `ErroredOnUtc`, retain from failure time, and keep both replay paths in sync.
-- **OPEN (2026-08-04) — payload cleanup has a fixed throughput ceiling below modest traffic.** The
-  hourly job deletes at most 500 blobs per prefix by default while the archive creates roughly one
-  blob per request, so expired PII accumulates whenever ingestion outpaces deletion. Drain bounded
-  pages and expose cleanup-backlog health.
-- **OPEN (2026-08-04) — concurrent customer creation can return another request's row.** The
-  natural-key recovery lookup runs on the execution strategy's first invocation as well as retries,
-  allowing a same-email race to return the winner's representation as a successful create. Separate
-  retry recovery from first-attempt conflict handling and add a PostgreSQL race test.
-- **OPEN (2026-08-04) — Redis failures take healthy reads down.** Cache get, tombstone, and set
-  exceptions escape the caching behavior, so a Redis outage can return `500` before or after a
-  successful database read. Fail open on non-cancellation cache failures without weakening the
-  tombstone guard.
 
 Decisions / watch-items / explained deferrals follow.
+
+- **RESOLVED (2026-09-03) — quoted database passwords could leak into logs.** The three regex
+  masks are gone. `ConnectionStringDescriptor.Describe` (ServiceDefaults, linked into the migrator
+  as a source file) parses with `NpgsqlConnectionStringBuilder` and emits only host, port,
+  database and user; a parse failure returns a fixed placeholder, never the input. Regression:
+  `ConnectionStringDescriptorTests` (quoted semicolons, `Pwd` alias, malformed input).
+- **RESOLVED (2026-09-03) — errored outbox rows could lose their replay-retention window.**
+  `OutboxMessage.ErroredOnUtc` (migration `0006`, back-filled to `now()` for existing errored rows)
+  is stamped by `MarkAsError`, cleared by both replay paths, and retention for errored rows counts
+  from it. Regression: `CleanupExpiredMessages_ShouldPurgeOnlyProcessedAndErroredRowsPastRetention`
+  (an old event that just failed is kept), `OutboxMessageTests`, `OutboxReplayTests` (SQL and entity
+  reset stay in step).
+- **RESOLVED (2026-09-03) — payload cleanup had a fixed throughput ceiling.** `CleanupBatchSize` is
+  now a page size; `PayloadArchiveCleanupDrain` drains pages per prefix until caught up or
+  `CleanupTimeBudgetSeconds` (default 1200) is spent, and a run that hits the budget reports
+  `BudgetExhausted`, logs a warning, and records `Degraded` in `job_runs`. Regression:
+  `PayloadArchiveCleanupDrainTests`, `InMemoryPayloadArchiveStoreTests` (drains beyond one page).
+- **RESOLVED (2026-09-03) — concurrent customer creation could return another request's row.**
+  The natural-key recovery lookup runs only on a genuine retry and accepts the row only when its
+  name matches the request; a first-attempt race goes through the unique constraint to a 409.
+  Regression: `Handle_WhenConcurrentCreatesRaceOnTheSameEmail_OnlyOneSucceedsAndEachResultIsItsOwn`
+  (six parallel creates against PostgreSQL; the assertion that every returned DTO is the caller's
+  own is the property the old code could violate, so the test is deterministic for the fix and
+  timing-dependent as a detector of the old bug).
+- **RESOLVED (2026-09-03) — Redis failures took healthy reads down.** `CachingBehavior` treats a
+  failed cache read as a miss, skips repopulation when the tombstone cannot be checked, and
+  swallows a failed write, logging each; cancellation still propagates. Regression: four
+  `CachingBehaviorTests` facts (read, tombstone, write, cancellation).
+- **RESOLVED (2026-09-03) — CORS did not expose bearer challenges.** Both policy branches expose
+  `WWW-Authenticate`, `X-Correlation-ID` and `Retry-After`. Regression: `CorsPolicyTests` over the
+  development and production branches.
+- **RESOLVED (2026-09-03) — malformed OIDC authorities passed startup validation.**
+  `AuthorityIsWellFormed` requires an absolute http(s) URI and https unless `RequireHttpsMetadata`
+  is false, in every environment. Regression: `JwtIdentityOptionsTests` (relative, garbage, ftp,
+  http-with-https-required, http-allowed-in-development, https).
+- **RESOLVED (2026-09-03) — the identity convention missed raw Authorization-header reads.**
+  `ClaimsPrincipal_MustOnlyBeReadByIdentityInfrastructure` now also fails on
+  `IHeaderDictionary.get_Authorization`, the `HeaderNames.Authorization` field, and the literal
+  outside the identity namespace (the composition root's CORS allow-list is the one exemption).
+  Proven against an injected endpoint-side read, then reverted.
+- **RESOLVED (2026-09-03) — OIDC tooling had an undeclared Python dependency.** The smoke test
+  defines its python3-or-grep JSON helper before the first parse and uses it for the authority and
+  token responses; `dev-idp.sh` parses tokens with jq, then a proven-runnable python3, then sed, so
+  DAST and the perf gate need neither. Verified with python3 and jq removed from `PATH`.
 
 - **RESOLVED (2026-09-03) — exception-mapped responses lost every security header and the
   correlation-id echo.** `UseSecurityHeaders` and `PayloadCaptureMiddleware` now register
