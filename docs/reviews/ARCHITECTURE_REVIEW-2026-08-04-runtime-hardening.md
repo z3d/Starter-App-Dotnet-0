@@ -144,6 +144,6 @@ SQL and convention coverage in the same change.
 |---|---|---|
 | 1 | Regex masks replaced by `ConnectionStringDescriptor.Describe` (structural parse; host, port, database, user only; fixed placeholder on parse failure), linked into the migrator | `ConnectionStringDescriptorTests` |
 | 2 | `ErroredOnUtc` column (`0006`), stamped by `MarkAsError`, cleared by both replay paths, retention counted from it | `OutboxProcessorTests` cleanup fact, `OutboxMessageTests`, `OutboxReplayTests` |
-| 3 | `PayloadArchiveCleanupDrain` pages until caught up or `CleanupTimeBudgetSeconds`; `BudgetExhausted` → warning + `Degraded` job run | `PayloadArchiveCleanupDrainTests`, `InMemoryPayloadArchiveStoreTests` |
+| 3 | One listing pass per prefix deleting every expired blob, with `CleanupTimeBudgetSeconds` (default 300, inside every plan's default `functionTimeout`) split across prefixes and checked inline; `BudgetExhausted` → warning + `Degraded` job run. Validation pass replaced a per-page drain that re-listed the non-chronological `entity-index/` prefix quadratically | `InMemoryPayloadArchiveStoreTests` |
 | 4 | Natural-key recovery only on a retry, and only when the stored name matches; first-attempt races reach the unique constraint | `CreateCustomerCommandHandlerTests` race fact against PostgreSQL |
 | 5 | Cache read failure → miss; tombstone check failure → skip write; write failure → logged; cancellation propagates | `CachingBehaviorTests` (four facts) |

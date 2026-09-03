@@ -55,7 +55,7 @@ public class RateLimitingTests
         var defaults = new RateLimitingOptions();
         Assert.Equal(100, defaults.PermitLimit);
         Assert.Equal(60, defaults.WindowSeconds);
-        Assert.Equal(0, defaults.QueueLimit);
+        Assert.Equal(5, defaults.QueueLimit);
     }
 
     [Fact]
@@ -69,5 +69,33 @@ public class RateLimitingTests
 
         Assert.Throws<OptionsValidationException>(
             () => provider.GetRequiredService<IOptions<RateLimitingOptions>>().Value);
+    }
+
+    [Fact]
+    public void ShippedAppSettings_AgreeWithTheReviewedDefaults()
+    {
+        // appsettings.json binds over the class defaults, so the file is what decides behaviour.
+        // A default changed in code but not in the file (or vice versa) ships silently — this
+        // pins the two together so a reviewed change always lands in the running configuration.
+        var root = FindRepoRoot();
+        var configuration = new ConfigurationBuilder()
+            .AddJsonFile(Path.Combine(root, "src", "StarterApp.Api", "appsettings.json"), optional: false)
+            .Build();
+
+        var shipped = configuration.GetSection(RateLimitingOptions.SectionName).Get<RateLimitingOptions>()!;
+        var defaults = new RateLimitingOptions();
+
+        Assert.Equal(defaults.PermitLimit, shipped.PermitLimit);
+        Assert.Equal(defaults.WindowSeconds, shipped.WindowSeconds);
+        Assert.Equal(defaults.QueueLimit, shipped.QueueLimit);
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "StarterApp.slnx")))
+            directory = directory.Parent;
+
+        return directory?.FullName ?? throw new InvalidOperationException("Could not locate the repo root (StarterApp.slnx).");
     }
 }

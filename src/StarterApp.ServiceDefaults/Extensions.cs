@@ -1,5 +1,3 @@
-using Azure.Identity;
-using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Configuration;
@@ -115,25 +113,19 @@ public static class Extensions
         builder.Services.AddSingleton<IPayloadRedactor, JsonPayloadRedactor>();
         builder.Services.AddSingleton<IPayloadCaptureSink, PayloadCaptureSink>();
         builder.Services.AddSingleton<IArtifactCaptureSink, ArtifactCaptureSink>();
-        // One BlobServiceClient per process. The archive store and the API's payload-archive health
-        // check both take it from DI, so a health probe reuses the warm client and its credential's
-        // token cache instead of re-walking the DefaultAzureCredential chain on every call.
-        if (PayloadArchiveConfiguration.IsConfigured(builder.Configuration))
-        {
-            builder.Services.TryAddSingleton(provider =>
-            {
-                var options = provider.GetRequiredService<IOptions<PayloadCaptureOptions>>().Value;
-                var source = PayloadArchiveConfiguration.ResolveClientSource(options, builder.Configuration);
-                return source.ConnectionString is not null
-                    ? new BlobServiceClient(source.ConnectionString)
-                    : new BlobServiceClient(source.AccountUri!, new DefaultAzureCredential());
-            });
-        }
+        // One BlobServiceClient per process, resolved from the bound options. The archive store and
+        // the API's payload-archive health check both take it through the provider, so a health
+        // probe reuses the warm client and its credential's token cache instead of re-walking the
+        // DefaultAzureCredential chain on every call.
+        builder.Services.AddSingleton(provider => new PayloadArchiveClientProvider(
+            PayloadArchiveConfiguration.CreateClient(
+                provider.GetRequiredService<IOptions<PayloadCaptureOptions>>().Value,
+                builder.Configuration)));
 
         builder.Services.AddSingleton<IPayloadArchiveStore>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<PayloadCaptureOptions>>();
-            var client = provider.GetService<BlobServiceClient>();
+            var client = provider.GetRequiredService<PayloadArchiveClientProvider>().Client;
             return client is not null
                 ? new AzureBlobPayloadArchiveStore(client, options)
                 : new NullPayloadArchiveStore();
@@ -144,7 +136,7 @@ public static class Extensions
 
     private static bool HasPayloadArchiveStore(PayloadCaptureOptions options, IConfiguration configuration)
     {
-        return PayloadArchiveConfiguration.ResolveClientSource(options, configuration).IsConfigured;
+        return PayloadArchiveConfiguration.IsConfigured(options, configuration);
     }
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)

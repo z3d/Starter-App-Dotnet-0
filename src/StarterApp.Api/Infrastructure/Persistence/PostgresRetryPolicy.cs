@@ -14,7 +14,10 @@ namespace StarterApp.Api.Infrastructure.Persistence;
 // Backoff is jittered and capped by a total delay budget. A deterministic ladder makes every
 // saturated reader retry in lockstep and hold its request open for the whole ladder, which
 // amplifies the very exhaustion (53300) it is retrying; the EF write path already jitters via
-// NpgsqlRetryingExecutionStrategy, so reads now match it.
+// NpgsqlRetryingExecutionStrategy, so reads now match it. Deliberate trade: the read-retry
+// window shrank from ~61 s to the 10 s budget, so a failover longer than that surfaces as an
+// error instead of a request held open — which the common 60 s ingress read timeout would have
+// cut off anyway.
 public static class PostgresRetryPolicy
 {
     private const int MaxRetries = 5;

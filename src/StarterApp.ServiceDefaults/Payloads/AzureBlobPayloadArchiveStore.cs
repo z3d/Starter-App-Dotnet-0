@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -13,11 +14,9 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
 {
     private readonly BlobContainerClient _containerClient;
     private readonly PayloadCaptureOptions _options;
-    private readonly TimeProvider _timeProvider;
 
-    public AzureBlobPayloadArchiveStore(BlobServiceClient blobServiceClient, IOptions<PayloadCaptureOptions> options, TimeProvider? timeProvider = null)
+    public AzureBlobPayloadArchiveStore(BlobServiceClient blobServiceClient, IOptions<PayloadCaptureOptions> options)
     {
-        _timeProvider = timeProvider ?? TimeProvider.System;
         _options = options.Value;
         _containerClient = blobServiceClient.GetBlobContainerClient(_options.ContainerName);
     }
@@ -91,42 +90,34 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
         }
     }
 
+    // One listing pass per prefix, deleting expired blobs as they are encountered. Listing is
+    // lexicographic and continuation markers are name-based, so deleting already-listed blobs
+    // mid-enumeration is safe, and the cost is O(blobs under the prefix) per run. The wall-clock
+    // budget is split evenly across the three prefixes so a large archive/ backlog cannot starve
+    // entity-index/, and checked inline so a run never overshoots by more than one delete.
     public async Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
     {
         await _containerClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
 
-        var started = _timeProvider.GetTimestamp();
-        var budget = TimeSpan.FromSeconds(_options.CleanupTimeBudgetSeconds);
-        bool BudgetExhausted() => _timeProvider.GetElapsedTime(started) >= budget;
-
-        var archive = await DrainPrefixAsync(_options.ArchivePrefix, cutoffUtc, BudgetExhausted, cancellationToken);
-        var audit = await DrainPrefixAsync(_options.AuditPrefix, cutoffUtc, BudgetExhausted, cancellationToken);
-        var entityIndex = await DrainPrefixAsync(_options.EntityIndexPrefix, cutoffUtc, BudgetExhausted, cancellationToken);
+        var perPrefixBudget = TimeSpan.FromSeconds(_options.CleanupTimeBudgetSeconds) / 3;
+        var archive = await DeletePrefixOlderThanAsync(_options.ArchivePrefix, cutoffUtc, perPrefixBudget, cancellationToken);
+        var audit = await DeletePrefixOlderThanAsync(_options.AuditPrefix, cutoffUtc, perPrefixBudget, cancellationToken);
+        var entityIndex = await DeletePrefixOlderThanAsync(_options.EntityIndexPrefix, cutoffUtc, perPrefixBudget, cancellationToken);
         return new PayloadArchiveDeleteResult(
             archive.Deleted, audit.Deleted, entityIndex.Deleted,
             archive.BudgetExhausted || audit.BudgetExhausted || entityIndex.BudgetExhausted);
     }
 
-    private Task<(int Deleted, bool BudgetExhausted)> DrainPrefixAsync(string prefix, DateTimeOffset cutoffUtc, Func<bool> budgetExhausted, CancellationToken cancellationToken)
-    {
-        // Each page re-lists from the start of the prefix; deleted blobs no longer appear, so the
-        // next page sees the next batch of expired names.
-        return PayloadArchiveCleanupDrain.DrainAsync(
-            ct => DeletePrefixOlderThanAsync(prefix, cutoffUtc, ct),
-            _options.CleanupBatchSize,
-            budgetExhausted,
-            cancellationToken);
-    }
-
-    private async Task<int> DeletePrefixOlderThanAsync(string prefix, DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
+    private async Task<(int Deleted, bool BudgetExhausted)> DeletePrefixOlderThanAsync(string prefix, DateTimeOffset cutoffUtc, TimeSpan budget, CancellationToken cancellationToken)
     {
         var deleted = 0;
+        var started = Stopwatch.GetTimestamp();
         var normalizedPrefix = prefix.Trim().Trim('/') + "/";
 
         await foreach (var blob in _containerClient.GetBlobsAsync(BlobTraits.None, BlobStates.None, normalizedPrefix, cancellationToken))
         {
-            if (deleted >= _options.CleanupBatchSize)
-                break;
+            if (Stopwatch.GetElapsedTime(started) >= budget)
+                return (deleted, true);
 
             if (!PayloadBlobNaming.TryGetBlobMinute(blob.Name, out var blobMinuteUtc) || blobMinuteUtc >= cutoffUtc)
                 continue;
@@ -143,6 +134,6 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
             }
         }
 
-        return deleted;
+        return (deleted, false);
     }
 }

@@ -1,5 +1,6 @@
 -- Rows per tenant/owner per resource table. Aggregates ACROSS owners (operator view).
--- All three tables carry ix_*_tenant_id_owner_subject, so the group-bys are index-friendly.
+-- Every table has a btree led by (tenant_id, owner_subject): products' own index, and the wider
+-- customer/order indexes that serve the prefix (0005 dropped the redundant two). Index-friendly group-bys.
 
 SELECT 'customers' AS entity, tenant_id, owner_subject, count(*) AS rows
 FROM customers

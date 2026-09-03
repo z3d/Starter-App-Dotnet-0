@@ -70,4 +70,20 @@ public class OutboxRunAggregatorTests
         Assert.Equal("Degraded", window.Outcome);
         Assert.Contains("\"paused\":2", window.ToSummaryJson(), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void TryFlush_WithPausesButPublishes_StaysSucceeded()
+    {
+        // Routine throttling pauses a batch and the next poll publishes; that is not a degraded
+        // window, only a fully stalled one (paused, nothing published) is.
+        var aggregator = new OutboxRunAggregator(TimeSpan.FromMinutes(15), T0);
+        aggregator.AddPaused();
+        aggregator.AddPublished();
+
+        var window = aggregator.TryFlush(T0.AddMinutes(15));
+
+        Assert.NotNull(window);
+        Assert.Equal("Succeeded", window.Outcome);
+        Assert.Equal(1, window.Paused);
+    }
 }

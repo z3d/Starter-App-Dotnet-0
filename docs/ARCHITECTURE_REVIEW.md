@@ -25,7 +25,9 @@ accidental weight — a 2026-06-12 juice-vs-squeeze complexity review confirmed 
 pruned what failed it (see `docs/ROADMAP.md`, complexity-review backlog).
 
 **Score: 8.0/10** — recovered 2026-09-03 when the nine 2026-08-04 findings (one high, eight
-medium) landed with regression tests, recovering the 0.9 dip those reviews recorded (was 7.1 after
+medium) landed with regression tests (twenty-six of the thirty-one closures that day carry a
+dedicated regression test; five are verified manually and say so), recovering the 0.9 dip those
+reviews recorded (was 7.1 after
 the twenty-two 2026-09-02 whole-solution findings were resolved the same day; 6.9 after that review
 found them; 7.1 after the 2026-08-04 runtime-hardening review; 7.7 after the same-day post-IdP
 review; 8.0 after the gateway→OIDC identity conversion, independently re-scored 2026-06-09 on a
@@ -120,14 +122,19 @@ Decisions / watch-items / explained deferrals follow.
 - **RESOLVED (2026-09-03) — exception-mapped responses lost every security header and the
   correlation-id echo.** `UseSecurityHeaders` and `PayloadCaptureMiddleware` now register
   `Response.OnStarting` callbacks, which survive the `Response.Clear()` inside
-  `UseExceptionHandler`; HSTS moved into the same callback in place of `UseHsts()`. Regression:
+  `UseExceptionHandler`. `UseHsts()` stays as the framework middleware (validation pass: a
+  hand-rolled copy disabled the `AddHsts` extension point for no runtime gain — behind the TLS
+  terminator `Request.IsHttps` is false either way). Regression:
   `ProblemDetailsTests.ErrorResponses_ShouldKeepSecurityHeadersAndCorrelationId` (404 and 400),
   proven to fail on the pre-fix pipeline.
 - **RESOLVED (2026-09-03) — the payload-archive health check built a `BlobServiceClient` and
-  `DefaultAzureCredential` per probe.** `AddPayloadCapture` registers one `BlobServiceClient`
-  per process (gated by `PayloadArchiveConfiguration.IsConfigured`, which also replaced the API's
-  duplicate of the resolution order); the archive store and the check both take it, and the check
-  is a DI singleton. Regression: `PayloadArchiveHealthCheckRegistrationTests`.
+  `DefaultAzureCredential` per probe.** `AddPayloadCapture` registers one
+  `PayloadArchiveClientProvider` per process, resolved from the bound options by
+  `PayloadArchiveConfiguration` (the single owner of the resolution order); the archive store
+  and the singleton check both take the client through it. Validation pass: a dedicated
+  provider rather than a bare `BlobServiceClient` registration, so an unrelated Azure blob
+  client in DI can never be picked up, and options (not raw config) decide at resolution time.
+  Regression: `PayloadArchiveHealthCheckRegistrationTests`.
 - **RESOLVED (2026-09-03) — route-path entity references bypassed the sensitive-name filter.**
   `sensitiveTokens` is threaded into `AddRouteReference` and applied to caller-supplied
   `EntityReferences`, so every source passes the same screen. Regression:
@@ -142,12 +149,36 @@ Decisions / watch-items / explained deferrals follow.
   the network step.** Rewritten without bash 4 builtins, removes the pair's Aspire networks after
   the containers, linked from the development-workflow skill's recovery section. Verified by
   running under macOS `/bin/bash` 3.2.57.
-- **RESOLVED (2026-09-03) — the seventeen Low findings from the same review** (validator/domain
-  drift on order totals and product currency, product contract naming, job-run purge orphaning,
+- **RESOLVED (2026-09-03) — sixteen of the seventeen Low findings from the same review**
+  (validator/domain drift on order totals and product currency, job-run purge orphaning,
   duplicate correlation ids, `Environment.Exit` skipping the log flush, migrator references,
   redundant indexes, stalled-outbox visibility, probe capture, rate-limit queueing and
   `Retry-After`, read-retry jitter and budget, worktree-scoped housekeeping, dead code, doc
-  precision). Each fix and its test are listed in the whole-solution review's Resolution section.
+  precision). Each fix and its test are listed in the whole-solution review's Resolution section,
+  together with the same-day validation pass that trimmed four of them (see below).
+- **ACCEPTED (2026-09-03) — Product read and write contracts name price differently
+  (`price`/`currency` on create, `priceAmount`/`priceCurrency` on read).** Fixed, then reverted on
+  validation: `GetProductByIdQuery` is cached for 10 minutes without a schema token in the key, so
+  renaming the read model made every cached product deserialize with `Price = 0` for the TTL and
+  the whole rolling-deploy overlap — a live defect traded for a cosmetic Low. Re-add trigger: a
+  deliberate contract version (`Product:v2` cache key plus an API version), never a rename alone.
+- **Validation pass (2026-09-03).** Three independent reviewers re-read both fix commits with
+  instructions to prove each change unnecessary or oversized. Most held; these were trimmed in
+  the same day: the hand-rolled HSTS header (framework `UseHsts` restored), the rate-limit
+  `QueueLimit` change (the class default moved to 0 but `appsettings.json` still shipped 5; on
+  re-test, 0 rejected bursts the integration suite legitimately produces, so the queue of 5 is
+  kept as deliberate smoothing on both sides, `Retry-After` stays, and a test pins the file to
+  the class defaults), the payload-cleanup page loop (re-listing the
+  non-chronological `entity-index/` prefix per page was quadratic — now one pass per prefix
+  with an inline, per-prefix time budget and no page cap), the invented 10,000 order-quantity
+  ceiling (removed; the guard now checks the prospective GST-inclusive order total, which is
+  what the outbox capture actually computes), the paused-batch rule (Degraded only when a
+  window paused and published nothing), the composition-root exemption in the identity
+  convention (now literal-only), the single-shot job-run path's purge isolation, and the
+  emulator reset script's network removal (skips a network any container, running or stopped,
+  is still attached to). Closures without a dedicated regression test — findings 5, 11, 12, 13
+  and the customer race (timing-dependent as a detector) — are verified manually and named as
+  such; the score does not claim otherwise.
 
 - **RESOLVED (2026-07-18) — Aspire-collection trait pairing was not mechanically enforced.**
   The CI unit job excludes Aspire E2E facts with `Category!=Aspire`; that filter is only sound if

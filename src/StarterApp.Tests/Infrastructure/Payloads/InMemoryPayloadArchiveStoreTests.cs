@@ -5,8 +5,8 @@ namespace StarterApp.Tests.Infrastructure.Payloads;
 public class InMemoryPayloadArchiveStoreTests
 {
     // The in-memory double backs every cleanup test, so its delete semantics must mirror
-    // AzureBlobPayloadArchiveStore: configured prefixes only, per-prefix batch cap, and no
-    // deletion outside the three payload prefixes.
+    // AzureBlobPayloadArchiveStore: configured prefixes only, a full sweep, and no deletion
+    // outside the three payload prefixes.
     [Fact]
     public async Task DeleteOlderThan_ShouldHonorConfiguredPrefixes()
     {
@@ -37,12 +37,11 @@ public class InMemoryPayloadArchiveStoreTests
     }
 
     [Fact]
-    public async Task DeleteOlderThan_ShouldDrainSuccessivePagesBeyondCleanupBatchSize()
+    public async Task DeleteOlderThan_ShouldDeleteEveryExpiredBlobInOnePass()
     {
-        // A single capped pass used to delete at most CleanupBatchSize blobs per prefix per run, so
-        // ingestion above that rate accumulated expired PII forever. Pages are drained until caught up.
-        var options = new PayloadCaptureOptions { CleanupBatchSize = 2 };
-        var store = new InMemoryPayloadArchiveStore(options);
+        // A capped pass used to delete at most 500 blobs per prefix per run, so ingestion above that
+        // rate accumulated expired PII forever. The sweep now runs until caught up (or out of budget).
+        var store = new InMemoryPayloadArchiveStore();
         for (var i = 0; i < 5; i++)
             await store.AppendLineAsync($"archive/2020-01-01/00/0{i}/case.jsonl", "{}", CancellationToken.None);
 

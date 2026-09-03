@@ -65,7 +65,7 @@ public class Order : AggregateRoot
             throw new DomainRuleException("Cannot add items to a non-pending order");
 
         EnsureCurrencyMatchesExistingItems(item.UnitPriceExcludingGst.Currency);
-        EnsureLineTotalWithinMaxAmount(item.ProductId, item.UnitPriceExcludingGst, item.Quantity);
+        EnsureOrderTotalWithinMaxAmount(item);
 
         // Check if item with same product already exists
         var existingItem = _items.FirstOrDefault(i => i.ProductId == item.ProductId);
@@ -92,7 +92,9 @@ public class Order : AggregateRoot
         ArgumentNullException.ThrowIfNull(unitPrice);
 
         EnsureCurrencyMatchesExistingItems(unitPrice.Currency);
-        EnsureLineTotalWithinMaxAmount(productId, unitPrice, quantity);
+
+        var item = new OrderItem(productId, productName, quantity, unitPrice, gstRate);
+        EnsureOrderTotalWithinMaxAmount(item);
 
         var existingItem = _items.FirstOrDefault(i => i.ProductId == productId);
         if (existingItem != null)
@@ -100,18 +102,23 @@ public class Order : AggregateRoot
         else if (_items.Count >= MaxItems)
             throw new DomainRuleException($"An order cannot contain more than {MaxItems} items");
 
-        var item = new OrderItem(productId, productName, quantity, unitPrice, gstRate);
         _items.Add(item);
         LastUpdated = DateTimeOffset.UtcNow;
         return item;
     }
 
-    // Last line of defence behind the validator's quantity ceiling: without it the total first
-    // fails inside OrderCreatedDomainEvent during outbox capture, as a bare ArgumentOutOfRange.
-    private static void EnsureLineTotalWithinMaxAmount(int productId, Money unitPrice, int quantity)
+    // The GST-inclusive order total is what OrderCreatedDomainEvent computes during outbox capture,
+    // where Money.Create would throw a bare ArgumentOutOfRangeException after stock was reserved.
+    // Checking the prospective total (this item replacing any existing line for the same product)
+    // before mutating keeps it a DomainRuleException and leaves the order untouched on failure.
+    private void EnsureOrderTotalWithinMaxAmount(OrderItem item)
     {
-        if (unitPrice.Amount * quantity > Money.MaxAmount)
-            throw new DomainRuleException($"Line total for product {productId} exceeds the maximum order value of {Money.MaxAmount}");
+        var othersIncludingGst = _items
+            .Where(existing => existing.ProductId != item.ProductId)
+            .Sum(existing => existing.GetLineTotalIncludingGstAmount());
+
+        if (othersIncludingGst + item.GetLineTotalIncludingGstAmount() > Money.MaxAmount)
+            throw new DomainRuleException($"Adding product {item.ProductId} would take the order total including GST past the maximum supported value of {Money.MaxAmount}");
     }
 
     public void RemoveItem(int productId)

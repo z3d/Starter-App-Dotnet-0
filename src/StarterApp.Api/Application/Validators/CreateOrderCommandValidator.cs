@@ -31,8 +31,6 @@ public class CreateOrderCommandValidator : IValidator<CreateOrderCommand>
 
             if (item.Quantity <= 0)
                 yield return new ValidationError($"Items[{i}].Quantity", "Quantity must be a positive integer");
-            else if (item.Quantity > OrderItem.MaxQuantity)
-                yield return new ValidationError($"Items[{i}].Quantity", $"Quantity must not exceed {OrderItem.MaxQuantity}");
         }
 
         var duplicateProductIds = request.Items

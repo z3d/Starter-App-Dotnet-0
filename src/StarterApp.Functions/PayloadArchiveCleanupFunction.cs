@@ -55,7 +55,7 @@ public sealed class PayloadArchiveCleanupFunction
             if (result.BudgetExhausted)
             {
                 _logger.LogWarning(
-                    "Payload archive cleanup stopped at its time budget ({BudgetSeconds}s) before catching up; expired payloads remain past RetentionDays. Raise CleanupBatchSize, the budget, or the schedule frequency.",
+                    "Payload archive cleanup stopped at its time budget ({BudgetSeconds}s) before catching up; expired payloads remain past RetentionDays. Raise CleanupTimeBudgetSeconds (with functionTimeout) or the schedule frequency.",
                     _options.CleanupTimeBudgetSeconds);
             }
 

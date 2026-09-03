@@ -61,7 +61,10 @@ internal sealed record OutboxHealthWindow(
     int Purged,
     int Paused)
 {
-    public string Outcome => Errored == 0 && Paused == 0 ? "Succeeded" : "Degraded";
+    // Degraded on any permanent error, or when the window paused without publishing anything (a
+    // stalled outbox). Routine throttling that pauses a batch but still publishes stays Succeeded;
+    // the paused count in the summary keeps it visible.
+    public string Outcome => Errored > 0 || (Paused > 0 && Published == 0) ? "Degraded" : "Succeeded";
 
     public string ToSummaryJson() =>
         $"{{\"published\":{Published},\"errored\":{Errored},\"retried\":{Retried},\"purged\":{Purged},\"paused\":{Paused}}}";

@@ -56,12 +56,18 @@ try
         app.MapGet("/demo/config", (Microsoft.Extensions.Options.IOptions<StarterApp.Api.Infrastructure.Identity.JwtIdentityOptions> identity) =>
             Results.Ok(new { authority = identity.Value.Authority }));
     }
+    else
+    {
+        // The framework middleware keeps AddHsts as the extension point. Its header is written
+        // eagerly and is lost on exception-mapped responses; that is accepted — behind the TLS
+        // terminator Request.IsHttps is false anyway, and a browser already pinned by a success
+        // response is not un-pinned by one error response without the header.
+        app.UseHsts();
+    }
 
-    // HSTS is emitted by UseSecurityHeaders (an OnStarting callback) rather than app.UseHsts(),
-    // so it survives the response reset UseExceptionHandler performs on error responses.
     app.UsePayloadCapture();
-    app.UseSecurityHeaders();
     app.UseExceptionHandling();
+    app.UseSecurityHeaders();
     app.UseHttpsRedirection();
 
     // Dev-only static hosting for the walkthrough page. Deliberately behind payload capture

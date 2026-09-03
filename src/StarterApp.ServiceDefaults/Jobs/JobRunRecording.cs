@@ -110,7 +110,15 @@ public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
             command.Parameters.AddWithValue("summary", summary);
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-            await PurgeIfDueAsync(connection, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await PurgeIfDueAsync(connection, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // The row above is committed; a purge failure must not be reported as a lost record.
+                _logger.LogWarning(ex, "Job-run retention purge failed; it will be retried on a later run");
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

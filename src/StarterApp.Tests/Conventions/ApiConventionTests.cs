@@ -132,15 +132,17 @@ public class ApiConventionTests : ConventionTestBase
             .ToList();
 
         // The raw bearer token is the other door around ICurrentUser: Request.Headers.Authorization,
-        // the HeaderNames.Authorization constant, or the literal. The composition root is exempt —
-        // its CORS allow-list names the request header without reading it.
+        // the HeaderNames.Authorization constant, or the literal. The composition root is exempt
+        // from the literal clause only — its CORS allow-list names the request header without
+        // reading it — and still fails on an actual header read.
         var authorizationHeaderFailures = ApiAssembly.GetTypes()
-            .Where(t => t.IsClass && !IsCompilerGenerated(t) && !IsIdentityInfrastructure(t) && !IsCompositionRoot(t))
+            .Where(t => t.IsClass && !IsCompilerGenerated(t) && !IsIdentityInfrastructure(t))
             .Where(type =>
                 GetAllMethodsIncludingStateMachines(type).Any(method =>
                     IlReferencesMember(method, "IHeaderDictionary", "get_Authorization") ||
                     IlReferencesMember(method, "HeaderNames", "Authorization")) ||
-                ExtractStringLiterals(type).Any(literal => string.Equals(literal, "Authorization", StringComparison.OrdinalIgnoreCase)))
+                (!IsCompositionRoot(type) &&
+                 ExtractStringLiterals(type).Any(literal => string.Equals(literal, "Authorization", StringComparison.OrdinalIgnoreCase))))
             .Select(type => $"{type.FullName} reads the raw Authorization header.")
             .ToList();
 

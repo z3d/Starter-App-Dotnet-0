@@ -58,16 +58,14 @@ public class PayloadCaptureOptions
     [Range(1, 3650)]
     public int RetentionDays { get; set; } = 30;
 
-    // Page size for one delete pass, not a per-run ceiling: cleanup drains successive pages until
-    // a prefix is caught up or CleanupTimeBudgetSeconds is spent (PayloadArchiveCleanupDrain).
-    [Range(1, 10000)]
-    public int CleanupBatchSize { get; set; } = 500;
-
-    // Wall-clock budget for one cleanup run across all three prefixes. Kept under the hourly
-    // CleanupCron so runs never overlap; a run that hits it reports BudgetExhausted (Degraded in
-    // job_runs) so an archive that is falling behind is visible instead of silent.
+    // Wall-clock budget for one cleanup run, split evenly across the three prefixes. There is no
+    // per-run delete cap: each prefix is swept in one listing pass until caught up or its share of
+    // the budget is spent, and a run that hits the budget reports BudgetExhausted (Degraded in
+    // job_runs) so an archive that is falling behind is visible instead of silent. The default
+    // sits inside every Functions plan's default functionTimeout (5 minutes on Consumption) and
+    // well under the hourly CleanupCron; raise it only alongside functionTimeout in host.json.
     [Range(1, 3600)]
-    public int CleanupTimeBudgetSeconds { get; set; } = 1200;
+    public int CleanupTimeBudgetSeconds { get; set; } = 300;
 
     [Range(1, 104_857_600)]
     public int MaxPayloadBytes { get; set; } = 1_048_576;

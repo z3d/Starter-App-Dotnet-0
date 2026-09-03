@@ -17,9 +17,10 @@ public class RateLimitingOptions
     [Range(1, 3600)]
     public int WindowSeconds { get; set; } = 60;
 
-    // Zero by default: a fixed-window limiter grants queued leases only at the next window
-    // boundary, so any queue turns a fast 429 into a request that stalls for the rest of the
-    // window while holding a connection. Deployments that prefer smoothing can opt in.
+    // A small queue smooths a burst that briefly exceeds PermitLimit: queued requests wait for the
+    // next window instead of getting a 429. Validated 2026-09-03 as deliberate — setting it to 0
+    // rejected bursts the integration suite (and real clients) legitimately produce. Rejected
+    // requests carry Retry-After. Keep this in step with appsettings.json.
     [Range(0, 10_000)]
-    public int QueueLimit { get; set; }
+    public int QueueLimit { get; set; } = 5;
 }

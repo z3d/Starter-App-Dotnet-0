@@ -1,24 +1,28 @@
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Api.Infrastructure.HealthChecks;
 
 // Probes the payload archive blob account with a service-properties read — the cheapest call that
-// proves authenticated connectivity. Takes the process-wide BlobServiceClient that AddPayloadCapture
-// registers (and the archive store uses), and is itself registered as a singleton, so a probe
-// never constructs a client or a DefaultAzureCredential of its own. The check is only registered
-// when the archive is configured, which is also when the client is.
+// proves authenticated connectivity. Takes the process-wide client through the provider that
+// AddPayloadCapture registers (the archive store uses the same one), and is itself a DI singleton,
+// so a probe never constructs a client or a DefaultAzureCredential of its own.
 public sealed class PayloadArchiveHealthCheck : IHealthCheck
 {
-    private readonly BlobServiceClient _client;
+    private readonly BlobServiceClient? _client;
 
-    public PayloadArchiveHealthCheck(BlobServiceClient client)
+    public PayloadArchiveHealthCheck(PayloadArchiveClientProvider clientProvider)
     {
-        _client = client;
+        ArgumentNullException.ThrowIfNull(clientProvider);
+        _client = clientProvider.Client;
     }
 
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
+        if (_client is null)
+            return HealthCheckResult.Unhealthy("Payload archive storage is not configured");
+
         try
         {
             await _client.GetPropertiesAsync(cancellationToken);

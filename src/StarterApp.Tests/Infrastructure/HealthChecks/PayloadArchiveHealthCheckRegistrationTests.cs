@@ -1,4 +1,3 @@
-using Azure.Storage.Blobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -32,8 +31,9 @@ public class PayloadArchiveHealthCheckRegistrationTests
         var check = provider.GetRequiredService<PayloadArchiveHealthCheck>();
         Assert.Same(check, provider.GetRequiredService<PayloadArchiveHealthCheck>());
 
-        var client = provider.GetRequiredService<BlobServiceClient>();
-        Assert.Same(client, provider.GetRequiredService<BlobServiceClient>());
+        var client = provider.GetRequiredService<PayloadArchiveClientProvider>().Client;
+        Assert.NotNull(client);
+        Assert.Same(client, provider.GetRequiredService<PayloadArchiveClientProvider>().Client);
         Assert.IsType<AzureBlobPayloadArchiveStore>(provider.GetRequiredService<IPayloadArchiveStore>());
 
         var registration = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value
@@ -51,7 +51,7 @@ public class PayloadArchiveHealthCheckRegistrationTests
 
         using var host = builder.Build();
 
-        Assert.Null(host.Services.GetService<BlobServiceClient>());
+        Assert.Null(host.Services.GetRequiredService<PayloadArchiveClientProvider>().Client);
         Assert.Null(host.Services.GetService<PayloadArchiveHealthCheck>());
         Assert.IsType<NullPayloadArchiveStore>(host.Services.GetRequiredService<IPayloadArchiveStore>());
         Assert.DoesNotContain(

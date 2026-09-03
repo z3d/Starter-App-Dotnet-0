@@ -11,8 +11,8 @@ public static class WebApplicationExtensions
             // Registered as an OnStarting callback rather than written eagerly. UseExceptionHandler
             // calls Response.Clear() before it writes ProblemDetails, which wipes every header set
             // so far; OnStarting callbacks live on the response feature and survive that reset, so
-            // error responses carry the same posture as successes. Reordering the middleware does
-            // not help — the clear runs regardless of where the writer sits.
+            // error responses carry the same posture as successes. The callback assigns (not
+            // appends), so it is also the last word on these headers.
             context.Response.OnStarting(static state =>
             {
                 var (httpContext, development) = ((HttpContext, bool))state;
@@ -42,18 +42,6 @@ public static class WebApplicationExtensions
 
         headers["Content-Security-Policy"] =
             "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'";
-
-        // Replaces app.UseHsts(), whose middleware writes the header eagerly and loses it on the
-        // same reset. Same policy as HstsMiddleware's defaults: 30-day max-age, https requests
-        // only, loopback hosts excluded so a local https run never pins the browser.
-        if (context.Request.IsHttps && !IsLoopbackHost(context.Request.Host.Host))
-            headers["Strict-Transport-Security"] = "max-age=2592000";
-    }
-
-    private static bool IsLoopbackHost(string host)
-    {
-        return string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
-            || host is "127.0.0.1" or "[::1]" or "::1";
     }
 
     public static WebApplication UseExceptionHandling(this WebApplication app)

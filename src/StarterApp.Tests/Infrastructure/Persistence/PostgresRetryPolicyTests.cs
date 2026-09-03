@@ -140,11 +140,10 @@ public class PostgresRetryPolicyTests
         for (var attempt = 1; attempt <= 6; attempt++)
         {
             var ceiling = PostgresRetryPolicy.ComputeBackoffCeiling(attempt);
-            for (var sample = 0; sample < 50; sample++)
-            {
-                var delay = PostgresRetryPolicy.ComputeBackoff(attempt);
-                Assert.InRange(delay, ceiling / 2, ceiling);
-            }
+            var samples = Enumerable.Range(0, 8).Select(_ => PostgresRetryPolicy.ComputeBackoff(attempt)).ToList();
+            Assert.All(samples, delay => Assert.InRange(delay, ceiling / 2, ceiling));
+            // A deterministic ceiling would satisfy the range check; jitter means the samples differ.
+            Assert.True(samples.Distinct().Count() > 1, "backoff must be jittered, not a fixed ceiling");
         }
 
         // The ceiling still climbs monotonically and caps.

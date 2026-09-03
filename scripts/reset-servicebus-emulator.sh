@@ -29,7 +29,9 @@ if ((${#pair[@]} == 0)); then
     exit 0
 fi
 
-# Collect the Aspire networks the pair is attached to before the containers disappear.
+# Collect the Aspire networks the pair is attached to before the containers disappear. Persistent
+# resources (postgres, redis, keycloak, azurite) share the same solution-wide persistent network,
+# so a network is only removed once nothing — running or stopped — is still attached to it.
 networks=()
 for container in "${pair[@]}"; do
     while IFS= read -r network; do
@@ -42,10 +44,12 @@ printf 'Removing: %s\n' "${pair[@]}"
 
 if ((${#networks[@]} > 0)); then
     for network in $(printf '%s\n' "${networks[@]}" | sort -u); do
-        if "$engine" network rm "$network" >/dev/null 2>&1; then
+        if [[ -n "$("$engine" ps -aq --filter "network=$network")" ]]; then
+            echo "Network still has containers attached, left in place: $network"
+        elif "$engine" network rm "$network" >/dev/null 2>&1; then
             echo "Removed network: $network"
         else
-            echo "Network still in use, left in place: $network (remove it once its other containers are gone)"
+            echo "Could not remove network (left in place): $network"
         fi
     done
 fi

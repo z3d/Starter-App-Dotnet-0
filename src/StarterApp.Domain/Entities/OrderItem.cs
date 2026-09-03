@@ -2,9 +2,6 @@ namespace StarterApp.Domain.Entities;
 
 public class OrderItem
 {
-    // Mirrored by CreateOrderCommandValidator (Validator–Domain Guard Sync Rule). Bounds the line
-    // total so it stays a validation error rather than a BCL exception from the outbox capture.
-    public const int MaxQuantity = 10_000;
     public const decimal DefaultGstRate = 0.10m; // 10% GST
 
     public int Id { get; private set; }
@@ -34,7 +31,6 @@ public class OrderItem
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(productId);
         ArgumentException.ThrowIfNullOrWhiteSpace(productName);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(quantity);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(quantity, MaxQuantity);
         ArgumentNullException.ThrowIfNull(unitPriceExcludingGst);
         ArgumentOutOfRangeException.ThrowIfNegative(gstRate);
 
@@ -72,6 +68,13 @@ public class OrderItem
     // GST is rounded to whole cents PER UNIT, then multiplied by quantity, so per-unit and per-line
     // figures stay internally consistent: total GST == unit GST x qty, and total incl == total excl +
     // total GST. Rounding the line total instead can diverge from unit x qty by a cent at scale.
+    // Raw decimal, not Money: Order uses it to check a prospective order total against
+    // Money.MaxAmount before any Money.Create could throw for exceeding it.
+    internal decimal GetLineTotalIncludingGstAmount()
+    {
+        return (UnitPriceExcludingGst.Amount + GetUnitGstAmount()) * Quantity;
+    }
+
     private decimal GetUnitGstAmount()
     {
         return decimal.Round(UnitPriceExcludingGst.Amount * GstRate, Money.CurrencyDecimalPlaces, MidpointRounding.AwayFromZero);
