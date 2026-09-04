@@ -63,6 +63,16 @@ DAST, both green.
 
 ## Open Findings
 
+**2026-09-05 targeted review: five open findings (two High, two Medium, one Low).**
+Evidence, reproduction steps, limits, and fix order are in
+[the review record](reviews/ARCHITECTURE_REVIEW-2026-09-05.md): invalid/truncated JSON bypasses
+sensitive-property log masking; entity indexing descends into sensitive parent objects; cache
+publication still races invalidation after its tombstone check; null order-list elements throw
+instead of validating; and pure validator tests unnecessarily require PostgreSQL fixtures.
+The cache finding reopens archived U7 with a deterministic interleaving reproduction. No runtime
+fixes landed in this review. The numerical score above remains historical, not a fresh assessment.
+
+
 Detailed evidence and verification for the four 2026-08-04 post-IdP findings and the five
 runtime-hardening findings live in their dated records; all nine were resolved on 2026-09-03 (see
 the RESOLVED entries below and each record's Resolution section).
