@@ -63,12 +63,16 @@ DAST, both green.
 
 ## Open Findings
 
-**2026-09-05 targeted review: five open findings (two High, two Medium, one Low).**
+**2026-09-05 targeted review and continuation: eight open findings (three High, four Medium, one Low).**
 Evidence, reproduction steps, limits, and fix order are in
 [the review record](reviews/ARCHITECTURE_REVIEW-2026-09-05.md): invalid/truncated JSON bypasses
 sensitive-property log masking; entity indexing descends into sensitive parent objects; cache
 publication still races invalidation after its tombstone check; null order-list elements throw
 instead of validating; and pure validator tests unnecessarily require PostgreSQL fixtures.
+The continuation also confirms missing Service Bus execution backoff, DAST target substitution,
+and a cross-owner list probe that accepts HTTP errors as empty results. The retry finding reopens
+the previous host-backoff/lock-window closure: Service Bus does not support that execution retry
+policy, and the conventions only checked configuration shape.
 The cache finding reopens archived U7 with a deterministic interleaving reproduction. No runtime
 fixes landed in this review. The numerical score above remains historical, not a fresh assessment.
 
