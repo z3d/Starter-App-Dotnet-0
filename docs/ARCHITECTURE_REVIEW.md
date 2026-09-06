@@ -21,12 +21,15 @@ pedagogy and convention tests are the product. A 2026-06-12 complexity review co
 and pruned what failed it; its backlog was fully delivered and is preserved in the git history of
 the retired `docs/ROADMAP.md`.
 
-**Score: 8.0/10, last set 2026-09-03.** The score is self-assessed by the maintaining agents with
+**Score: 8.1/10, last set 2026-09-06.** The score is self-assessed by the maintaining agents with
 no external validator and no fixed rubric; treat it as a maintenance log, not an audit. It dips on
-discovery and recovers only with verified fixes. The 2026-09-05 review did not re-score, so the
-number predates that review and its 2026-09-06 fixes. Verifiable snapshot as of 2026-09-03 (re-verify, don't
-trust): 9 command handlers, 7 query handlers, every request validated by convention, roughly 740
-tests green plus the AppHost suite, nightly k6 gate and DAST scan passing on `main`.
+discovery and recovers only with verified fixes. The 2026-09-05 review found eight defects, two of
+them reopening earlier closures whose tests had checked configuration shape rather than behaviour;
+all eight were fixed on 2026-09-06 with failing-before regressions and an independent re-read of
+the diff, so the net move from 8.0 is +0.1 rather than a full recovery. Verifiable snapshot as of
+2026-09-06 (re-verify, don't trust): 9 command handlers, 7 query handlers, every request validated
+by convention, roughly 760 tests green plus the AppHost suite, 32 deterministic DAST runner
+regressions in the DAST workflow, nightly k6 gate and DAST scan passing on `main`.
 
 ## Strengths
 

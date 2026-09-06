@@ -4,7 +4,7 @@ Reviewed commit `05179fc` for bugs and improvements. This is a targeted review w
 subsystem inspection and local verification, not an exhaustive audit. Reviewer sessions ended
 before their final reports; the primary reviewer independently verified every finding below.
 The initial review changed no runtime code. The fixes are recorded in the Resolution section below.
-The historical numerical score is not recalibrated by this review.
+The review itself did not re-score; the score was recalibrated to 8.1 on 2026-09-06 after the fixes below (see the living review).
 
 ## Open findings
 
