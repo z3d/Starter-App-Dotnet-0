@@ -61,11 +61,13 @@ public class CachePublicationRaceTests
     [Fact]
     public async Task HandleAsync_WhenBackendReturnsAnExpiredEnvelope_IgnoresItEvenAfterTheInvalidationMarkerExpires()
     {
+        var user = new CurrentUser("owner", AuthenticatedPrincipalType.User, "tenant", [], "correlation");
+        var key = OwnerScopedCacheKey.Create(new ProductQuery().CacheKey, user);
         var cache = new Mock<IDistributedCache>();
-        cache.Setup(c => c.GetAsync("Product:42", It.IsAny<CancellationToken>()))
+        cache.Setup(c => c.GetAsync(key, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Envelope("expired", DateTimeOffset.UtcNow.AddMinutes(5), DateTimeOffset.UtcNow.AddSeconds(-1)));
-        cache.Setup(c => c.GetAsync("Product:42:inv", It.IsAny<CancellationToken>())).ReturnsAsync((byte[]?)null);
-        var behavior = new CachingBehavior<ProductQuery, string>(cache.Object, CurrentUser.Anonymous, NullLogger<CachingBehavior<ProductQuery, string>>.Instance);
+        cache.Setup(c => c.GetAsync(CacheTombstone.KeyFor(key), It.IsAny<CancellationToken>())).ReturnsAsync((byte[]?)null);
+        var behavior = new CachingBehavior<ProductQuery, string>(cache.Object, user, NullLogger<CachingBehavior<ProductQuery, string>>.Instance);
 
         var result = await behavior.HandleAsync(new ProductQuery(), () => Task.FromResult("fresh"), CancellationToken.None);
 

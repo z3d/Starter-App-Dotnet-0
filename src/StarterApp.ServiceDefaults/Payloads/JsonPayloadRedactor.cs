@@ -35,7 +35,9 @@ public sealed partial class JsonPayloadRedactor : IPayloadRedactor
                     return node.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
                 }
             }
-            catch (JsonException)
+            // Duplicate property names surface as ArgumentException from JsonNode, not JsonException;
+            // both mean the body cannot be screened by property name.
+            catch (Exception ex) when (ex is JsonException or ArgumentException)
             {
                 // Invalid or capture-truncated JSON cannot be safely screened by property name.
                 // Preserve it in the archive, but never fall back to email-only masking in logs.

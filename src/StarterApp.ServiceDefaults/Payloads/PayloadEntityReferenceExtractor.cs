@@ -55,10 +55,7 @@ public static class PayloadEntityReferenceExtractor
         // and captured before routing, so an unauthenticated GET /api/v1/nationalId/{value} would
         // otherwise publish {value} through the one door the JSON and metadata paths close.
         foreach (var reference in request.EntityReferences)
-        {
-            if (!IsSensitivePropertyName(reference.EntityType, sensitiveTokens))
-                AddReference(reference.EntityType, reference.EntityId, references);
-        }
+            AddReference(reference.EntityType, reference.EntityId, sensitiveTokens, references);
 
         AddRouteReference(request.Operation, request.Metadata, sensitiveTokens, references);
 
@@ -170,7 +167,7 @@ public static class PayloadEntityReferenceExtractor
         if (string.IsNullOrWhiteSpace(entityType))
             return;
 
-        AddReference(entityType, value, references);
+        AddReference(entityType, value, sensitiveTokens, references);
     }
 
     private static bool IsSensitivePropertyName(string name, HashSet<string> sensitiveTokens)
@@ -199,10 +196,7 @@ public static class PayloadEntityReferenceExtractor
             if (!IsEntitySegment(entitySegment) || !IsLikelyIdentifier(idSegment))
                 continue;
 
-            if (IsSensitivePropertyName(entitySegment, sensitiveTokens))
-                continue;
-
-            AddReference(entitySegment, idSegment, references);
+            AddReference(entitySegment, idSegment, sensitiveTokens, references);
         }
     }
 
@@ -284,14 +278,21 @@ public static class PayloadEntityReferenceExtractor
             segment.Any(char.IsDigit);
     }
 
+    // Every source funnels through here, so this is the one screen that cannot be bypassed: the
+    // resolved entity type (a property name, a route segment, a caller-supplied reference, or the
+    // root path segment behind a bare "id") becomes a blob path segment and is echoed in logs.
     private static void AddReference(
         string entityType,
         string entityId,
+        HashSet<string> sensitiveTokens,
         Dictionary<string, PayloadEntityReference> references)
     {
         var normalizedEntityType = NormalizeEntityType(entityType);
         var normalizedEntityId = NormalizeIdentifier(entityId);
         if (string.IsNullOrWhiteSpace(normalizedEntityType) || string.IsNullOrWhiteSpace(normalizedEntityId))
+            return;
+
+        if (IsSensitivePropertyName(normalizedEntityType, sensitiveTokens))
             return;
 
         var key = $"{normalizedEntityType}:{normalizedEntityId}";

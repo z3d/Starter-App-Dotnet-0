@@ -33,6 +33,25 @@ public class CachingConventionTests : ConventionTestBase
     }
 
     [Fact]
+    public void CacheableQueries_MustBeOwnerScoped()
+    {
+        // CachingBehavior derives the key from the verified tenant and subject only for
+        // IOwnerScopedRequest. A cacheable query that omits the marker would share one global key
+        // across every identity, so the by-id read model of one owner could be served to another.
+        var types = GetCacheableTypes().ToList();
+        Assert.NotEmpty(types);
+        var violations = types
+            .Where(type => !typeof(IOwnerScopedRequest).IsAssignableFrom(type))
+            .Select(type => type.FullName ?? type.Name)
+            .OrderBy(name => name)
+            .ToList();
+
+        Assert.True(violations.Count == 0,
+            "Every ICacheable query must also implement IOwnerScopedRequest so its cache key carries the " +
+            "verified owner; a bare key is shared across tenants:\n" + string.Join("\n", violations));
+    }
+
+    [Fact]
     public void CacheableQueries_RefreshWindowMustBePositiveAndSmallerThanDuration()
     {
         foreach (var type in GetCacheableTypes())

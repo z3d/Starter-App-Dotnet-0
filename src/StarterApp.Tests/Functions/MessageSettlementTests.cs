@@ -13,12 +13,58 @@ public class MessageSettlementTests
     public async Task SettleAsync_TransientFailureWithoutHostRetryContext_RetriesHandlerBeforeSettlement()
     {
         var actions = new RecordingMessageActions();
+        var delays = new List<TimeSpan>();
         var attempts = 0;
 
-        await MessageSettlement.SettleAsync(NewMessage(), actions, NullLogger.Instance,
-            (_, _) => ++attempts == 1 ? throw new TimeoutException() : Task.CompletedTask, CancellationToken.None);
+        await RunWithRecordedDelaysAsync(actions,
+            (_, _) => ++attempts == 1 ? throw new TimeoutException() : Task.CompletedTask, delays);
 
         Assert.Equal(2, attempts);
+        Assert.Equal(new[] { 5 }, delays.Select(delay => (int)delay.TotalSeconds));
+        Assert.Equal(new[] { "complete" }, actions.Calls);
+    }
+
+    [Fact]
+    public void BackoffSchedule_LeavesHandlerBudgetForEveryAttemptInsideTheDeadline()
+    {
+        // MaxRetries, the backoff schedule, and ExecutionTimeout are independent constants. This
+        // ties them together: bumping retries or delays without widening the deadline would make
+        // the abandon branch unreachable (the deadline fires first and the message is left for
+        // redelivery), so the sum of all waits plus a minimum handler budget per attempt must fit.
+        var attempts = MessageSettlement.MaxRetries + 1;
+        var required = MessageSettlement.TotalBackoff + attempts * MessageSettlement.MinimumHandlerBudgetPerAttempt;
+
+        Assert.Equal(TimeSpan.FromSeconds(120), MessageSettlement.TotalBackoff);
+        Assert.True(required <= MessageSettlement.ExecutionTimeout,
+            $"Backoff ({MessageSettlement.TotalBackoff}) plus {attempts} handler attempts of at least " +
+            $"{MessageSettlement.MinimumHandlerBudgetPerAttempt} must fit inside ExecutionTimeout ({MessageSettlement.ExecutionTimeout}).");
+    }
+
+    [Fact]
+    public async Task SettleAsync_WhenAPoisonFailureSurfacesAfterTheDeadline_StillDeadLetters()
+    {
+        // The deadline bounds handler work; it must not demote a permanent failure into a
+        // redelivery that burns MaxDeliveryCount on bytes that can never succeed.
+        var actions = new RecordingMessageActions();
+        await MessageSettlement.SettleAsync(NewMessage(), actions, NullLogger.Instance,
+            async (_, _) =>
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(300), CancellationToken.None);
+                throw new JsonException("payload contains user@example.com");
+            }, (delay, token) => Task.Delay(delay, token), TimeSpan.FromMilliseconds(50), CancellationToken.None);
+
+        Assert.Equal(new[] { "deadletter" }, actions.Calls);
+        Assert.DoesNotContain("user@example.com", actions.DeadLetterDescription);
+    }
+
+    [Fact]
+    public async Task SettleAsync_WhenTheHandlerFinishesAfterTheDeadline_StillCompletes()
+    {
+        var actions = new RecordingMessageActions();
+        await MessageSettlement.SettleAsync(NewMessage(), actions, NullLogger.Instance,
+            (_, _) => Task.Delay(TimeSpan.FromMilliseconds(300), CancellationToken.None),
+            (delay, token) => Task.Delay(delay, token), TimeSpan.FromMilliseconds(50), CancellationToken.None);
+
         Assert.Equal(new[] { "complete" }, actions.Calls);
     }
 
@@ -101,7 +147,7 @@ public class MessageSettlementTests
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => MessageSettlement.SettleAsync(
-            NewMessage(), actions, NullLogger.Instance, (_, _) => throw new InvalidOperationException("Handler must not run"), cts.Token));
+            NewMessage(), actions, NullLogger.Instance, (_, _) => throw new InvalidOperationException("Handler must not run"), TimeProvider.System, cts.Token));
         Assert.Empty(actions.Calls);
     }
 
@@ -145,7 +191,7 @@ public class MessageSettlementTests
         var actions = new RecordingMessageActions();
         using var cts = new CancellationTokenSource();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => MessageSettlement.SettleAsync(
-            NewMessage(), actions, NullLogger.Instance, (_, _) => cts.CancelAsync(), cts.Token));
+            NewMessage(), actions, NullLogger.Instance, (_, _) => cts.CancelAsync(), TimeProvider.System, cts.Token));
         Assert.Empty(actions.Calls);
     }
 
@@ -154,7 +200,7 @@ public class MessageSettlementTests
     {
         var actions = new RecordingMessageActions();
         await MessageSettlement.SettleAsync(NewMessage(new string('x', 5000)), actions,
-            NullLogger.Instance, (_, _) => throw new JsonException("boom"), CancellationToken.None);
+            NullLogger.Instance, (_, _) => throw new JsonException("boom"), TimeProvider.System, CancellationToken.None);
         Assert.NotNull(actions.DeadLetterDescription);
         Assert.True(actions.DeadLetterDescription.Length <= 2048);
     }

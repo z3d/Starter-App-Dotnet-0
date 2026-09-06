@@ -22,6 +22,8 @@ dast_target_urls() {
 
 # JSON string encoding is valid YAML scalar encoding. Escape regex metacharacters
 # separately before encoding the regex fields, so a hostname/path stays literal.
+# A placeholder the renderer does not know is a hard error: rendered as YAML null it
+# would widen an alertFilter or drop a context URL and turn the gate green.
 dast_render_plan() {
   jq -Rrs --arg base "$1" --arg token "$DAST_TOKEN" '
     def regex_literal:
@@ -38,6 +40,7 @@ dast_render_plan() {
        "__ZAP_OPENAPI_REGEX__": ("^" + $regex + "/openapi.*$"),
        "__ZAP_PAGINATION_REGEX__": ("^" + $regex + "/api/v1/(products|customers|orders/customer/[^/?]+|orders/status/[^/?]+)/?(\\?.*)?$"),
        "__DAST_AUTH_HEADER__": ("Bearer " + $token)} as $values
-    | gsub("(?<placeholder>__ZAP_[A-Z_]+__|__DAST_AUTH_HEADER__)"; $values[.placeholder] | tojson)
+    | gsub("(?<placeholder>__ZAP_[A-Z_]+__|__DAST_AUTH_HEADER__)";
+        $values[.placeholder] // error("unknown placeholder " + .placeholder) | tojson)
   ' "$2"
 }

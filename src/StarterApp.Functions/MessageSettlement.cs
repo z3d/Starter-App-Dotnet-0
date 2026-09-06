@@ -7,23 +7,43 @@ namespace StarterApp.Functions;
 
 // Service Bus has no Functions execution-retry policy. Retry handler work explicitly while the
 // message lock is held; settling a successful handler is outside the loop to avoid repeating work
-// when Complete fails. A host shutdown or deadline leaves the message unsettled for redelivery.
+// when Complete fails. The execution deadline bounds handler work and backoff only: settlement
+// runs on the host token afterwards, so a poison message that surfaces late is still dead-lettered
+// and a handler that finished late is still completed. A host shutdown or an expired deadline
+// mid-handler leaves the message unsettled for redelivery.
 public static class MessageSettlement
 {
     private const int MaxReasonDescriptionLength = 2048;
     internal const int MaxRetries = 5;
-    internal static readonly TimeSpan ExecutionTimeout = TimeSpan.FromMinutes(4);
+
+    // Handler attempts plus backoff must finish inside this window. Backoff alone is 120 seconds
+    // (5/10/20/40/45); MessageSettlementTests pins what remains as per-attempt handler budget so a
+    // change to MaxRetries or the schedule cannot silently make the abandon branch unreachable.
+    internal static readonly TimeSpan ExecutionTimeout = TimeSpan.FromSeconds(210);
+    internal static readonly TimeSpan MinimumHandlerBudgetPerAttempt = TimeSpan.FromSeconds(15);
+
+    // Settlement calls run after the deadline on the host token. FunctionsHostConfigConventionTests
+    // keeps ExecutionTimeout + SettlementReserve inside maxAutoLockRenewalDuration with margin.
+    internal static readonly TimeSpan SettlementReserve = TimeSpan.FromSeconds(30);
 
     public static Task SettleAsync(
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions,
         ILogger logger,
         Func<ServiceBusReceivedMessage, CancellationToken, Task> handler,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken)
-        => SettleAsync(message, messageActions, logger, handler, Task.Delay, ExecutionTimeout, cancellationToken);
+        => SettleAsync(message, messageActions, logger, handler,
+            (delay, token) => Task.Delay(delay, timeProvider, token), ExecutionTimeout, cancellationToken);
 
-    // Inject only the wait and deadline for deterministic retry tests. Production uses real delays
-    // and one total deadline shared by handler execution, backoff, and settlement.
+    internal static TimeSpan BackoffFor(int attempt) =>
+        TimeSpan.FromSeconds(Math.Min(5 * Math.Pow(2, attempt), 45));
+
+    internal static TimeSpan TotalBackoff =>
+        Enumerable.Range(0, MaxRetries).Aggregate(TimeSpan.Zero, (sum, attempt) => sum + BackoffFor(attempt));
+
+    // Inject only the wait and deadline for deterministic retry tests. Production waits through the
+    // host's TimeProvider and uses one deadline shared by handler execution and backoff.
     internal static async Task SettleAsync(
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions,
@@ -43,7 +63,8 @@ public static class MessageSettlement
             try
             {
                 await handler(message, token);
-                token.ThrowIfCancellationRequested();
+                // Finished work is completed even past the deadline; only a host shutdown leaves it.
+                cancellationToken.ThrowIfCancellationRequested();
                 break;
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -52,13 +73,15 @@ public static class MessageSettlement
             }
             catch (Exception exception) when (IsNonRetryable(exception))
             {
-                token.ThrowIfCancellationRequested();
+                // Poison is poison however late it surfaced: settle on the host token so an expired
+                // deadline cannot demote dead-lettering into a redelivery that burns MaxDeliveryCount.
+                cancellationToken.ThrowIfCancellationRequested();
                 logger.LogError(
                     "Dead-lettering message {MessageId} ({Subject}, correlation {CorrelationId}): {FailureType} cannot succeed on redelivery",
                     message.MessageId, message.Subject, message.CorrelationId, exception.GetType().Name);
                 await messageActions.DeadLetterMessageAsync(message,
                     deadLetterReason: exception.GetType().Name,
-                    deadLetterErrorDescription: DescribeFailure(exception, message), cancellationToken: token);
+                    deadLetterErrorDescription: DescribeFailure(exception, message), cancellationToken: cancellationToken);
                 return;
             }
             catch (Exception exception)
@@ -71,11 +94,11 @@ public static class MessageSettlement
                     logger.LogError(
                         "Abandoning message {MessageId} ({Subject}, correlation {CorrelationId}) after handler retries ({FailureType}); broker redelivery takes over",
                         message.MessageId, message.Subject, message.CorrelationId, exception.GetType().Name);
-                    await messageActions.AbandonMessageAsync(message, cancellationToken: token);
+                    await messageActions.AbandonMessageAsync(message, cancellationToken: cancellationToken);
                     return;
                 }
 
-                var delay = TimeSpan.FromSeconds(Math.Min(5 * Math.Pow(2, attempt), 45));
+                var delay = BackoffFor(attempt);
                 logger.LogWarning(
                     "Transient {FailureType} on message {MessageId} ({Subject}, correlation {CorrelationId}); retry {Retry} of {MaxRetries} after {RetryDelay}",
                     exception.GetType().Name, message.MessageId, message.Subject, message.CorrelationId,
@@ -84,7 +107,7 @@ public static class MessageSettlement
             }
         }
 
-        await messageActions.CompleteMessageAsync(message, token);
+        await messageActions.CompleteMessageAsync(message, cancellationToken);
     }
 
     // Redelivering the same bytes cannot fix these. Extend as real handler logic lands

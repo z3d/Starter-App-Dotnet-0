@@ -550,4 +550,28 @@ public class PayloadCaptureTests
         Assert.DoesNotContain(references, reference => reference.EntityType.Contains("passport", StringComparison.Ordinal));
         Assert.Contains(references, reference => reference.EntityType == "order" && reference.EntityId == "77");
     }
+
+    [Theory]
+    [InlineData("POST /api/v1/passwords", null, "{\"id\":\"hunter2value\"}")]
+    [InlineData("POST /api/v1/nationalIds", null, "{\"id\":\"123-45-6789\"}")]
+    [InlineData("POST /capture", "/api/v1/nationalIds/abc", "{\"id\":\"SENTINEL-1\"}")]
+    public void Extract_WithSensitiveResolvedEntityType_ShouldNotEmitABareIdUnderIt(string operation, string? path, string payload)
+    {
+        // A bare "id" takes its entity type from the first route segment, which is caller-controlled
+        // and captured before routing. The property name "id" is not sensitive, so only the screen
+        // on the resolved type stops /api/v1/nationalIds + {"id": ...} landing in an index path.
+        var request = new PayloadCaptureRequest
+        {
+            Operation = operation,
+            Channel = "http",
+            ContentType = "application/json",
+            Payload = payload
+        };
+        if (path is not null)
+            request.Metadata["path"] = path;
+
+        var references = PayloadEntityReferenceExtractor.Extract(request, 64, out _);
+
+        Assert.Empty(references);
+    }
 }

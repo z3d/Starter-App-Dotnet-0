@@ -35,8 +35,8 @@ done
 if [[ "$url" == */orders/customer/* ]]; then
   printf '%s' "$PROBE_BODY"
   if [[ "$write_status" == 1 ]]; then printf '\n%s' "$PROBE_CODE"; fi
-elif [[ "$method" == DELETE ]]; then printf 403
-else printf 404
+elif [[ "$method" == DELETE ]]; then printf '%s' "${PROBE_DELETE_CODE:-403}"
+else printf '%s' "${PROBE_BYID_CODE:-404}"
 fi
 STUB
 chmod +x "$TEST_DIR/bin/"*
@@ -79,6 +79,13 @@ regex_case() {
 }
 check regex_case
 invalid_target() { if render_target "$1"; then return 1; fi; }
+# A placeholder the renderer does not know must fail the render, never become YAML null.
+unknown_placeholder() {
+  printf 'url: __ZAP_TYPO_URL__\n' > "$TEST_DIR/typo.yaml"
+  if (source "$TEST_DIR/dast/lib/plan.sh"; DAST_TOKEN=test-token dast_render_plan 'http://localhost:5164' "$TEST_DIR/typo.yaml" > "$TEST_DIR/typo.rendered" 2>/dev/null); then return 1; fi
+  ! grep -q null "$TEST_DIR/typo.rendered"
+}
+check unknown_placeholder
 for target in 'ftp://review.invalid' 'https://user:pass@review.invalid' 'https://review.invalid/base?x=1' 'https://review.invalid/#fragment' 'https://review.invalid:0' 'https://review.invalid:65536' 'https://review.invalid/a b'; do
   check invalid_target "$target"
 done
@@ -101,5 +108,14 @@ done
 for body in '{}' '{"data":null}' '{"data":{}}' '{"data":""}' '{"data":[{"id":1}]}' 'malformed' ''; do
   check probe_case fail 200 "$body"
 done
+# The by-id and delete probes must fail on a leak too, not only pass on the stub's defaults:
+# a 2xx is the leak itself, and any other code is a different bug the probe must not mask.
+leak_case() {
+  local variable="$1" code="$2" status=0
+  env "$variable=$code" PROBE_CODE=200 PROBE_BODY='{"data":[]}' bash "$TEST_DIR/probe.sh" > "$TEST_DIR/probe.log" 2>&1 || status=$?
+  [[ "$status" != 0 ]]
+}
+for code in 200 403 500; do check leak_case PROBE_BYID_CODE "$code"; done
+for code in 204 404 500; do check leak_case PROBE_DELETE_CODE "$code"; done
 printf '%s regression(s) failed\n' "$failures"
 [[ "$failures" == 0 ]]

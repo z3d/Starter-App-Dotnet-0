@@ -73,6 +73,24 @@ public class CacheInvalidatorTests
     }
 
     [Fact]
+    public async Task InvalidateProductAsync_WhenTheGenerationWriteFails_StillEvictsTheEntry()
+    {
+        // The generation advance and the eviction are independent defences. If the first fails
+        // and the second is skipped, a deleted row keeps being served for its whole cache duration.
+        _cacheMock
+            .Setup(c => c.SetAsync(It.Is<string>(key => key.EndsWith(":inv", StringComparison.Ordinal)), It.IsAny<byte[]>(),
+                It.IsAny<DistributedCacheEntryOptions>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("cache offline"));
+        var invalidator = CreateInvalidator(AuthenticatedUser);
+
+        await invalidator.InvalidateProductAsync(42, CancellationToken.None);
+
+        _cacheMock.Verify(c => c.RemoveAsync(
+            It.Is<string>(key => key.StartsWith("Product:42:Owner:", StringComparison.Ordinal)),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task InvalidateProductAsync_WhenCacheThrows_ShouldNotPropagate()
     {
         _cacheMock

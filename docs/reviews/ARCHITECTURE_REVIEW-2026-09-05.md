@@ -273,3 +273,7 @@ PostgreSQL-backed tests ran through the existing Podman machine's Docker-compati
 the earlier DockerUnavailable failures were environment discovery failures. The full distributed
 Aspire rig and live ZAP active scan were not run; deterministic runner tests and subscriber/capture
 tests do not claim to execute either host.
+
+The fix commit was itself reviewed the same day; the deadline, settlement token, and several
+test-only residuals changed as a result. See [ARCHITECTURE_REVIEW-2026-09-06.md](ARCHITECTURE_REVIEW-2026-09-06.md)
+for the current constants before relying on the timings quoted above.

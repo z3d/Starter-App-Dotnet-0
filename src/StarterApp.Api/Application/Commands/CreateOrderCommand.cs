@@ -179,6 +179,11 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
     private static void EnsureNoDuplicateProducts(CreateOrderCommand command)
     {
+        // Mirrors CreateOrderCommandValidator (validator/guard sync rule): the mediator validates
+        // first, but a handler invoked directly must not dereference a null element from the wire.
+        if (command.Items.Any(item => item is null))
+            throw new ValidationException([new ValidationError(nameof(command.Items), "Order item must not be null")]);
+
         var duplicateProductIds = command.Items
             .GroupBy(item => item.ProductId)
             .Where(group => group.Count() > 1)

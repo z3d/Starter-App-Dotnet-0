@@ -33,6 +33,19 @@ public class PayloadRedactionRegressionTests
     }
 
     [Fact]
+    public void Redact_WithDuplicateJsonKeys_SuppressesThePayloadInsteadOfThrowing()
+    {
+        // JsonNode reports duplicate property names as ArgumentException rather than JsonException.
+        // The redactor is a public IPayloadRedactor, so its suppression contract must hold for
+        // every parse failure, not only for callers wrapped in the sink's broad catch.
+        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions()));
+
+        var redacted = redactor.Redact("{\"customerId\":1,\"customerId\":2,\"password\":\"sentinel-password\"}", "application/json");
+
+        Assert.Equal("[invalid JSON payload suppressed]", redacted);
+    }
+
+    [Fact]
     public async Task InvokeAsync_WhenJsonCaptureIsTruncated_SuppressesSensitiveLogValues()
     {
         const string prefix = "{\"password\":\"sentinel-password\",";

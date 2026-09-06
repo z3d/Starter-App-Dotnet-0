@@ -294,4 +294,21 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         await Assert.ThrowsAsync<StarterApp.Api.Infrastructure.Validation.ValidationException>(
             () => handler.HandleAsync(command, CancellationToken.None));
     }
+
+    [Fact]
+    public async Task Handle_WithNullItem_ShouldThrowValidationExceptionNotNullReference()
+    {
+        await using var context = CreateContext();
+        var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
+        var command = new CreateOrderCommand
+        {
+            CustomerId = 1,
+            Items = [new() { ProductId = 1, Quantity = 1 }, null!]
+        };
+
+        var exception = await Assert.ThrowsAsync<StarterApp.Api.Infrastructure.Validation.ValidationException>(
+            () => handler.HandleAsync(command, CancellationToken.None));
+
+        Assert.Contains(exception.Errors, error => error.PropertyName == nameof(command.Items));
+    }
 }

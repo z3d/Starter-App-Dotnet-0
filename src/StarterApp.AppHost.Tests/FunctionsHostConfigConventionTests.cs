@@ -15,8 +15,17 @@ public class FunctionsHostConfigConventionTests
         var lockRenewal = TimeSpan.Parse(
             document.RootElement.GetProperty("extensions").GetProperty("serviceBus").GetProperty("maxAutoLockRenewalDuration").GetString()!,
             CultureInfo.InvariantCulture);
-        Assert.True(StarterApp.Functions.MessageSettlement.ExecutionTimeout <= lockRenewal * 0.8,
-            "The total handler/retry deadline must leave settlement and lock-renewal headroom.");
+
+        // The deadline bounds handler work and backoff; settlement runs afterwards on the host
+        // token and needs its own reserve of lock time. Both bounds carry real margin: the hard
+        // bound is strict, and the deadline alone stays within 80% of the renewal window so
+        // per-attempt overrun and renewal jitter have somewhere to go.
+        var deadline = StarterApp.Functions.MessageSettlement.ExecutionTimeout;
+        var reserve = StarterApp.Functions.MessageSettlement.SettlementReserve;
+        Assert.True(deadline + reserve < lockRenewal,
+            $"ExecutionTimeout ({deadline}) plus SettlementReserve ({reserve}) must be strictly inside maxAutoLockRenewalDuration ({lockRenewal}).");
+        Assert.True(deadline <= lockRenewal * 0.8,
+            $"ExecutionTimeout ({deadline}) must stay within 80% of maxAutoLockRenewalDuration ({lockRenewal}).");
     }
 
     // %setting% trigger lookups resolve against IConfiguration, where the environment-variable

@@ -12,6 +12,7 @@ that produced it. Before dismissing or re-raising anything, check the record, no
 | [2026-08-04 runtime hardening](reviews/ARCHITECTURE_REVIEW-2026-08-04-runtime-hardening.md) | Five findings; resolved 2026-09-03 |
 | [2026-09-02 whole solution](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md) ([rendered](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.html)) | Twenty-two findings, three dismissed; resolved and validated 2026-09-03 |
 | [2026-09-05 targeted review](reviews/ARCHITECTURE_REVIEW-2026-09-05.md) | Eight findings, **all resolved 2026-09-06**; regression and validation evidence in the record |
+| [2026-09-06 fix review](reviews/ARCHITECTURE_REVIEW-2026-09-06.md) | Independent review of the 2026-09-06 fix commit; fourteen residuals, twelve fixed the same day, two recorded with triggers |
 
 ## Overview
 
@@ -28,7 +29,7 @@ them reopening earlier closures whose tests had checked configuration shape rath
 all eight were fixed on 2026-09-06 with failing-before regressions and an independent re-read of
 the diff, so the net move from 8.0 is +0.1 rather than a full recovery. Verifiable snapshot as of
 2026-09-06 (re-verify, don't trust): 9 command handlers, 7 query handlers, every request validated
-by convention, roughly 760 tests green plus the AppHost suite, 32 deterministic DAST runner
+by convention, roughly 770 tests green plus the AppHost suite, 39 deterministic DAST runner
 regressions in the DAST workflow, nightly k6 gate and DAST scan passing on `main`.
 
 ## Strengths
@@ -97,6 +98,11 @@ are resolved, with failing-before/passing-after regressions and final validation
   bounded retries and PII-free settlement logging. Harmless until subscribers deserialize payloads. Close when real event
   parsing lands: filter host invocation-failure logging or add a redaction processor to the
   worker's OTel pipeline.
+- **Subscriber slots hold for the whole retry deadline during an outage.** With
+  `maxConcurrentCalls: 16`, a sustained FailClosed archive outage stalls the subscription for its
+  duration and stretches time-to-dead-letter to roughly five deliveries times the deadline plus
+  lock lapse. That is the intended backpressure; `DECISIONS.md` states it beside the timing.
+  Revisit if an outage post-mortem shows the stall, not the outage, was the incident.
 - **`aspire` CI flake on Service Bus emulator readiness.** Cold-runner emulator start-up can time
   out the healthy-API fact. The shared E2E fixture gates every fact on API readiness (5-minute
   budget); subscriber-dependent facts opt in via `EnsureFunctionsReadyAsync()` (10-minute budget).
@@ -109,7 +115,10 @@ are resolved, with failing-before/passing-after regressions and final validation
 
 - **Doc-mirror generator.** Trigger: the mirror set grows beyond the root pair plus skills.
 - **Per-stage capture-sink failure isolation.** Trigger: a deployment opts the HTTP channel into
-  FailClosed.
+  FailClosed, or duplicate archive rows become a support problem. Under ServiceBus FailClosed an
+  entity-index failure after the archive append rethrows, and the subscriber's in-process retry
+  appends the same archive line again (up to six per delivery, never a loss); the
+  [2026-09-06 record](reviews/ARCHITECTURE_REVIEW-2026-09-06.md) has the analysis.
 - **Module-scoped agent docs.** A single root agent doc works at the current size. Trigger: the
   template grows into multiple modules. Then the root keeps vision, build and test commands, and an
   index; each module gets its own doc with business rules, command and event inventory, and a

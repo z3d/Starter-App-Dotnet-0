@@ -24,17 +24,40 @@ public class PayloadFunctionTests
             contentType: "application/json");
         var actions = new MessageSettlementTests.RecordingMessageActions();
 
+        var time = new ImmediateTimeProvider();
         if (inventory)
-            await new InventoryReservationFunction(NullLogger<InventoryReservationFunction>.Instance, sink)
+            await new InventoryReservationFunction(NullLogger<InventoryReservationFunction>.Instance, sink, time)
                 .RunAsync(message, actions, CancellationToken.None);
         else
-            await new OrderConfirmationEmailFunction(NullLogger<OrderConfirmationEmailFunction>.Instance, sink)
+            await new OrderConfirmationEmailFunction(NullLogger<OrderConfirmationEmailFunction>.Instance, sink, time)
                 .RunAsync(message, actions, CancellationToken.None);
 
         Assert.Equal(new[] { "complete" }, actions.Calls);
         var archive = Assert.Single(store.Inner.Lines, pair => pair.Key.StartsWith("archive/", StringComparison.Ordinal));
         Assert.Single(archive.Value);
         Assert.Equal(1, store.Failures);
+        Assert.Equal(new[] { TimeSpan.FromSeconds(5) }, time.Waits);
+    }
+
+    // Backoff waits go through the host TimeProvider. This one records each wait and fires its
+    // timer immediately, so the subscriber's real retry path runs without sleeping the suite.
+    private sealed class ImmediateTimeProvider : TimeProvider
+    {
+        public List<TimeSpan> Waits { get; } = [];
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            Waits.Add(dueTime);
+            ThreadPool.QueueUserWorkItem(_ => callback(state));
+            return new NoopTimer();
+        }
+
+        private sealed class NoopTimer : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+            public void Dispose() { }
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
     }
 
     private sealed class FailOnceArchiveStore : IPayloadArchiveStore
@@ -60,7 +83,7 @@ public class PayloadFunctionTests
         var store = new InMemoryPayloadArchiveStore();
         var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
         var sink = PayloadCaptureTests.CreateSink(store, timestamp);
-        var function = new OrderConfirmationEmailFunction(new LoggerFactory().CreateLogger<OrderConfirmationEmailFunction>(), sink);
+        var function = new OrderConfirmationEmailFunction(new LoggerFactory().CreateLogger<OrderConfirmationEmailFunction>(), sink, TimeProvider.System);
         var message = ServiceBusModelFactory.ServiceBusReceivedMessage(
             body: BinaryData.FromString("""{"email":"ada@example.com","orderId":"abc"}"""),
             messageId: "message-1",

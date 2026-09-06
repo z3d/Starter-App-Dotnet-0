@@ -45,6 +45,10 @@ public class CacheInvalidator : ICacheInvalidator
 
     private async Task InvalidateKeyAsync(string cacheKey, CancellationToken cancellationToken)
     {
+        // Caching is a best-effort sidecar (it falls back to in-memory when Redis is absent), so a
+        // transient cache outage must not turn an already-committed write into a 500. Each step
+        // fails open on its own: the generation advance and the eviction are independent defences,
+        // and a failure in the first must not skip the second.
         try
         {
             // Advance the generation first. Readers validate it even when removal races a
@@ -54,13 +58,20 @@ public class CacheInvalidator : ICacheInvalidator
                 Guid.NewGuid().ToString("N"),
                 new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheTombstone.Ttl },
                 cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Cache generation advance failed for {CacheKey}; evicting the entry directly.", cacheKey);
+        }
+
+        try
+        {
+            // Evict unconditionally: after a delete, this is what stops the removed row being served
+            // for the rest of its cache duration when the generation write above did not land.
             await _cache.RemoveAsync(cacheKey, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Caching is a best-effort sidecar (it falls back to in-memory when Redis is absent), so a
-            // transient cache outage must not turn an already-committed write into a 500. Log and
-            // continue; the stale entry self-heals at its TTL.
             _logger.LogWarning(ex, "Cache invalidation failed for {CacheKey}; the entry may be served stale until its TTL expires.", cacheKey);
         }
     }

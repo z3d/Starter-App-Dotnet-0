@@ -125,6 +125,24 @@ public class CachingBehaviorTests
     }
 
     [Fact]
+    public async Task HandleAsync_WhenOwnerScopedRequestHasNoIdentity_BypassesTheCacheEntirely()
+    {
+        // No verified subject means no owner-scoped key. Falling back to the bare key would let an
+        // anonymous read publish a value that a later authenticated reader could never be served
+        // safely, so the behavior must neither read nor write the cache.
+        var behavior = new CachingBehavior<OwnerScopedTestQuery, string>(
+            _cacheMock.Object,
+            CurrentUser.Anonymous,
+            new LoggerFactory().CreateLogger<CachingBehavior<OwnerScopedTestQuery, string>>());
+
+        var result = await behavior.HandleAsync(new OwnerScopedTestQuery { Id = 42 }, () => Task.FromResult("from handler"), CancellationToken.None);
+
+        Assert.Equal("from handler", result);
+        _cacheMock.Verify(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _cacheMock.Verify(c => c.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<DistributedCacheEntryOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task HandleAsync_WhenRequestIsOwnerScoped_ShouldVaryCacheKeyByOwner()
     {
         var currentUser = new CurrentUser(

@@ -34,6 +34,12 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         if (cacheable.CacheDuration > CacheTombstone.Ttl)
             return await next();
 
+        // Owner-scoped values must never share a key across identities. Without an authenticated
+        // subject there is nothing to scope by, so serve uncached rather than fall back to a global
+        // key that a later authenticated reader could hit.
+        if (cacheable is IOwnerScopedRequest && !_currentUser.IsAuthenticated)
+            return await next();
+
         var expiresAtUtc = DateTimeOffset.UtcNow + cacheable.CacheDuration;
         var cacheKey = ResolveCacheKey(cacheable);
         var cached = (await TryGetAsync(cacheKey, cancellationToken)).Value;
@@ -86,8 +92,13 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
                 }
             }
 
-            // Unreadable or pre-envelope cache content: treat as a miss and rewrite below.
-            _logger.LogDebug("Cache entry for {CacheKey} is not a valid envelope; treating as miss", cacheKey);
+            // A superseded generation or pinned expiry is the normal post-invalidation miss;
+            // unreadable or pre-envelope content is the unusual one. Log them apart so an
+            // operator does not read routine invalidation as cache corruption.
+            if (envelope is null)
+                _logger.LogDebug("Cache entry for {CacheKey} is not a valid envelope; treating as miss", cacheKey);
+            else
+                _logger.LogDebug("Cache entry for {CacheKey} was invalidated or expired; treating as miss", cacheKey);
         }
 
         var result = await next();
@@ -155,7 +166,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
 
     private string ResolveCacheKey(ICacheable cacheable)
     {
-        return cacheable is IOwnerScopedRequest && _currentUser.IsAuthenticated
+        return cacheable is IOwnerScopedRequest
             ? OwnerScopedCacheKey.Create(cacheable.CacheKey, _currentUser)
             : cacheable.CacheKey;
     }
