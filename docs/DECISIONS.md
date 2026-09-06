@@ -149,3 +149,36 @@ Failure policy is **per channel**, because an audit sidecar must not take down s
 
 - **k6** (`tests/k6/`): `smoke.js` and `load.js` run against an Aspire-started API. `.github/workflows/perf.yml` runs nightly plus on dispatch via `run-perf.sh`, which boots a throwaway PostgreSQL, migrates, bulk-seeds 20k owner-scoped rows so list and index paths run at realistic volume, provisions a throwaway Redis so by-id reads measure a prod-like round trip, and fails on any threshold breach. List checks enforce a volume floor so a fast-but-empty response can't pass. Details in `tests/k6/README.md`.
 - **DAST** (`dast/run-dast.sh`): OWASP ZAP against a seeded throwaway stack, failing at or above `FAIL_RISK`. The gate also fails on a dead scan — a non-clean ZAP exit is not swallowed, and a URL-discovery floor rejects a green-but-reached-nothing report. A scripted cross-owner probe afterwards catches the IDOR class a single-identity scan is blind to. False positives are suppressed by narrow scoped `alertFilter` entries, never by widening exclusions. Details in `dast/README.md`.
+
+## `AnalysisMode=All` with a curated `.editorconfig` severity policy
+
+`Directory.Build.props` enables every .NET analyzer. A strict first build (2026-05-24) failed with 45 errors and a full inventory produced 1,334 diagnostics across 41 rule ids, so the mode is only workable with an explicit severity policy, which lives in `.editorconfig` under the `AnalysisMode=All policy` heading with a one-line reason per rule. The shape: high-signal correctness and clarity rules stay at error; rules that conflict with this template's conventions are lowered or disabled globally (`ConfigureAwait(false)` blanket use, public-to-internal churn, marker interfaces, DTO collection shapes, localization, the `next` delegate name); test-only noise (underscore test names, disposal of harness lifetimes, reflection-discovered helpers) is suppressed for test projects only.
+
+**Why not fix everything or pick a preset:** the mechanical fixes would rewrite Minimal API, CQRS, DTO, and xUnit code into shapes the convention tests forbid, and a lower preset would drop the security and correctness rules that are cheap to keep.
+
+**Re-add triggers:** revisit CA1062 only as a focused null-guard hardening task; CA1848 and CA1873 only if logging allocation becomes a goal (source-generated logging touches API, Functions, and shared code); CA1031 case by case during reliability work, never as a blanket cleanup.
+
+## Layered monolith, not a modular monolith (design on file, not adopted)
+
+Code is partitioned by technical concern (`Domain/Entities`, `Application/Commands`, one `ApplicationDbContext`), not by business capability, and `CreateOrderCommandHandler` reaches across Customers, Catalog, and Orders in one transaction: it reads the customer, runs the atomic `UPDATE products SET stock = stock - qty WHERE stock >= qty` anti-oversell guard, and inserts the order. At three aggregates this is the right weight.
+
+If the domain grows, the recorded target is **synchronous modules behind published contracts**, not an asynchronous saga. Modules (`Customers`, `Catalog` owning stock, `Orders`) live under `Modules/<Name>/{Contracts,Domain,Application,Data}`; other modules may reference only `Contracts/` (small read interfaces such as `ICatalogReads`, `ICustomerReads`, and one operation interface `IInventory.ReserveStockAsync`, all carrying the owner scope). Start folder-only and graduate to one project per module so `internal` enforces the boundary. Cross-module reads use denormalised snapshots (already how `order_items` carries product name and price) or in-memory composition, never a cross-module JOIN or foreign key. Convention tests pin it: no handler references another module's `Domain` or `Data`, no cross-module `DbSet` access, no cross-schema foreign key, `Contracts/` holds only interfaces and records.
+
+**The one deliberate compromise:** `IInventory` enlists in Orders' ambient transaction so the atomic stock guard keeps overselling impossible. A strict modular monolith forbids that; it is accepted for this invariant alone and would be pinned by a convention test.
+
+**Why not the saga (Approach B):** order creation would become `Pending` → `StockReserved` or `StockReservationFailed` → confirm or compensate through the existing outbox and `inventory-reservation` subscription. That trades prevention of overselling for detection plus compensation and adds process-manager state for an invariant that does not warrant it. Reserve the saga for steps that genuinely tolerate eventual consistency, such as the already-async email notification.
+
+**Re-add trigger:** the same as the folder-only Clean Architecture acceptance in `ARCHITECTURE_REVIEW.md`: the domain grows past the sample aggregates, a second team owns part of it, or a compiler-enforced boundary is required.
+
+## Considered and rejected
+
+Recorded so future sessions do not re-propose them.
+
+- **MediatR, AutoMapper, the repository pattern, an in-process background task queue.** Each conflicts with a documented prohibition or an existing mechanism (custom mediator, explicit mappers, DbContext directly, transactional outbox for anything that must survive a restart).
+- **Production infrastructure as code (Bicep or azd).** Maintainer decision, 2026-06-10: deployment topology is owned by the hosting environment; Aspire is the only orchestration path in this repo.
+- **WORM immutability on audit blobs as a roadmap item.** Cannot be expressed here (the emulator does not enforce it and there is no IaC). Recorded instead as an accepted limitation with deployer guidance in `ARCHITECTURE_REVIEW.md`.
+- **A `spikes/` folder convention.** Maintainer decision, 2026-06-10: experiments go through normal branches and worktrees.
+- **Client-IP extraction chains in middleware.** The API runs behind a trusted edge; the edge owns client network identity.
+- **List-query caching.** No pattern-based invalidation in `IDistributedCache`; revisit only with a versioned-namespace design (see the caching decision above).
+- **TypeScript client codegen.** Marginal for an API-only template; the OpenAPI output already serves contract consumers.
+- **A request-row audit `action` stamp.** Captured before routing, the verb-derived value was wrong on exactly the override routes and duplicated `method`; the response row is the authoritative carrier (complexity review, 2026-06-12).

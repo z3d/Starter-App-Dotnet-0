@@ -80,18 +80,15 @@ starterapp/
 │   ├── StarterApp.DbMigrator/       # Database migration console app
 │   ├── StarterApp.ServiceDefaults/  # Shared Aspire configuration
 │   └── StarterApp.Tests/            # Unit, convention, integration, fuzzing tests
-├── docs/                           # Setup and onboarding guides
+├── docs/                           # Getting started, API reference, decisions, review records
 └── scripts/                       # Smoke test script
 ```
 
-## Step-by-Step Guide
+## Getting Started
 
-Follow the numbered directories in the `docs/` folder:
-
-1. **[.NET Setup](docs/01-dotnet-setup/README.md)** - Create the Web API project
-2. **[PostgreSQL Setup](docs/02-postgres-setup/README.md)** - Database configuration and migrations
-3. **[Container Images and Docker Dependencies](docs/03-docker-setup/README.md)** - Dockerfiles, Aspire-managed container dependencies, and image build validation
-4. **[Aspire Setup](docs/05-aspire-setup/README.md)** - .NET Aspire orchestration
+[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) covers prerequisites, running the full stack
+with Aspire, running the API alone, migrations, calling the API with a dev token, tests, and
+container image builds.
 
 ## Running CI Locally with Act
 
@@ -168,9 +165,11 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 
 ## Documentation
 
-- **[API Endpoints](docs/API-ENDPOINTS.md)**: Complete documentation of all Minimal API endpoints with examples and usage patterns
-- **[Architectural Guide](CLAUDE.md)**: Comprehensive guide to the Clean Architecture implementation, patterns, and conventions
-- **[Setup Guides](docs/)**: Step-by-step guides for development environment setup and deployment
+- **[Getting Started](docs/GETTING-STARTED.md)**: Prerequisites, running the stack, migrations, tests, and image builds
+- **[API Endpoints](docs/API-ENDPOINTS.md)**: Every Minimal API endpoint with examples and how to mint a dev token
+- **[Rules of the codebase](CLAUDE.md)**: The conventions agents and people must follow, and where each subsystem is documented
+- **[Recorded decisions](docs/DECISIONS.md)**: Why each notable choice was made and what would justify revisiting it
+- **[Architecture review](docs/ARCHITECTURE_REVIEW.md)**: Open findings and accepted limitations, with dated records under `docs/reviews/`
 
 ## Reference Material
 

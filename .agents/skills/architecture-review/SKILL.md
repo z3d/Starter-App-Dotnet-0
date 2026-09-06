@@ -10,7 +10,7 @@ argument-hint: [project-path]
 
 Review the project at `$ARGUMENTS`, or the current working directory if no argument is given.
 
-**Start by reading `docs/ARCHITECTURE_REVIEW.md`** — open findings, dismissed false positives, current score (dated history in `docs/reviews/`). Update it when you finish; it is the sync point across concurrent sessions.
+**Start by reading `docs/ARCHITECTURE_REVIEW.md`** — open findings, accepted limitations, current score. Evidence, resolutions, and dismissed false positives live in the dated records under `docs/reviews/`; check the relevant record before re-raising anything. Write your review as a new dated record there and update the living file when you finish; it is the sync point across concurrent sessions.
 
 **This codebase's dominant failure mode is plausible-but-wrong findings, not missed bugs.** It is mature and hardened, with a long history of dismissing HIGH/CRITICAL candidates. Structure the work to refute: zero findings is an acceptable answer, a high score is a prompt to verify against code rather than trust it, and the known false positives in [reference/review-playbook.md](reference/review-playbook.md) must not be re-raised without new evidence.
 

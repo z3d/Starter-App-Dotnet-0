@@ -70,11 +70,12 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Tests, FsCheck, convention authoring | `.agents/skills/testing-strategy/SKILL.md` |
 | Service Bus emulator, dev tunnels, local CI | `.agents/skills/development-workflow/SKILL.md` |
 | Dependencies, custom mediator | `.agents/skills/technology-stack/SKILL.md` |
-| Architecture audits | `.agents/skills/architecture-review/SKILL.md`, `docs/ARCHITECTURE_REVIEW.md` |
+| Architecture audits | `.agents/skills/architecture-review/SKILL.md`, `docs/ARCHITECTURE_REVIEW.md` (open state), dated records in `docs/reviews/` |
 | Outbox / eventing / OIDC identity / payload capture internals | `docs/DECISIONS.md` |
 | Replaying a stuck or dead-lettered event | `docs/runbooks/event-replay.md` |
 | Recurring async-failure patterns and known defects | `docs/investigations/README.md` |
 | Perf gate, security scan | `tests/k6/README.md`, `dast/README.md` |
+| Running the stack for the first time (human onboarding) | `docs/GETTING-STARTED.md` |
 | Pruning this template into a derived project | `docs/DERIVATION-PRUNING.md` |
 | Read-only support SQL | `scripts/reporting/` |
 | Reviewer subagents and the branch-review workflow | `.claude/agents/`, `.claude/workflows/architect-review.js` |

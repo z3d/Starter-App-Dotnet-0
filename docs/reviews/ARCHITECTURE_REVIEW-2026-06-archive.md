@@ -52,7 +52,7 @@ A .NET 10 Clean Architecture starter template implementing CQRS, DDD, and modern
 >
 > Score **held at 8.2** — this pass reduces residual supply-chain risk (the lone Medium is closed) but does not move the structural ceiling (proportionality, single-assembly Clean Architecture, the latent runtime footguns above remain). Honest per this doc's anti-inflation stance: hardening that removes a verified gap, not a capability that raises the template's altitude.
 
-> **Full-codebase review fixes 2026-06-10.** The four-reviewer 2026-06-10 review (`docs/REVIEW_2026-06-10.md`: 1 High, 9 Medium, ~9 Low) was implemented this session — all High/Medium findings fixed or decision-recorded, plus the Low batch. Headline fixes: subscription/topic TTL raised to 24h with `DeadLetteringOnMessageExpiration` enabled (consumer downtime now dead-letters instead of silently destroying events; convention-tested); host.json exponentialBackoff retry sized inside the lock-renewal window; OutboxProcessor batch-final save survives stolen claims (detach-and-persist-the-rest, regression-tested); missing `ConnectionStrings:servicebus` now fails startup outside Dev/Testing; cleanup TimerTrigger switched to the `:` config-key form with a baked image default + convention test; entity-reference extraction consults `SensitivePropertyNames` and requires a real `Id`/`_id` suffix; >4 MiB JSONL records go to a single-writer oversize sidecar (no shared-blob interleaving); all 16 endpoint handlers bind + forward `CancellationToken` (new convention test); CreateCustomer is commit-ambiguity idempotent via its natural key; price upper bound (`Money.MaxAmount` + validators), order-status `Enum.IsDefined` validation, in-memory store cleanup parity, `RequestFailedException.Status==0` classified transient, client-abort-proof response capture, hash-suffixed lossy correlation sanitization, `outbox_messages` retention purge, capture-first middleware order recorded as a decision, and the security-hygiene batch (URL-scoped DAST rule-6 filter, dev-tunnel unsigned-API ack guard, `X-XSS-Protection: 0`, PostgreSQL example connstring). Residuals recorded under Open Findings. **Score held at 8.2** per the anti-inflation stance: verified-gap closure, not a ceiling move.
+> **Full-codebase review fixes 2026-06-10.** The four-reviewer 2026-06-10 review (`docs/reviews/REVIEW-2026-06-10.md`: 1 High, 9 Medium, ~9 Low) was implemented this session — all High/Medium findings fixed or decision-recorded, plus the Low batch. Headline fixes: subscription/topic TTL raised to 24h with `DeadLetteringOnMessageExpiration` enabled (consumer downtime now dead-letters instead of silently destroying events; convention-tested); host.json exponentialBackoff retry sized inside the lock-renewal window; OutboxProcessor batch-final save survives stolen claims (detach-and-persist-the-rest, regression-tested); missing `ConnectionStrings:servicebus` now fails startup outside Dev/Testing; cleanup TimerTrigger switched to the `:` config-key form with a baked image default + convention test; entity-reference extraction consults `SensitivePropertyNames` and requires a real `Id`/`_id` suffix; >4 MiB JSONL records go to a single-writer oversize sidecar (no shared-blob interleaving); all 16 endpoint handlers bind + forward `CancellationToken` (new convention test); CreateCustomer is commit-ambiguity idempotent via its natural key; price upper bound (`Money.MaxAmount` + validators), order-status `Enum.IsDefined` validation, in-memory store cleanup parity, `RequestFailedException.Status==0` classified transient, client-abort-proof response capture, hash-suffixed lossy correlation sanitization, `outbox_messages` retention purge, capture-first middleware order recorded as a decision, and the security-hygiene batch (URL-scoped DAST rule-6 filter, dev-tunnel unsigned-API ack guard, `X-XSS-Protection: 0`, PostgreSQL example connstring). Residuals recorded under Open Findings. **Score held at 8.2** per the anti-inflation stance: verified-gap closure, not a ceiling move.
 >
 > **Ultracode multi-agent review + hardening session 2026-06-09.** An 8-dimension adversarial fan-out (gateway-auth, CQRS/domain, concurrency/retry, outbox/eventing, payload-capture, data-access, caching, build/CI/convention-rigor), each candidate verified by 3 diverse skeptic lenses (reachability / claim-correctness / already-mitigated, majority-refute to dismiss) and fed the documented accepted-decisions so it would not re-raise them. The sweep surfaced **9 confirmed findings, 1 dismissed** — none Critical, none an auth bypass (consistent with a hardened template). All 9 were fixed with regression tests this session (see the "Recently resolved (ultracode review)" table below). Highest-value items: two convention tests that passed *vacuously* on zero-discovery (the gateway identity/scope/MFA trio and the migration-safety trio — the template's own "enforcement that can silently stop enforcing" defect class), plus a gateway correlation-id canonicalization mismatch that rejected validly-signed requests under `Mode=Required`. **Score held at 8.2** — the confirmed set is Medium/Low robustness/availability hardening (fail-closed correctness, request-path amplification cap, pagination determinism, best-effort cache), not a ceiling-mover; per this doc's anti-inflation stance, closing verified gaps does not raise the altitude.
 
@@ -224,7 +224,7 @@ The following remain **open** (decisions / watch-item / explained-deferral, not 
 
 #### Recently resolved (2026-06-10 full-codebase review fixes)
 
-All findings from `docs/REVIEW_2026-06-10.md` implemented this session (see the dated note above for the full list): High #1 (TTL/dead-lettering), Medium #2–#10 (host.json retry; outbox stolen-claim save; servicebus startup guard; capture-first recorded decision; cleanup trigger key + baked default; sensitive-name-aware entity references; oversize sidecar; endpoint CancellationToken + convention test; customer create idempotency), and the Low batch (price bound, enum validation, in-memory cleanup parity, status-0 transient classification, abort-proof response capture, hash-suffixed correlation sanitization, outbox retention, subscriber ordering warning, DAST/dev-tunnel/XSS-header/example-connstring hygiene). Each code fix carries a regression test except the documented residuals above.
+All findings from `docs/reviews/REVIEW-2026-06-10.md` implemented this session (see the dated note above for the full list): High #1 (TTL/dead-lettering), Medium #2–#10 (host.json retry; outbox stolen-claim save; servicebus startup guard; capture-first recorded decision; cleanup trigger key + baked default; sensitive-name-aware entity references; oversize sidecar; endpoint CancellationToken + convention test; customer create idempotency), and the Low batch (price bound, enum validation, in-memory cleanup parity, status-0 transient classification, abort-proof response capture, hash-suffixed correlation sanitization, outbox retention, subscriber ordering warning, DAST/dev-tunnel/XSS-header/example-connstring hygiene). Each code fix carries a regression test except the documented residuals above.
 
 #### Recently resolved (ultracode multi-agent review, 2026-06-09)
 
@@ -617,3 +617,61 @@ The 2026-05-30 review found four new issues. Follow-up work resolved incomplete 
 The convention tests remain the standout feature. They catch categories of architectural drift that code review alone would miss, and they scale as the codebase grows.
 
 **Best suited for:** Teams starting a new .NET API who want architectural guardrails from day one. Authentication validation is left to the API gateway by design, while the API enforces a signed trusted-edge identity contract, route scopes, and owner-only resource access; the full event pipeline (domain events → outbox → Service Bus → Azure Functions) is implemented for the Order aggregate.
+
+---
+
+## Resolved after the archive cut-off (July 2026)
+
+These entries were closed between the June compaction and the August reviews and have no dated
+review record of their own. They are moved here verbatim from the living review so it carries
+only open state.
+
+- **RESOLVED (2026-07-18) — Aspire-collection trait pairing was not mechanically enforced.**
+  The CI unit job excludes Aspire E2E facts with `Category!=Aspire`; that filter is only sound if
+  every `[Collection("Aspire E2E")]` class also carries `[Trait("Category","Aspire")]`. Both
+  current members did, but nothing prevented a future Aspire test joining the collection without
+  the trait (and without "Integration" in its name) from booting the full distributed rig inside
+  the unit job, where nothing is provisioned for it. Fixed by
+  `AspireCollectionTraitConventionTests.EveryAspireCollectionMember_MustCarryTheAspireCategoryTrait`,
+  which reflects over the AppHost.Tests assembly and fails the build on any collection member
+  missing the trait.
+- **RESOLVED (2026-07-18) — Dead-letter description could echo payload-derived text.**
+  `MessageSettlement` wrote `exception.Message` into the Service Bus dead-letter description —
+  unredacted broker metadata no Serilog masking reaches. Harmless today (subscribers don't yet
+  deserialize payloads; the only non-retryable types carry JSON paths, not values), but a latent
+  PII leak once handlers parse domain events. Fixed pre-emptively: the description now carries only
+  the exception type + correlation id (support jumps to the correlation-bound archive for the full
+  payload); regression asserts the payload-derived message is absent. `MessageSettlementTests`.
+- **RESOLVED (2026-07-18), REOPENED (2026-09-05) — Functions retry window sat exactly on the
+  lock-renewal ceiling.** `FunctionsHostConfigConventionTests` asserted `maximumInterval *
+  maxRetryCount <= maxAutoLockRenewalDuration`, which passed only at the exact boundary
+  (`60s * 5 = 300s = 300s`) and ignored per-attempt handler execution time. Fixed by requiring
+  the worst-case window to stay within 80% of the lock window and dropping `maximumInterval` to
+  45s (worst case now 225s ≤ 240s). The 2026-09-05 review then established that Service Bus
+  triggers do not honour the host execution retry policy at all, so this closure and the
+  original host-backoff closure only ever checked configuration shape. Tracked as finding 6 in
+  `ARCHITECTURE_REVIEW-2026-09-05.md`.
+- **RESOLVED (2026-07-18) — Field name interpolated into `python3 -c` in the smoke test.**
+  `scripts/smoke-test.sh` `json_field()` built the Python source by interpolating `$field`; only
+  script-literal constants were ever passed, but the field name is now passed via `sys.argv` so it
+  can never be executed as code.
+- **RESOLVED (2026-07-18) — Functions worker logged exception objects to an unredacted OTel sink.**
+  Found by the post-commit security audit of the dead-letter fix above: `MessageSettlement` still
+  attached the full exception object to its three failure-branch log calls, and the Functions
+  worker has **no** redaction stage — its logs flow to OpenTelemetry via ServiceDefaults, while the
+  `Serilog.Enrichers.Sensitive` masking stack lives only in the API. Same latent class as the
+  dead-letter description: harmless until handlers deserialize payloads, then `exception.Message`
+  leaks payload text into logs. Fixed: the log calls now emit exception type + correlation id as
+  structured properties, never the exception object; regression
+  (`SettleAsync_LogsNeverCarryTheExceptionObjectOrItsMessageText`) drives all three branches with a
+  PII sentinel and asserts it reaches neither the rendered message nor the log event. The residual
+  host-logging channel stays as a watch-item in the living review.
+- **RESOLVED (2026-07-05) — Blanket BCL-exception → client-fault status mapping.**
+  `ResolveExceptionStatusCode` mapped every `InvalidOperationException` to 409 and every
+  `KeyNotFoundException` to 404, so a stray BCL throw from a genuine server bug (LINQ
+  `.Single()`, a dictionary miss) surfaced as a client fault and hid from 5xx alerting. Fixed in
+  the same change it was found: dedicated `DomainRuleException` (409) and
+  `EntityNotFoundException` (404) in `StarterApp.Domain.Exceptions`, all intentional throw sites
+  swept, bare BCL types now fall through to 500. Regression tests in
+  `ExceptionStatusCodeMappingTests`; `ExceptionConventionTests` (IL `newobj` scan over Domain +
+  Api Application types) blocks reintroduction.
