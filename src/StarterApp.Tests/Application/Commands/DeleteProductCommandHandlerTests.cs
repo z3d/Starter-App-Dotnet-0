@@ -10,16 +10,6 @@ public class DeleteProductCommandHandlerTests : PostgresCommandHandlerTestBase
     }
 
     [Fact]
-    public void DeleteProductCommand_PropertiesTest()
-    {
-        // Arrange & Act
-        var command = new DeleteProductCommand(42);
-
-        // Assert
-        Assert.Equal(42, command.Id);
-    }
-
-    [Fact]
     public async Task Handle_WithExistingProduct_ShouldDeleteProduct()
     {
         // Arrange

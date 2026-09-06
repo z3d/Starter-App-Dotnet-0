@@ -145,3 +145,16 @@ hardening is verified elsewhere.
 The active scan sends real attack payloads and the runner provisions a disposable
 database. **Only point this at the local throwaway instance or a dedicated test
 environment — never at production or any shared/data-bearing environment.**
+
+
+Runner regressions can be run without containers or network access:
+
+```bash
+bash dast/tests/run-tests.sh
+```
+
+`TARGET_URL` preserves the HTTP(S) scheme, hostname, explicit port, and optional base path.
+Only loopback hosts are translated to `host.docker.internal` for ZAP's container; HTTPS remains
+HTTPS. Credentials, query strings, and fragments are rejected as API base URLs. With `SKIP_BOOT=1`,
+supply a `DAST_TOKEN` valid for that target. The cross-owner list probe requires HTTP 200 and an
+actual empty `data` array; error responses cannot satisfy it.

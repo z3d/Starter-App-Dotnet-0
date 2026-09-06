@@ -1,9 +1,7 @@
 # OWASP ZAP Automation Framework plan — DAST scan of the StarterApp API.
 #
-# This is a TEMPLATE: run-dast.sh renders __API_PORT__ (derived from
-# TARGET_URL / API_PORT) and __DAST_TOKEN__ (a dast-user-01 access token minted
-# from the throwaway dev Keycloak) into dast/reports/automation.rendered.yaml
-# before handing it to ZAP — so both live in one place (the script), never here.
+# This is a TEMPLATE: run-dast.sh renders the validated TARGET_URL and token
+# as escaped YAML scalars into dast/reports/automation.rendered.yaml.
 # Don't run this file directly; run dast/run-dast.sh.
 #
 # The API validates OIDC/JWT bearer tokens itself, so the `replacer` job below
@@ -16,15 +14,15 @@ env:
   contexts:
     - name: starterapp-api
       urls:
-        - "http://host.docker.internal:__API_PORT__"
+        - __ZAP_BASE_URL__
       includePaths:
-        - "http://host.docker.internal:__API_PORT__/api/.*"
-        - "http://host.docker.internal:__API_PORT__/health.*"
-        - "http://host.docker.internal:__API_PORT__/alive"
+        - __ZAP_API_REGEX__
+        - __ZAP_HEALTH_REGEX__
+        - __ZAP_ALIVE_REGEX__
       excludePaths:
         # Static docs surfaces — no value in actively scanning them.
-        - "http://host.docker.internal:__API_PORT__/scalar.*"
-        - "http://host.docker.internal:__API_PORT__/openapi.*"
+        - __ZAP_SCALAR_REGEX__
+        - __ZAP_OPENAPI_REGEX__
   parameters:
     failOnError: true
     failOnWarning: false
@@ -41,7 +39,7 @@ jobs:
       - description: "OIDC bearer token (dast-user-01, all resource scopes, amr incl. mfa)"
         matchType: req_header
         matchString: "Authorization"
-        replacementString: "Bearer __DAST_TOKEN__"
+        replacementString: __DAST_AUTH_HEADER__
         tokenProcessing: false
 
   # 2. Suppress false positives on the OpenAPI document itself.
@@ -55,11 +53,11 @@ jobs:
     alertFilters:
       - ruleId: 90022
         newRisk: "False Positive"
-        url: "http://host.docker.internal:__API_PORT__/openapi/v1.json"
+        url: __ZAP_OPENAPI_URL__
         urlRegex: false
       - ruleId: 10023
         newRisk: "False Positive"
-        url: "http://host.docker.internal:__API_PORT__/openapi/v1.json"
+        url: __ZAP_OPENAPI_URL__
         urlRegex: false
       # Path Traversal (rule 6) on the `page`/`pageSize` pagination params is a
       # false positive: both are strongly-typed `int` minimal-API parameters, so
@@ -76,14 +74,14 @@ jobs:
         newRisk: "False Positive"
         parameter: "^(page|pageSize)$"
         parameterRegex: true
-        url: "^http://host\\.docker\\.internal:__API_PORT__/api/v1/(products|customers|orders/customer/[^/?]+|orders/status/[^/?]+)/?(\\?.*)?$"
+        url: __ZAP_PAGINATION_REGEX__
         urlRegex: true
 
   # 3. Seed the site tree from the live OpenAPI document.
   - type: openapi
     parameters:
-      apiUrl: "http://host.docker.internal:__API_PORT__/openapi/v1.json"
-      targetUrl: "http://host.docker.internal:__API_PORT__"
+      apiUrl: __ZAP_OPENAPI_URL__
+      targetUrl: __ZAP_BASE_URL__
       context: starterapp-api
 
   # 4. Crawl to discover anything not in the OpenAPI doc.

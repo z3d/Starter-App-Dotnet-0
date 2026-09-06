@@ -33,6 +33,19 @@ public class ProblemDetailsTests : IAsyncLifetime
         await Task.CompletedTask;
     }
 
+    [Theory]
+    [InlineData("[null]", "Items[0]")]
+    [InlineData("[{\"productId\":1,\"quantity\":1},null]", "Items[1]")]
+    public async Task CreateOrder_WithNullItem_ShouldReturnIndexedValidationProblem(string itemsJson, string propertyName)
+    {
+        using var content = new StringContent($$"""{"customerId":1,"items":{{itemsJson}}}""", System.Text.Encoding.UTF8, "application/json");
+        var response = await _fixture.Client.PostAsync("/api/v1/orders", content);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        AssertValidationError(problem, propertyName, "Order item must not be null");
+    }
+
     [Fact]
     public async Task CreateCustomer_WithInvalidEmail_ShouldReturnProblemDetails()
     {

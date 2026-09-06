@@ -650,7 +650,9 @@ only open state.
   45s (worst case now 225s ≤ 240s). The 2026-09-05 review then established that Service Bus
   triggers do not honour the host execution retry policy at all, so this closure and the
   original host-backoff closure only ever checked configuration shape. Tracked as finding 6 in
-  `ARCHITECTURE_REVIEW-2026-09-05.md`.
+  `ARCHITECTURE_REVIEW-2026-09-05.md`. **Resolved 2026-09-06:** explicit handler retries and a
+  shared four-minute deadline replace the ineffective host policy; behavioral regressions cover
+  both subscribers and settlement. See that record for the fix and validation.
 - **RESOLVED (2026-07-18) — Field name interpolated into `python3 -c` in the smoke test.**
   `scripts/smoke-test.sh` `json_field()` built the Python source by interpolating `$field`; only
   script-literal constants were ever passed, but the field name is now passed via `sys.argv` so it

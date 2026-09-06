@@ -11,7 +11,7 @@ that produced it. Before dismissing or re-raising anything, check the record, no
 | [2026-08-04 post-IdP](reviews/ARCHITECTURE_REVIEW-2026-08-04-post-idp.md) | Four findings from the gateway → OIDC conversion; resolved 2026-09-03 |
 | [2026-08-04 runtime hardening](reviews/ARCHITECTURE_REVIEW-2026-08-04-runtime-hardening.md) | Five findings; resolved 2026-09-03 |
 | [2026-09-02 whole solution](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md) ([rendered](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.html)) | Twenty-two findings, three dismissed; resolved and validated 2026-09-03 |
-| [2026-09-05 targeted review](reviews/ARCHITECTURE_REVIEW-2026-09-05.md) | Eight findings, **all open** |
+| [2026-09-05 targeted review](reviews/ARCHITECTURE_REVIEW-2026-09-05.md) | Eight findings, **all resolved 2026-09-06**; regression and validation evidence in the record |
 
 ## Overview
 
@@ -24,7 +24,7 @@ the retired `docs/ROADMAP.md`.
 **Score: 8.0/10, last set 2026-09-03.** The score is self-assessed by the maintaining agents with
 no external validator and no fixed rubric; treat it as a maintenance log, not an audit. It dips on
 discovery and recovers only with verified fixes. The 2026-09-05 review did not re-score, so the
-number predates its eight open findings. Verifiable snapshot as of 2026-09-03 (re-verify, don't
+number predates that review and its 2026-09-06 fixes. Verifiable snapshot as of 2026-09-03 (re-verify, don't
 trust): 9 command handlers, 7 query handlers, every request validated by convention, roughly 740
 tests green plus the AppHost suite, nightly k6 gate and DAST scan passing on `main`.
 
@@ -44,19 +44,8 @@ Dependabot, CodeQL). The full analysis is in the archive.
 
 ## Open findings
 
-All eight are from the [2026-09-05 review](reviews/ARCHITECTURE_REVIEW-2026-09-05.md), which
-holds the evidence, reproduction steps, and fix guidance. No runtime fix has landed yet.
-
-| # | Finding | Severity |
-|---|---|---|
-| 1 | Invalid or truncated JSON bypasses sensitive-property masking in operational logs | High |
-| 2 | Entity indexing descends into sensitive parent objects | High |
-| 6 | Service Bus subscribers do not receive the configured execution backoff (reopens the July retry-window closure; Service Bus triggers do not honour host execution retry) | High |
-| 3 | Cache publication still races invalidation after the tombstone check (reopens archived U7 with a deterministic reproduction) | Medium |
-| 4 | Null order-list elements throw a 500 instead of validating | Medium |
-| 7 | DAST ignores the requested target's scheme, host, and base path | Medium |
-| 8 | The cross-owner list probe accepts HTTP errors as empty results | Medium |
-| 5 | Pure validator tests unnecessarily require PostgreSQL fixtures | Low |
+The eight findings from the [2026-09-05 review](reviews/ARCHITECTURE_REVIEW-2026-09-05.md#resolution--2026-09-06)
+are resolved, with failing-before/passing-after regressions and final validation in the record.
 
 - **OPEN — bearer tokens are not sender-constrained.** The retired gateway assertion was bound to
   method and path with a ~150s lifetime; an IdP bearer token is valid for any endpoint in its
@@ -94,14 +83,15 @@ holds the evidence, reproduction steps, and fix guidance. No runtime fix has lan
   smoke test expect.
 - **Entity references are inferred from payload property names (2026-06-12).** `*Id` suffix plus
   sensitive-name screening, not per-endpoint declarations, because capture runs before routing and
-  must cover rejected traffic. Findings 1 and 2 above are defects in that screening, not a reversal
-  of the decision.
+  must cover rejected traffic. The September review fixed malformed-JSON masking and sensitive-ancestor traversal
+  without changing that decision.
 
 ## Watch-items
 
 - **Functions host logs rethrown invocation failures unredacted.** `MessageSettlement` no longer
-  logs exception objects, but the host runtime logs rethrown transient failures itself, outside
-  the worker's redaction. Harmless until subscribers deserialize payloads. Close when real event
+  logs exception objects, but the host runtime can log propagated settlement or cancellation
+  failures itself, outside the worker's redaction. Handler failures are now consumed by explicit
+  bounded retries and PII-free settlement logging. Harmless until subscribers deserialize payloads. Close when real event
   parsing lands: filter host invocation-failure logging or add a redaction processor to the
   worker's OTel pipeline.
 - **`aspire` CI flake on Service Bus emulator readiness.** Cold-runner emulator start-up can time

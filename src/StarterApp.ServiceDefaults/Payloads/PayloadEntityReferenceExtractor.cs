@@ -111,6 +111,9 @@ public static class PayloadEntityReferenceExtractor
             case JsonValueKind.Object:
                 foreach (var property in element.EnumerateObject())
                 {
+                    if (IsSensitivePropertyName(property.Name, sensitiveTokens))
+                        continue;
+
                     AddReferenceFromJsonProperty(property.Name, property.Value, contextEntityType, sensitiveTokens, references);
                     AddJsonElementReferences(property.Value, contextEntityType, sensitiveTokens, references);
                 }

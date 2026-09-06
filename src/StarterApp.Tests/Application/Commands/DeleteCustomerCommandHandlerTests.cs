@@ -10,16 +10,6 @@ public class DeleteCustomerCommandHandlerTests : PostgresCommandHandlerTestBase
     }
 
     [Fact]
-    public void DeleteCustomerCommand_PropertiesTest()
-    {
-        // Arrange & Act
-        var command = new DeleteCustomerCommand { Id = 42 };
-
-        // Assert
-        Assert.Equal(42, command.Id);
-    }
-
-    [Fact]
     public async Task Handle_WithExistingCustomer_ShouldDeleteCustomer()
     {
         // Arrange

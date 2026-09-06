@@ -47,16 +47,14 @@ public class CacheInvalidator : ICacheInvalidator
     {
         try
         {
-            await _cache.RemoveAsync(cacheKey, cancellationToken);
-
-            // Tombstone the key so a concurrent read that already missed the cache (and is holding a
-            // pre-write value) does not repopulate it after this invalidation. The reader checks the
-            // tombstone immediately before its SetString.
+            // Advance the generation first. Readers validate it even when removal races a
+            // pending publication or fails; every mutation needs a distinct value.
             await _cache.SetStringAsync(
                 CacheTombstone.KeyFor(cacheKey),
-                "1",
+                Guid.NewGuid().ToString("N"),
                 new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheTombstone.Ttl },
                 cancellationToken);
+            await _cache.RemoveAsync(cacheKey, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

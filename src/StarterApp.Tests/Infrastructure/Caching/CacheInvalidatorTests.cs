@@ -19,6 +19,22 @@ public class CacheInvalidatorTests
         new(_cacheMock.Object, currentUser, NullLogger<CacheInvalidator>.Instance);
 
     [Fact]
+    public async Task InvalidateProductAsync_EveryMutationChangesTheGeneration()
+    {
+        var values = new List<string>();
+        _cacheMock.Setup(cache => cache.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(),
+                It.IsAny<DistributedCacheEntryOptions>(), It.IsAny<CancellationToken>()))
+            .Callback((string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token) =>
+                values.Add(System.Text.Encoding.UTF8.GetString(value)))
+            .Returns(Task.CompletedTask);
+        var invalidator = CreateInvalidator(AuthenticatedUser);
+        await invalidator.InvalidateProductAsync(42, CancellationToken.None);
+        await invalidator.InvalidateProductAsync(42, CancellationToken.None);
+        Assert.Equal(2, values.Count);
+        Assert.NotEqual(values[0], values[1]);
+    }
+
+    [Fact]
     public async Task InvalidateProductAsync_RemovesOnlyTheOwnerScopedKey()
     {
         var invalidator = CreateInvalidator(AuthenticatedUser);

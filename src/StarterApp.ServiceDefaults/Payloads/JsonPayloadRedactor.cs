@@ -37,7 +37,9 @@ public sealed partial class JsonPayloadRedactor : IPayloadRedactor
             }
             catch (JsonException)
             {
-                // Fall back to text masking below.
+                // Invalid or capture-truncated JSON cannot be safely screened by property name.
+                // Preserve it in the archive, but never fall back to email-only masking in logs.
+                return "[invalid JSON payload suppressed]";
             }
         }
 

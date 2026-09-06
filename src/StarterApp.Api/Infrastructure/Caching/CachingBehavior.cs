@@ -28,12 +28,23 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         if (request is not ICacheable cacheable)
             return await next();
 
+        // An invalidation generation must outlive every value that observed its predecessor.
+        // Pin expiry before the database read (and even before cache I/O), so slow publishers
+        // cannot extend that value beyond the generation's retention window.
+        if (cacheable.CacheDuration > CacheTombstone.Ttl)
+            return await next();
+
+        var expiresAtUtc = DateTimeOffset.UtcNow + cacheable.CacheDuration;
         var cacheKey = ResolveCacheKey(cacheable);
-        var cached = await TryGetAsync(cacheKey, cancellationToken);
+        var cached = (await TryGetAsync(cacheKey, cancellationToken)).Value;
+        var (generationKnown, generation) = await TryGetAsync(CacheTombstone.KeyFor(cacheKey), cancellationToken);
+        // Old replicas wrote a constant tombstone. It cannot distinguish successive invalidations.
+        generationKnown &= generation != "1";
         if (cached is not null)
         {
             var envelope = TryDeserializeEnvelope(cached);
-            if (envelope is not null)
+            if (envelope is not null && generationKnown && envelope.Generation == generation &&
+                DateTimeOffset.UtcNow < envelope.ExpiresAtUtc)
             {
                 if (cacheable.CacheRefreshWindow <= TimeSpan.Zero || DateTimeOffset.UtcNow < envelope.RefreshAfterUtc)
                 {
@@ -57,10 +68,10 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
                     _logger.LogDebug("Refresh-ahead recompute for {CacheKey}", cacheKey);
                     var refreshed = await next();
                     if (refreshed is not null)
-                        await StoreAsync(cacheKey, cacheable, refreshed, cancellationToken);
+                        await StoreAsync(cacheKey, cacheable, refreshed, generation, expiresAtUtc, cancellationToken);
                     return refreshed;
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (ex is not OperationCanceledException && DateTimeOffset.UtcNow < envelope.ExpiresAtUtc)
                 {
                     // Serve-stale-on-error (RFC 5861 shape): the cached value is still inside its
                     // TTL — without this catch, refresh-ahead would be strictly worse than plain
@@ -81,8 +92,8 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
 
         var result = await next();
 
-        if (result is not null)
-            await StoreAsync(cacheKey, cacheable, result, cancellationToken);
+        if (result is not null && generationKnown)
+            await StoreAsync(cacheKey, cacheable, result, generation, expiresAtUtc, cancellationToken);
 
         return result;
     }
@@ -90,48 +101,32 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
     // The cache is best-effort infrastructure: a Redis outage must degrade to uncached database
     // reads, never turn a healthy read into a 500 (before or after PostgreSQL has answered).
     // Cancellation always propagates. Mirrors the fail-open posture of CacheInvalidator.
-    private async Task<string?> TryGetAsync(string cacheKey, CancellationToken cancellationToken)
+    private async Task<(bool Success, string? Value)> TryGetAsync(string cacheKey, CancellationToken cancellationToken)
     {
         try
         {
-            return await _cache.GetStringAsync(cacheKey, cancellationToken);
+            return (true, await _cache.GetStringAsync(cacheKey, cancellationToken));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "Cache read failed for {CacheKey}; treating as a miss", cacheKey);
-            return null;
+            return (false, null);
         }
     }
 
-    private async Task StoreAsync(string cacheKey, ICacheable cacheable, TResponse result, CancellationToken cancellationToken)
+    private async Task StoreAsync(string cacheKey, ICacheable cacheable, TResponse result,
+        string? generation, DateTimeOffset expiresAtUtc, CancellationToken cancellationToken)
     {
-        // Skip repopulation if a mutation invalidated this key while the handler was reading: the
-        // tombstone means our just-fetched value may already be stale, and writing it back would
-        // re-poison the key for the full TTL. If the tombstone cannot be checked at all, skip the
-        // write for the same reason — fail open on the read, fail safe on the repopulation.
-        string? tombstone;
-        try
-        {
-            tombstone = await _cache.GetStringAsync(CacheTombstone.KeyFor(cacheKey), cancellationToken);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogWarning(ex, "Invalidation tombstone check failed for {CacheKey}; skipping cache repopulation", cacheKey);
+        var (known, currentGeneration) = await TryGetAsync(CacheTombstone.KeyFor(cacheKey), cancellationToken);
+        if (!known || currentGeneration != generation || DateTimeOffset.UtcNow >= expiresAtUtc)
             return;
-        }
 
-        if (tombstone is not null)
-        {
-            _logger.LogDebug("Skipping cache repopulation for {CacheKey}; invalidation tombstone present", cacheKey);
-            return;
-        }
-
-        var refreshAfterUtc = DateTimeOffset.UtcNow + cacheable.CacheDuration - cacheable.CacheRefreshWindow;
-        var serialized = JsonSerializer.Serialize(new CacheEnvelope(result, refreshAfterUtc));
-        var options = new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = cacheable.CacheDuration
-        };
+        // The pre-write check only avoids needless obsolete writes. Correctness comes from storing
+        // the generation observed BEFORE the handler and checking it on every hit. An invalidation
+        // can complete between this check and SetAsync; that publication is still rejected on reads.
+        var refreshAfterUtc = expiresAtUtc - cacheable.CacheRefreshWindow;
+        var serialized = JsonSerializer.Serialize(new CacheEnvelope(result, refreshAfterUtc, expiresAtUtc, generation));
+        var options = new DistributedCacheEntryOptions { AbsoluteExpiration = expiresAtUtc };
 
         try
         {
@@ -148,7 +143,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         try
         {
             var envelope = JsonSerializer.Deserialize<CacheEnvelope>(cached);
-            return envelope is not null && envelope.RefreshAfterUtc != default
+            return envelope is not null && envelope.RefreshAfterUtc != default && envelope.ExpiresAtUtc != default
                 ? envelope
                 : null;
         }
@@ -165,5 +160,5 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
             : cacheable.CacheKey;
     }
 
-    private sealed record CacheEnvelope(TResponse? Value, DateTimeOffset RefreshAfterUtc);
+    private sealed record CacheEnvelope(TResponse? Value, DateTimeOffset RefreshAfterUtc, DateTimeOffset ExpiresAtUtc, string? Generation);
 }

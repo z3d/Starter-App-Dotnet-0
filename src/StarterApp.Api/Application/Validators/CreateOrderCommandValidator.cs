@@ -25,6 +25,11 @@ public class CreateOrderCommandValidator : IValidator<CreateOrderCommand>
         for (var i = 0; i < request.Items.Count; i++)
         {
             var item = request.Items[i];
+            if (item is null)
+            {
+                yield return new ValidationError($"Items[{i}]", "Order item must not be null");
+                continue;
+            }
 
             if (item.ProductId <= 0)
                 yield return new ValidationError($"Items[{i}].ProductId", "ProductId must be a positive integer");
@@ -34,6 +39,7 @@ public class CreateOrderCommandValidator : IValidator<CreateOrderCommand>
         }
 
         var duplicateProductIds = request.Items
+            .Where(item => item is not null)
             .GroupBy(item => item.ProductId)
             .Where(group => group.Count() > 1)
             .Select(group => group.Key)

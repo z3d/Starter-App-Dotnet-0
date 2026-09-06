@@ -5,89 +5,92 @@ using Microsoft.Extensions.Logging;
 
 namespace StarterApp.Functions;
 
-// Manual settlement for the Service Bus subscribers (host.json sets autoCompleteMessages: false).
-// Outcomes:
-//   handler succeeds              -> Complete.
-//   non-retryable failure         -> DeadLetter, with the exception type as the reason — redelivery
-//                                    cannot fix a payload that does not parse. The description carries
-//                                    only the type + correlation id (never payload-derived text; see
-//                                    DescribeFailure), so this broker metadata stays PII-free.
-//   transient, retries remaining  -> rethrow so the host retry policy re-runs in-process while the
-//                                    lock is held; FunctionsHostConfigConventionTests pins the
-//                                    worst-case retry window inside maxAutoLockRenewalDuration.
-//   transient, retries exhausted  -> Abandon for prompt redelivery instead of waiting out the lock;
-//                                    the subscription's MaxDeliveryCount is the poison backstop.
-//   host shutdown (cancellation)  -> leave unsettled; the lock lapses and the message redelivers.
+// Service Bus has no Functions execution-retry policy. Retry handler work explicitly while the
+// message lock is held; settling a successful handler is outside the loop to avoid repeating work
+// when Complete fails. A host shutdown or deadline leaves the message unsettled for redelivery.
 public static class MessageSettlement
 {
-    // Dead-letter descriptions have a broker size ceiling; keep well under it.
     private const int MaxReasonDescriptionLength = 2048;
+    internal const int MaxRetries = 5;
+    internal static readonly TimeSpan ExecutionTimeout = TimeSpan.FromMinutes(4);
 
-    // The handler is a method group (message, token) => Task rather than a closure: the async-suffix
-    // and payload-capture conventions scan the function types' declared and one-level-nested methods,
-    // and a Task-returning lambda lands in a display class that fails the former and hides from the
-    // latter. A named private ProcessAsync on the function class satisfies both.
-    public static async Task SettleAsync(
+    public static Task SettleAsync(
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions,
-        RetryContext? retryContext,
         ILogger logger,
         Func<ServiceBusReceivedMessage, CancellationToken, Task> handler,
         CancellationToken cancellationToken)
+        => SettleAsync(message, messageActions, logger, handler, Task.Delay, ExecutionTimeout, cancellationToken);
+
+    // Inject only the wait and deadline for deterministic retry tests. Production uses real delays
+    // and one total deadline shared by handler execution, backoff, and settlement.
+    internal static async Task SettleAsync(
+        ServiceBusReceivedMessage message,
+        ServiceBusMessageActions messageActions,
+        ILogger logger,
+        Func<ServiceBusReceivedMessage, CancellationToken, Task> handler,
+        Func<TimeSpan, CancellationToken, Task> delayAsync,
+        TimeSpan executionTimeout,
+        CancellationToken cancellationToken)
     {
-        try
-        {
-            await handler(message, cancellationToken);
-            await messageActions.CompleteMessageAsync(message, cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        // The failure branches deliberately do NOT attach the exception object to log calls: this
-        // worker's logs flow to OpenTelemetry with no redaction stage (the Serilog masking stack lives
-        // in the API only), and exception.Message can echo payload text once handlers deserialize
-        // domain events. Log the exception type + correlation id instead — the full payload lives in
-        // the correlation-bound archive. The host runtime still logs rethrown exceptions itself; that
-        // residual channel is recorded in docs/ARCHITECTURE_REVIEW.md with the deserialization trigger.
-        catch (Exception exception) when (IsNonRetryable(exception))
-        {
-            logger.LogError(
-                "Dead-lettering message {MessageId} ({Subject}, correlation {CorrelationId}): {FailureType} cannot succeed on redelivery",
-                message.MessageId, message.Subject, message.CorrelationId, exception.GetType().Name);
+        using var deadline = new CancellationTokenSource(executionTimeout);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        var token = linked.Token;
 
-            await messageActions.DeadLetterMessageAsync(
-                message,
-                deadLetterReason: exception.GetType().Name,
-                deadLetterErrorDescription: DescribeFailure(exception, message),
-                cancellationToken: cancellationToken);
-        }
-        catch (Exception exception) when (HasRetriesRemaining(retryContext))
+        for (var attempt = 0; ; attempt++)
         {
-            logger.LogWarning(
-                "Transient {FailureType} on message {MessageId} ({Subject}, correlation {CorrelationId}); attempt {Attempt} of {TotalAttempts}, host retry re-runs in-process",
-                exception.GetType().Name, message.MessageId, message.Subject, message.CorrelationId,
-                retryContext!.RetryCount + 1, retryContext.MaxRetryCount + 1);
+            token.ThrowIfCancellationRequested();
+            try
+            {
+                await handler(message, token);
+                token.ThrowIfCancellationRequested();
+                break;
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception) when (IsNonRetryable(exception))
+            {
+                token.ThrowIfCancellationRequested();
+                logger.LogError(
+                    "Dead-lettering message {MessageId} ({Subject}, correlation {CorrelationId}): {FailureType} cannot succeed on redelivery",
+                    message.MessageId, message.Subject, message.CorrelationId, exception.GetType().Name);
+                await messageActions.DeadLetterMessageAsync(message,
+                    deadLetterReason: exception.GetType().Name,
+                    deadLetterErrorDescription: DescribeFailure(exception, message), cancellationToken: token);
+                return;
+            }
+            catch (Exception exception)
+            {
+                token.ThrowIfCancellationRequested();
+                // No exception objects: worker logs have no PII redaction stage. Host invocation
+                // logging of propagated settlement/cancellation failures is outside this helper.
+                if (attempt == MaxRetries)
+                {
+                    logger.LogError(
+                        "Abandoning message {MessageId} ({Subject}, correlation {CorrelationId}) after handler retries ({FailureType}); broker redelivery takes over",
+                        message.MessageId, message.Subject, message.CorrelationId, exception.GetType().Name);
+                    await messageActions.AbandonMessageAsync(message, cancellationToken: token);
+                    return;
+                }
 
-            throw;
+                var delay = TimeSpan.FromSeconds(Math.Min(5 * Math.Pow(2, attempt), 45));
+                logger.LogWarning(
+                    "Transient {FailureType} on message {MessageId} ({Subject}, correlation {CorrelationId}); retry {Retry} of {MaxRetries} after {RetryDelay}",
+                    exception.GetType().Name, message.MessageId, message.Subject, message.CorrelationId,
+                    attempt + 1, MaxRetries, delay);
+                await delayAsync(delay, token);
+            }
         }
-        catch (Exception exception)
-        {
-            logger.LogError(
-                "Abandoning message {MessageId} ({Subject}, correlation {CorrelationId}) after in-process retries ({FailureType}); broker redelivery takes over",
-                message.MessageId, message.Subject, message.CorrelationId, exception.GetType().Name);
 
-            await messageActions.AbandonMessageAsync(message, cancellationToken: cancellationToken);
-        }
+        await messageActions.CompleteMessageAsync(message, token);
     }
 
     // Redelivering the same bytes cannot fix these. Extend as real handler logic lands
     // (e.g. domain rule violations surfaced while applying an event).
     public static bool IsNonRetryable(Exception exception) =>
         exception is JsonException or InvalidDataException;
-
-    private static bool HasRetriesRemaining(RetryContext? retryContext) =>
-        retryContext is not null && retryContext.RetryCount < retryContext.MaxRetryCount;
 
     // The dead-letter description is unredacted broker metadata — and nothing in this worker is
     // redacted (see the comment on the failure branches above) — so it must carry no payload-derived

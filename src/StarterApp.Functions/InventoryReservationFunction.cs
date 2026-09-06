@@ -21,14 +21,13 @@ public class InventoryReservationFunction
         [ServiceBusTrigger("domain-events", "inventory-reservation", Connection = "servicebus")]
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions,
-        FunctionContext context,
         CancellationToken cancellationToken)
     {
         var correlationId = ResolveCorrelationId(message);
         using var correlationScope = CorrelationContext.Push(correlationId);
         using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = correlationId });
 
-        await MessageSettlement.SettleAsync(message, messageActions, context.RetryContext, _logger, ProcessAsync, cancellationToken);
+        await MessageSettlement.SettleAsync(message, messageActions, _logger, ProcessAsync, cancellationToken);
     }
 
     private async Task ProcessAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken)

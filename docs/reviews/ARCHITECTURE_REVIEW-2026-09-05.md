@@ -3,7 +3,8 @@
 Reviewed commit `05179fc` for bugs and improvements. This is a targeted review with parallel
 subsystem inspection and local verification, not an exhaustive audit. Reviewer sessions ended
 before their final reports; the primary reviewer independently verified every finding below.
-No runtime code was changed. The historical numerical score is not recalibrated by this review.
+The initial review changed no runtime code. The fixes are recorded in the Resolution section below.
+The historical numerical score is not recalibrated by this review.
 
 ## Open findings
 
@@ -134,7 +135,7 @@ no dependency additions or architectural rewrites are justified by these finding
 
 The user requested completion of the two unfinished review areas. This continuation reviewed
 `87f2ff5` (runtime source unchanged from the initial pass) and adds three confirmed findings.
-The current total is eight: three High, four Medium, and one Low. Runtime fixes remain open.
+The discovery total was eight: three High, four Medium, and one Low. Their fixes are recorded below.
 
 ### 6. Service Bus subscribers do not receive the configured execution backoff
 **Severity: High** | Files: `src/StarterApp.Functions/host.json:20`, `src/StarterApp.Functions/MessageSettlement.cs:63`, `src/StarterApp.Functions/MessageSettlement.cs:89`
@@ -225,3 +226,50 @@ Continuation validation: formatting verification and build passed with zero warn
 Shell reproductions used only temporary copies and synthetic inputs. Full container-backed
 Functions/ZAP validation remains unavailable without Docker. This continuation modifies only
 review documentation, not runtime or test behavior.
+
+
+## Resolution — 2026-09-06
+
+All eight findings are fixed. The runtime changes retain full-fidelity archives, existing API
+contracts, owner scoping, and the cache's fail-open posture on infrastructure errors.
+
+| Finding | Change and regression evidence |
+|---|---|
+| 1. Invalid/truncated JSON log exposure | Parse failures now return a fixed suppression marker. Five payload regression cases were first run against the original implementation and failed; they then passed with the fixes. Coverage includes malformed JSON, real HTTP capture truncation, and rendered sink logs while the archive preserves original content. |
+| 2. Sensitive ancestors in indexes | The extractor skips an entire sensitive property subtree. Object/array cases include a custom sensitive name and an ordinary customerId positive control; they assert references, blob paths, and rendered logs. |
+| 3. Cache publication race | Every invalidation writes a fresh generation before removing the value; each envelope carries the generation observed before the database read. Readers reject mismatches. Expiry is pinned before cache/database I/O and checked in the envelope as well as the backend, so a delayed publication cannot outlive the invalidation-retention window. Three deterministic race/expiry tests failed on the original code and then passed. |
+| 4. Null order items | Validation emits indexed errors and filters nulls before duplicate grouping. Three new invalid-input cases first failed with NullReferenceException, then passed. Two HTTP regressions verify authenticated 400 ProblemDetails responses. |
+| 5. Pure tests require PostgreSQL | Eighteen pure methods (24 test cases) moved from seven database fixture classes into fixture-free command test classes. The two remaining handler classes contained only persistence tests. Existing assertions were retained. |
+| 6. Service Bus execution backoff | Replaced host RetryContext dependence with five explicit handler retries (5/10/20/40/45 seconds) and one four-minute deadline shared by execution, backoff, and settlement. Completion is outside the retry loop. Tests cover retry success/exhaustion, permanent failures, PII-free logging, cancellation, deadlines, and completion failure without handler replay. Both subscribers are exercised with a real FailClosed capture sink whose archive fails once, then recovers. |
+| 7. DAST target substitution | A jq-based renderer preserves remote scheme/host/port/base path, maps loopback only, rejects unsuitable base URLs, and escapes YAML/regex fields. Rendering is single-pass so placeholder-like user input is never expanded recursively. |
+| 8. Cross-owner list false pass | Captures HTTP status and body together and requires status 200 plus an actual empty data array. The runner regression script verifies error statuses, malformed/missing/non-array data, and the success case. |
+
+The DAST harness tests failed 26 cases against copies of the original runner/template, and passed
+after the fix. A further placeholder-recursion test failed on the first renderer implementation
+and passed after switching to single-pass substitution. These tests run in the DAST workflow
+before the live scan and need no container or network.
+
+The cache generation adds one cache read on a hit. Cache durations are bounded by the ten-minute
+invalidation retention (both a convention and an uncached runtime fallback enforce it). Old
+envelopes without fixed expiry are treated as misses; a legacy constant tombstone disables cache
+use until it expires. New replicas therefore do not reinterpret old values as valid new envelopes.
+As before, an invalidation that cannot reach Redis may leave a value stale until expiry; the
+committed database write still succeeds. The fix is for successful invalidation/publication races,
+not a new cross-system transaction guarantee.
+
+The Functions deadline is cooperative: handler code must honor its cancellation token. A deadline
+or shutdown leaves the message unsettled; exhausted retries abandon for broker redelivery.
+Successful handler work is never repeated in-process merely because completion failed. No claim
+of exactly-once broker delivery is introduced.
+
+Final validation: `dotnet format --no-restore` succeeded; `dotnet build --no-restore` passed
+with zero warnings and errors; `dotnet test --no-build --filter 'Category!=Aspire'` passed all
+760 API/unit/integration tests and 14 AppHost configuration/convention tests. All 32 deterministic
+DAST shell regressions passed. Separately, all 29 fixture-free command/validator cases passed
+without a configured Docker socket. Disabling handler retries made both subscriber regressions
+fail; reusing invalidation generations and exceeding retention each failed their regression.
+
+PostgreSQL-backed tests ran through the existing Podman machine's Docker-compatible socket;
+the earlier DockerUnavailable failures were environment discovery failures. The full distributed
+Aspire rig and live ZAP active scan were not run; deterministic runner tests and subscriber/capture
+tests do not claim to execute either host.

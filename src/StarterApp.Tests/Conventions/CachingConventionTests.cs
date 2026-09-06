@@ -20,11 +20,15 @@ public class CachingConventionTests : ConventionTestBase
     [Fact]
     public void CacheableQueries_CacheDurationMustBePositive()
     {
-        foreach (var type in GetCacheableTypes())
+        var types = GetCacheableTypes().ToList();
+        Assert.NotEmpty(types);
+        foreach (var type in types)
         {
             var instance = CreateDefaultInstance(type);
             Assert.True(instance.CacheDuration > TimeSpan.Zero,
                 $"{type.Name}.CacheDuration must be positive");
+            Assert.True(instance.CacheDuration <= CacheTombstone.Ttl,
+                $"{type.Name}.CacheDuration must fit inside invalidation generation retention");
         }
     }
 

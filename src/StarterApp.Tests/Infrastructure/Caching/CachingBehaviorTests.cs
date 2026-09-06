@@ -81,7 +81,7 @@ public class CachingBehaviorTests
         _cacheMock.Verify(c => c.SetAsync(
             $"Test:{request.Id}",
             It.IsAny<byte[]>(),
-            It.Is<DistributedCacheEntryOptions>(o => o.AbsoluteExpirationRelativeToNow == TimeSpan.FromMinutes(5)),
+            It.Is<DistributedCacheEntryOptions>(o => o.AbsoluteExpiration > DateTimeOffset.UtcNow.AddMinutes(4) && o.AbsoluteExpiration <= DateTimeOffset.UtcNow.AddMinutes(5)),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -170,7 +170,7 @@ public class CachingBehaviorTests
         _cacheMock.Verify(c => c.SetAsync(
             "Test:9",
             It.IsAny<byte[]>(),
-            It.Is<DistributedCacheEntryOptions>(o => o.AbsoluteExpirationRelativeToNow == TimeSpan.FromMinutes(5)),
+            It.Is<DistributedCacheEntryOptions>(o => o.AbsoluteExpiration > DateTimeOffset.UtcNow.AddMinutes(4) && o.AbsoluteExpiration <= DateTimeOffset.UtcNow.AddMinutes(5)),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -319,7 +319,7 @@ public class CachingBehaviorTests
 
     private static byte[] Envelope(string value, DateTimeOffset refreshAfterUtc)
         => System.Text.Encoding.UTF8.GetBytes(
-            $"{{\"Value\":{JsonSerializer.Serialize(value)},\"RefreshAfterUtc\":{JsonSerializer.Serialize(refreshAfterUtc)}}}");
+            JsonSerializer.Serialize(new { Value = value, RefreshAfterUtc = refreshAfterUtc, ExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(5), Generation = (string?)null }));
 
     [Fact]
     public async Task HandleAsync_WhenCacheReadThrows_TreatsItAsAMissAndReturnsTheHandlerResult()

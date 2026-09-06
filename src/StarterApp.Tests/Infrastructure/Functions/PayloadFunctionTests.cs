@@ -1,5 +1,6 @@
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using StarterApp.Functions;
 using StarterApp.ServiceDefaults.Payloads;
@@ -10,6 +11,49 @@ namespace StarterApp.Tests.Infrastructure.Functions;
 
 public class PayloadFunctionTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ServiceBusFunction_WhenFailClosedArchiveRecovers_RetriesBeforeCompleting(bool inventory)
+    {
+        var store = new FailOnceArchiveStore();
+        var sink = PayloadCaptureTests.CreateSink(store, DateTimeOffset.UtcNow,
+            new PayloadCaptureOptions { ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed });
+        var message = ServiceBusModelFactory.ServiceBusReceivedMessage(
+            body: BinaryData.FromString("{}"), messageId: "retry-archive", correlationId: "retry-archive",
+            contentType: "application/json");
+        var actions = new MessageSettlementTests.RecordingMessageActions();
+
+        if (inventory)
+            await new InventoryReservationFunction(NullLogger<InventoryReservationFunction>.Instance, sink)
+                .RunAsync(message, actions, CancellationToken.None);
+        else
+            await new OrderConfirmationEmailFunction(NullLogger<OrderConfirmationEmailFunction>.Instance, sink)
+                .RunAsync(message, actions, CancellationToken.None);
+
+        Assert.Equal(new[] { "complete" }, actions.Calls);
+        var archive = Assert.Single(store.Inner.Lines, pair => pair.Key.StartsWith("archive/", StringComparison.Ordinal));
+        Assert.Single(archive.Value);
+        Assert.Equal(1, store.Failures);
+    }
+
+    private sealed class FailOnceArchiveStore : IPayloadArchiveStore
+    {
+        public InMemoryPayloadArchiveStore Inner { get; } = new();
+        public int Failures { get; private set; }
+        public Task AppendLineAsync(string blobName, string line, CancellationToken cancellationToken)
+        {
+            if (Failures == 0)
+            {
+                Failures++;
+                throw new TimeoutException("Transient archive outage");
+            }
+            return Inner.AppendLineAsync(blobName, line, cancellationToken);
+        }
+        public Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
+            => Inner.DeleteOlderThanAsync(cutoffUtc, cancellationToken);
+    }
+
     [Fact]
     public async Task ServiceBusFunction_ShouldCaptureInboundPayloadWithCorrelation()
     {
@@ -26,7 +70,7 @@ public class PayloadFunctionTests
 
         var messageActions = new MessageSettlementTests.RecordingMessageActions();
 
-        await function.RunAsync(message, messageActions, new MessageSettlementTests.StubFunctionContext(), CancellationToken.None);
+        await function.RunAsync(message, messageActions, CancellationToken.None);
 
         Assert.Equal(new[] { "complete" }, messageActions.Calls);
 

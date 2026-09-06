@@ -23,15 +23,6 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # --- configuration ------------------------------------------------------------
 API_PORT="${API_PORT:-5164}"
 TARGET_URL="${TARGET_URL:-http://localhost:${API_PORT}}"
-# Port ZAP targets via host.docker.internal:<port>. Derive it from TARGET_URL so a
-# SKIP_BOOT scan against a custom port stays in sync with the rendered plan; fall
-# back to API_PORT when TARGET_URL carries no explicit numeric port. Strip the
-# scheme and any path/query/fragment before reading the port so a trailing path
-# (e.g. http://host:5164/api) doesn't defeat the parse.
-ZAP_HOSTPORT="${TARGET_URL#*://}"   # drop scheme://
-ZAP_HOSTPORT="${ZAP_HOSTPORT%%/*}"  # drop /path?query#frag
-ZAP_PORT="${ZAP_HOSTPORT##*:}"      # port after last colon (whole string if none)
-[[ "$ZAP_PORT" =~ ^[0-9]+$ ]] || ZAP_PORT="$API_PORT"
 SKIP_BOOT="${SKIP_BOOT:-0}"               # 1 = scan an existing instance, skip DB/API boot
 ZAP_IMAGE="${ZAP_IMAGE:-ghcr.io/zaproxy/zaproxy:stable}"
 PG_IMAGE="${PG_IMAGE:-postgres:16-alpine}"
@@ -50,6 +41,7 @@ RUN_ID="dast-$$"
 PG_CONTAINER="${RUN_ID}-pg"
 IDP_CONTAINER="${RUN_ID}-idp"
 source "$REPO_ROOT/scripts/lib/dev-idp.sh"
+source "$SCRIPT_DIR/lib/plan.sh"
 CONN="Host=localhost;Port=${PG_PORT};Database=${PG_DB};Username=postgres;Password=postgres"
 
 API_PID=""
@@ -87,6 +79,13 @@ trap cleanup EXIT INT TERM
 for tool in "$CONTAINER_CLI" jq; do
   command -v "$tool" >/dev/null 2>&1 || { err "Required tool '$tool' not found on PATH."; exit 2; }
 done
+
+TARGET_URLS="$(dast_target_urls "$TARGET_URL")" || {
+  err "TARGET_URL must be an HTTP(S) base URL with a valid port and no credentials, query or fragment."
+  exit 2
+}
+TARGET_URL="$(jq -r .host <<< "$TARGET_URLS")"
+ZAP_BASE_URL="$(jq -r .scanner <<< "$TARGET_URLS")"
 
 # --- boot the target ----------------------------------------------------------
 if [[ "$SKIP_BOOT" != "1" ]]; then
@@ -181,12 +180,10 @@ if [[ -z "${DAST_TOKEN:-}" ]]; then
     || { err "Token request failed."; exit 1; }
 fi
 
-# Render the automation template with the real port and token (single source of
-# truth lives here, not in the YAML). The rendered plan lands under the
-# git-ignored reports dir; the token is a throwaway dev-realm credential.
+# Render the validated container URL and token as correctly escaped YAML scalars.
+# The rendered plan stays under the git-ignored reports directory.
 RENDERED_PLAN="$SCRIPT_DIR/reports/automation.rendered.yaml"
-sed -e "s/__API_PORT__/${ZAP_PORT}/g" -e "s|__DAST_TOKEN__|${DAST_TOKEN}|g" \
-  "$SCRIPT_DIR/automation.yaml" > "$RENDERED_PLAN"
+dast_render_plan "$ZAP_BASE_URL" "$SCRIPT_DIR/automation.yaml" > "$RENDERED_PLAN"
 
 # --add-host makes host.docker.internal resolve to the host on Linux too.
 # Capture ZAP's exit code instead of swallowing it with `|| true`. ZAP autorun
@@ -323,10 +320,10 @@ if [[ "$SKIP_BOOT" != "1" && "$SKIP_SEED" != "1" ]]; then
     local method="$1" path="$2"
     curl -s -o /dev/null -w '%{http_code}' -X "$method" "${idem_headers[@]}" "${TARGET_URL}${path}"
   }
-  # Returns the response body for a GET as owner-01.
-  xo_body() {
+  # Return body and status together; the final line is curl metadata, not JSON.
+  xo_response() {
     local path="$1"
-    curl -s "${idem_headers[@]}" "${TARGET_URL}${path}"
+    curl -sS -w '\n%{http_code}' "${idem_headers[@]}" "${TARGET_URL}${path}"
   }
 
   # 1. Cross-owner GET customer by id -> must be 404 (read hidden).
@@ -359,12 +356,15 @@ if [[ "$SKIP_BOOT" != "1" && "$SKIP_SEED" != "1" ]]; then
   # 4. Cross-owner list orders-by-customer (owner-02's customer id) -> 200 with an
   #    empty data array. The list path filters by owner, so the foreign customer's
   #    orders must never appear. A non-empty data array is a leak.
-  body=$(xo_body "/api/v1/orders/customer/${XO_CUSTOMER_ID}")
-  rows=$(printf '%s' "$body" | jq -r '(.data // []) | length' 2>/dev/null || echo "parse-error")
-  if [[ "$rows" == "0" ]]; then
-    log "  OK orders/customer/${XO_CUSTOMER_ID} -> empty list (owner-filtered)"
+  response=$(xo_response "/api/v1/orders/customer/${XO_CUSTOMER_ID}")
+  code="${response##*$'\n'}"
+  body="${response%$'\n'*}"
+  if [[ "$code" == "200" ]] && printf '%s' "$body" | jq -e '
+    type == "object" and (.data | type == "array" and length == 0)
+  ' >/dev/null 2>&1; then
+    log "  OK orders/customer/${XO_CUSTOMER_ID} -> 200 with empty list (owner-filtered)"
   else
-    err "  IDOR orders/customer/${XO_CUSTOMER_ID} -> $rows row(s) (expected 0 — owner-02's orders leaked to owner-01)"
+    err "  IDOR probe orders/customer/${XO_CUSTOMER_ID} -> HTTP $code (expected 200 with an empty data array)"
     idor_fail=1
   fi
 

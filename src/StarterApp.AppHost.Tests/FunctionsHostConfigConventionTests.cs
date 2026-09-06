@@ -5,44 +5,18 @@ namespace StarterApp.AppHost.Tests;
 
 public class FunctionsHostConfigConventionTests
 {
-    // Functions run with PayloadCapture FailClosed, so a capture (archive) failure throws and the
-    // message is abandoned. Without a host-level retry policy, Service Bus redelivers immediately
-    // and MaxDeliveryCount burns in seconds — a seconds-long blob outage dead-letters live events.
-    // The publish side deliberately pauses with retry budget intact; the consume side must back off
-    // too. The retry window must stay inside maxAutoLockRenewalDuration so the lock survives retries.
     [Fact]
-    public void HostJson_MustDefineBackoffRetryWithinLockRenewalWindow()
+    public void HandlerRetryDeadline_MustFitInsideLockRenewal_WithoutUnsupportedHostPolicy()
     {
         var hostJsonPath = Path.Combine(FindRepoRoot(), "src", "StarterApp.Functions", "host.json");
         using var document = JsonDocument.Parse(File.ReadAllText(hostJsonPath));
-
-        Assert.True(document.RootElement.TryGetProperty("retry", out var retry),
-            "host.json must define a host-level retry policy; without one, abandoned messages burn MaxDeliveryCount in seconds.");
-
-        Assert.Equal("exponentialBackoff", retry.GetProperty("strategy").GetString());
-
-        var maxRetryCount = retry.GetProperty("maxRetryCount").GetInt32();
-        Assert.InRange(maxRetryCount, 3, 10);
-
-        var minimumInterval = TimeSpan.Parse(retry.GetProperty("minimumInterval").GetString()!, CultureInfo.InvariantCulture);
-        var maximumInterval = TimeSpan.Parse(retry.GetProperty("maximumInterval").GetString()!, CultureInfo.InvariantCulture);
-        Assert.True(minimumInterval >= TimeSpan.FromSeconds(1), "Retry minimum interval must back off, not hot-loop.");
-        Assert.True(maximumInterval >= minimumInterval, "Retry maximum interval must not undercut the minimum.");
-
+        Assert.False(document.RootElement.TryGetProperty("retry", out _),
+            "Service Bus does not support Functions execution-retry policies; retry handler work explicitly.");
         var lockRenewal = TimeSpan.Parse(
             document.RootElement.GetProperty("extensions").GetProperty("serviceBus").GetProperty("maxAutoLockRenewalDuration").GetString()!,
             CultureInfo.InvariantCulture);
-
-        // Worst case is bounded by maxRetryCount * maximumInterval; it must fit inside the lock
-        // renewal window or retries silently race lock loss and the message redelivers mid-retry.
-        // Require it to stay within 80% of the window rather than exactly on the ceiling: the linear
-        // bound ignores per-attempt handler execution time and renewal jitter, so the remaining 20%
-        // is deliberate headroom. A change that erases the margin (e.g. maximumInterval back to 60s)
-        // fails here instead of shipping a zero-margin config.
-        var worstCaseRetryWindow = maximumInterval * maxRetryCount;
-        Assert.True(worstCaseRetryWindow <= lockRenewal * 0.8,
-            $"Retry worst case ({worstCaseRetryWindow}) must stay within 80% of maxAutoLockRenewalDuration " +
-            $"({lockRenewal}); leave headroom for per-attempt handler execution, not just bare fit.");
+        Assert.True(StarterApp.Functions.MessageSettlement.ExecutionTimeout <= lockRenewal * 0.8,
+            "The total handler/retry deadline must leave settlement and lock-renewal headroom.");
     }
 
     // %setting% trigger lookups resolve against IConfiguration, where the environment-variable
