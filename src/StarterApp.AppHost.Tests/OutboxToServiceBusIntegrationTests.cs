@@ -164,6 +164,12 @@ public class OutboxToServiceBusIntegrationTests
         var storageConnectionString = await app.GetConnectionStringAsync("payloadarchive");
         Assert.NotNull(storageConnectionString);
 
+        // The assertions below are produced by the subscriber container, which the fixture
+        // deliberately keeps out of the shared readiness gate (see AspireE2EFixture). Await it
+        // here rather than rely on FunctionsContainerIntegrationTests having run first: the
+        // published message waits on the subscription, so gating late costs nothing.
+        await _fixture.EnsureFunctionsReadyAsync();
+
         var subscriberCaptureContent = await PollForBlobContentsAsync(
             storageConnectionString,
             "payload-observability",

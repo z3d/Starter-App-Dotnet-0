@@ -85,3 +85,45 @@ schedule.
 
 The score stays at 8.1. These are residuals of a verified fix, found by a review that the fix
 itself invited, and none reopens a closed finding.
+
+## Continuation — emulator assessment
+
+Prompted by the question whether a Service Bus emulator library should replace or supplement
+the fake-based settlement tests. Both candidates exist: `Testcontainers.ServiceBus` (4.14.0,
+about two million downloads) wraps Microsoft's emulator image and its MSSQL sidecar for xunit
+use without Aspire; `Spotflow.InMemory.Azure.ServiceBus` (0.16.4) fakes the SDK client, sender,
+receiver and processor in-process.
+
+What the emulator proves here today: one Aspire fact publishes an order and observes both
+subscribers' archive blobs, so publish, consume and capture are covered end to end. Nothing
+observes a settlement outcome; `SubQueue.DeadLetter` and `CreateReceiver` appear nowhere in the
+repo, and `StarterApp.AppHost.Tests` does not reference `Azure.Messaging.ServiceBus`.
+
+| Behaviour | Proven by | A broker would add |
+|---|---|---|
+| Retry then complete | `MessageSettlementTests` against the recording fake | Complete succeeds on a still-valid lock; no reappearance |
+| Backoff then abandon | Same | Abandon redelivers, `DeliveryCount` increments, fifth delivery dead-letters |
+| Dead-letter reason and description | Same, including the 2048-character truncation | The broker accepts the fields; the ceiling has never been exercised |
+| Lock renewal across the 210 s deadline | `FunctionsHostConfigConventionTests` arithmetic only | That `maxAutoLockRenewalDuration` renews a 30 s lock across the whole handler |
+
+Decision: no library. The Aspire fixture already hands any fact a live emulator connection
+string, so `Testcontainers.ServiceBus` adds container cost without fidelity; an in-memory fake
+cannot model the Functions host or the broker, which is exactly where the unproven claims live.
+A broker-timing test would wait roughly 3.5 minutes inside the `aspire` job that is already a
+cold-start flake watch-item with no `timeout-minutes`, and a dead-letter test cannot be triggered
+because no subscriber deserializes yet, so nothing throws what `IsNonRetryable` dead-letters on.
+The re-add trigger is recorded in the living review's deferred list.
+
+### 15. Outbox end-to-end fact relied on test ordering for the Functions gate
+
+**Severity: Low** | File: `src/StarterApp.AppHost.Tests/OutboxToServiceBusIntegrationTests.cs`
+
+`CreateOrder_ShouldWriteAndProcessOutboxEvent` asserted subscriber-produced archive blobs
+within a 60-second poll but never awaited `EnsureFunctionsReadyAsync()`, the gate the fixture
+comment says every subscriber-dependent fact must use. It passed only when
+`FunctionsContainerIntegrationTests` had already paid the in-container image build and boot,
+which xunit does not guarantee. This is a plausible cause of the recorded `aspire` flake.
+
+**Resolution:** the fact awaits the gate immediately before the subscriber blob poll. The
+publish-side assertions stay independent of the Functions boot, and the fixture caches the gate,
+so the cost is paid once per collection. Verified by the `aspire` CI job on the commit.

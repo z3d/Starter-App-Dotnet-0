@@ -106,7 +106,8 @@ are resolved, with failing-before/passing-after regressions and final validation
 - **`aspire` CI flake on Service Bus emulator readiness.** Cold-runner emulator start-up can time
   out the healthy-API fact. The shared E2E fixture gates every fact on API readiness (5-minute
   budget); subscriber-dependent facts opt in via `EnsureFunctionsReadyAsync()` (10-minute budget).
-  Raise the timeout if it recurs.
+  Since 2026-09-06 the outbox end-to-end fact awaits that gate itself instead of relying on test
+  ordering, so a recurrence is a genuine boot timeout. Raise the timeout if it recurs.
 - **`IArtifactCaptureSink` has no producer.** The slot shipped ahead of any producer on
   2026-06-12. Wire the first artifact producer through it; if a year passes with none, reopen the
   keep decision.
@@ -125,6 +126,18 @@ are resolved, with failing-before/passing-after regressions and final validation
   pre-change checklist; the doc-mirror convention test extends to every new pair.
 - **Compiler-enforced module boundaries.** Trigger and design are in the folder-only entry above
   and the modular-monolith decision in `DECISIONS.md`.
+- **Broker-observed settlement tests.** Retry-then-complete, abandon-then-redeliver, dead-letter
+  reason, and lock renewal across the 210 s deadline are proven only against a fake
+  `ServiceBusMessageActions` plus constant arithmetic; no test opens a receiver or reads a
+  dead-letter queue. Assessed 2026-09-06: `Testcontainers.ServiceBus` wraps the same emulator
+  image the Aspire fixture already runs (`App.GetConnectionStringAsync("servicebus")` hands a
+  test a live broker today), and the Spotflow in-memory package fakes the SDK, not the Functions
+  host where the risk lives, so neither is adopted. Trigger: the first subscriber that
+  deserializes an event (a poison path exists), or a `MessageLockLost` seen in the `aspire` job
+  or production logs. Then reference `Azure.Messaging.ServiceBus` from `StarterApp.AppHost.Tests`,
+  add one fact that publishes a malformed body and reads `$deadletterqueue` for reason
+  `JsonException`, and give the `aspire` job a `timeout-minutes`. Details in the
+  [2026-09-06 record](reviews/ARCHITECTURE_REVIEW-2026-09-06.md#continuation--emulator-assessment).
 
 ## Process
 
