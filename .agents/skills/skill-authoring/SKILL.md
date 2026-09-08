@@ -17,7 +17,7 @@ What is deleted rather than relocated: generic engineering behaviour (reproduce-
 
 Shared context lives in `AGENTS.md`, referenced not restated — duplicated context drifts and then disagrees. End every skill with **Related skills**.
 
-**Mirror rule:** every skill file — including each `reference/*.md` — exists in both trees (`.agents/skills` and `.claude/skills`), identical modulo the doc-name/skills-path tokens. `AgentDocsConventionTests` compares the *file sets* and canonicalized content, so a reference file without its twin fails the build. Edit both sides in the same change.
+**Mirror rule:** the `.agents` tree is generated from the Claude-side skills by `scripts/sync-agent-docs.sh` (run by the pre-commit hook, checked in CI). Never edit the mirror by hand; add, rename, or delete files on the Claude side only.
 
 ## Operational skills (anything that executes a workflow)
 

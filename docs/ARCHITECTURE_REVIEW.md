@@ -10,7 +10,7 @@ that produced it. Before dismissing or re-raising anything, check the record, no
 | [2026-06-10 codebase review](reviews/REVIEW-2026-06-10.md) | Four-reviewer full-solution pass; all findings resolved the same day |
 | [2026-08-04 post-IdP](reviews/ARCHITECTURE_REVIEW-2026-08-04-post-idp.md) | Four findings from the gateway → OIDC conversion; resolved 2026-09-03 |
 | [2026-08-04 runtime hardening](reviews/ARCHITECTURE_REVIEW-2026-08-04-runtime-hardening.md) | Five findings; resolved 2026-09-03 |
-| [2026-09-02 whole solution](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md) ([rendered](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.html)) | Twenty-two findings, three dismissed; resolved and validated 2026-09-03 |
+| [2026-09-02 whole solution](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md) | Twenty-two findings, three dismissed; resolved and validated 2026-09-03 |
 | [2026-09-05 targeted review](reviews/ARCHITECTURE_REVIEW-2026-09-05.md) | Eight findings, **all resolved 2026-09-06**; regression and validation evidence in the record |
 | [2026-09-06 fix review](reviews/ARCHITECTURE_REVIEW-2026-09-06.md) | Independent review of the 2026-09-06 fix commit; fourteen residuals, twelve fixed the same day, two recorded with triggers |
 

@@ -82,4 +82,4 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 
 A `PreToolUse` hook (`.claude/hooks/protect-commands.sh`) denies catastrophic wipes and prompts on recoverable-but-destructive commands; `permissions.deny` in `.claude/settings.json` blocks reading `.env*`, `appsettings.Development.json`, `secrets/**`, and key material. Both fail open, so neither is a substitute for care.
 
-`CLAUDE.md`/`.claude/skills` and `AGENTS.md`/`.agents/skills` are mirrors; `AgentDocsConventionTests` fails the build on any drift beyond the doc-name and skills-path tokens. Edit both sides in the same change.
+`AGENTS.md` and the `.agents` tree are generated from the Claude-side docs by `scripts/sync-agent-docs.sh`, which the pre-commit hook runs and stages; CI fails if the committed mirror is stale. Edit the Claude side only, never the mirror.
