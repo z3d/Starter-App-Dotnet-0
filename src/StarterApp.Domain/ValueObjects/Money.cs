@@ -1,6 +1,6 @@
 namespace StarterApp.Domain.ValueObjects;
 
-public class Money : IEquatable<Money>
+public sealed record Money
 {
     public const int MaxCurrencyLength = 3;
     public const int CurrencyDecimalPlaces = 2;
@@ -36,19 +36,8 @@ public class Money : IEquatable<Money>
         return new Money(rounded, currency.ToUpperInvariant());
     }
 
-    public static bool IsValidCurrencyCode(string? currency)
-    {
-        if (string.IsNullOrWhiteSpace(currency) || currency.Length != MaxCurrencyLength)
-            return false;
-
-        foreach (var character in currency)
-        {
-            if (character is not (>= 'A' and <= 'Z' or >= 'a' and <= 'z'))
-                return false;
-        }
-
-        return true;
-    }
+    public static bool IsValidCurrencyCode(string? currency) =>
+        currency is { Length: MaxCurrencyLength } && currency.All(char.IsAsciiLetter);
 
     public static Money FromDecimal(decimal amount)
     {
@@ -76,24 +65,6 @@ public class Money : IEquatable<Money>
 
         return Create(Amount - other.Amount, Currency);
     }
-
-    public bool Equals(Money? other)
-    {
-        if (other is null)
-            return false;
-
-        return Amount == other.Amount && Currency == other.Currency;
-    }
-
-    public override bool Equals(object? obj) => Equals(obj as Money);
-
-    public override int GetHashCode()
-    {
-        return HashCode.Combine(Amount, Currency);
-    }
-
-    public static bool operator ==(Money? left, Money? right) => Equals(left, right);
-    public static bool operator !=(Money? left, Money? right) => !Equals(left, right);
 
     public override string ToString()
     {

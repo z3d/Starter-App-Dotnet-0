@@ -1,6 +1,6 @@
 namespace StarterApp.Domain.ValueObjects;
 
-public class Email : IEquatable<Email>
+public sealed record Email
 {
     public const int MaxEmailLength = 320;
 
@@ -37,24 +37,6 @@ public class Email : IEquatable<Email>
             && System.Net.Mail.MailAddress.TryCreate(email, out var addr)
             && addr.Address == email;
     }
-
-    public bool Equals(Email? other)
-    {
-        if (other is null)
-            return false;
-
-        return Value == other.Value;
-    }
-
-    public override bool Equals(object? obj) => Equals(obj as Email);
-
-    public override int GetHashCode()
-    {
-        return Value.GetHashCode(StringComparison.Ordinal);
-    }
-
-    public static bool operator ==(Email? left, Email? right) => Equals(left, right);
-    public static bool operator !=(Email? left, Email? right) => !Equals(left, right);
 
     public override string ToString()
     {

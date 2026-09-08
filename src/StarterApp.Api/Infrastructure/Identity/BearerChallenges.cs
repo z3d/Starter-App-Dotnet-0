@@ -7,6 +7,22 @@ namespace StarterApp.Api.Infrastructure.Identity;
 // Inputs are compile-time scope constants and deployer config, so quoting is sufficient.
 internal static class BearerChallenges
 {
+    // Reaching a filter unauthenticated means the bearer handler accepted the token but the
+    // identity contract mapping rejected it (e.g. missing sub/tid) — invalid_token, not a missing
+    // Authorization header (that 401s at the authorization middleware).
+    public static IResult Unauthenticated(EndpointFilterInvocationContext context) =>
+        Problem(context, StatusCodes.Status401Unauthorized, "Unauthorized", "Authentication is required.",
+            InvalidToken("The token does not satisfy the identity claim contract."));
+
+    public static IResult Forbidden(EndpointFilterInvocationContext context, string title, string detail, string challenge) =>
+        Problem(context, StatusCodes.Status403Forbidden, title, detail, challenge);
+
+    private static IResult Problem(EndpointFilterInvocationContext context, int statusCode, string title, string detail, string challenge)
+    {
+        context.HttpContext.Response.Headers.WWWAuthenticate = challenge;
+        return Results.Problem(statusCode: statusCode, title: title, detail: detail);
+    }
+
     public static string InvalidToken(string description) =>
         $"Bearer error=\"invalid_token\", error_description=\"{description}\"";
 

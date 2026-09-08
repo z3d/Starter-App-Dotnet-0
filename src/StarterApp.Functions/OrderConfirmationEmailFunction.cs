@@ -25,7 +25,7 @@ public class OrderConfirmationEmailFunction
         ServiceBusMessageActions messageActions,
         CancellationToken cancellationToken)
     {
-        var correlationId = ResolveCorrelationId(message);
+        var correlationId = MessageSettlement.ResolveCorrelationId(message);
         using var correlationScope = CorrelationContext.Push(correlationId);
         using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = correlationId });
 
@@ -47,7 +47,7 @@ public class OrderConfirmationEmailFunction
             Operation = nameof(OrderConfirmationEmailFunction),
             ContentType = message.ContentType,
             Payload = body,
-            Metadata = BuildCaptureMetadata(message, "email-notifications")
+            Metadata = MessageSettlement.BuildCaptureMetadata(message, "email-notifications")
         }, cancellationToken);
 
         _logger.LogInformation("Order confirmation email triggered. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
@@ -59,38 +59,5 @@ public class OrderConfirmationEmailFunction
         // can be processed BEFORE order.created.v1 for the same order. The real implementation
         // must tolerate out-of-order delivery (e.g. upsert-by-orderId), or the subscription must
         // move to sessions keyed by order id.
-    }
-
-    private static string ResolveCorrelationId(ServiceBusReceivedMessage message)
-    {
-        if (!string.IsNullOrWhiteSpace(message.CorrelationId))
-            return CorrelationContext.Sanitize(message.CorrelationId);
-
-        if (message.ApplicationProperties.TryGetValue(CorrelationContext.ApplicationPropertyName, out var value) && value is string correlationId)
-            return CorrelationContext.Sanitize(correlationId);
-
-        return CorrelationContext.Create();
-    }
-
-    // Replayed/resubmitted messages keep their marker in the inbound capture: for dead-letter
-    // resubmits this captured record is the only durable artifact of the redelivery.
-    private static Dictionary<string, string> BuildCaptureMetadata(ServiceBusReceivedMessage message, string subscription)
-    {
-        var metadata = new Dictionary<string, string>
-        {
-            ["messageId"] = message.MessageId,
-            ["subject"] = message.Subject ?? string.Empty,
-            ["subscription"] = subscription,
-            ["topic"] = "domain-events"
-        };
-
-        if (message.ApplicationProperties.TryGetValue("Replay", out var replay) && replay is true)
-        {
-            metadata["replay"] = "true";
-            if (message.ApplicationProperties.TryGetValue("ReplayCount", out var count))
-                metadata["replayCount"] = count?.ToString() ?? "1";
-        }
-
-        return metadata;
     }
 }

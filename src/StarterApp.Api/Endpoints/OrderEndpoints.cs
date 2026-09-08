@@ -89,11 +89,7 @@ public class OrderEndpoints : IEndpointDefinition
     private static async Task<IResult> GetOrdersByCustomer(int customerId, IMediator mediator, CancellationToken cancellationToken, int page = 1, int pageSize = 50)
     {
         var query = new GetOrdersByCustomerQuery { CustomerId = customerId, Page = page, PageSize = pageSize };
-        var items = (await mediator.SendAsync(query, cancellationToken)).ToList();
-        var hasMore = items.Count > pageSize;
-        if (hasMore)
-            items.RemoveAt(items.Count - 1);
-        return Results.Ok(new PagedResponse<OrderReadModel> { Data = items, HasMore = hasMore });
+        return await mediator.PagedAsync(query, pageSize, cancellationToken);
     }
 
     private static async Task<IResult> GetOrdersByStatus(string status, IMediator mediator, CancellationToken cancellationToken, int page = 1, int pageSize = 50)
@@ -105,11 +101,7 @@ public class OrderEndpoints : IEndpointDefinition
         }
 
         var query = new GetOrdersByStatusQuery { Status = orderStatus, Page = page, PageSize = pageSize };
-        var items = (await mediator.SendAsync(query, cancellationToken)).ToList();
-        var hasMore = items.Count > pageSize;
-        if (hasMore)
-            items.RemoveAt(items.Count - 1);
-        return Results.Ok(new PagedResponse<OrderReadModel> { Data = items, HasMore = hasMore });
+        return await mediator.PagedAsync(query, pageSize, cancellationToken);
     }
 
     private static async Task<IResult> CreateOrder(CreateOrderCommand command, IMediator mediator, CancellationToken cancellationToken)

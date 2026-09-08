@@ -25,7 +25,7 @@ public class InventoryReservationFunction
         ServiceBusMessageActions messageActions,
         CancellationToken cancellationToken)
     {
-        var correlationId = ResolveCorrelationId(message);
+        var correlationId = MessageSettlement.ResolveCorrelationId(message);
         using var correlationScope = CorrelationContext.Push(correlationId);
         using var logScope = _logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = correlationId });
 
@@ -47,7 +47,7 @@ public class InventoryReservationFunction
             Operation = nameof(InventoryReservationFunction),
             ContentType = message.ContentType,
             Payload = body,
-            Metadata = BuildCaptureMetadata(message, "inventory-reservation")
+            Metadata = MessageSettlement.BuildCaptureMetadata(message, "inventory-reservation")
         }, cancellationToken);
 
         _logger.LogInformation("Inventory reservation event received. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
@@ -62,38 +62,5 @@ public class InventoryReservationFunction
         // catalog stock here — doing so would double-reserve. Use this hook for downstream
         // projections, warehouse/fulfilment integration, or notifications instead.
         // TODO: Deserialize payload and build the downstream inventory projection (read-only w.r.t. catalog stock).
-    }
-
-    private static string ResolveCorrelationId(ServiceBusReceivedMessage message)
-    {
-        if (!string.IsNullOrWhiteSpace(message.CorrelationId))
-            return CorrelationContext.Sanitize(message.CorrelationId);
-
-        if (message.ApplicationProperties.TryGetValue(CorrelationContext.ApplicationPropertyName, out var value) && value is string correlationId)
-            return CorrelationContext.Sanitize(correlationId);
-
-        return CorrelationContext.Create();
-    }
-
-    // Replayed/resubmitted messages keep their marker in the inbound capture: for dead-letter
-    // resubmits this captured record is the only durable artifact of the redelivery.
-    private static Dictionary<string, string> BuildCaptureMetadata(ServiceBusReceivedMessage message, string subscription)
-    {
-        var metadata = new Dictionary<string, string>
-        {
-            ["messageId"] = message.MessageId,
-            ["subject"] = message.Subject ?? string.Empty,
-            ["subscription"] = subscription,
-            ["topic"] = "domain-events"
-        };
-
-        if (message.ApplicationProperties.TryGetValue("Replay", out var replay) && replay is true)
-        {
-            metadata["replay"] = "true";
-            if (message.ApplicationProperties.TryGetValue("ReplayCount", out var count))
-                metadata["replayCount"] = count?.ToString() ?? "1";
-        }
-
-        return metadata;
     }
 }

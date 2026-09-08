@@ -140,7 +140,7 @@ public sealed class PayloadCaptureMiddleware
             Channel = PayloadCaptureChannels.Http,
             Operation = $"{context.Request.Method} {context.Request.Path}",
             ContentType = context.Request.ContentType,
-            Payload = payload,
+            Payload = payload.Value,
             PayloadTruncated = payload.Truncated,
             PayloadSizeBytes = payload.PayloadSizeBytes,
             CapturedPayloadBytes = payload.CapturedPayloadBytes,
@@ -293,13 +293,7 @@ public sealed class PayloadCaptureMiddleware
         string Value,
         bool Truncated,
         long? PayloadSizeBytes,
-        int CapturedPayloadBytes)
-    {
-        public static implicit operator string(LimitedPayload payload)
-        {
-            return payload.Value;
-        }
-    }
+        int CapturedPayloadBytes);
 
     private sealed class BoundedCaptureStream : Stream
     {

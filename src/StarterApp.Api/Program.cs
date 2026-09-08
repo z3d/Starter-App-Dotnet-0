@@ -65,7 +65,7 @@ try
         app.UseHsts();
     }
 
-    app.UsePayloadCapture();
+    app.UseMiddleware<PayloadCaptureMiddleware>();
     app.UseExceptionHandling();
     app.UseSecurityHeaders();
     app.UseHttpsRedirection();

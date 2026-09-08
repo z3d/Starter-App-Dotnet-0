@@ -2,6 +2,7 @@ using System.Text.Json;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
+using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Functions;
 
@@ -127,4 +128,39 @@ public static class MessageSettlement
 
     private static string Truncate(string value) =>
         value.Length <= MaxReasonDescriptionLength ? value : value[..MaxReasonDescriptionLength];
+
+    // Message correlation id, then the CorrelationId application property, else a fresh id. Shared
+    // by every subscriber so a new Function copies one attribute and one log line, not sixty lines.
+    internal static string ResolveCorrelationId(ServiceBusReceivedMessage message)
+    {
+        if (!string.IsNullOrWhiteSpace(message.CorrelationId))
+            return CorrelationContext.Sanitize(message.CorrelationId);
+
+        if (message.ApplicationProperties.TryGetValue(CorrelationContext.ApplicationPropertyName, out var value) && value is string correlationId)
+            return CorrelationContext.Sanitize(correlationId);
+
+        return CorrelationContext.Create();
+    }
+
+    // Replayed/resubmitted messages keep their marker in the inbound capture: for dead-letter
+    // resubmits this captured record is the only durable artifact of the redelivery.
+    internal static Dictionary<string, string> BuildCaptureMetadata(ServiceBusReceivedMessage message, string subscription)
+    {
+        var metadata = new Dictionary<string, string>
+        {
+            ["messageId"] = message.MessageId,
+            ["subject"] = message.Subject ?? string.Empty,
+            ["subscription"] = subscription,
+            ["topic"] = "domain-events"
+        };
+
+        if (message.ApplicationProperties.TryGetValue("Replay", out var replay) && replay is true)
+        {
+            metadata["replay"] = "true";
+            if (message.ApplicationProperties.TryGetValue("ReplayCount", out var count))
+                metadata["replayCount"] = count?.ToString() ?? "1";
+        }
+
+        return metadata;
+    }
 }

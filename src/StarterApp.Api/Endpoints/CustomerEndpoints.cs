@@ -63,11 +63,7 @@ public class CustomerEndpoints : IEndpointDefinition
     private static async Task<IResult> GetCustomers(IMediator mediator, CancellationToken cancellationToken, int page = 1, int pageSize = 50)
     {
         var query = new GetCustomersQuery { Page = page, PageSize = pageSize };
-        var items = (await mediator.SendAsync(query, cancellationToken)).ToList();
-        var hasMore = items.Count > pageSize;
-        if (hasMore)
-            items.RemoveAt(items.Count - 1);
-        return Results.Ok(new PagedResponse<CustomerReadModel> { Data = items, HasMore = hasMore });
+        return await mediator.PagedAsync(query, pageSize, cancellationToken);
     }
 
     private static async Task<IResult> GetCustomer(int id, IMediator mediator, CancellationToken cancellationToken)
