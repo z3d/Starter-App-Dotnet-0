@@ -151,15 +151,6 @@
           "Serilog": "4.0.0"
         }
       },
-      "Serilog.Sinks.File": {
-        "type": "Direct",
-        "requested": "[7.0.0, )",
-        "resolved": "7.0.0",
-        "contentHash": "fKL7mXv7qaiNBUC71ssvn/dU0k9t0o45+qm2XgKAlSt19xF+ijjxyA3R6HmCgfKEKwfcfkwWjayuQtRueZFkYw==",
-        "dependencies": {
-          "Serilog": "4.2.0"
-        }
-      },
       "Serilog.Sinks.XUnit": {
         "type": "Direct",
         "requested": "[3.0.5, )",
@@ -1242,9 +1233,7 @@
           "Npgsql": "[10.0.3, )",
           "Serilog": "[4.3.0, )",
           "Serilog.Sinks.Console": "[6.1.1, )",
-          "Serilog.Sinks.File": "[7.0.0, )",
           "Serilog.Sinks.Seq": "[8.0.0, )",
-          "StarterApp.ServiceDefaults": "[1.0.0, )",
           "dbup-postgresql": "[7.0.1, )"
         }
       },
@@ -1556,6 +1545,15 @@
         "contentHash": "QhZjXtUcA2QfQRA60m+DfyIfidKsQV7HBstbYEDqzJKMbJH/KnKthkkjciRuYrmFE+scWv1JibC5LlXrdtOUmw==",
         "dependencies": {
           "Serilog": "4.0.0"
+        }
+      },
+      "Serilog.Sinks.File": {
+        "type": "CentralTransitive",
+        "requested": "[7.0.0, )",
+        "resolved": "7.0.0",
+        "contentHash": "fKL7mXv7qaiNBUC71ssvn/dU0k9t0o45+qm2XgKAlSt19xF+ijjxyA3R6HmCgfKEKwfcfkwWjayuQtRueZFkYw==",
+        "dependencies": {
+          "Serilog": "4.2.0"
         }
       },
       "Serilog.Sinks.OpenTelemetry": {

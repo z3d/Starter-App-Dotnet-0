@@ -45,18 +45,8 @@ public class PerfSeedScriptTests : IAsyncLifetime
         Assert.Equal(firstRun.OrderItems, secondRun.OrderItems);
     }
 
-    private static string SeedScriptPath()
-    {
-        var directory = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (System.IO.File.Exists(System.IO.Path.Combine(directory.FullName, "StarterApp.slnx")))
-                return System.IO.Path.Combine(directory.FullName, "tests", "k6", "seed", "perf-seed.sql");
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate the repo root (StarterApp.slnx) from the test base directory.");
-    }
+    private static string SeedScriptPath() =>
+        System.IO.Path.Combine(TestPaths.RepoRoot, "tests", "k6", "seed", "perf-seed.sql");
 
     private void ExecuteScript(string script)
     {

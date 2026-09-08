@@ -132,19 +132,8 @@ public class EventContractSnapshotTests
 
     private static string SnapshotDirectory()
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "StarterApp.slnx")))
-            {
-                var snapshots = Path.Combine(directory.FullName, "src", "StarterApp.Tests", "Contracts", "snapshots");
-                Directory.CreateDirectory(snapshots);
-                return snapshots;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate the repo root (StarterApp.slnx) from the test base directory.");
+        var snapshots = Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.Tests", "Contracts", "snapshots");
+        Directory.CreateDirectory(snapshots);
+        return snapshots;
     }
 }

@@ -42,31 +42,13 @@ public class SensitiveLogMaskingTests
 
     private static Logger BuildApiLogger(List<LogEvent> events)
     {
-        var appSettingsPath = Path.Combine(FindRepoRoot(), "src", "StarterApp.Api", "appsettings.json");
+        var appSettingsPath = Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.Api", "appsettings.json");
         var configuration = new ConfigurationBuilder().AddJsonFile(appSettingsPath).Build();
         var loggerConfiguration = new LoggerConfiguration().WriteTo.Sink(new CollectingSink(events));
 
         SerilogConfiguration.Apply(loggerConfiguration, configuration);
 
         return loggerConfiguration.CreateLogger();
-    }
-
-    private static string FindRepoRoot()
-    {
-        foreach (var candidate in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
-        {
-            var directory = new DirectoryInfo(candidate);
-            while (directory != null)
-            {
-                if (File.Exists(Path.Combine(directory.FullName, "StarterApp.slnx")) ||
-                    File.Exists(Path.Combine(directory.FullName, "Directory.Packages.props")))
-                    return directory.FullName;
-
-                directory = directory.Parent;
-            }
-        }
-
-        throw new InvalidOperationException("Repository root not found from the test working directory.");
     }
 
     private sealed class CollectingSink(List<LogEvent> events) : ILogEventSink

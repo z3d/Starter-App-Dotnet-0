@@ -20,12 +20,14 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="StarterApp.Tests" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Shared IL walker: this project has no reference to StarterApp.Tests, so the file is linked.
          Every IL scan must walk on instruction boundaries (testing-strategy skill). -->
     <Compile Include="..\StarterApp.Tests\Consistency\IlInstructionWalker.cs" Link="Consistency\IlInstructionWalker.cs" />
+    <Compile Include="..\StarterApp.Tests\TestPaths.cs" Link="TestPaths.cs" />
   </ItemGroup>
 
   <ItemGroup>

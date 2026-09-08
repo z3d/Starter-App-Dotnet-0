@@ -47,25 +47,11 @@ public abstract class CohortGovernanceTestBase<TFingerprint>
     protected virtual string SourceFileNameToTypeName(string fileNameWithoutExtension) =>
         fileNameWithoutExtension;
 
-    private static string FindRepoRoot()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null)
-        {
-            if (Directory.Exists(Path.Combine(dir, "docs")))
-                return dir;
-            dir = Directory.GetParent(dir)?.FullName;
-        }
-
-        throw new InvalidOperationException(
-            "Could not find repo root (directory containing docs/) by walking up from " + AppContext.BaseDirectory);
-    }
-
     protected string ExemplarReadmePath =>
-        Path.Combine(FindRepoRoot(), "docs", "exemplars", ExemplarDocsFolder, "README.md");
+        Path.Combine(TestPaths.RepoRoot, "docs", "exemplars", ExemplarDocsFolder, "README.md");
 
     protected string SourceTreeAbsolutePath =>
-        Path.Combine(FindRepoRoot(), SourceTreeRelativePath);
+        Path.Combine(TestPaths.RepoRoot, SourceTreeRelativePath);
 
     [Fact]
     public void EveryExemplarInCode_ResolvesToAnExistingFile()

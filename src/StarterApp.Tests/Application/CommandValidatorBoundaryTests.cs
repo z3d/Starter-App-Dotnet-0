@@ -92,4 +92,16 @@ public class CommandValidatorBoundaryTests
 
         Assert.Empty(validator.Validate(command));
     }
+
+    [Fact]
+    public void CreateProductCommandValidator_WithAbsentCurrency_ShouldReturnValidationError()
+    {
+        // Matches UpdateProductCommandValidator: an omitted currency is rejected on both verbs
+        // instead of silently defaulting to USD on create.
+        var command = new CreateProductCommand { Name = "Widget", Price = 10m, Stock = 1 };
+
+        var errors = new CreateProductCommandValidator().Validate(command).ToList();
+
+        Assert.Contains(errors, error => error.PropertyName == nameof(CreateProductCommand.Currency));
+    }
 }

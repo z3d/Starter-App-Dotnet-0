@@ -120,41 +120,16 @@ public class ReportingQueryTests
 
     private static IEnumerable<string> KnowledgeBaseFiles()
     {
-        var investigations = System.IO.Path.Combine(RepoRoot(), "docs", "investigations");
+        var investigations = System.IO.Path.Combine(TestPaths.RepoRoot, "docs", "investigations");
         return System.IO.Directory.Exists(investigations)
             ? System.IO.Directory.EnumerateFiles(investigations, "knowledge-base.json", System.IO.SearchOption.AllDirectories)
             : [];
     }
 
-    private static string RepoRoot()
-    {
-        var directory = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (System.IO.File.Exists(System.IO.Path.Combine(directory.FullName, "StarterApp.slnx")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate the repo root (StarterApp.slnx) from the test base directory.");
-    }
-
     private static IEnumerable<string> ReportingQueryFiles()
     {
-        var directory = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (System.IO.File.Exists(System.IO.Path.Combine(directory.FullName, "StarterApp.slnx")))
-            {
-                var reporting = System.IO.Path.Combine(directory.FullName, "scripts", "reporting");
-                var files = System.IO.Directory.GetFiles(reporting, "*.sql");
-                Assert.NotEmpty(files);
-                return files;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate the repo root (StarterApp.slnx) from the test base directory.");
+        var files = System.IO.Directory.GetFiles(System.IO.Path.Combine(TestPaths.RepoRoot, "scripts", "reporting"), "*.sql");
+        Assert.NotEmpty(files);
+        return files;
     }
 }

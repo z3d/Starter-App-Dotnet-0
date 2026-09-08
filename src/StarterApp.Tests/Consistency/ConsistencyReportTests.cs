@@ -18,25 +18,12 @@ public class ConsistencyReportTests
     // testing-strategy skill for how to consume it.
     private void EmitReportFile(string cohortName)
     {
-        var directory = System.IO.Path.Combine(FindRepoRoot(), "docs", "_local");
+        var directory = System.IO.Path.Combine(TestPaths.RepoRoot, "docs", "_local");
         System.IO.Directory.CreateDirectory(directory);
         System.IO.File.WriteAllLines(
             System.IO.Path.Combine(directory, $"consistency-{cohortName.ToLowerInvariant().Replace(' ', '-')}.txt"),
             _reportLines);
         _reportLines.Clear();
-    }
-
-    private static string FindRepoRoot()
-    {
-        var directory = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (System.IO.File.Exists(System.IO.Path.Combine(directory.FullName, "StarterApp.slnx")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate the repo root from the test base directory.");
     }
 
     [Fact]
@@ -119,8 +106,6 @@ public class ConsistencyReportTests
             WriteLine($"{Pad(score.TypeName, memberNameWidth)} {formatStructuralRow(score)}");
     }
 
-
-
     private void WriteFeatureDivergences(CohortConsistencyReport report, int memberNameWidth)
     {
         WriteLine($"\n=== {report.CohortName} PER-FEATURE DIVERGENCE REPORT ===");
@@ -171,7 +156,6 @@ public class ConsistencyReportTests
         for (var i = 1; i < report.StructuralScores.Count; i++)
             Assert.True(report.StructuralScores[i - 1].Distance >= report.StructuralScores[i].Distance,
                 $"{report.CohortName} structural scores not in descending order at index {i}");
-
 
         var discoveredNames = report.MemberTypes.Select(t => t.Name).ToHashSet();
         Assert.Equal(discoveredNames, report.Fingerprints.Select(f => f.TypeName).ToHashSet());

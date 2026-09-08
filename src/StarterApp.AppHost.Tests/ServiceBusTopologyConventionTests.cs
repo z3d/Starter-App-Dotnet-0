@@ -149,7 +149,7 @@ public class ServiceBusTopologyConventionTests
     {
         // The fluent AppHost config is the deployed topology. Pin it to the ServiceBusTopology
         // constants so the lifecycle posture above cannot drift via inline literals in Program.cs.
-        var programSource = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "StarterApp.AppHost", "Program.cs"));
+        var programSource = File.ReadAllText(Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.AppHost", "Program.cs"));
 
         var subscriptionBlocks = programSource
             .Split("AddServiceBusSubscription", StringSplitOptions.RemoveEmptyEntries)
@@ -167,23 +167,6 @@ public class ServiceBusTopologyConventionTests
             Assert.Contains("ServiceBusTopology.SubscriptionDeadLetteringOnMessageExpiration", block, StringComparison.Ordinal);
             Assert.DoesNotContain("TimeSpan.From", block, StringComparison.Ordinal);
         }
-    }
-
-    private static string FindRepoRoot()
-    {
-        foreach (var candidate in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
-        {
-            var directory = new DirectoryInfo(candidate);
-            while (directory != null)
-            {
-                if (File.Exists(Path.Combine(directory.FullName, "Directory.Packages.props")))
-                    return directory.FullName;
-
-                directory = directory.Parent;
-            }
-        }
-
-        throw new InvalidOperationException("Repository root not found from test execution directory.");
     }
 
     private static IEnumerable<ServiceBusTriggerBinding> GetServiceBusTriggerBindings()

@@ -46,7 +46,7 @@ public class FeatureToggleConventionTests : ConventionTestBase
         if (declared.Count == 0)
             return;
 
-        var appsettingsPath = Path.Combine(RepoRoot(), "src", "StarterApp.Api", "appsettings.json");
+        var appsettingsPath = Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.Api", "appsettings.json");
         using var document = JsonDocument.Parse(File.ReadAllText(appsettingsPath));
         var configured = document.RootElement.TryGetProperty("FeatureToggles", out var section) && section.ValueKind == JsonValueKind.Object
             ? section.EnumerateObject().Select(p => p.Name).ToHashSet(StringComparer.Ordinal)
@@ -58,18 +58,5 @@ public class FeatureToggleConventionTests : ConventionTestBase
             "Every declared feature toggle needs an explicit entry in src/StarterApp.Api/appsettings.json " +
             "under 'FeatureToggles' — the default state must be a reviewed decision, not an accident of a " +
             "missing key:\n" + string.Join("\n", missing));
-    }
-
-    private static string RepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "StarterApp.slnx")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate the repo root (StarterApp.slnx) from the test base directory.");
     }
 }

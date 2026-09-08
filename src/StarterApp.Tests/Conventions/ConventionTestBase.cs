@@ -5,12 +5,16 @@ public abstract class ConventionTestBase
     protected static readonly Assembly DomainAssembly = typeof(Product).Assembly;
     protected static readonly Assembly ApiAssembly = typeof(IApiMarker).Assembly;
     protected static readonly Assembly DbMigratorAssembly = typeof(DatabaseMigrationEngine).Assembly;
+    protected static readonly Assembly FunctionsAssembly = typeof(StarterApp.Functions.OrderConfirmationEmailFunction).Assembly;
+    protected static readonly Assembly ServiceDefaultsAssembly = typeof(Microsoft.Extensions.Hosting.Extensions).Assembly;
 
     protected static readonly Assembly[] CoreProductionAssemblies =
     [
         ApiAssembly,
         DomainAssembly,
-        DbMigratorAssembly
+        DbMigratorAssembly,
+        FunctionsAssembly,
+        ServiceDefaultsAssembly
     ];
 
     protected static bool IsCompilerGenerated(Type type)

@@ -8,7 +8,7 @@ public class FunctionsHostConfigConventionTests
     [Fact]
     public void HandlerRetryDeadline_MustFitInsideLockRenewal_WithoutUnsupportedHostPolicy()
     {
-        var hostJsonPath = Path.Combine(FindRepoRoot(), "src", "StarterApp.Functions", "host.json");
+        var hostJsonPath = Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.Functions", "host.json");
         using var document = JsonDocument.Parse(File.ReadAllText(hostJsonPath));
         Assert.False(document.RootElement.TryGetProperty("retry", out _),
             "Service Bus does not support Functions execution-retry policies; retry handler work explicitly.");
@@ -50,22 +50,5 @@ public class FunctionsHostConfigConventionTests
         Assert.True(offenders.Count == 0,
             "Trigger %setting% expressions must use ':' configuration keys, not '__' env-var names:\n" +
             string.Join("\n", offenders));
-    }
-
-    private static string FindRepoRoot()
-    {
-        foreach (var candidate in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
-        {
-            var directory = new DirectoryInfo(candidate);
-            while (directory != null)
-            {
-                if (File.Exists(Path.Combine(directory.FullName, "Directory.Packages.props")))
-                    return directory.FullName;
-
-                directory = directory.Parent;
-            }
-        }
-
-        throw new InvalidOperationException("Repository root not found from test execution directory.");
     }
 }

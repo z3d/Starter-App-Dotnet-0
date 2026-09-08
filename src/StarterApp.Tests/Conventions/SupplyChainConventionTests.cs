@@ -36,7 +36,7 @@ public class SupplyChainConventionTests : ConventionTestBase
     [Fact]
     public void NuGetConfig_MustRestrictSourcesAndMapAllPackagesToNuGetOrg()
     {
-        var configPath = Path.Combine(FindRepoRoot(), "NuGet.config");
+        var configPath = Path.Combine(TestPaths.RepoRoot, "NuGet.config");
         Assert.True(File.Exists(configPath),
             "A repo-root NuGet.config must exist to constrain package feeds (supply-chain finding L1).");
 
@@ -66,7 +66,7 @@ public class SupplyChainConventionTests : ConventionTestBase
     [Fact]
     public void GlobalJson_MustPinSdkVersion()
     {
-        var globalJsonPath = Path.Combine(FindRepoRoot(), "global.json");
+        var globalJsonPath = Path.Combine(TestPaths.RepoRoot, "global.json");
         Assert.True(File.Exists(globalJsonPath),
             "A repo-root global.json must pin the SDK band so the build toolchain is reproducible.");
 
@@ -101,31 +101,13 @@ public class SupplyChainConventionTests : ConventionTestBase
 
     private static IEnumerable<string> EnumerateDockerfiles()
     {
-        var srcRoot = Path.Combine(FindRepoRoot(), "src");
+        var srcRoot = Path.Combine(TestPaths.RepoRoot, "src");
         return Directory.EnumerateFiles(srcRoot, "Dockerfile", SearchOption.AllDirectories)
             .Where(file => !file.Split(Path.DirectorySeparatorChar).Any(segment => segment is "bin" or "obj"));
     }
 
     private static string FormatPath(string file)
     {
-        return Path.GetRelativePath(FindRepoRoot(), file);
-    }
-
-    private static string FindRepoRoot()
-    {
-        foreach (var candidate in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
-        {
-            var directory = new DirectoryInfo(candidate);
-            while (directory != null)
-            {
-                if (File.Exists(Path.Combine(directory.FullName, "StarterApp.slnx")) ||
-                    File.Exists(Path.Combine(directory.FullName, "Directory.Packages.props")))
-                    return directory.FullName;
-
-                directory = directory.Parent;
-            }
-        }
-
-        throw new InvalidOperationException("Could not locate repository root.");
+        return Path.GetRelativePath(TestPaths.RepoRoot, file);
     }
 }

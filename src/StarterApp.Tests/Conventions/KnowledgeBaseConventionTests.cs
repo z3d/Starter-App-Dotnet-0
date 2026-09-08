@@ -93,24 +93,11 @@ public class KnowledgeBaseConventionTests
 
     private static IEnumerable<string> KnowledgeBaseFiles()
     {
-        var investigations = Path.Combine(RepoRoot(), "docs", "investigations");
+        var investigations = Path.Combine(TestPaths.RepoRoot, "docs", "investigations");
         return Directory.Exists(investigations)
             ? Directory.EnumerateFiles(investigations, "knowledge-base.json", SearchOption.AllDirectories)
             : [];
     }
 
-    private static string RelativePath(string path) => Path.GetRelativePath(RepoRoot(), path);
-
-    private static string RepoRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "StarterApp.slnx")))
-                return directory.FullName;
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate the repo root (StarterApp.slnx) from the test base directory.");
-    }
+    private static string RelativePath(string path) => Path.GetRelativePath(TestPaths.RepoRoot, path);
 }

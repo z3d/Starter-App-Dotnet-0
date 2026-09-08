@@ -53,18 +53,8 @@ public class DastSeedScriptTests : IAsyncLifetime
         Assert.Equal(firstRun.Owner2Orders, secondRun.Owner2Orders);
     }
 
-    private static string SeedScriptPath()
-    {
-        var directory = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (System.IO.File.Exists(System.IO.Path.Combine(directory.FullName, "StarterApp.slnx")))
-                return System.IO.Path.Combine(directory.FullName, "dast", "seed", "dast-seed.sql");
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("Could not locate the repo root (StarterApp.slnx) from the test base directory.");
-    }
+    private static string SeedScriptPath() =>
+        System.IO.Path.Combine(TestPaths.RepoRoot, "dast", "seed", "dast-seed.sql");
 
     private void ExecuteScript(string script)
     {

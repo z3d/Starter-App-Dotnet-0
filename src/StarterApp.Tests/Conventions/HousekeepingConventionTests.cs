@@ -128,7 +128,7 @@ public class HousekeepingConventionTests : ConventionTestBase
     [Fact]
     public void ConventionTestFiles_MustUseGlobalUsings()
     {
-        var conventionRoot = Path.Combine(FindRepoRoot(), "src", "StarterApp.Tests", "Conventions");
+        var conventionRoot = Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.Tests", "Conventions");
         var failures = new List<string>();
 
         foreach (var file in Directory.EnumerateFiles(conventionRoot, "*.cs", SearchOption.AllDirectories)
@@ -151,7 +151,7 @@ public class HousekeepingConventionTests : ConventionTestBase
     [Fact]
     public void AppHost_MustRunFunctionsWithAzureFunctionsRuntimeContainer()
     {
-        var root = FindRepoRoot();
+        var root = TestPaths.RepoRoot;
         var appHostProgram = File.ReadAllText(Path.Combine(root, "src", "StarterApp.AppHost", "Program.cs"));
         var functionsDockerfile = File.ReadAllText(Path.Combine(root, "src", "StarterApp.Functions", "Dockerfile"));
 
@@ -168,7 +168,7 @@ public class HousekeepingConventionTests : ConventionTestBase
     [Fact]
     public void AppHostSdkVersion_MustMatchAspirePackageVersion()
     {
-        var root = FindRepoRoot();
+        var root = TestPaths.RepoRoot;
         var centralPackages = XDocument.Load(Path.Combine(root, "Directory.Packages.props"));
         var expectedVersion = centralPackages.Descendants()
             .Where(element => element.Name.LocalName == "PackageVersion")
@@ -185,7 +185,7 @@ public class HousekeepingConventionTests : ConventionTestBase
 
     private static IEnumerable<string> EnumerateProjectDirectories()
     {
-        var srcRoot = Path.Combine(FindRepoRoot(), "src");
+        var srcRoot = Path.Combine(TestPaths.RepoRoot, "src");
         foreach (var projectFile in Directory.EnumerateFiles(srcRoot, "*.csproj", SearchOption.AllDirectories)
                      .Where(file => !IsInIgnoredDirectory(file)))
         {
@@ -202,7 +202,7 @@ public class HousekeepingConventionTests : ConventionTestBase
         // the next four bytes and can hide a genuine call from a negative assertion, so the test
         // passes having checked nothing. IlInstructionWalker.Walk is the only sanctioned scan
         // (testing-strategy skill: "never hand-roll a raw IL byte loop").
-        var testSources = Directory.EnumerateFiles(Path.Combine(FindRepoRoot(), "src"), "*.cs", SearchOption.AllDirectories)
+        var testSources = Directory.EnumerateFiles(Path.Combine(TestPaths.RepoRoot, "src"), "*.cs", SearchOption.AllDirectories)
             .Where(file => !IsInIgnoredDirectory(file))
             .Where(file => file.Contains(".Tests" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
             .Where(file => !file.EndsWith("IlInstructionWalker.cs", StringComparison.Ordinal))
@@ -222,7 +222,7 @@ public class HousekeepingConventionTests : ConventionTestBase
 
     private static IEnumerable<string> EnumerateProjectFiles()
     {
-        var root = FindRepoRoot();
+        var root = TestPaths.RepoRoot;
         return Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories)
             .Where(file => file.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase) ||
                            file.EndsWith(".props", StringComparison.OrdinalIgnoreCase) ||
@@ -232,7 +232,7 @@ public class HousekeepingConventionTests : ConventionTestBase
 
     private static IEnumerable<string> EnumerateProductionSourceFiles()
     {
-        return Directory.EnumerateFiles(Path.Combine(FindRepoRoot(), "src"), "*.cs", SearchOption.AllDirectories)
+        return Directory.EnumerateFiles(Path.Combine(TestPaths.RepoRoot, "src"), "*.cs", SearchOption.AllDirectories)
             .Where(file => !IsInIgnoredDirectory(file))
             .Where(file => !file.Contains(".Tests" + Path.DirectorySeparatorChar, StringComparison.Ordinal));
     }
@@ -273,7 +273,7 @@ public class HousekeepingConventionTests : ConventionTestBase
 
     private static bool IsInIgnoredDirectory(string file)
     {
-        var relative = Path.GetRelativePath(FindRepoRoot(), file)
+        var relative = Path.GetRelativePath(TestPaths.RepoRoot, file)
             .Replace(Path.DirectorySeparatorChar, '/')
             .Replace(Path.AltDirectorySeparatorChar, '/');
 
@@ -285,30 +285,6 @@ public class HousekeepingConventionTests : ConventionTestBase
 
     private static string FormatPath(string file)
     {
-        return Path.GetRelativePath(FindRepoRoot(), file);
-    }
-
-    private static string FindRepoRoot()
-    {
-        var candidates = new[]
-        {
-            Directory.GetCurrentDirectory(),
-            AppContext.BaseDirectory
-        };
-
-        foreach (var candidate in candidates)
-        {
-            var directory = new DirectoryInfo(candidate);
-            while (directory != null)
-            {
-                if (File.Exists(Path.Combine(directory.FullName, "StarterApp.slnx")) ||
-                    File.Exists(Path.Combine(directory.FullName, "Directory.Packages.props")))
-                    return directory.FullName;
-
-                directory = directory.Parent;
-            }
-        }
-
-        throw new InvalidOperationException("Could not locate repository root.");
+        return Path.GetRelativePath(TestPaths.RepoRoot, file);
     }
 }
