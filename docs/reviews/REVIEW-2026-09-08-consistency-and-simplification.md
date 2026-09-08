@@ -58,20 +58,40 @@ Template lens applied: single-implementation seams (`IFeatureToggles`, `IPayload
 restate defaults are exemplars for derived projects and stay. Pure duplication, dead tooling, and
 hand-rolled BCL still go. Verified by call-site grep; approximate line counts.
 
-| Cut | Where | Lines |
-|---|---|---|
-| 16 private `FindRepoRoot()` copies, three algorithms → one `TestPaths.RepoRoot` via `[CallerFilePath]`, linked into AppHost.Tests | `src/StarterApp.Tests/**`, `src/StarterApp.AppHost.Tests/**` | ~145 |
-| `ProductionAssemblyConventionTests` duplicates three `DomainConventionTests` facts with a different assembly list; add Functions and ServiceDefaults to `CoreProductionAssemblies` instead | `src/StarterApp.AppHost.Tests/` | ~130 |
-| `PostgresRetryPolicy` hand-rolls backoff, jitter and a 13-entry SQLSTATE list; Polly v8 is already in the lock file via `Microsoft.Extensions.Http.Resilience`, `NpgsqlException.IsTransient` covers the states. `DapperConventionTests` pins the helper by name and moves with it | `src/StarterApp.Api/Infrastructure/Persistence/` | ~100 |
-| `ResolveCorrelationId`, `BuildCaptureMetadata`, `RunAsync` body and ctor are byte-identical in both Functions; hoist into `MessageSettlement` | `src/StarterApp.Functions/` | ~70 |
-| Paging tail copied four times and the id-mismatch guard three times across endpoints → `Paged<T>` helper | `src/StarterApp.Api/Endpoints/` | ~30 |
-| `ScopeEndpointFilter` and `TwoFactorEndpointFilter` are the same filter twice, including a byte-identical `WriteProblem`; metadata classes become one-line records | `src/StarterApp.Api/Infrastructure/Identity/` | ~50 |
-| `Money` and `Email` as `sealed record`; `IsValidCurrencyCode` as `Length == 3 && All(char.IsAsciiLetter)`; five duplicate length guards → `ArgumentOutOfRangeException.ThrowIfGreaterThan`. `DomainConventionTests` must accept compiler-generated overrides | `src/StarterApp.Domain/` | ~45 |
-| Dead members with zero readers: `ICurrentUser.CorrelationId`, `CorrelationContext.Current`, two `PayloadEntityReferenceExtractor.Extract` overloads, `PayloadCaptureRequest.TimestampUtc`, `IsTransientSqlStateForTesting`, `MapDefaultEndpoints`, commented-out Aspire blocks, `TestLoggerConfiguration` dead overloads, `ValidatorBoundaryTests`, `MoneyArithmeticTests` | various | ~150 |
-| `Serilog.Expressions` (no templates or filters anywhere), `Microsoft.CodeAnalysis.Analyzers` global reference (rules for authoring analyzers; none here), `Serilog.Sinks.File` in tests, redundant `MessagePack` `PackageReference` lines (transitive pinning already applies the `PackageVersion`) | `Directory.Packages.props`, csproj files | 3 deps |
-| CI repeats checkout, setup, restore and a full Release build in three jobs → composite action, artifact the build output | `.github/workflows/ci.yml` | ~30, two builds per PR |
-| `OutboxReplayer` twin SQL constants, `NullPayloadArchiveStore` type-test, `UsePayloadCapture` and `HasPayloadArchiveStore` wrappers, `LimitedPayload` implicit operator, k6 `JSON_HEADERS` | various | ~60 |
-| `InMemoryPayloadArchiveStore` ships in the production assembly for test callers only; move to tests | `src/StarterApp.ServiceDefaults/Payloads/` | 84 shipped |
+### Landed — 2026-09-08 (four commits, 72 files, +243 / −885)
+
+- **Tests:** sixteen private repo-root walks (three algorithms) → `TestPaths.RepoRoot`, linked into
+  AppHost.Tests; `ProductionAssemblyConventionTests` deleted and `CoreProductionAssemblies` now
+  covers Functions and ServiceDefaults; `TestLoggerConfiguration` keeps its one live method and
+  drops the file sink (and `Serilog.Sinks.File`); `ValidatorBoundaryTests` folded into its sibling.
+- **Dead members:** `ICurrentUser.CorrelationId`, `CorrelationContext.Current`, the one-argument
+  `Extract` overload, `PayloadCaptureRequest.TimestampUtc`, `IsTransientSqlStateForTesting`,
+  `MapDefaultEndpoints`, the commented-out Aspire blocks; two one-caller ServiceDefaults builders
+  made private and a delegate-only helper inlined.
+- **Packages:** `Serilog.Expressions`, the `Microsoft.CodeAnalysis.Analyzers` global reference, the
+  redundant explicit `MessagePack` references (transitive pinning verified still resolving 2.5.302).
+- **Production shape:** the two Functions' identical helpers hoisted to `MessageSettlement`; the
+  pageSize-plus-one probe is `IMediator.PagedAsync`; the identity filters share one problem writer
+  and one unauthenticated branch, their metadata classes are records; `Money` and `Email` are
+  sealed records (the equality convention accepts the synthesized overrides unchanged);
+  `UsePayloadCapture` inlined; `LimitedPayload`'s single-use implicit operator removed.
+- **CI:** SDK setup, locked restore and Release build are one composite action, the postgres
+  pre-pull loop another; Dependabot scans the composite directory.
+
+### Kept after inspection
+
+- **`PostgresRetryPolicy` → Polly.** The policy has a deliberate total-delay budget (10 s) that
+  Polly's retry strategy lacks; ten tests pin that behaviour and the file header records the trade.
+  A swap is a redesign, not a cut.
+- **Length guards → `ThrowIfGreaterThan`.** Domain tests pin the exact exception type and message,
+  and the validator-guard sync rule references the messages.
+- **`OutboxReplayer` twin SQL.** A test already asserts the two constants stay in sync; merging
+  them needs a typed nullable parameter for little gain.
+- **`NullPayloadArchiveStore`.** DI cannot return null for an interface registration; the null
+  object is the honest shape. **`InMemoryPayloadArchiveStore`** stays where it is for the same
+  reason the swap-point exemplars do. **k6 `JSON_HEADERS`**, the endpoint id-mismatch guard, and
+  the `WithDescription`/`ProducesProblem(500)` metadata: too small to be worth a helper, or
+  OpenAPI output someone reads.
 
 **Judgment calls left open:** cache subsystem (shrink to plain get/set/remove, or delete with
 Redis; either touches the by-id caching rule in `CLAUDE.md`); six probe routes for three
@@ -85,7 +105,12 @@ behaviours; which of the checked-and-kept seams a derived project should prune (
 
 ## Process note
 
-`PerfSeedScriptTests.PerfSeedScript_SeedsBulkOwnerScopedData_AndIsIdempotent` failed in two of
-four full-suite runs today and passed alone and in the other two. Not in `docs/investigations/`.
-It makes the pre-commit gate unreliable; the mirror-generation commit bypassed the gate after
-format, build and the fast filter (669 tests) were green.
+`PerfSeedScriptTests.PerfSeedScript_SeedsBulkOwnerScopedData_AndIsIdempotent` failed in three of
+six full-suite runs today and passed alone every time. Root cause: the DbUp execution timeout in
+both seed tests was two minutes, a hang guard sized like a performance budget. The perf seed runs
+three 20,000-row `generate_series` inserts twice (the idempotency pass), about a minute per pass
+alone, and under the parallel Integration collection one pass crossed two minutes and surfaced as
+an Npgsql "Timeout during reading attempt". Fixed in this record's branch by raising the guard to
+ten minutes in `PerfSeedScriptTests` and `DastSeedScriptTests`. The mirror-generation commit
+earlier today bypassed the pre-commit gate on this flake after format, build and the fast filter
+were green.

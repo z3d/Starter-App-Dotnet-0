@@ -170,6 +170,25 @@ If the domain grows, the recorded target is **synchronous modules behind publish
 
 **Re-add trigger:** the same as the folder-only Clean Architecture acceptance in `ARCHITECTURE_REVIEW.md`: the domain grows past the sample aggregates, a second team owns part of it, or a compiler-enforced boundary is required.
 
+## Dapper reads retry through `PostgresRetryPolicy`, not Polly
+
+Read-side transient faults are retried by a hand-rolled helper (`Infrastructure/Persistence/PostgresRetryPolicy.cs`):
+five attempts, full-jitter exponential backoff, and a **total delay budget of ten seconds** so a
+saturated reader never holds a request open for the whole backoff ladder. Polly v8 is already in
+the dependency graph via `Microsoft.Extensions.Http.Resilience`, and the 2026-09-08
+simplification audit proposed swapping to it.
+
+**Why not Polly:** its retry strategy has per-attempt delay and a max-delay cap but no total
+budget; reproducing the budget means wrapping the pipeline in a timeout, which cancels the
+in-flight query rather than declining the next retry. That is a different behaviour, not the same
+one written shorter. Ten tests pin the current semantics, and `DapperConventionTests` requires
+every Dapper handler to route through the helper.
+
+**Re-add trigger:** Polly ships a total-delay budget for `RetryStrategyOptions`, or the read path
+needs a second resilience concern (circuit breaker, hedging) that would otherwise be hand-rolled
+beside the retry. Converge in one change that also rewrites `PostgresRetryPolicyTests` and the
+convention's type-name pin.
+
 ## The consistency suite is advisory and human-read
 
 `src/StarterApp.Tests/Consistency/` scores command handlers, query handlers and EF configurations

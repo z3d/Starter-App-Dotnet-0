@@ -57,7 +57,10 @@ public class PerfSeedScriptTests : IAsyncLifetime
             .PostgresqlDatabase(_fixture.ConnectionString)
             .WithScript("PerfSeed", script)
             .JournalTo(new NullJournal())
-            .WithExecutionTimeout(TimeSpan.FromMinutes(2))
+            // Hang guard, not a budget: the perf seed's 20k-row generate_series inserts take about a
+            // minute per pass alone and crossed two minutes under the parallel Integration collection
+            // (Npgsql read timeout, 2026-09-08). Sized so only a genuine hang trips it.
+            .WithExecutionTimeout(TimeSpan.FromMinutes(10))
             .Build();
 
         var result = upgradeEngine.PerformUpgrade();
