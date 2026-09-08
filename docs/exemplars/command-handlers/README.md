@@ -1,6 +1,6 @@
 # Command Handler Exemplars
 
-The consistency toolset (`StarterApp.Tests/Consistency/`) reports all three measurement layers for command handlers: structural distance from the exemplar centroid, AST/IL shingle similarity, and source-token embedding similarity. StarterApp keeps each command and its handler in the same `FooCommand.cs` source file; the cohort measures the handler type.
+The consistency toolset (`StarterApp.Tests/Consistency/`) reports two measurement layers for command handlers: structural distance from the exemplar centroid and per-feature divergence. StarterApp keeps each command and its handler in the same `FooCommand.cs` source file; the cohort measures the handler type.
 
 ## Exemplars
 
@@ -17,8 +17,6 @@ The consistency toolset (`StarterApp.Tests/Consistency/`) reports all three meas
 | Layer | Good at detecting | Not good at detecting |
 |-------|------------------|----------------------|
 | **Structural distance** (Mahalanobis with Ledoit-Wolf shrinkage, features z-scored against the cohort) | Shape anomalies — handlers with unusual complexity, dependencies, try/catch, private helpers, cache invalidation, or entity loads | Business correctness; domain/application tests own that |
-| **AST shingles** (Jaccard) | Control-flow and method-call skeleton novelty | Intent; a familiar skeleton can still do the wrong thing |
-| **Embedding similarity** (cosine via `SourceTokenEmbedder`) | Vocabulary outliers — domain types, methods, strings, and DTO/entity references that differ from the exemplars | Deep semantics; it is token overlap, not judgement |
 | **Per-feature divergence** | Direct lists of members that differ on a single feature | Subtle multi-feature interactions |
 
 ## Features

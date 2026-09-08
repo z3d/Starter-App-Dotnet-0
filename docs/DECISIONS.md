@@ -170,6 +170,28 @@ If the domain grows, the recorded target is **synchronous modules behind publish
 
 **Re-add trigger:** the same as the folder-only Clean Architecture acceptance in `ARCHITECTURE_REVIEW.md`: the domain grows past the sample aggregates, a second team owns part of it, or a compiler-enforced boundary is required.
 
+## The consistency suite is advisory and human-read
+
+`src/StarterApp.Tests/Consistency/` scores command handlers, query handlers and EF configurations
+against pinned exemplars (z-scored Mahalanobis distance with Ledoit-Wolf shrinkage, plus a
+per-feature divergence list) and writes the result to `docs/_local/consistency-*.txt` on every
+test run. Design rationale: <https://z3d.github.io/blog/consistency-checks/>. Its consumer is a
+reviewer reading the file, so it has no code consumer by design; "nothing references its output"
+is not grounds to delete it. Exemplars and their justifications live in `docs/exemplars/`.
+
+**Why not delete it as dead tooling:** convention tests encode rules already decided; this
+surfaces candidate rules by ranking files that differ in shape from the exemplars. Once review
+decides a divergence is a real rule it leaves the report and becomes a convention test.
+
+**Why not gate the build on a distance:** distance punishes the first good example of a new
+pattern and rewards the tenth copy of a bad one. Two tests that pinned `CreateOrderCommandHandler`
+as an outlier were removed on 2026-09-08 for exactly this reason.
+
+**Known limit:** at template scale (5-9 members, 3-4 exemplars per cohort) the signal is thin.
+It grows with the derived project.
+
+**Remove trigger:** two consecutive dated reviews record that no report line informed a finding.
+
 ## Considered and rejected
 
 Recorded so future sessions do not re-propose them.

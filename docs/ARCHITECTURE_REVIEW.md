@@ -13,6 +13,7 @@ that produced it. Before dismissing or re-raising anything, check the record, no
 | [2026-09-02 whole solution](reviews/ARCHITECTURE_REVIEW-2026-09-02-whole-solution.md) | Twenty-two findings, three dismissed; resolved and validated 2026-09-03 |
 | [2026-09-05 targeted review](reviews/ARCHITECTURE_REVIEW-2026-09-05.md) | Eight findings, **all resolved 2026-09-06**; regression and validation evidence in the record |
 | [2026-09-06 fix review](reviews/ARCHITECTURE_REVIEW-2026-09-06.md) | Independent review of the 2026-09-06 fix commit; fourteen residuals, twelve fixed the same day, two recorded with triggers |
+| [2026-09-08 consistency and simplification](reviews/REVIEW-2026-09-08-consistency-and-simplification.md) | Consistency-suite assessment against its design post (three drifts, fixed the same day) and the template-weighed simplification backlog |
 
 ## Overview
 
@@ -34,7 +35,7 @@ regressions in the DAST workflow, nightly k6 gate and DAST scan passing on `main
 
 ## Strengths
 
-Convention-enforced boundaries (110+ mechanical rules including supply chain, doc mirror, and
+Convention-enforced boundaries (110+ mechanical rules including supply chain and
 event coverage); rich aggregates with client-generated v7 ids where creation events need them;
 strict CQRS (EF commands, Dapper reads); transactional outbox with claim/salvage, per-cause retry
 budgets, a replay verb and runbook, and pinned event-contract snapshots; full payload capture and
@@ -123,7 +124,7 @@ are resolved, with failing-before/passing-after regressions and final validation
 - **Module-scoped agent docs.** A single root agent doc works at the current size. Trigger: the
   template grows into multiple modules. Then the root keeps vision, build and test commands, and an
   index; each module gets its own doc with business rules, command and event inventory, and a
-  pre-change checklist; the doc-mirror convention test extends to every new pair.
+  pre-change checklist; `scripts/sync-agent-docs.sh` generates every new pair.
 - **Compiler-enforced module boundaries.** Trigger and design are in the folder-only entry above
   and the modular-monolith decision in `DECISIONS.md`.
 - **Broker-observed settlement tests.** Retry-then-complete, abandon-then-redeliver, dead-letter

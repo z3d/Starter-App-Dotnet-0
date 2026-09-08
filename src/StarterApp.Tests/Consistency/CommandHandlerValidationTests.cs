@@ -22,45 +22,6 @@ public class CommandHandlerValidationTests : CohortValidationTestBase<HandlerFin
             $"{fp.TypeName} should emit Serilog diagnostics so handler execution is observable");
     }
 
-    [Fact]
-    public void StructuralFingerprint_CapturesCreateOrderComplexity()
-    {
-        var fingerprints = ExtractAll();
-        var createOrder = fingerprints.FirstOrDefault(f => f.TypeName == "CreateOrderCommandHandler");
-
-        Assert.NotNull(createOrder);
-        Assert.True(createOrder.PrivateMethodCount >= 3,
-            "CreateOrderCommandHandler should expose its helper-method decomposition.");
-        Assert.True(createOrder.EntityLoadCount >= 3,
-            "CreateOrderCommandHandler should expose its multi-entity load/reservation shape.");
-
-        var median = fingerprints.Select(f => f.IlByteSize).OrderBy(x => x).ElementAt(fingerprints.Count / 2);
-        Assert.True(createOrder.IlByteSize > median * 1.5,
-            $"CreateOrderCommandHandler IL byte size ({createOrder.IlByteSize}) should be well above median ({median}).");
-    }
-
-    [Fact]
-    public void StructuralFingerprint_KnownOutlierExceedsOneSigma()
-    {
-        var fingerprints = ExtractAll();
-        var exemplars = GetExemplars(fingerprints);
-
-        ICohortFingerprint[] all = fingerprints.ToArray<ICohortFingerprint>();
-        ICohortFingerprint[] ex = exemplars.ToArray<ICohortFingerprint>();
-        var scores = ConsistencyScorer.ScoreAll(all, ex);
-
-        var mean = scores.Average(s => s.Distance);
-        var stdDev = Math.Sqrt(scores.Average(s => (s.Distance - mean) * (s.Distance - mean)));
-        var threshold = mean + stdDev;
-
-        var createOrder = scores.FirstOrDefault(s => s.TypeName == "CreateOrderCommandHandler");
-
-        Assert.NotNull(createOrder);
-        Assert.True(createOrder.Distance > threshold,
-            $"CreateOrderCommandHandler distance {createOrder.Distance:F2} must exceed mean+1σ ({threshold:F2}).");
-    }
-
-
     // Synthetic-fixture extraction tests: prove the fingerprint extractor reads real
     // structure from KNOWN inputs, so the advisory layer cannot silently degrade into
     // extracting zeros for everything (the vacuous-pass failure class). These replace the

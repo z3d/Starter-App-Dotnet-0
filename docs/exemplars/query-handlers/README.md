@@ -1,6 +1,6 @@
 # Query Handler Exemplars
 
-The consistency toolset (`StarterApp.Tests/Consistency/`) reports all three measurement layers for query handlers: structural distance from the exemplar centroid, AST/IL shingle similarity, and source-token embedding similarity. StarterApp keeps each query and its handler in the same `FooQuery.cs` source file; the cohort measures the handler type.
+The consistency toolset (`StarterApp.Tests/Consistency/`) reports two measurement layers for query handlers: structural distance from the exemplar centroid and per-feature divergence. StarterApp keeps each query and its handler in the same `FooQuery.cs` source file; the cohort measures the handler type.
 
 ## Exemplars
 
@@ -19,8 +19,6 @@ The consistency toolset (`StarterApp.Tests/Consistency/`) reports all three meas
 | Layer | Good at detecting | Not good at detecting |
 |-------|------------------|----------------------|
 | **Structural distance** (Mahalanobis with Ledoit-Wolf shrinkage, features z-scored against the cohort) | Query shape anomalies — extra dependencies, unexpected caching, list/single-row drift, SQL complexity | SQL correctness; integration tests and review own that |
-| **AST shingles** (Jaccard) | Control-flow and method-call skeleton novelty across by-id, list, and rich-read shapes | Query intent; two SQL strings can compile to similar skeletons |
-| **Embedding similarity** (cosine via `SourceTokenEmbedder`) | Vocabulary outliers — read-model names, SQL tokens, entity names, and method references | Business meaning; it is token overlap |
 | **Per-feature divergence** | Direct lists of members that differ on a single feature | Subtle multi-feature interactions |
 
 ## Features
