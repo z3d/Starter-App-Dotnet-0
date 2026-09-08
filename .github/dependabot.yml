@@ -16,7 +16,8 @@ updates:
 
   # GitHub Actions used by the workflows (keeps action versions/SHAs current).
   - package-ecosystem: "github-actions"
-    directory: "/"
+    # The composite action pins setup-dotnet too; Dependabot only scans listed directories.
+    directories: ["/", "/.github/actions/dotnet-build"]
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5

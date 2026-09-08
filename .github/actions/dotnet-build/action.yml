@@ -1,0 +1,22 @@
+name: Restore and build
+description: >-
+  Shared .NET setup for every job: SDK with the lock-file NuGet cache, locked-mode restore, Release
+  build. Checkout stays in the caller so job-specific steps can run before the SDK is installed.
+
+runs:
+  using: composite
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      with:
+        dotnet-version: '10.0.x'
+        cache: true
+        cache-dependency-path: '**/packages.lock.json'
+
+    - name: Restore dependencies
+      shell: bash
+      run: dotnet restore --locked-mode
+
+    - name: Build
+      shell: bash
+      run: dotnet build --no-restore --configuration Release

@@ -1,0 +1,20 @@
+name: Pre-pull the PostgreSQL test image
+description: >-
+  Warm Docker's local cache with a retry loop. Anonymous Docker Hub pulls from shared GitHub Actions
+  IPs intermittently time out ("context deadline exceeded"), and Testcontainers' own pull has a
+  short, non-retrying deadline; pre-pulling means the fixture finds the image locally and never
+  touches the registry. Keep the tag in sync with TestDatabaseFixture's PostgreSqlBuilder image.
+
+runs:
+  using: composite
+  steps:
+    - name: Pre-pull postgres:16-alpine
+      shell: bash
+      run: |
+        for attempt in 1 2 3 4 5; do
+          if docker pull postgres:16-alpine; then exit 0; fi
+          echo "::warning::docker pull postgres:16-alpine failed (attempt $attempt/5); retrying in $((attempt * 10))s"
+          sleep $((attempt * 10))
+        done
+        echo "::error::could not pull postgres:16-alpine after 5 attempts"
+        exit 1

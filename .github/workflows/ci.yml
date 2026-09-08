@@ -31,38 +31,14 @@ jobs:
     - name: Verify the AGENTS.md mirror is regenerated
       run: bash scripts/sync-agent-docs.sh && git diff --exit-code -- AGENTS.md .agents
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-      with:
-        dotnet-version: '10.0.x'
-        cache: true
-        cache-dependency-path: '**/packages.lock.json'
-
-    - name: Restore dependencies
-      run: dotnet restore --locked-mode
+    - uses: ./.github/actions/dotnet-build
 
     - name: Verify formatting
       run: dotnet format --verify-no-changes --verbosity minimal --no-restore
 
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
-
     # DB-backed command/query handler tests share a Testcontainers PostgreSQL fixture even
-    # though they are not named *Integration*, so the unit step also needs the image. Warm
-    # Docker's local cache with a retry loop first: anonymous Docker Hub pulls from shared
-    # GitHub Actions IPs intermittently time out ("context deadline exceeded"), and
-    # Testcontainers' own pull has a short, non-retrying deadline. Pre-pulling here means the
-    # fixture finds the image locally and never touches the registry. Keep the tag in sync
-    # with TestDatabaseFixture's PostgreSqlBuilder image.
-    - name: Pre-pull test container images
-      run: |
-        for attempt in 1 2 3 4 5; do
-          if docker pull postgres:16-alpine; then exit 0; fi
-          echo "::warning::docker pull postgres:16-alpine failed (attempt $attempt/5); retrying in $((attempt * 10))s"
-          sleep $((attempt * 10))
-        done
-        echo "::error::could not pull postgres:16-alpine after 5 attempts"
-        exit 1
+    # though they are not named *Integration*, so the unit step also needs the image.
+    - uses: ./.github/actions/pull-postgres
 
     - name: Unit tests
       # Category!=Aspire is not redundant with the name filter: an Aspire-collection fact whose
@@ -77,30 +53,9 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-      with:
-        dotnet-version: '10.0.x'
-        cache: true
-        cache-dependency-path: '**/packages.lock.json'
+    - uses: ./.github/actions/dotnet-build
 
-    - name: Restore dependencies
-      run: dotnet restore --locked-mode
-
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
-
-    # See the build job: warm Docker's cache with a retry loop so the Testcontainers
-    # PostgreSQL fixture never depends on a flaky anonymous Docker Hub pull at test time.
-    - name: Pre-pull test container images
-      run: |
-        for attempt in 1 2 3 4 5; do
-          if docker pull postgres:16-alpine; then exit 0; fi
-          echo "::warning::docker pull postgres:16-alpine failed (attempt $attempt/5); retrying in $((attempt * 10))s"
-          sleep $((attempt * 10))
-        done
-        echo "::error::could not pull postgres:16-alpine after 5 attempts"
-        exit 1
+    - uses: ./.github/actions/pull-postgres
 
     - name: Integration tests
       run: dotnet test --no-build --configuration Release --verbosity normal --filter "FullyQualifiedName~Integration & Category!=Aspire"
@@ -112,13 +67,6 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-      with:
-        dotnet-version: '10.0.x'
-        cache: true
-        cache-dependency-path: '**/packages.lock.json'
-
     - name: Trust ASP.NET Core dev cert
       run: |
         sudo apt-get update -qq
@@ -126,11 +74,7 @@ jobs:
         dotnet dev-certs https --trust || true
         echo "SSL_CERT_DIR=$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs:/etc/ssl/certs" >> "$GITHUB_ENV"
 
-    - name: Restore dependencies
-      run: dotnet restore --locked-mode
-
-    - name: Build
-      run: dotnet build --no-restore --configuration Release
+    - uses: ./.github/actions/dotnet-build
 
     - name: Aspire tests
       run: dotnet test --no-build --configuration Release --verbosity normal --filter "Category=Aspire"
