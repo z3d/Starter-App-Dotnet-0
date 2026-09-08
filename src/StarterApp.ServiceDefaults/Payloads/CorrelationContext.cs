@@ -10,8 +10,6 @@ public static class CorrelationContext
 
     private static readonly AsyncLocal<string?> CurrentValue = new();
 
-    public static string? Current => CurrentValue.Value;
-
     public static IDisposable Push(string correlationId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);

@@ -11,7 +11,7 @@ public class RateLimitingTests
         var services = new ServiceCollection();
         services.AddSingleton<ICurrentUser>(new CurrentUser(
             "subject-9", AuthenticatedPrincipalType.User, "tenant-9",
-            ["products:read"], "case-rl"));
+            ["products:read"]));
         using var provider = services.BuildServiceProvider();
         var context = new DefaultHttpContext { RequestServices = provider };
 

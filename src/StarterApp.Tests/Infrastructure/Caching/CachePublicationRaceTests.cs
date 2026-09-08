@@ -12,7 +12,7 @@ public class CachePublicationRaceTests
     [InlineData(true)]
     public async Task HandleAsync_WhenInvalidationCompletesBeforePendingPublication_NeverServesTheOldValue(bool refresh)
     {
-        var user = new CurrentUser("owner", AuthenticatedPrincipalType.User, "tenant", [], "correlation");
+        var user = new CurrentUser("owner", AuthenticatedPrincipalType.User, "tenant", []);
         var query = new ProductQuery();
         var key = OwnerScopedCacheKey.Create(query.CacheKey, user);
         var entries = new ConcurrentDictionary<string, byte[]>();
@@ -61,7 +61,7 @@ public class CachePublicationRaceTests
     [Fact]
     public async Task HandleAsync_WhenBackendReturnsAnExpiredEnvelope_IgnoresItEvenAfterTheInvalidationMarkerExpires()
     {
-        var user = new CurrentUser("owner", AuthenticatedPrincipalType.User, "tenant", [], "correlation");
+        var user = new CurrentUser("owner", AuthenticatedPrincipalType.User, "tenant", []);
         var key = OwnerScopedCacheKey.Create(new ProductQuery().CacheKey, user);
         var cache = new Mock<IDistributedCache>();
         cache.Setup(c => c.GetAsync(key, It.IsAny<CancellationToken>()))

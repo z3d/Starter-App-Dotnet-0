@@ -58,7 +58,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
             return null;
         }
 
-        var timestampUtc = (request.TimestampUtc ?? _timeProvider.GetUtcNow()).ToUniversalTime();
+        var timestampUtc = _timeProvider.GetUtcNow().ToUniversalTime();
         var correlationId = CorrelationContext.Sanitize(request.CorrelationId ?? CorrelationContext.GetOrCreate());
         var archiveBlobName = PayloadBlobNaming.BuildArchiveBlobName(timestampUtc, correlationId, _options.ArchivePrefix);
         var auditBlobName = PayloadBlobNaming.BuildAuditBlobName(timestampUtc, _options.AuditPrefix);

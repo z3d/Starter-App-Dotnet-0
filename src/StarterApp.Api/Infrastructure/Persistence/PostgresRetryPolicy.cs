@@ -95,8 +95,6 @@ public static class PostgresRetryPolicy
         return TransientSqlStates.Contains(sqlState);
     }
 
-    internal static bool IsTransientSqlStateForTesting(string sqlState) => TransientSqlStates.Contains(sqlState);
-
     // Full jitter on an exponential ceiling: each delay lands uniformly in [ceiling / 2, ceiling],
     // so concurrent retries spread out instead of hitting the server in the same instant.
     internal static TimeSpan ComputeBackoff(int attempt)

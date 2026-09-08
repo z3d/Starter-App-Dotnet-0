@@ -16,8 +16,6 @@ internal sealed class CurrentUserAccessor : ICurrentUser
 
     public IReadOnlySet<string> AuthenticationMethods => _currentUser.AuthenticationMethods;
 
-    public string CorrelationId => _currentUser.CorrelationId;
-
     public void Set(CurrentUser currentUser)
     {
         _currentUser = currentUser;

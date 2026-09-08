@@ -149,8 +149,7 @@ public class CachingBehaviorTests
             "subject-1",
             AuthenticatedPrincipalType.User,
             "tenant-1",
-            ["products:read"],
-            "correlation");
+            ["products:read"]);
         var behavior = new CachingBehavior<OwnerScopedTestQuery, string>(
             _cacheMock.Object,
             currentUser,

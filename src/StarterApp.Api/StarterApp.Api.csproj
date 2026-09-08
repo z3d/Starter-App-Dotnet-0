@@ -21,7 +21,6 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Serilog.Enrichers.Sensitive" />
-    <PackageReference Include="Serilog.Expressions" />
     <PackageReference Include="Serilog.Sinks.OpenTelemetry" />
     <PackageReference Include="Serilog.Sinks.Seq" />
     <PackageReference Include="Scalar.AspNetCore" />

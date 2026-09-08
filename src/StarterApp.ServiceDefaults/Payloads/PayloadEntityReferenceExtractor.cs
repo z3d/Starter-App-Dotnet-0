@@ -18,11 +18,6 @@ public static class PayloadEntityReferenceExtractor
 
     public const int DefaultMaxEntityReferences = 64;
 
-    public static IReadOnlyList<PayloadEntityReference> Extract(PayloadCaptureRequest request)
-    {
-        return Extract(request, DefaultMaxEntityReferences, out _);
-    }
-
     public static IReadOnlyList<PayloadEntityReference> Extract(PayloadCaptureRequest request, int maxReferences, out bool truncated)
     {
         return Extract(request, maxReferences, PayloadCaptureOptions.DefaultSensitivePropertyNames, out truncated);

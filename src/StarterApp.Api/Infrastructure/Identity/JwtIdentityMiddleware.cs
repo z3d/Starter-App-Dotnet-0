@@ -21,7 +21,7 @@ internal sealed class JwtIdentityMiddleware
     {
         if (context.User.Identity?.IsAuthenticated == true)
         {
-            var user = Map(context.User, context.TraceIdentifier);
+            var user = Map(context.User);
             if (user != null)
                 currentUserAccessor.Set(user);
         }
@@ -29,7 +29,7 @@ internal sealed class JwtIdentityMiddleware
         await _next(context);
     }
 
-    private static CurrentUser? Map(ClaimsPrincipal principal, string correlationId)
+    private static CurrentUser? Map(ClaimsPrincipal principal)
     {
         // Both sub and tid are required: owner scoping, cache keys, and rate-limit partitions
         // key on subject + tenant, so a token missing either maps to no identity (the scope
@@ -51,7 +51,6 @@ internal sealed class JwtIdentityMiddleware
             principalType,
             tenantId,
             ReadMultiValueClaim(principal, "scp", "scope"),
-            correlationId,
             ReadMultiValueClaim(principal, "amr"));
     }
 

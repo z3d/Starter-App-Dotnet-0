@@ -14,11 +14,6 @@ public interface ICurrentUser
 
     IReadOnlySet<string> AuthenticationMethods { get; }
 
-    string CorrelationId { get; }
-
-
-
-
     bool HasScope(string scope);
 
     bool HasAuthenticationMethod(string authenticationMethod);

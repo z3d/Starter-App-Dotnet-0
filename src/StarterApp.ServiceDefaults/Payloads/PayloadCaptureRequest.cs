@@ -3,7 +3,6 @@ namespace StarterApp.ServiceDefaults.Payloads;
 public sealed class PayloadCaptureRequest
 {
     public string? CorrelationId { get; init; }
-    public DateTimeOffset? TimestampUtc { get; init; }
     public string Direction { get; init; } = string.Empty;
     public string Channel { get; init; } = string.Empty;
     public string Operation { get; init; } = string.Empty;

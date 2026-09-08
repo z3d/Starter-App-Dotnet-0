@@ -119,7 +119,7 @@ public class PostgresRetryPolicyTests
     [InlineData("53300")] // too_many_connections
     public void IsTransientSqlState_RecognizesKnownTransientCodes(string sqlState)
     {
-        Assert.True(PostgresRetryPolicy.IsTransientSqlStateForTesting(sqlState),
+        Assert.True(PostgresRetryPolicy.IsTransientSqlState(sqlState),
             $"SQLSTATE {sqlState} should be classified as transient.");
     }
 
@@ -130,7 +130,7 @@ public class PostgresRetryPolicyTests
     [InlineData("00000")] // successful_completion
     public void IsTransientSqlState_RejectsNonTransientCodes(string sqlState)
     {
-        Assert.False(PostgresRetryPolicy.IsTransientSqlStateForTesting(sqlState),
+        Assert.False(PostgresRetryPolicy.IsTransientSqlState(sqlState),
             $"SQLSTATE {sqlState} must not be classified as transient; retrying would mask a real logical error.");
     }
 
