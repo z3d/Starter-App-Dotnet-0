@@ -85,13 +85,16 @@ hand-rolled BCL still go. Verified by call-site grep; approximate line counts.
   A swap is a redesign, not a cut.
 - **Length guards → `ThrowIfGreaterThan`.** Domain tests pin the exact exception type and message,
   and the validator-guard sync rule references the messages.
-- **`OutboxReplayer` twin SQL.** A test already asserts the two constants stay in sync; merging
-  them needs a typed nullable parameter for little gain.
-- **`NullPayloadArchiveStore`.** DI cannot return null for an interface registration; the null
-  object is the honest shape. **`InMemoryPayloadArchiveStore`** stays where it is for the same
-  reason the swap-point exemplars do. **k6 `JSON_HEADERS`**, the endpoint id-mismatch guard, and
-  the `WithDescription`/`ProducesProblem(500)` metadata: too small to be worth a helper, or
-  OpenAPI output someone reads.
+- **Second look, 2026-09-09.** Three of the declines did not survive re-checking. The replayer's
+  "a test keeps the constants in sync" reason was a misread: `OutboxReplayTests` compares the SQL
+  to `OutboxMessage.ResetForReplay`, not one constant to the other, so `ReplayByIdSql` is now
+  derived from `ReplayAllErroredSql` plus one line. Nothing snapshots the OpenAPI output, so the
+  sixteen `WithDescription` calls that restated their summaries are gone. `jsonParams` reuses
+  `JSON_HEADERS.headers`. Still kept: `NullPayloadArchiveStore` (DI cannot return null for an
+  interface; making the store an optional dependency touches the sink, the cleanup Function, and
+  the registration test to delete fourteen lines), the endpoint id-mismatch guard (a helper is no
+  shorter than three four-line ifs), and `ProducesProblem(500)` (accurate OpenAPI: the exception
+  handler does return ProblemDetails).
 
 **Judgment calls left open:** cache subsystem (shrink to plain get/set/remove, or delete with
 Redis; either touches the by-id caching rule in `CLAUDE.md`); six probe routes for three
