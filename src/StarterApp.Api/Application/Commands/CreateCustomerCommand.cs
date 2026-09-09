@@ -27,18 +27,10 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         var ownerScope = _ownerOnlyPolicy.GetRequiredScope();
         await EnsureEmailIsUniqueAsync(email.Value, ownerScope, cancellationToken);
 
-        // Commit-ambiguity idempotency: with EnableRetryOnFailure, a SaveChanges whose commit
-        // succeeded but whose ack was lost is re-run by the execution strategy. Email is the
-        // natural key (unique per owner scope) and uniqueness was verified above, so finding the
-        // row inside a RETRY means our own insert committed — return it instead of throwing a
-        // spurious duplicate-email 409. Same failure mode CreateOrderCommandHandler guards with
-        // its pre-generated stable order Id.
-        //
-        // Only a retry may recover this way. On the first attempt a same-email row can only be a
-        // concurrent request that won the race after our pre-check, and returning its row would
-        // hand this caller someone else's representation as a successful create; the unique
-        // constraint turns that into the 409 it should be. A retry additionally requires the
-        // stored row to match what we asked to insert, for the same reason.
+        // The database may commit the insert even if we never receive confirmation.
+        // On retry, return an existing customer only if owner scope, email, and name match.
+        // On the first attempt, let the unique constraint reject a concurrent duplicate
+        // with 409; an existing customer must not count as a successful create.
         var strategy = _dbContext.Database.CreateExecutionStrategy();
         Customer? savedCustomer = null;
         var attempt = 0;
