@@ -9,21 +9,7 @@ public static class OutboxReplayer
     // semantics: only unprocessed, errored rows are eligible; the reset clears
     // error state and any stale claim, restores the retry budget, and stamps
     // replay metadata so the processor can mark the republished message.
-    // OutboxReplayTests asserts both representations stay in sync.
-    private const string ReplayByIdSql = """
-        UPDATE outbox_messages
-        SET error = NULL,
-            errored_on_utc = NULL,
-            processing_id = NULL,
-            locked_until_utc = NULL,
-            retry_count = 0,
-            replay_count = replay_count + 1,
-            replayed_on_utc = now()
-        WHERE processed_on_utc IS NULL
-          AND error IS NOT NULL
-          AND id = @id
-        """;
-
+    // OutboxReplayTests asserts the SQL and OutboxMessage.ResetForReplay stay in sync.
     private const string ReplayAllErroredSql = """
         UPDATE outbox_messages
         SET error = NULL,
@@ -36,6 +22,8 @@ public static class OutboxReplayer
         WHERE processed_on_utc IS NULL
           AND error IS NOT NULL
         """;
+
+    private const string ReplayByIdSql = ReplayAllErroredSql + "\n  AND id = @id";
 
     public static int Run(string connectionString, string[] args)
     {

@@ -40,10 +40,7 @@ export const ENDPOINTS = {
 };
 
 export function jsonParams(tag) {
-  return {
-    headers: Object.assign({}, AUTH_HEADERS, { 'Content-Type': 'application/json' }),
-    tags: { endpoint: tag },
-  };
+  return { headers: JSON_HEADERS.headers, tags: { endpoint: tag } };
 }
 
 export function tagParams(tag) {
