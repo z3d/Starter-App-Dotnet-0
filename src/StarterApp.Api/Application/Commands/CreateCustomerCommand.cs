@@ -9,13 +9,11 @@ public class CreateCustomerCommand : ICommand, IRequest<CustomerDto>
 public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerCommand, CustomerDto>
 {
     private readonly ApplicationDbContext _dbContext;
-    private readonly ICacheInvalidator _cacheInvalidator;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public CreateCustomerCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public CreateCustomerCommandHandler(ApplicationDbContext dbContext, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _dbContext = dbContext;
-        _cacheInvalidator = cacheInvalidator;
         _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
@@ -85,8 +83,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             savedCustomer = customer;
         });
 
-        await _cacheInvalidator.InvalidateCustomerAsync(savedCustomer!.Id, cancellationToken);
-        Log.Information("Created new customer with ID: {CustomerId}", savedCustomer.Id);
+        Log.Information("Created new customer with ID: {CustomerId}", savedCustomer!.Id);
 
         // Map to DTO and return
         return new CustomerDto

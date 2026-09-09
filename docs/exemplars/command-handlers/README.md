@@ -6,7 +6,7 @@ The consistency toolset (`StarterApp.Tests/Consistency/`) reports two measuremen
 
 <!-- Tests parse exemplar names from bold-backtick lines and dependency counts from "N dependencies". -->
 
-**`CreateProductCommandHandler.cs`** — Simple create command. Builds a value object, stamps the owner scope, creates a product aggregate, saves once, invalidates the product cache, logs the operation, and returns a DTO inline. Pinned as the basic write shape. 3 dependencies (ApplicationDbContext, ICacheInvalidator, IOwnerOnlyPolicy).
+**`CreateProductCommandHandler.cs`** — Simple create command. Builds a value object, stamps the owner scope, creates a product aggregate, saves once, logs the operation, and returns a DTO inline. Pinned as the basic write shape. 2 dependencies (ApplicationDbContext, IOwnerOnlyPolicy).
 
 **`UpdateOrderStatusCommandHandler.cs`** — Tracked aggregate mutation with cross-entity cache invalidation. Loads an order with its item collection, verifies owner access, applies a domain state transition, saves once, and — when the transition cancels the order and restores product stock — invalidates the affected products' cache before mapping through `OrderMapper`. Pinned as the order-state transition shape. 3 dependencies (ApplicationDbContext, ICacheInvalidator, IOwnerOnlyPolicy).
 

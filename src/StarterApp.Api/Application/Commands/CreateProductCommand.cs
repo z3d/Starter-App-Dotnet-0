@@ -16,13 +16,11 @@ public class CreateProductCommand : ICommand, IRequest<ProductDto>
 public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand, ProductDto>
 {
     private readonly ApplicationDbContext _dbContext;
-    private readonly ICacheInvalidator _cacheInvalidator;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
 
-    public CreateProductCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public CreateProductCommandHandler(ApplicationDbContext dbContext, IOwnerOnlyPolicy ownerOnlyPolicy)
     {
         _dbContext = dbContext;
-        _cacheInvalidator = cacheInvalidator;
         _ownerOnlyPolicy = ownerOnlyPolicy;
     }
 
@@ -39,7 +37,6 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
 
         _dbContext.Products.Add(product);
         await _dbContext.SaveChangesAsync(cancellationToken);
-        await _cacheInvalidator.InvalidateProductAsync(product.Id, cancellationToken);
 
         Log.Information("Created new product with ID: {ProductId}", product.Id);
 

@@ -13,7 +13,7 @@ public class CreateProductCommandHandlerTests : PostgresCommandHandlerTestBase
     {
         // Arrange
         await using var context = CreateContext();
-        var handler = new CreateProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
+        var handler = new CreateProductCommandHandler(context, TestOwnerOnlyPolicy.Instance);
 
         var command = new CreateProductCommand
         {
