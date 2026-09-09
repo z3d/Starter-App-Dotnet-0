@@ -14,14 +14,10 @@ public class PayloadCaptureOptions
 
     public bool RequireArchiveStore { get; set; }
 
-    // Failure policy is per-channel because the trade-offs differ. Payload capture is an audit
-    // sidecar and must NOT take down synchronous user traffic, so HTTP defaults to FailOpen
-    // (a capture failure is logged and the request proceeds). The Service Bus / outbox path runs
-    // in the background, decoupled from users, so it can default safely and be tightened to
-    // FailClosed in production-like config (no event is published without a durable audit record;
-    // OutboxProcessor pauses the batch on capture failure rather than poisoning the message).
-    // Both default to FailOpen in code so standalone dev / tests with no archive store never break;
-    // the AppHost production-like orchestration sets ServiceBusFailureMode=FailClosed.
+    // FailOpen lets HTTP requests continue when audit capture fails.
+    // Both channels default to FailOpen for standalone development and tests.
+    // Production-like AppHost config sets ServiceBusFailureMode to FailClosed:
+    // the outbox pauses until capture succeeds, preserving the message's retry budget.
     public PayloadCaptureFailureMode HttpFailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
 
     public PayloadCaptureFailureMode ServiceBusFailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
@@ -58,12 +54,9 @@ public class PayloadCaptureOptions
     [Range(1, 3650)]
     public int RetentionDays { get; set; } = 30;
 
-    // Wall-clock budget for one cleanup run, split evenly across the three prefixes. There is no
-    // per-run delete cap: each prefix is swept in one listing pass until caught up or its share of
-    // the budget is spent, and a run that hits the budget reports BudgetExhausted (Degraded in
-    // job_runs) so an archive that is falling behind is visible instead of silent. The default
-    // sits inside every Functions plan's default functionTimeout (5 minutes on Consumption) and
-    // well under the hourly CleanupCron; raise it only alongside functionTimeout in host.json.
+    // Split the cleanup time budget evenly across the three prefixes, with no delete cap.
+    // Budget exhaustion records a Degraded job run so an unfinished sweep is visible.
+    // Keep this budget within host.json's functionTimeout, allowing time for other work.
     [Range(1, 3600)]
     public int CleanupTimeBudgetSeconds { get; set; } = 300;
 

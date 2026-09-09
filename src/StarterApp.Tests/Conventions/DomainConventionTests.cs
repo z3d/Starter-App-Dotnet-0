@@ -259,14 +259,9 @@ public class DomainConventionTests : ConventionTestBase
     [Fact]
     public void AggregateConstructors_MustNotCallRaiseDomainEvent()
     {
-        // Creation events must be raised via the RecordCreation() override, which the DbContext
-        // calls BEFORE SaveChanges on Added aggregates. Constructor-raised events ARE still
-        // captured (the events collection is read during SaveChanges regardless of when it was
-        // populated) — the real hazard is timing relative to key generation: an aggregate with a
-        // DATABASE-generated id that raises its creation event in the constructor would capture
-        // the pre-persist default key (0) into the payload. RecordCreation runs late enough to
-        // be safe for both id strategies, and the Guid-id rule below removes the hazard entirely
-        // for aggregates that raise creation events.
+        // Raise creation events in RecordCreation, which the interceptor calls before saving.
+        // These aggregates must assign IDs client-side: database-generated IDs are not yet
+        // available when the event payload is captured.
         var aggregateTypes = DomainAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(AggregateRoot)));
 

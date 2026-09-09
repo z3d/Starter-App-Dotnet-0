@@ -146,13 +146,9 @@ public class CachingConventionTests : ConventionTestBase
     [Fact]
     public void CommandHandlers_MutatingCacheableEntities_MustInvokeCacheInvalidator()
     {
-        // Cross-entity cache rule. A command handler that changes a cacheable entity's persisted state
-        // must invalidate that entity's cache, even when the mutated entity differs from the entity the
-        // handler is named after — the order handlers decrement/restore Product stock, and Product has a
-        // cacheable by-id read model that carries Stock. The name-based MustInjectCacheInvalidator rule
-        // misses this (it matches by handler name and excludes Create*), so detect the mutation
-        // structurally: scan the handler plus any application helper it delegates to (e.g.
-        // OrderCancellationService) for a Product stock write (Product.UpdateStock or EF ExecuteUpdateAsync).
+        // Order handlers change Product stock, so they must invalidate the Product cache too.
+        // Handler names miss this dependency. Scan stock writes in handlers and delegated
+        // application helpers, including Product.UpdateStock and EF ExecuteUpdateAsync.
         var handlers = ApiAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))

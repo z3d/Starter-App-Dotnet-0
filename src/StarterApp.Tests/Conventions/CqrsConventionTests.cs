@@ -28,12 +28,8 @@ public partial class CqrsConventionTests : ConventionTestBase
             .WithFailureAssertion(Assert.Fail);
     }
 
-    // The negative tests above stop a command handler from reaching for Dapper or a query handler from
-    // reaching for the DbContext, but neither asserts the POSITIVE side of the CQRS split: a command
-    // handler that injects neither (e.g. one written against IDbConnection-free Dapper helpers, or a
-    // pure pass-through) would silently route writes off the EF Core path while passing every other
-    // convention. This test closes that gap mechanically — every command handler must take the write
-    // path through ApplicationDbContext.
+    // Forbidding IDbConnection alone also allows handlers with neither dependency.
+    // Require ApplicationDbContext to keep commands on the EF write path.
     [Fact]
     public void CommandHandlers_MustDependOnApplicationDbContext()
     {

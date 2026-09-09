@@ -56,29 +56,17 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddPersistence(this IServiceCollection services, string connectionString)
     {
-        // EnableRetryOnFailure is safe here because:
-        //   1. ApplicationDbContext uses a single-SaveChanges outbox (no user transaction),
-        //      so the retrying execution strategy does not have to refuse the flow.
-        //   2. CreateOrderCommandHandler's user transaction (stock reservation + order save)
-        //      is wrapped in Database.CreateExecutionStrategy().ExecuteAsync, which is the
-        //      retry-safe pattern documented by Microsoft.
-        // If a future handler opens BeginTransaction without wrapping in an execution strategy,
-        // the first transient fault will throw at runtime with a clear message.
-        // DomainEventsInterceptor is stateless, so a single shared instance serves every context; it is
-        // what funnels aggregates' domain events into the outbox on each SaveChanges (see its header comment).
+        // Save aggregates and outbox rows together. Explicit transactions must run inside
+        // CreateExecutionStrategy().ExecuteAsync, as in CreateOrderCommandHandler.
+        // DomainEventsInterceptor captures events during SaveChanges.
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString, postgres =>
                 postgres.EnableRetryOnFailure(maxRetryCount: 6, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null))
                    .EnableSensitiveDataLogging(false)
                    .AddInterceptors(new DomainEventsInterceptor()));
 
-        // Dapper reads use this connection. Query handlers wrap their calls in
-        // PostgresRetryPolicy.ExecuteAsync so read-side transient faults get the same retry posture
-        // as EF Core writes.
-        // Transient (not scoped): each injecting query handler gets its own NpgsqlConnection, so a
-        // future Task.WhenAll over two query handlers in one request can't collide on a single
-        // connection (Npgsql has no MARS). Queries are read-only with no shared transaction, and
-        // connection pooling reuses the physical sockets, so per-resolution connections are cheap.
+        // Give each query handler its own connection so concurrent queries cannot share one.
+        // Physical connections are pooled; query retries use PostgresRetryPolicy.ExecuteAsync.
         services.AddTransient<System.Data.IDbConnection>(provider =>
             new Npgsql.NpgsqlConnection(connectionString));
 

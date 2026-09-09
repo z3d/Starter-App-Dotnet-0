@@ -3,24 +3,10 @@ using StarterApp.Api.Infrastructure.Outbox;
 
 namespace StarterApp.Api.Data;
 
-// Single-SaveChanges outbox pattern, as a SaveChangesInterceptor.
-//
-// This lives in an interceptor (attached by AddPersistence) rather than ApplicationDbContext overrides so
-// the context owns persistence only and the outbox-capture concern is a composable, separately-testable
-// seam — the same interceptor wires unchanged onto any future DbContext. A context constructed without it
-// (design-time tooling, model-only tests) simply does not capture. EF invokes SavingChanges once per
-// SaveChanges call, outside the retrying execution strategy, so EnableRetryOnFailure cannot re-enter the
-// capture and duplicate outbox rows.
-//
-// Aggregates raising creation events (via RecordCreation override) must assign their Id
-// client-side (e.g. Guid.CreateVersion7) so the event payload can be built BEFORE SaveChanges.
-// Enforced by DomainConventionTests.AggregatesOverridingRecordCreation_MustHaveGuidId.
-//
-// Why single-SaveChanges matters: EF's retrying execution strategy (EnableRetryOnFailure) rejects
-// user-initiated transactions, and wrapping a two-SaveChanges flow in
-// CreateExecutionStrategy().ExecuteAsync is unsafe — mid-flow retry leaves the ChangeTracker out of
-// sync with the rolled-back DB. Capturing outbox rows into the same save lets EF manage its own
-// retry-aware transaction.
+// Capture domain events as outbox rows in the same SaveChanges as the aggregates.
+// AddPersistence registers this interceptor; contexts without it do not capture events.
+// Creation events need client-assigned IDs because payloads are serialized before saving.
+// See DomainConventionTests.AggregatesOverridingRecordCreation_MustHaveGuidId.
 public sealed class DomainEventsInterceptor : SaveChangesInterceptor
 {
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)

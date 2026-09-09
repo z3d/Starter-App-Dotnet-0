@@ -5,15 +5,8 @@ using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Tests.Fuzzing;
 
-// Property-based coverage of CorrelationContext.Sanitize, the only remaining gate on the
-// caller-controlled correlation id (the retired gateway header parser used to reject
-// out-of-contract ids at the door). Its output feeds archive blob names (PayloadBlobNaming)
-// and the echoed X-Correlation-ID response header, so the contract is load-bearing:
-// every output matches [A-Za-z0-9._-]{1,128}, and distinct raw ids do not accidentally
-// collapse onto one sanitized id (the raw-bound hash suffix carries that guarantee against
-// benign collisions only — a caller can always construct a contract-valid id equal to a lossy
-// raw's output, but the id is unauthenticated input, so the suffix was never an adversarial
-// boundary).
+// Sanitized IDs feed blob names and response headers, so they must match [A-Za-z0-9._-]{1,128}.
+// Check deterministic output and accidental collisions; IDs remain caller-controlled.
 public class CorrelationIdFuzzTests
 {
     private const string ContractPattern = "^[A-Za-z0-9._-]{1,128}$";
@@ -82,12 +75,9 @@ public class CorrelationIdFuzzTests
     [Property(MaxTest = 400)]
     public Property Sanitize_DistinctRawIds_DoNotAccidentallyCollapse()
     {
-        // The raw-bound hash suffix keeps ids that sanitize to the same base ("a:b" vs "a|b",
-        // "cliché" vs "cliche") out of each other's archive streams. This is a benign-collision
-        // guarantee, not an adversarial one: a contract-valid raw constructed to equal a lossy
-        // raw's exact output ("abcdef.<its hash>") round-trips verbatim and collides — but the
-        // generator only produces such a pair by guessing an 8-hex hash, and a caller who wants
-        // into another stream can just send that stream's id directly.
+        // Exercise accidental collisions such as "a:b" and "a|b" sharing a sanitized base.
+        // This does not prove uniqueness: the hash can collide, and a caller can submit
+        // another ID's sanitized output directly.
         return Prop.ForAll(RawIdArb(), RawIdArb(), (first, second) =>
             (first.Trim() == second.Trim() ||
              CorrelationContext.Sanitize(first) != CorrelationContext.Sanitize(second))

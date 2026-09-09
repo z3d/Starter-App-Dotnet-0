@@ -155,11 +155,8 @@ public class OutboxProcessor : BackgroundService
                 }
                 catch (Exception captureEx) when (captureEx is not OperationCanceledException)
                 {
-                    // Capture runs before publish. Under FailClosed a capture (audit) failure throws —
-                    // whether transient or not. Do NOT consume the message's retry budget or mark it
-                    // Error: that would permanently lose the event even though Service Bus was healthy.
-                    // Pause the batch so the not-yet-published event is retried cleanly once the archive
-                    // store recovers; publishing without a durable audit record would violate FailClosed.
+                    // Under FailClosed, pause on any audit capture failure before publishing.
+                    // Keep the message's retry budget intact so it can publish when capture succeeds.
                     _logger.LogWarning(captureEx,
                         "Payload capture failed for outbox message {MessageId} ({Type}) before publish; pausing batch until the archive store recovers (retry budget untouched)",
                         message.Id, message.Type);
@@ -175,19 +172,10 @@ public class OutboxProcessor : BackgroundService
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // This catch now only sees publish-side faults: payload-capture (archive) failures are
-                // handled by the dedicated inner catch above, which pauses the batch before SendMessageAsync
-                // is reached. IsTransientDependencyError still folds in the payload-capture classifier, but
-                // its Blob/RequestFailedException arm is unreachable here (SendMessageAsync throws
-                // ServiceBusException, not RequestFailedException). It is retained only to cover the rare
-                // transient transport fault (IO/socket/timeout) that the Service Bus SDK does not wrap as a
-                // ServiceBusException — do not narrow it to IsTransientServiceBusError or that net is lost.
-                //
-                // Dependency-level outages (SB down, throttled, timing out) should not consume a message's
-                // per-message retry budget — otherwise a multi-minute outage poisons every polled message
-                // into a permanent Error state requiring manual requeue. Keep claimed rows locked until
-                // LockedUntilUtc; that gives other processors a bounded retry delay and avoids repeatedly
-                // hammering the failing dependency.
+                // Dependency outages must not exhaust individual messages' retry budgets.
+                // Pause with claims locked until LockedUntilUtc to delay the next attempt.
+                // Keep the broader classifier: transport faults may escape the SDK without
+                // being wrapped in ServiceBusException. Audit failures are handled above.
                 if (IsTransientDependencyError(ex))
                 {
                     _logger.LogWarning(ex, "Transient dependency error publishing outbox message {MessageId} ({Type}); pausing batch until claim lock expires",
@@ -217,12 +205,9 @@ public class OutboxProcessor : BackgroundService
         await SaveOutcomesAsync(dbContext, cancellationToken);
     }
 
-    // ProcessingId is a concurrency token, and a batch's MarkAsProcessed/IncrementRetry/MarkAsError
-    // outcomes persist in one SaveChanges. If a row's claim lock expired mid-batch and another
-    // replica reclaimed it, a plain save would throw and discard EVERY outcome in the batch —
-    // already-published messages would then be republished after lock expiry, outside the dedup
-    // window. Detach only the stolen rows (the reclaiming replica owns their outcome now) and
-    // persist the rest.
+    // If another processor reclaims a row, its ProcessingId change makes this save conflict.
+    // Detach reclaimed rows and save the remaining outcomes; losing the whole batch's
+    // outcomes would cause already-published messages to be sent again.
     internal async Task SaveOutcomesAsync(ApplicationDbContext dbContext, CancellationToken cancellationToken)
     {
         while (true)

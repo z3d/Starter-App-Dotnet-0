@@ -43,13 +43,8 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         // No (tenant_id, owner_subject) index: the unique (tenant_id, owner_subject, email) index
         // below serves that prefix (0005_DropRedundantIndexes.sql).
 
-        // NOTE: the per-owner unique email index `ix_customers_tenant_id_owner_subject_email`
-        // (DbUp baseline 0001_CreatePostgresSchema.sql) is intentionally NOT mirrored here.
-        // It spans `tenant_id`/`owner_subject` (Customer) plus `email` (the owned Email value
-        // object, a separate EF entity type), and EF Core's fluent API cannot declare a composite
-        // index across an entity and its owned type even when they share a table. DbUp owns the
-        // schema, so the unique constraint is enforced in the database; the create/update customer
-        // handlers catch that exact constraint name as the race-safe uniqueness net. Do not try to
-        // add this via HasIndex("...","Email.Value") — EF rejects the owned-column reference.
+        // DbUp defines ix_customers_tenant_id_owner_subject_email in the baseline migration.
+        // EF cannot model this index across Customer and its owned Email type.
+        // Create/update handlers catch this constraint to handle concurrent duplicates.
     }
 }

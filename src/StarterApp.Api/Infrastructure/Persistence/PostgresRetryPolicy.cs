@@ -2,22 +2,10 @@ using Npgsql;
 
 namespace StarterApp.Api.Infrastructure.Persistence;
 
-// Query-time retry policy for Dapper/ADO.NET calls against PostgreSQL.
-//
-// Why this exists: EF Core's EnableRetryOnFailure is scoped to ApplicationDbContext.
-// Dapper reads go through plain ADO.NET commands, so this helper closes the retry
-// asymmetry between EF writes and read-model queries.
-//
-// The operation Func is invoked per attempt; Dapper reopens connections from the
-// pool as needed, so broken connections are recycled automatically.
-//
-// Backoff is jittered and capped by a total delay budget. A deterministic ladder makes every
-// saturated reader retry in lockstep and hold its request open for the whole ladder, which
-// amplifies the very exhaustion (53300) it is retrying; the EF write path already jitters via
-// NpgsqlRetryingExecutionStrategy, so reads now match it. Deliberate trade: the read-retry
-// window shrank from ~61 s to the 10 s budget, so a failover longer than that surfaces as an
-// error instead of a request held open — which the common 60 s ingress read timeout would have
-// cut off anyway.
+// EF's retry policy does not cover Dapper reads, so each query retries through this helper.
+// Dapper reopens pooled connections as needed on each attempt.
+// Randomized backoff spreads concurrent retries; the total delay budget limits time spent
+// waiting between attempts, not time spent executing queries.
 public static class PostgresRetryPolicy
 {
     private const int MaxRetries = 5;
@@ -95,8 +83,7 @@ public static class PostgresRetryPolicy
         return TransientSqlStates.Contains(sqlState);
     }
 
-    // Full jitter on an exponential ceiling: each delay lands uniformly in [ceiling / 2, ceiling],
-    // so concurrent retries spread out instead of hitting the server in the same instant.
+    // Choose a delay between half the exponential ceiling and the ceiling to spread retries.
     internal static TimeSpan ComputeBackoff(int attempt)
     {
         var ceiling = ComputeBackoffCeiling(attempt);

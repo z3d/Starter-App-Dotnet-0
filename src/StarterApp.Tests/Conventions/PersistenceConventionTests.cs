@@ -2,14 +2,8 @@ namespace StarterApp.Tests.Conventions;
 
 public class PersistenceConventionTests : ConventionTestBase
 {
-    // === Outbox Capture Wiring ===
-    // The single-SaveChanges outbox pattern only holds if every EF write entry point funnels through
-    // DomainEventsInterceptor's capture step. Wiring that bypassed the interceptor would silently drop
-    // domain events with no compile error. Asserted behaviourally against the real interceptor (more
-    // robust than the IL scan this replaced): save an aggregate that raises a creation event and confirm
-    // the outbox row materializes in the same save — for both the sync and async paths.
-    // AddPersistence_WiresDomainEventsInterceptor pins that the production DI registration actually
-    // attaches the interceptor.
+    // Both SaveChanges paths must capture creation events in the same save as the aggregate.
+    // The wiring test also checks that AddPersistence registers the interceptor.
 
     [Theory]
     [InlineData(false)]
