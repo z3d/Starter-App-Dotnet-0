@@ -6,6 +6,8 @@ namespace StarterApp.Api.Data;
 // Writes the aggregates' domain events to the outbox table in the same SaveChanges call
 // that saves the aggregates. AddPersistence attaches this interceptor; a context built without
 // it saves nothing to the outbox.
+// EF calls SavingChanges once per SaveChanges, outside the retrying execution strategy, so
+// EnableRetryOnFailure cannot run the capture twice and duplicate outbox rows.
 // The event payload is serialized before the save, so an aggregate that raises a creation event
 // must assign its own Id. DomainConventionTests.AggregatesOverridingRecordCreation_MustHaveGuidId
 // enforces that.
