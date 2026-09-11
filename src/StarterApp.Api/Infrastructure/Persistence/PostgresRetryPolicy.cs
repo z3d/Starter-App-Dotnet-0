@@ -2,10 +2,13 @@ using Npgsql;
 
 namespace StarterApp.Api.Infrastructure.Persistence;
 
-// EF's retry policy does not cover Dapper reads, so each query retries through this helper.
-// Dapper reopens pooled connections as needed on each attempt.
-// Randomized backoff spreads concurrent retries; the total delay budget limits time spent
-// waiting between attempts, not time spent executing queries.
+// EF's retry policy covers only the DbContext. Dapper reads go through plain ADO.NET, so the
+// query handlers wrap them in this helper instead. Dapper reopens a pooled connection on each
+// attempt.
+// The backoff is randomized so that saturated readers do not retry in lockstep. The total
+// delay budget is 10 seconds, down from about 61: a longer failover now fails the request
+// instead of holding it open, which the usual 60-second ingress timeout would have done anyway.
+// The budget counts the waits between attempts, not the time spent running the query.
 public static class PostgresRetryPolicy
 {
     private const int MaxRetries = 5;
@@ -83,7 +86,8 @@ public static class PostgresRetryPolicy
         return TransientSqlStates.Contains(sqlState);
     }
 
-    // Choose a delay between half the exponential ceiling and the ceiling to spread retries.
+    // The delay is a random point between half the exponential ceiling and the ceiling, so
+    // concurrent retries land at different moments.
     internal static TimeSpan ComputeBackoff(int attempt)
     {
         var ceiling = ComputeBackoffCeiling(attempt);

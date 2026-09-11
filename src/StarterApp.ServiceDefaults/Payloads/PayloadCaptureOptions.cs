@@ -14,10 +14,11 @@ public class PayloadCaptureOptions
 
     public bool RequireArchiveStore { get; set; }
 
-    // FailOpen lets HTTP requests continue when audit capture fails.
-    // Both channels default to FailOpen for standalone development and tests.
-    // Production-like AppHost config sets ServiceBusFailureMode to FailClosed:
-    // the outbox pauses until capture succeeds, preserving the message's retry budget.
+    // Each channel has its own failure mode. Payload capture is an audit sidecar, so the HTTP
+    // channel stays FailOpen: a capture failure is logged and the request goes on. The Service
+    // Bus channel runs in the background, so the AppHost production-like config sets it to
+    // FailClosed, and the OutboxProcessor pauses the batch until the capture succeeds. Both
+    // default to FailOpen in code so that standalone development and tests work with no archive store.
     public PayloadCaptureFailureMode HttpFailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
 
     public PayloadCaptureFailureMode ServiceBusFailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
@@ -54,9 +55,10 @@ public class PayloadCaptureOptions
     [Range(1, 3650)]
     public int RetentionDays { get; set; } = 30;
 
-    // Split the cleanup time budget evenly across the three prefixes, with no delete cap.
-    // Budget exhaustion records a Degraded job run so an unfinished sweep is visible.
-    // Keep this budget within host.json's functionTimeout, allowing time for other work.
+    // The time budget for one cleanup run, split evenly across the three prefixes. There is no
+    // cap on deletes; a run that uses up the budget records a Degraded job run, so an archive
+    // that is falling behind is visible. The default fits inside the 5-minute functionTimeout
+    // of the Consumption plan; raise the two together in host.json.
     [Range(1, 3600)]
     public int CleanupTimeBudgetSeconds { get; set; } = 300;
 

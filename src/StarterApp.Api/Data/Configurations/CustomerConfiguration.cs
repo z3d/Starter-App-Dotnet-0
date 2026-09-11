@@ -43,8 +43,10 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         // No (tenant_id, owner_subject) index: the unique (tenant_id, owner_subject, email) index
         // below serves that prefix (0005_DropRedundantIndexes.sql).
 
-        // DbUp defines ix_customers_tenant_id_owner_subject_email in the baseline migration.
-        // EF cannot model this index across Customer and its owned Email type.
-        // Create/update handlers catch this constraint to handle concurrent duplicates.
+        // The unique index ix_customers_tenant_id_owner_subject_email lives only in the DbUp
+        // baseline migration. EF cannot declare an index that spans Customer and its owned Email
+        // type, even though they share a table, so HasIndex("...", "Email.Value") fails.
+        // The create and update customer handlers catch that constraint name when two requests
+        // race to insert the same email.
     }
 }

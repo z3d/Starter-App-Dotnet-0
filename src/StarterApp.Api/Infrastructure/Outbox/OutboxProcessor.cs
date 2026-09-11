@@ -155,8 +155,9 @@ public class OutboxProcessor : BackgroundService
                 }
                 catch (Exception captureEx) when (captureEx is not OperationCanceledException)
                 {
-                    // Under FailClosed, pause on any audit capture failure before publishing.
-                    // Keep the message's retry budget intact so it can publish when capture succeeds.
+                    // Under FailClosed the audit capture failed before the publish, so nothing was
+                    // sent. Pause the batch and leave the message's retry budget alone; it will
+                    // publish once the archive store is back.
                     _logger.LogWarning(captureEx,
                         "Payload capture failed for outbox message {MessageId} ({Type}) before publish; pausing batch until the archive store recovers (retry budget untouched)",
                         message.Id, message.Type);
@@ -172,10 +173,12 @@ public class OutboxProcessor : BackgroundService
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // Dependency outages must not exhaust individual messages' retry budgets.
-                // Pause with claims locked until LockedUntilUtc to delay the next attempt.
-                // Keep the broader classifier: transport faults may escape the SDK without
-                // being wrapped in ServiceBusException. Audit failures are handled above.
+                // Only publish failures reach here; the audit capture failures are caught above.
+                // A Service Bus outage must not use up each message's retry budget, or a few
+                // minutes of downtime would push every polled message into the Error state.
+                // Pause the batch and keep the claims locked until LockedUntilUtc, which delays
+                // the next attempt. IsTransientDependencyError stays broad on purpose: the SDK
+                // does not wrap every socket or timeout fault in a ServiceBusException.
                 if (IsTransientDependencyError(ex))
                 {
                     _logger.LogWarning(ex, "Transient dependency error publishing outbox message {MessageId} ({Type}); pausing batch until claim lock expires",
@@ -205,9 +208,10 @@ public class OutboxProcessor : BackgroundService
         await SaveOutcomesAsync(dbContext, cancellationToken);
     }
 
-    // If another processor reclaims a row, its ProcessingId change makes this save conflict.
-    // Detach reclaimed rows and save the remaining outcomes; losing the whole batch's
-    // outcomes would cause already-published messages to be sent again.
+    // The whole batch's outcomes go into one SaveChanges. If another replica reclaimed a row
+    // whose lock expired mid-batch, its ProcessingId changed and the save would fail for every
+    // row, and the messages this replica already published would be sent again. Detach the
+    // reclaimed rows, which now belong to the other replica, and save the rest.
     internal async Task SaveOutcomesAsync(ApplicationDbContext dbContext, CancellationToken cancellationToken)
     {
         while (true)

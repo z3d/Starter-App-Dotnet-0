@@ -58,8 +58,10 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
                     return envelope.Value!;
                 }
 
-                // One request refreshes inline to preserve the caller's identity for owner-scoped keys.
-                // Concurrent requests keep the cached value while it is still valid.
+                // The value is close to expiry. Only one request recomputes it, so a busy key does
+                // not make every caller recompute at once; the others keep the cached value, which
+                // is still valid. The recompute runs on the caller's own request rather than in a
+                // background scope so that owner-scoped keys keep the right identity.
                 if (!RefreshesInFlight.TryAdd(cacheKey, 0))
                 {
                     _logger.LogDebug("Refresh already in flight for {CacheKey}; serving cached value", cacheKey);
@@ -76,8 +78,8 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException && DateTimeOffset.UtcNow < envelope.ExpiresAtUtc)
                 {
-                    // If refresh fails, serve the cached value while it is still within its TTL.
-                    // A cache miss has no fallback and still propagates the error.
+                    // The refresh failed but the cached value is still inside its TTL, so serve it.
+                    // Only the early refresh gets this fallback; a plain cache miss still throws.
                     _logger.LogWarning(ex, "Refresh-ahead recompute failed for {CacheKey}; serving the cached value until the next attempt", cacheKey);
                     return envelope.Value!;
                 }

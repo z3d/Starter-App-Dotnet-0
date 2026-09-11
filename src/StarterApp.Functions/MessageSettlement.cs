@@ -6,11 +6,13 @@ using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Functions;
 
-// Retry handler work while the message lock is held. Keep completion outside the retry
-// loop so a failed Complete call cannot rerun the handler here.
-// The deadline covers handler work and backoff; settlement uses the host token so late
-// successes and permanent failures can still settle. Cancellation during handler work
-// leaves the message unsettled for redelivery.
+// Service Bus triggers have no built-in retry, so the handler is retried here while the
+// message lock is held. The Complete call sits outside the retry loop so that a failed
+// Complete does not rerun the handler.
+// The execution deadline covers the handler work and the backoff only. Settlement runs on the
+// host token, so a handler that finished late is still completed and a poison message that
+// surfaced late is still dead-lettered. A cancellation during the handler work leaves the
+// message unsettled, and the broker redelivers it.
 public static class MessageSettlement
 {
     private const int MaxReasonDescriptionLength = 2048;
@@ -73,7 +75,8 @@ public static class MessageSettlement
             }
             catch (Exception exception) when (IsNonRetryable(exception))
             {
-                // Use the host token so an expired handler deadline cannot prevent dead-lettering.
+                // Settle on the host token: an expired deadline must not turn a dead-letter into a
+                // redelivery that uses up MaxDeliveryCount.
                 cancellationToken.ThrowIfCancellationRequested();
                 logger.LogError(
                     "Dead-lettering message {MessageId} ({Subject}, correlation {CorrelationId}): {FailureType} cannot succeed on redelivery",
@@ -114,9 +117,10 @@ public static class MessageSettlement
     public static bool IsNonRetryable(Exception exception) =>
         exception is JsonException or InvalidDataException;
 
-    // Dead-letter metadata is not redacted, and exception messages may contain payload data.
-    // Record only the exception type and correlation ID; use the ID to find the archived payload.
-    // Truncate to the broker's description limit.
+    // The dead-letter description is broker metadata and is never redacted, and an exception
+    // message can quote the payload once the handlers deserialize domain events. Record only the
+    // exception type and the correlation ID; the archived payload is found by that ID.
+    // Truncate because the broker caps the field length.
     private static string DescribeFailure(Exception exception, ServiceBusReceivedMessage message) =>
         Truncate($"{exception.GetType().Name}; correlationId={message.CorrelationId}");
 

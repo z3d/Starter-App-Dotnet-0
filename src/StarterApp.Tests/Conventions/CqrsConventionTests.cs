@@ -28,8 +28,9 @@ public partial class CqrsConventionTests : ConventionTestBase
             .WithFailureAssertion(Assert.Fail);
     }
 
-    // Forbidding IDbConnection alone also allows handlers with neither dependency.
-    // Require ApplicationDbContext to keep commands on the EF write path.
+    // The tests above forbid a command handler from taking IDbConnection, but a handler that
+    // takes neither dependency would pass them and still write outside EF. Every command
+    // handler must take ApplicationDbContext.
     [Fact]
     public void CommandHandlers_MustDependOnApplicationDbContext()
     {

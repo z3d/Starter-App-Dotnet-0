@@ -53,9 +53,10 @@ public class OrderConfirmationEmailFunction
         _logger.LogInformation("Order confirmation email triggered. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
             message.MessageId, message.Subject, correlationId);
 
-        // TODO: Deserialize payload and send confirmation email.
-        // Delivery is unordered: 16 concurrent calls and no sessions mean status changes may
-        // arrive before order creation. Handle both orders (e.g. upsert by order ID), or use
-        // sessions keyed by order ID if ordering becomes required.
+        // TODO: Deserialize the payload and send the confirmation email.
+        // Delivery is unordered: host.json allows 16 concurrent calls and the subscription has no
+        // sessions, so a status change can arrive before the order-created event for the same
+        // order. The implementation must cope with either order (for example, upsert by order ID),
+        // or the subscription must move to sessions keyed by order ID.
     }
 }

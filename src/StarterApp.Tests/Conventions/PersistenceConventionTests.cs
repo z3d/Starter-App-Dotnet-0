@@ -2,8 +2,11 @@ namespace StarterApp.Tests.Conventions;
 
 public class PersistenceConventionTests : ConventionTestBase
 {
-    // Both SaveChanges paths must capture creation events in the same save as the aggregate.
-    // The wiring test also checks that AddPersistence registers the interceptor.
+    // The outbox pattern holds only if every save goes through the DomainEventsInterceptor.
+    // These tests save an aggregate that raises a creation event and check that the outbox row
+    // lands in the same save, on both the sync and the async path.
+    // AddPersistence_WiresDomainEventsInterceptor checks that the production registration
+    // attaches the interceptor.
 
     [Theory]
     [InlineData(false)]

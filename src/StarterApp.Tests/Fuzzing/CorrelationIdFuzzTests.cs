@@ -5,8 +5,11 @@ using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Tests.Fuzzing;
 
-// Sanitized IDs feed blob names and response headers, so they must match [A-Za-z0-9._-]{1,128}.
-// Check deterministic output and accidental collisions; IDs remain caller-controlled.
+// Property tests for CorrelationContext.Sanitize, the only check left on the caller-supplied
+// correlation ID. Its output names the archive blobs and is echoed in the X-Correlation-ID
+// header, so every output must match [A-Za-z0-9._-]{1,128}, and two different raw IDs must
+// not end up with the same sanitized ID by accident. Nobody checks who sent the ID, so the
+// hash suffix is not a security boundary.
 public class CorrelationIdFuzzTests
 {
     private const string ContractPattern = "^[A-Za-z0-9._-]{1,128}$";
@@ -75,9 +78,9 @@ public class CorrelationIdFuzzTests
     [Property(MaxTest = 400)]
     public Property Sanitize_DistinctRawIds_DoNotAccidentallyCollapse()
     {
-        // Exercise accidental collisions such as "a:b" and "a|b" sharing a sanitized base.
-        // This does not prove uniqueness: the hash can collide, and a caller can submit
-        // another ID's sanitized output directly.
+        // "a:b" and "a|b" both sanitize to "ab"; the hash suffix should keep them apart.
+        // This only catches accidents: the 8-hex hash can collide, and anyone can send another
+        // ID's sanitized output as their own ID.
         return Prop.ForAll(RawIdArb(), RawIdArb(), (first, second) =>
             (first.Trim() == second.Trim() ||
              CorrelationContext.Sanitize(first) != CorrelationContext.Sanitize(second))

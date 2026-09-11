@@ -56,17 +56,21 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddPersistence(this IServiceCollection services, string connectionString)
     {
-        // Save aggregates and outbox rows together. Explicit transactions must run inside
-        // CreateExecutionStrategy().ExecuteAsync, as in CreateOrderCommandHandler.
-        // DomainEventsInterceptor captures events during SaveChanges.
+        // EnableRetryOnFailure is safe because the aggregates and the outbox rows go into one
+        // SaveChanges with no explicit transaction. A handler that does open a transaction must
+        // run it inside CreateExecutionStrategy().ExecuteAsync, as CreateOrderCommandHandler does;
+        // otherwise the first transient fault throws. The DomainEventsInterceptor is stateless,
+        // so one instance serves every context.
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString, postgres =>
                 postgres.EnableRetryOnFailure(maxRetryCount: 6, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null))
                    .EnableSensitiveDataLogging(false)
                    .AddInterceptors(new DomainEventsInterceptor()));
 
-        // Give each query handler its own connection so concurrent queries cannot share one.
-        // Physical connections are pooled; query retries use PostgresRetryPolicy.ExecuteAsync.
+        // The Dapper connection is transient, not scoped: Npgsql cannot run two queries on one
+        // connection at the same time, so each query handler gets its own. The physical
+        // connections are pooled, so this costs little. The query handlers wrap their calls in
+        // PostgresRetryPolicy.ExecuteAsync.
         services.AddTransient<System.Data.IDbConnection>(provider =>
             new Npgsql.NpgsqlConnection(connectionString));
 

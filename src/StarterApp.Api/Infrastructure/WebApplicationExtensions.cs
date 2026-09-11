@@ -8,8 +8,9 @@ public static class WebApplicationExtensions
 
         app.Use((context, next) =>
         {
-            // UseExceptionHandler clears headers when writing ProblemDetails. OnStarting survives
-            // that reset, so security headers reach error responses too. Assign to replace existing values.
+            // UseExceptionHandler clears the response headers before it writes ProblemDetails.
+            // An OnStarting callback survives that reset, so the security headers reach the error
+            // responses too. The callback assigns rather than appends, so it has the last word.
             context.Response.OnStarting(static state =>
             {
                 var (httpContext, development) = ((HttpContext, bool))state;
@@ -55,8 +56,9 @@ public static class WebApplicationExtensions
 
     public static WebApplication UseJwtIdentity(this WebApplication app)
     {
-        // Run after routing so authorization can read endpoint metadata. Map validated claims
-        // to ICurrentUser before rate limiting uses that identity to choose a partition.
+        // This runs after UseRouting, because the authorization metadata is per endpoint, and
+        // before UseRateLimiter, because the rate limiter partitions on ICurrentUser.
+        // JwtIdentityMiddleware is the only place that copies the validated claims into ICurrentUser.
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseMiddleware<JwtIdentityMiddleware>();

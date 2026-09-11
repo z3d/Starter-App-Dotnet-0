@@ -5,9 +5,9 @@ public static class ServiceBusTopology
     public const string DomainEventsTopic = "domain-events";
     public const bool DomainEventsRequiresDuplicateDetection = true;
 
-    // Retain events for 24 hours to cover overnight subscriber outages.
-    // Dead-letter expired events for replay; otherwise they disappear after the outbox
-    // has already marked them as published.
+    // The 24-hour TTL covers an overnight subscriber outage. Expired events go to the
+    // dead-letter queue for replay; with the Azure default they would be deleted with no trace,
+    // after the outbox had already marked them as published.
     public static readonly TimeSpan DomainEventsDefaultMessageTimeToLive = TimeSpan.FromHours(24);
     public static readonly TimeSpan DomainEventsDuplicateDetectionHistoryTimeWindow = TimeSpan.FromMinutes(5);
     public static readonly TimeSpan SubscriptionDefaultMessageTimeToLive = TimeSpan.FromHours(24);
@@ -15,8 +15,9 @@ public static class ServiceBusTopology
     public const int SubscriptionMaxDeliveryCount = 5;
     public const bool SubscriptionDeadLetteringOnMessageExpiration = true;
 
-    // The emulator rejects TTLs over one hour at startup. Clamp only in emulator mode;
-    // published Azure resources keep the full 24-hour TTL.
+    // The Service Bus emulator refuses any TTL above one hour at startup and crash-loops.
+    // The clamp applies only when running against the emulator; the published Azure resources
+    // keep the full 24 hours.
     public static readonly TimeSpan EmulatorMaxMessageTimeToLive = TimeSpan.FromHours(1);
 
     public static TimeSpan ClampForEmulator(TimeSpan timeToLive, bool isEmulator) =>

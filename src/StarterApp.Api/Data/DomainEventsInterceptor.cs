@@ -3,10 +3,12 @@ using StarterApp.Api.Infrastructure.Outbox;
 
 namespace StarterApp.Api.Data;
 
-// Capture domain events as outbox rows in the same SaveChanges as the aggregates.
-// AddPersistence registers this interceptor; contexts without it do not capture events.
-// Creation events need client-assigned IDs because payloads are serialized before saving.
-// See DomainConventionTests.AggregatesOverridingRecordCreation_MustHaveGuidId.
+// Writes the aggregates' domain events to the outbox table in the same SaveChanges call
+// that saves the aggregates. AddPersistence attaches this interceptor; a context built without
+// it saves nothing to the outbox.
+// The event payload is serialized before the save, so an aggregate that raises a creation event
+// must assign its own Id. DomainConventionTests.AggregatesOverridingRecordCreation_MustHaveGuidId
+// enforces that.
 public sealed class DomainEventsInterceptor : SaveChangesInterceptor
 {
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)

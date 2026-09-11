@@ -8,9 +8,10 @@ namespace StarterApp.DbMigrator;
 namespace StarterApp.ServiceDefaults;
 #endif
 
-// Log only parsed host, port, database, and user fields. Masking a raw connection string
-// can leak passwords containing quoted semicolons.
-// Also compiled into StarterApp.DbMigrator, which does not reference ServiceDefaults.
+// The only approved way to put a connection string in a log line. It parses the string and
+// emits the host, port, database and user, so there is no password field to get wrong. The
+// previous regex mask stopped at the first semicolon and leaked the rest of a quoted password.
+// This file is also compiled into StarterApp.DbMigrator, which does not reference ServiceDefaults.
 public static class ConnectionStringDescriptor
 {
     public static string Describe(string? connectionString)

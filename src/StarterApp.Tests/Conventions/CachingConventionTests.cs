@@ -146,9 +146,11 @@ public class CachingConventionTests : ConventionTestBase
     [Fact]
     public void CommandHandlers_MutatingCacheableEntities_MustInvokeCacheInvalidator()
     {
-        // Order handlers change Product stock, so they must invalidate the Product cache too.
-        // Handler names miss this dependency. Scan stock writes in handlers and delegated
-        // application helpers, including Product.UpdateStock and EF ExecuteUpdateAsync.
+        // The order handlers change Product stock, and the cached by-id Product read model
+        // carries Stock, so those handlers must invalidate the Product cache too. The name-based
+        // rule above cannot see that, so this test looks for the stock write itself:
+        // Product.UpdateStock or EF ExecuteUpdateAsync, in the handler or in an application
+        // helper it calls, such as OrderCancellationService.
         var handlers = ApiAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))

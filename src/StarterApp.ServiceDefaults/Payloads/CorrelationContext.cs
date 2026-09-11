@@ -50,10 +50,12 @@ public static class CorrelationContext
         if (sanitized.Length == trimmed.Length)
             return sanitized;
 
-        // Stripping or truncating IDs can merge unrelated archive streams. Append a hash of
-        // the input to reduce accidental collisions, using invalid.<hash> if no characters remain.
-        // This keeps nonempty inputs deterministic. Caller-supplied IDs are not authenticated;
-        // the hash does not prevent deliberate collisions.
+        // Stripping characters or truncating can turn two different raw IDs into the same
+        // sanitized ID, which mixes unrelated requests into one archive stream. A short hash of
+        // the raw input keeps them apart. When nothing survives the filter the result is
+        // "invalid.<hash>", so one caller's ID still maps to one stream instead of a random ID
+        // per request. This only prevents accidents: the ID is unauthenticated caller input, so
+        // the hash is not a security boundary.
         var rawHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(trimmed)))[..HashSuffixLength].ToLowerInvariant();
         if (sanitized.Length == 0)
             return $"invalid.{rawHash}";

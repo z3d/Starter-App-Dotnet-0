@@ -53,8 +53,8 @@ public class InventoryReservationFunction
         _logger.LogInformation("Inventory reservation event received. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
             message.MessageId, message.Subject, correlationId);
 
-        // CreateOrderCommandHandler reserves catalog stock atomically when creating the order.
-        // This subscriber must not change catalog stock, or it would reserve the stock twice.
-        // TODO: Deserialize the payload for downstream projections or warehouse notifications.
+        // CreateOrderCommandHandler already reserved the stock, in the same unit of work that
+        // created the order. Do not change the catalog stock here, or it is reserved twice.
+        // TODO: Deserialize the payload and build the downstream projection or warehouse notification.
     }
 }
