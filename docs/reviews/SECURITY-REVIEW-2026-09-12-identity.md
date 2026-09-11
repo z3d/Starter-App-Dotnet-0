@@ -21,8 +21,10 @@ claim parser's failure modes, the middleware order, CORS, and the archive redact
 | 4 | No test used a second tenant; dropping the tenant half of the owner comparison passed the suite. | Same-subject/other-tenant cases in `OwnerOnlyPolicyTests` and `OwnerOnlyPolicyIntegrationTests` (read hidden, update and delete forbidden). |
 | 5 | `ValidAlgorithms` was not pinned. | Pinned to RSA and ECDSA algorithms in `JwtIdentityOptions.AllowedSigningAlgorithms`, with a test. |
 
-Also added: a missing-`sub` integration test, a test that `AddPersistence` attaches the guard,
-and a test that the fallback policy is registered.
+Also added: a missing-`sub` integration test, a tampered-payload (valid signature, edited
+claim) integration test, unit tests that feed `JwtIdentityMiddleware` each claim shape the IdPs
+produce (JSON-array `amr` as one claim, repeated claims, Entra `scp`, malformed arrays), a test
+that `AddPersistence` attaches the guard, and a test that the fallback policy is registered.
 
 ## Noted, not changed
 

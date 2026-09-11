@@ -66,6 +66,32 @@ public class JwtIdentityIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TamperedPayloadWithValidSignature_Returns401()
+    {
+        // Keep the real header and signature, change one claim in the payload. The signature no
+        // longer matches the bytes it was computed over, so the handler must reject it.
+        var token = TestJwtIdentity.CreateToken(subject: "victim");
+        var parts = token.Split('.');
+        var payload = System.Text.Encoding.UTF8.GetString(Base64UrlDecode(parts[1]));
+        Assert.Contains("\"sub\":\"victim\"", payload, StringComparison.Ordinal);
+        var tampered = payload.Replace("\"sub\":\"victim\"", "\"sub\":\"attacker\"", StringComparison.Ordinal);
+        var tamperedToken = $"{parts[0]}.{Base64UrlEncode(System.Text.Encoding.UTF8.GetBytes(tampered))}.{parts[2]}";
+
+        var response = await SendWithTokenAsync(tamperedToken);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    private static byte[] Base64UrlDecode(string value)
+    {
+        var padded = value.Replace('-', '+').Replace('_', '/');
+        padded = padded.PadRight(padded.Length + (4 - padded.Length % 4) % 4, '=');
+        return Convert.FromBase64String(padded);
+    }
+
+    private static string Base64UrlEncode(byte[] bytes) =>
+        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    [Fact]
     public async Task MissingTenantClaim_Returns401()
     {
         // A validly signed token without tid must not authenticate: owner scoping, cache keys,
