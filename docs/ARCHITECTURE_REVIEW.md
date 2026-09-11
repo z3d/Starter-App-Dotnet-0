@@ -14,6 +14,7 @@ that produced it. Before dismissing or re-raising anything, check the record, no
 | [2026-09-05 targeted review](reviews/ARCHITECTURE_REVIEW-2026-09-05.md) | Eight findings, **all resolved 2026-09-06**; regression and validation evidence in the record |
 | [2026-09-06 fix review](reviews/ARCHITECTURE_REVIEW-2026-09-06.md) | Independent review of the 2026-09-06 fix commit; fourteen residuals, twelve fixed the same day, two recorded with triggers |
 | [2026-09-08 consistency and simplification](reviews/REVIEW-2026-09-08-consistency-and-simplification.md) | Consistency-suite assessment against its design post (three drifts, fixed the same day) and the template-weighed simplification backlog |
+| [2026-09-12 identity security review](reviews/SECURITY-REVIEW-2026-09-12-identity.md) | Manual read plus the security-auditor subagent over the JWT path; five findings fixed the same day (owner check now gates the write, fallback authorization policy, wider claims scan, two-tenant tests, pinned algorithms), five noted |
 
 ## Overview
 

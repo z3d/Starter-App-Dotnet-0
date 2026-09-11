@@ -15,12 +15,10 @@ Rules 2 and 4 exist because rules 1 and 3 are presence checks, and presence does
 
 The asymmetry is deliberate:
 
-- **Create handlers** call `_ownerOnlyPolicy.GetRequiredScope()` and pass `ownerScope.OwnerSubject` / `ownerScope.TenantId` into the aggregate's constructor. They *establish* ownership, so there is nothing to authorize against yet. Creates are exempt from `IOwnerAuthorizedMutation`.
-- **Non-create commands** implement `IOwnerAuthorizedMutation` and call `IOwnerOnlyPolicy.Authorize(...)` on the loaded aggregate before mutating it.
+- **Commands that only create a new aggregate** (`CreateCustomerCommand`, `CreateProductCommand`) call `_ownerOnlyPolicy.GetRequiredScope()` and pass `ownerScope.OwnerSubject` / `ownerScope.TenantId` into the aggregate's constructor. They *establish* ownership, so there is nothing to authorize against yet. They are listed by name in `CqrsConventionTests.CommandsThatOnlyCreateANewAggregate`; the exemption is not a `Create*` prefix. `CreateOrderCommand` starts with "Create" but touches an existing customer and existing product stock, so it is a mutation.
+- **Every other command** implements `IOwnerAuthorizedMutation` and calls `IOwnerOnlyPolicy.Authorize(...)` on the loaded aggregate before mutating it. The convention test requires the `Authorize` call itself for these handlers; `GetRequiredScope()` alone does not count.
 
-`OwnerAuthorizationBehavior` closes the loop: `OwnerOnlyPolicy.Authorize` records its evaluation on a scoped `OwnerPolicyEvaluationTracker`, and after a marked command completes the behavior asserts the policy was actually consulted. It **throws in Development/Testing** — so the suite catches a handler that injects the policy but never calls it — and **logs an error in production**, because the mutation is already persisted and failing the response would not undo it.
-
-Convention tests keep the marker cohort complete (every non-create command) and commands-only.
+Two pieces make the check a gate rather than a report. `OwnerAuthorizationBehavior` flags the request on the scoped `OwnerPolicyEvaluationTracker` before the handler runs, and `OwnerOnlyPolicy.Authorize` marks the tracker when it runs. `OwnerAuthorizationWriteGuard`, an EF interceptor attached in `AddPersistence`, throws before `SaveChanges` and before any `ExecuteUpdate`/`ExecuteDelete` command if the request is flagged and `Authorize` has not run. So a handler that forgets the check fails before anything is persisted, in every environment. The behavior also throws after the handler for the case where nothing was written at all.
 
 ## Query predicates
 

@@ -2,31 +2,46 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace StarterApp.Api.Infrastructure;
 
-// Probe endpoints for external monitors (APIM, container platforms, uptime checks):
+// Every anonymous endpoint in the API, in one place:
+//   /health, /health/ready, /health/live, /alive — the Aspire and Kubernetes probes.
 //   /liveness    — answers from the process alone, evaluates no dependencies.
 //   /healthiness — deep probe of the durable (deployable) backing resources: every health check
 //                  tagged "durable" (database, distributed cache, Service Bus, payload archive
 //                  where configured) with per-check detail; 503 when any check is unhealthy.
-// Deliberately outside /api/v1 so they sit with /health* ahead of the gateway-identity
-// contract — probes carry no caller identity.
+// Probes carry no bearer token, so each one opts out of the fallback authorization policy with
+// AllowAnonymous. ApiConventionTests checks that nothing else does.
+// They also opt out of the global rate limiter: the limiter buckets anonymous traffic by client
+// IP, and under Kubernetes the kubelet probes from the node IP, so a 429 on a probe could
+// restart an otherwise healthy pod.
 public static class ProbeEndpoints
 {
-    public static WebApplication MapProbeEndpoints(this WebApplication app)
+    public static IEndpointRouteBuilder MapProbeEndpoints(this IEndpointRouteBuilder app)
     {
-        // These external-monitor probes opt out of the global rate limiter for the same reason as
-        // the /health* set in Program.cs: they are unauthenticated and would otherwise share an
-        // IP-keyed partition, letting throttling restart/evict a healthy instance.
+        app.MapHealthChecks("/health").AllowAnonymous().DisableRateLimiting();
+        app.MapHealthChecks("/health/ready", new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("ready")
+        }).AllowAnonymous().DisableRateLimiting();
+        app.MapHealthChecks("/health/live", new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("live")
+        }).AllowAnonymous().DisableRateLimiting();
+        app.MapHealthChecks("/alive", new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("live")
+        }).AllowAnonymous().DisableRateLimiting();
+
         app.MapGet("/liveness", (TimeProvider timeProvider) => Results.Ok(new
         {
             status = "alive",
             timestampUtc = timeProvider.GetUtcNow(),
-        })).DisableRateLimiting();
+        })).AllowAnonymous().DisableRateLimiting();
 
         app.MapHealthChecks("/healthiness", new HealthCheckOptions
         {
             Predicate = check => check.Tags.Contains("durable"),
             ResponseWriter = WriteHealthinessResponseAsync,
-        }).DisableRateLimiting();
+        }).AllowAnonymous().DisableRateLimiting();
 
         return app;
     }

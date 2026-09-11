@@ -162,22 +162,29 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void NonCreateCommands_MustBeOwnerAuthorizedMutations()
     {
+        // The exemption is an explicit list, not a name prefix. CreateOrderCommand starts with
+        // "Create" but touches an existing customer and existing product stock, so it is not here.
         var violations = ApiAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && typeof(ICommand).IsAssignableFrom(t))
             .Where(t => t.Name.EndsWith("Command", StringComparison.Ordinal))
-            .Where(t => !t.Name.StartsWith("Create", StringComparison.Ordinal))
+            .Where(t => !CommandsThatOnlyCreateANewAggregate.Contains(t))
             .Where(t => !typeof(IOwnerAuthorizedMutation).IsAssignableFrom(t))
             .Select(t => t.FullName ?? t.Name)
             .OrderBy(name => name)
             .ToList();
 
         Assert.True(violations.Count == 0,
-            "Non-create commands mutate an existing owner-scoped aggregate and must implement IOwnerAuthorizedMutation " +
-            "so OwnerAuthorizationBehavior can verify the handler consulted IOwnerOnlyPolicy.Authorize. Creates are " +
-            "exempt because they stamp ownership instead of checking it. A future non-owner-scoped command needs a " +
-            "documented exemption here, not a silent omission:\n" +
+            "Commands that touch an existing owner-scoped aggregate must implement IOwnerAuthorizedMutation " +
+            "so OwnerAuthorizationWriteGuard can refuse a write the handler did not authorize. Only commands that " +
+            "create a new aggregate and touch nothing else may be listed in CommandsThatOnlyCreateANewAggregate:\n" +
             string.Join("\n", violations));
     }
+
+    private static readonly HashSet<Type> CommandsThatOnlyCreateANewAggregate =
+    [
+        typeof(CreateCustomerCommand),
+        typeof(CreateProductCommand),
+    ];
 
     [Fact]
     public void OwnerAuthorizedMutations_MustBeCommands()
@@ -233,9 +240,13 @@ public partial class CqrsConventionTests : ConventionTestBase
     {
         Assert.NotEmpty(handlers);
 
+        // A handler for an IOwnerAuthorizedMutation must call Authorize itself; GetRequiredScope
+        // alone stamps ownership and checks nothing. Other handlers may call either member.
         var violations = handlers
             .Where(handler => !GetAllMethodsIncludingStateMachines(handler)
-                .Any(method => IlReferencesType(method, nameof(IOwnerOnlyPolicy))))
+                .Any(method => HandlesOwnerAuthorizedMutation(handler)
+                    ? IlReferencesMember(method, nameof(IOwnerOnlyPolicy), nameof(IOwnerOnlyPolicy.Authorize))
+                    : IlReferencesType(method, nameof(IOwnerOnlyPolicy))))
             .Select(handler => handler.FullName ?? handler.Name)
             .OrderBy(name => name)
             .ToList();
@@ -244,6 +255,13 @@ public partial class CqrsConventionTests : ConventionTestBase
             $"{kind} handlers that inject IOwnerOnlyPolicy must actually call it (Authorize/GetRequiredScope) — " +
             "injecting the policy without invoking it provides no owner authorization:\n" +
             string.Join("\n", violations));
+    }
+
+    private static bool HandlesOwnerAuthorizedMutation(Type handler)
+    {
+        return handler.GetInterfaces()
+            .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequestHandler<,>))
+            .Any(i => typeof(IOwnerAuthorizedMutation).IsAssignableFrom(i.GetGenericArguments()[0]));
     }
 
     private static IEnumerable<Type> GetOwnerScopedQueryHandlers()

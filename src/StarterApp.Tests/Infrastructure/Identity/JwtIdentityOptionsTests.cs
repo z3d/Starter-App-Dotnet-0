@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -58,6 +59,38 @@ public class JwtIdentityOptionsTests
 
         Assert.Throws<OptionsValidationException>(
             () => provider.GetRequiredService<IOptions<JwtIdentityOptions>>().Value);
+    }
+
+    [Fact]
+    public void AddJwtIdentity_PinsAsymmetricAlgorithmsAndDoesNotSaveTheToken()
+    {
+        using var provider = BuildProvider("Production", new Dictionary<string, string?>
+        {
+            ["Identity:Authority"] = "https://idp.example.com/realms/starterapp",
+            ["Identity:Audience"] = "starterapp-api"
+        });
+
+        var bearer = provider.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>().Get(JwtBearerDefaults.AuthenticationScheme);
+
+        Assert.False(bearer.SaveToken);
+        Assert.False(bearer.MapInboundClaims);
+        Assert.Equal(JwtIdentityOptions.AllowedSigningAlgorithms, bearer.TokenValidationParameters.ValidAlgorithms);
+        Assert.DoesNotContain(bearer.TokenValidationParameters.ValidAlgorithms, algorithm => algorithm.StartsWith("HS", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AddJwtIdentity_SetsAnAuthenticatedUserFallbackPolicy()
+    {
+        using var provider = BuildProvider("Production", new Dictionary<string, string?>
+        {
+            ["Identity:Authority"] = "https://idp.example.com/realms/starterapp",
+            ["Identity:Audience"] = "starterapp-api"
+        });
+
+        var fallback = provider.GetRequiredService<IOptions<Microsoft.AspNetCore.Authorization.AuthorizationOptions>>().Value.FallbackPolicy;
+
+        Assert.NotNull(fallback);
+        Assert.Contains(fallback.Requirements, requirement => requirement is Microsoft.AspNetCore.Authorization.Infrastructure.DenyAnonymousAuthorizationRequirement);
     }
 
     private static ServiceProvider BuildProvider(string environmentName, Dictionary<string, string?> settings)

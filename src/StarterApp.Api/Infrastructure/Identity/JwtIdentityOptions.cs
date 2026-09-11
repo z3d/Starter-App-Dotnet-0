@@ -23,4 +23,13 @@ public sealed class JwtIdentityOptions
     // mfa amr — the ACR the deployer's IdP uses to mean "MFA performed" (Keycloak LoA name,
     // Entra auth-context id). Optional: when unset the challenge carries the error code alone.
     public string? StepUpAcrValues { get; set; }
+
+    // RSA and ECDSA only, which is what an OIDC JWKS document publishes. HMAC algorithms would
+    // let anyone holding the shared secret mint tokens, and there is no such secret here.
+    public static readonly IReadOnlyList<string> AllowedSigningAlgorithms =
+    [
+        "RS256", "RS384", "RS512",
+        "PS256", "PS384", "PS512",
+        "ES256", "ES384", "ES512",
+    ];
 }

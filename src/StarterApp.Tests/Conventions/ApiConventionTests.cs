@@ -46,6 +46,36 @@ public class ApiConventionTests : ConventionTestBase
     }
 
     [Fact]
+    public void EveryRouteEndpoint_MustRequireAuthorizationOrBeAListedProbe()
+    {
+        // The fallback authorization policy already refuses anonymous calls to any endpoint that
+        // forgot RequireAuthorization. This test keeps the AllowAnonymous list explicit, so a
+        // route mapped outside /api/v1 cannot quietly opt out.
+        using var app = BuildEndpointMetadataApp(includeProbes: true);
+        var failures = new List<string>();
+
+        foreach (var endpoint in GetAllRouteEndpoints(app))
+        {
+            var isAnonymous = endpoint.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAllowAnonymous>() != null;
+            var isAuthorized = endpoint.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>() != null;
+            var path = endpoint.RoutePattern.RawText ?? string.Empty;
+
+            if (isAnonymous && !AnonymousProbePaths.Contains(path))
+                failures.Add($"{FormatEndpoint(endpoint)} calls AllowAnonymous but is not a listed probe path.");
+            else if (!isAnonymous && !isAuthorized)
+                failures.Add($"{FormatEndpoint(endpoint)} must call RequireAuthorization() or, for a probe, AllowAnonymous().");
+        }
+
+        Assert.True(failures.Count == 0,
+            "Every route is either an authorized API endpoint or a listed anonymous probe:\n" + string.Join("\n", failures));
+    }
+
+    private static readonly HashSet<string> AnonymousProbePaths = new(StringComparer.Ordinal)
+    {
+        "/health", "/health/ready", "/health/live", "/alive", "/liveness", "/healthiness",
+    };
+
+    [Fact]
     public void ApiRouteEndpoints_MustRequireScope()
     {
         using var app = BuildEndpointMetadataApp();
@@ -113,14 +143,24 @@ public class ApiConventionTests : ConventionTestBase
     public void ClaimsPrincipal_MustOnlyBeReadByIdentityInfrastructure()
     {
         // JwtIdentityMiddleware is the single writer that projects validated claims onto
-        // ICurrentUser; everything else reads the abstraction. A ClaimsPrincipal (HttpContext.User,
-        // FindFirstValue, ...) reference outside the identity layer bypasses that boundary and
-        // couples business code to one IdP's claim shapes.
+        // ICurrentUser; everything else reads the abstraction. Reading the principal any other
+        // way bypasses that boundary and couples business code to one IdP's claim shapes.
+        // `context.User.FindFirstValue("tid")` never mentions ClaimsPrincipal in IL: the getter
+        // belongs to HttpContext and FindFirstValue to PrincipalExtensions, so both are listed.
+        // GetTokenAsync is the door to the raw bearer token.
         var claimsPrincipalFailures = ApiAssembly.GetTypes()
             .Where(t => t.IsClass && !IsCompilerGenerated(t) && !IsIdentityInfrastructure(t))
-            .Where(type => GetAllMethodsIncludingStateMachines(type)
-                .Any(method => IlReferencesType(method, "ClaimsPrincipal")))
-            .Select(type => $"{type.FullName} references ClaimsPrincipal directly.")
+            .SelectMany(type => GetAllMethodsIncludingStateMachines(type)
+                .SelectMany(method => PrincipalAccessTypes
+                    .Where(typeName => IlReferencesType(method, typeName))
+                    .Select(typeName => $"{type.FullName} references {typeName} directly."))
+                .Concat(GetAllMethodsIncludingStateMachines(type)
+                    .Where(method => IlReferencesMember(method, "HttpContext", "get_User"))
+                    .Select(_ => $"{type.FullName} reads HttpContext.User directly."))
+                .Concat(GetAllMethodsIncludingStateMachines(type)
+                    .Where(method => IlReferencesMember(method, "AuthenticationHttpContextExtensions", "GetTokenAsync"))
+                    .Select(_ => $"{type.FullName} reads the raw bearer token through GetTokenAsync.")))
+            .Distinct()
             .ToList();
 
         // The retired gateway header contract must not resurface outside the identity layer.
@@ -382,20 +422,38 @@ public class ApiConventionTests : ConventionTestBase
         return literal.Length <= 80 ? literal : literal[..77] + "...";
     }
 
-    private static WebApplication BuildEndpointMetadataApp()
+    private static readonly string[] PrincipalAccessTypes =
+    [
+        "ClaimsPrincipal", "ClaimsIdentity", "PrincipalExtensions", "IPrincipal", "IIdentity", "IHttpContextAccessor",
+    ];
+
+    private static WebApplication BuildEndpointMetadataApp(bool includeProbes = false)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
         builder.Services.AddSingleton<IMediator, EndpointMetadataMediator>();
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddHealthChecks();
         var app = builder.Build();
         app.MapApiEndpoints();
+        if (includeProbes)
+            app.MapProbeEndpoints();
         return app;
     }
 
-    private static IReadOnlyList<RouteEndpoint> GetApiRouteEndpoints(WebApplication app)
+    private static IReadOnlyList<RouteEndpoint> GetAllRouteEndpoints(WebApplication app)
     {
         var endpoints = ((IEndpointRouteBuilder)app).DataSources
             .SelectMany(source => source.Endpoints)
             .OfType<RouteEndpoint>()
+            .ToList();
+
+        Assert.NotEmpty(endpoints);
+        return endpoints;
+    }
+
+    private static IReadOnlyList<RouteEndpoint> GetApiRouteEndpoints(WebApplication app)
+    {
+        var endpoints = GetAllRouteEndpoints(app)
             .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith("/api/v1", StringComparison.Ordinal) == true)
             .ToList();
 

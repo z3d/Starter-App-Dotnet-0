@@ -5,6 +5,7 @@ public class OwnerOnlyPolicyIntegrationTests : IAsyncLifetime
 {
     private const string OtherSubject = "other-user-01";
     private const string TenantId = "test-tenant-01";
+    private const string OtherTenantId = "other-tenant-01";
 
     private readonly ApiTestFixture _fixture;
 
@@ -86,6 +87,35 @@ public class OwnerOnlyPolicyIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Products_ShouldTreatTheSameSubjectInAnotherTenantAsADifferentOwner()
+    {
+        // The owner is subject plus tenant. The same subject string issued by another tenant
+        // must not see or change the row.
+        var product = await CreateProductAsync();
+
+        using var otherTenantClient = _fixture.CreateUnauthenticatedClient();
+
+        var hiddenResponse = await SendAsAsync(otherTenantClient, HttpMethod.Get, $"/api/v1/products/{product.Id}",
+            subject: TestJwtIdentity.DefaultSubject, tenantId: OtherTenantId);
+        Assert.Equal(HttpStatusCode.NotFound, hiddenResponse.StatusCode);
+
+        var updateResponse = await SendAsJsonAsync(otherTenantClient, HttpMethod.Put, $"/api/v1/products/{product.Id}", new UpdateProductCommand
+        {
+            Id = product.Id,
+            Name = "Cross Tenant Update",
+            Description = "Should be forbidden",
+            Price = 15.00m,
+            Currency = "USD",
+            Stock = 5
+        }, subject: TestJwtIdentity.DefaultSubject, tenantId: OtherTenantId);
+        Assert.Equal(HttpStatusCode.Forbidden, updateResponse.StatusCode);
+
+        var deleteResponse = await SendAsAsync(otherTenantClient, HttpMethod.Delete, $"/api/v1/products/{product.Id}",
+            subject: TestJwtIdentity.DefaultSubject, tenantId: OtherTenantId);
+        Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task Orders_ShouldHideReadsAndForbidMutationsForDifferentOwner()
     {
         var customer = await CreateCustomerAsync();
@@ -156,20 +186,20 @@ public class OwnerOnlyPolicyIntegrationTests : IAsyncLifetime
         return (await response.Content.ReadFromJsonAsync<ProductDto>())!;
     }
 
-    private static Task<HttpResponseMessage> SendAsAsync(HttpClient client, HttpMethod method, string uri, string subject)
+    private static Task<HttpResponseMessage> SendAsAsync(HttpClient client, HttpMethod method, string uri, string subject, string tenantId = TenantId)
     {
         var request = new HttpRequestMessage(method, uri);
-        TestJwtIdentity.SetBearer(request, subject: subject, tenantId: TenantId);
+        TestJwtIdentity.SetBearer(request, subject: subject, tenantId: tenantId);
         return client.SendAsync(request);
     }
 
-    private static Task<HttpResponseMessage> SendAsJsonAsync(HttpClient client, HttpMethod method, string uri, object body, string subject)
+    private static Task<HttpResponseMessage> SendAsJsonAsync(HttpClient client, HttpMethod method, string uri, object body, string subject, string tenantId = TenantId)
     {
         var request = new HttpRequestMessage(method, uri)
         {
             Content = JsonContent.Create(body)
         };
-        TestJwtIdentity.SetBearer(request, subject: subject, tenantId: TenantId);
+        TestJwtIdentity.SetBearer(request, subject: subject, tenantId: tenantId);
         return client.SendAsync(request);
     }
 }

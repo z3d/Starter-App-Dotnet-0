@@ -1,6 +1,3 @@
-using Microsoft.Extensions.FileProviders;
-using Microsoft.Extensions.Hosting;
-
 namespace StarterApp.Tests.Infrastructure;
 
 public class OwnerAuthorizationBehaviorTests
@@ -9,27 +6,10 @@ public class OwnerAuthorizationBehaviorTests
 
     private sealed class UnmarkedCommand : ICommand, IRequest<string> { }
 
-    private sealed class FakeHostEnvironment : IHostEnvironment
+    [Fact]
+    public async Task MarkedCommand_WithoutPolicyEvaluation_Throws()
     {
-        public FakeHostEnvironment(string environmentName) => EnvironmentName = environmentName;
-
-        public string EnvironmentName { get; set; }
-        public string ApplicationName { get; set; } = "StarterApp.Tests";
-        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
-        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
-    }
-
-    private static OwnerAuthorizationBehavior<TRequest, string> CreateBehavior<TRequest>(
-        OwnerPolicyEvaluationTracker tracker, string environment)
-        where TRequest : IRequest<string>
-        => new(tracker, new FakeHostEnvironment(environment));
-
-    [Theory]
-    [InlineData("Development")]
-    [InlineData("Testing")]
-    public async Task MarkedCommand_WithoutPolicyEvaluation_Throws_InDevAndTesting(string environment)
-    {
-        var behavior = CreateBehavior<MarkedCommand>(new OwnerPolicyEvaluationTracker(), environment);
+        var behavior = new OwnerAuthorizationBehavior<MarkedCommand, string>(new OwnerPolicyEvaluationTracker());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => behavior.HandleAsync(new MarkedCommand(), () => Task.FromResult("ok"), CancellationToken.None));
@@ -39,20 +19,30 @@ public class OwnerAuthorizationBehaviorTests
     }
 
     [Fact]
-    public async Task MarkedCommand_WithoutPolicyEvaluation_DoesNotFailRequest_InProduction()
+    public async Task MarkedCommand_FlagsTheTrackerBeforeTheHandlerRuns()
     {
-        var behavior = CreateBehavior<MarkedCommand>(new OwnerPolicyEvaluationTracker(), "Production");
+        var tracker = new OwnerPolicyEvaluationTracker();
+        var behavior = new OwnerAuthorizationBehavior<MarkedCommand, string>(tracker);
+        var requiredDuringHandler = false;
 
-        var response = await behavior.HandleAsync(new MarkedCommand(), () => Task.FromResult("ok"), CancellationToken.None);
+        await behavior.HandleAsync(
+            new MarkedCommand(),
+            () =>
+            {
+                requiredDuringHandler = tracker.RequiresEvaluation;
+                tracker.MarkEvaluated();
+                return Task.FromResult("ok");
+            },
+            CancellationToken.None);
 
-        Assert.Equal("ok", response);
+        Assert.True(requiredDuringHandler);
     }
 
     [Fact]
     public async Task MarkedCommand_WithPolicyEvaluation_Succeeds()
     {
         var tracker = new OwnerPolicyEvaluationTracker();
-        var behavior = CreateBehavior<MarkedCommand>(tracker, "Testing");
+        var behavior = new OwnerAuthorizationBehavior<MarkedCommand, string>(tracker);
 
         var response = await behavior.HandleAsync(
             new MarkedCommand(),
@@ -69,17 +59,19 @@ public class OwnerAuthorizationBehaviorTests
     [Fact]
     public async Task UnmarkedCommand_WithoutPolicyEvaluation_Succeeds()
     {
-        var behavior = CreateBehavior<UnmarkedCommand>(new OwnerPolicyEvaluationTracker(), "Testing");
+        var tracker = new OwnerPolicyEvaluationTracker();
+        var behavior = new OwnerAuthorizationBehavior<UnmarkedCommand, string>(tracker);
 
         var response = await behavior.HandleAsync(new UnmarkedCommand(), () => Task.FromResult("ok"), CancellationToken.None);
 
         Assert.Equal("ok", response);
+        Assert.False(tracker.RequiresEvaluation);
     }
 
     [Fact]
     public async Task MarkedCommand_WhoseHandlerThrows_PropagatesWithoutEnforcementNoise()
     {
-        var behavior = CreateBehavior<MarkedCommand>(new OwnerPolicyEvaluationTracker(), "Testing");
+        var behavior = new OwnerAuthorizationBehavior<MarkedCommand, string>(new OwnerPolicyEvaluationTracker());
 
         await Assert.ThrowsAsync<EntityNotFoundException>(
             () => behavior.HandleAsync(new MarkedCommand(), () => Task.FromException<string>(new EntityNotFoundException("not found")), CancellationToken.None));
@@ -107,7 +99,6 @@ public class OwnerAuthorizationBehaviorTests
     public async Task RealMediatorPipeline_CatchesHandlerThatSkipsThePolicy()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<IHostEnvironment>(new FakeHostEnvironment("Testing"));
         services.AddScoped<OwnerPolicyEvaluationTracker>();
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(OwnerAuthorizationBehavior<,>));
         services.AddScoped<IMediator, StarterApp.Api.Infrastructure.Mediator.Mediator>();
@@ -124,7 +115,6 @@ public class OwnerAuthorizationBehaviorTests
     public async Task RealMediatorPipeline_PassesHandlerThatConsultsThePolicy()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<IHostEnvironment>(new FakeHostEnvironment("Testing"));
         services.AddScoped<OwnerPolicyEvaluationTracker>();
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(OwnerAuthorizationBehavior<,>));
         services.AddScoped<IMediator, StarterApp.Api.Infrastructure.Mediator.Mediator>();

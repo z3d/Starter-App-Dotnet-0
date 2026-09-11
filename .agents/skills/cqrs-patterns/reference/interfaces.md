@@ -15,7 +15,7 @@ public interface IRequestHandler<in TRequest, TResponse> where TRequest : IReque
 public interface ICommand { }                                  // bare marker
 public interface IQuery<TResult> : IRequest<TResult> { }       // extends IRequest — dispatchability is a compiler guarantee
 public interface IOwnerScopedRequest { }                       // marks owner-scoped reads (and the cache-key seam)
-public interface IOwnerAuthorizedMutation { }                  // marks non-create commands for the OwnerAuthorizationBehavior check
+public interface IOwnerAuthorizedMutation { }                  // marks commands that touch an existing aggregate; OwnerAuthorizationWriteGuard refuses their writes until Authorize runs
 ```
 
 The pairings that follow from this:

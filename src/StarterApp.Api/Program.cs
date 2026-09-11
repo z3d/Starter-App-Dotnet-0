@@ -46,15 +46,15 @@ try
     // Middleware pipeline — order matters
     if (app.Environment.IsDevelopment())
     {
-        app.MapOpenApi();
-        app.MapScalarApiReference();
+        app.MapOpenApi().AllowAnonymous();
+        app.MapScalarApiReference().AllowAnonymous();
 
         // Config probe for the dev-only walkthrough (wwwroot/demo.html, served further down the
         // pipeline). Serving is dev-gated here, and Release builds exclude wwwroot/** from output
         // entirely (see the Content Remove in the csproj) — the page embeds well-known dev-realm
         // credentials, so it must not ride along in production images as a dead file.
         app.MapGet("/demo/config", (Microsoft.Extensions.Options.IOptions<StarterApp.Api.Infrastructure.Identity.JwtIdentityOptions> identity) =>
-            Results.Ok(new { authority = identity.Value.Authority }));
+            Results.Ok(new { authority = identity.Value.Authority })).AllowAnonymous();
     }
     else
     {
@@ -84,23 +84,6 @@ try
 
     app.MapApiEndpoints();
 
-    // Health/probe endpoints opt out of the global rate limiter. They are unauthenticated, so the
-    // limiter buckets them by client IP — under k8s the kubelet probes from the node IP and would
-    // share one partition with other node-egress traffic, so a 429 on /health/ready or /health/live
-    // could evict or restart an otherwise-healthy pod (a self-inflicted availability flap).
-    app.MapHealthChecks("/health").DisableRateLimiting();
-    app.MapHealthChecks("/health/ready", new HealthCheckOptions
-    {
-        Predicate = check => check.Tags.Contains("ready")
-    }).DisableRateLimiting();
-    app.MapHealthChecks("/health/live", new HealthCheckOptions
-    {
-        Predicate = check => check.Tags.Contains("live")
-    }).DisableRateLimiting();
-    app.MapHealthChecks("/alive", new HealthCheckOptions
-    {
-        Predicate = check => check.Tags.Contains("live")
-    }).DisableRateLimiting();
     app.MapProbeEndpoints();
 
     app.Run();

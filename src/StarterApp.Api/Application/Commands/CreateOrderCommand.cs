@@ -5,7 +5,7 @@ namespace StarterApp.Api.Application.Commands;
 // The template's live feature-toggle exemplar: flipping FeatureToggles:order-placement to
 // false in configuration refuses order placement with 503 — no redeploy (kill-switch shape).
 [FeatureToggle("order-placement")]
-public class CreateOrderCommand : ICommand, IRequest<OrderDto>
+public class CreateOrderCommand : ICommand, IRequest<OrderDto>, IOwnerAuthorizedMutation
 {
     public int CustomerId { get; set; }
     public List<CreateOrderItemCommand> Items { get; set; } = [];

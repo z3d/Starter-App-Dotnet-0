@@ -1,5 +1,6 @@
 using Azure.Messaging.ServiceBus;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using StarterApp.Api.Infrastructure.HealthChecks;
 using StarterApp.Api.Infrastructure.Outbox;
@@ -60,12 +61,15 @@ public static class ServiceCollectionExtensions
         // SaveChanges with no explicit transaction. A handler that does open a transaction must
         // run it inside CreateExecutionStrategy().ExecuteAsync, as CreateOrderCommandHandler does;
         // otherwise the first transient fault throws. The DomainEventsInterceptor is stateless,
-        // so one instance serves every context.
-        services.AddDbContext<ApplicationDbContext>(options =>
+        // so one instance serves every context. The OwnerAuthorizationWriteGuard is scoped because
+        // it reads the request's OwnerPolicyEvaluationTracker.
+        services.TryAddScoped<OwnerPolicyEvaluationTracker>();
+        services.AddScoped<OwnerAuthorizationWriteGuard>();
+        services.AddDbContext<ApplicationDbContext>((provider, options) =>
             options.UseNpgsql(connectionString, postgres =>
                 postgres.EnableRetryOnFailure(maxRetryCount: 6, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null))
                    .EnableSensitiveDataLogging(false)
-                   .AddInterceptors(new DomainEventsInterceptor()));
+                   .AddInterceptors(new DomainEventsInterceptor(), provider.GetRequiredService<OwnerAuthorizationWriteGuard>()));
 
         // The Dapper connection is transient, not scoped: Npgsql cannot run two queries on one
         // connection at the same time, so each query handler gets its own. The physical
@@ -133,6 +137,12 @@ public static class ServiceCollectionExtensions
                 // Keep raw OIDC claim types (sub/tid/scope/amr) — inbound claim remapping would
                 // rename them out from under JwtIdentityMiddleware.
                 bearer.MapInboundClaims = false;
+                // The raw token is never needed after validation. Not saving it keeps
+                // HttpContext.GetTokenAsync("access_token") from handing it back to app code.
+                bearer.SaveToken = false;
+                // Only asymmetric signatures. The JWKS keys are RSA or EC, so an HMAC or "none"
+                // token would fail anyway; pinning the list makes that explicit.
+                bearer.TokenValidationParameters.ValidAlgorithms = JwtIdentityOptions.AllowedSigningAlgorithms;
                 bearer.TokenValidationParameters.ValidateAudience = true;
                 bearer.TokenValidationParameters.ValidAudience = identity.Audience;
                 bearer.TokenValidationParameters.ValidateIssuer = true;
@@ -140,12 +150,15 @@ public static class ServiceCollectionExtensions
                 bearer.TokenValidationParameters.NameClaimType = "sub";
             });
 
-        services.AddAuthorization();
+        // Every endpoint requires an authenticated caller unless it says AllowAnonymous. The
+        // convention tests check the /api/v1 routes; this catches a route mapped anywhere else.
+        services.AddAuthorizationBuilder()
+            .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<CurrentUserAccessor>();
         services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<CurrentUserAccessor>());
-        services.AddScoped<OwnerPolicyEvaluationTracker>();
+        services.TryAddScoped<OwnerPolicyEvaluationTracker>();
         services.AddScoped<IOwnerOnlyPolicy, OwnerOnlyPolicy>();
 
         return services;

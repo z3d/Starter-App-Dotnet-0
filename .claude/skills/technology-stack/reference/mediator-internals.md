@@ -50,6 +50,6 @@ So the cost profile is: **one** reflective `MakeGenericType` + `Activator.Create
 
 1. **Feature-toggle gate first** — before validators and before `CachingBehavior`. If the toggle check ran inside the pipeline, a disabled `ICacheable` query could still be served from cache, which turns a kill switch into a partial kill switch.
 2. **Validators before behaviors** — behaviors can assume the request is shape-valid.
-3. **Behaviors in registration order** — first registered is outermost. `CachingBehavior` wraps `ICacheable` queries; `OwnerAuthorizationBehavior` asserts after `IOwnerAuthorizedMutation` commands that the owner policy actually ran.
+3. **Behaviors in registration order** — first registered is outermost. `CachingBehavior` wraps `ICacheable` queries; `OwnerAuthorizationBehavior` flags `IOwnerAuthorizedMutation` commands before the handler runs so `OwnerAuthorizationWriteGuard` can refuse an unauthorized write, and asserts afterwards that the owner policy ran.
 
 Everything a request passes through is centralized on this one path — there is deliberately no second dispatch mechanism, no notification fan-out, and no handler-to-handler dispatch (`IMediator` injection into handlers is convention-banned in the repos that carry that rule).

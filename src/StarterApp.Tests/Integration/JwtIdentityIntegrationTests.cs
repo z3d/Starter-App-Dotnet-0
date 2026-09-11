@@ -77,6 +77,14 @@ public class JwtIdentityIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task MissingSubjectClaim_Returns401()
+    {
+        var response = await SendWithTokenAsync(TestJwtIdentity.CreateToken(subject: ""));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Contains("invalid_token", response.Headers.WwwAuthenticate.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task MissingScope_Returns403()
     {
         var response = await SendWithTokenAsync(TestJwtIdentity.CreateToken(scopes: "customers:read"));
