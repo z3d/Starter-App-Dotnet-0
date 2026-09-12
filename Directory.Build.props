@@ -51,4 +51,11 @@
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
+
+  <!-- Point git at the tracked hooks (commit-msg checks the agent attribution trailers). Runs on
+       every build so a fresh clone or worktree is covered without a setup step; a directory that
+       is not a checkout, or a machine without git, is ignored. -->
+  <Target Name="InstallGitHooks" BeforeTargets="Build" Condition="Exists('$(MSBuildThisFileDirectory).git')">
+    <Exec Command="git config core.hooksPath .githooks" WorkingDirectory="$(MSBuildThisFileDirectory)" ContinueOnError="true" StandardOutputImportance="low" StandardErrorImportance="low" />
+  </Target>
 </Project>

@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# commit-msg: an agent's commit must say which harness and which model(s) produced it, as git
+# trailers, so `git log --format='%(trailers:key=Model)'` answers "what wrote this" for every
+# commit. Agents are recognised by the environment their harness sets; a commit without those
+# markers (a human at a terminal) passes untouched — fail open, like the other guards here.
+set -euo pipefail
+
+message_file="$1"
+agent_markers=(CLAUDECODE CODEX_SANDBOX CODEX_THREAD_ID CURSOR_AGENT GEMINI_CLI COPILOT_AGENT AIDER_MODEL AGENT_HARNESS)
+
+is_agent=0
+for marker in "${agent_markers[@]}"; do
+  if [ -n "${!marker:-}" ]; then
+    is_agent=1
+    break
+  fi
+done
+[ "$is_agent" = 1 ] || exit 0
+
+trailers=$(git interpret-trailers --parse "$message_file")
+if ! grep -qi '^Harness:' <<<"$trailers" || ! grep -qi '^Model:' <<<"$trailers"; then
+  cat >&2 <<'MSG'
+commit-msg: an agent commit must end with trailers naming the harness and the model(s), for example
+
+    Harness: Claude Code
+    Model: claude-fable-5-1
+
+List every model that contributed (comma-separated) and keep any attribution lines the harness
+adds itself (Co-Authored-By, Claude-Session). Set AGENT_HARNESS=1 to opt a scripted commit in.
+MSG
+  exit 1
+fi

@@ -19,6 +19,15 @@ act                                                                       # run 
 
 Commit after every task — uncommitted work is invisible to the other agents sharing this repo. Format, build, and test first, and commit any regenerated `packages.lock.json`.
 
+Every agent commit ends with `Harness:` and `Model:` trailers naming the tool and the model(s) that produced it (comma-separate several), after any attribution the harness adds itself:
+
+```
+Harness: Claude Code
+Model: claude-fable-5-1
+```
+
+`.githooks/commit-msg` rejects an agent commit without them (it recognises the harness from its environment and fails open for a human), and `dotnet build` points `core.hooksPath` at `.githooks` so a fresh clone or worktree needs no setup.
+
 ## Working alongside other sessions
 
 Several agents may hold this checkout at once, so the primary working tree can be sitting on someone else's branch with their uncommitted changes. Don't switch its branch, stage, or commit there. Work in your own worktree instead:
