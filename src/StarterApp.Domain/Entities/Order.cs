@@ -22,6 +22,7 @@ public class Order : AggregateRoot
         get => _items.AsReadOnly();
         private set { } // Required by EF Core property detection; data loaded via _items backing field (see ApplicationDbContext HasMany config with PropertyAccessMode.Field)
     }
+    public DateTimeOffset DateCreated { get; private set; }
     public DateTimeOffset LastUpdated { get; private set; }
     public uint RowVersion { get; private set; }
 
@@ -29,7 +30,8 @@ public class Order : AggregateRoot
     {
         OrderDate = DateTimeOffset.UtcNow;
         Status = OrderStatus.Pending;
-        LastUpdated = DateTimeOffset.UtcNow;
+        DateCreated = OrderDate;
+        LastUpdated = OrderDate;
     }
 
     public Order(int customerId, string ownerSubject, string tenantId)
@@ -54,7 +56,8 @@ public class Order : AggregateRoot
         TenantId = tenantId;
         OrderDate = DateTimeOffset.UtcNow;
         Status = OrderStatus.Pending;
-        LastUpdated = DateTimeOffset.UtcNow;
+        DateCreated = OrderDate;
+        LastUpdated = OrderDate;
     }
 
     public void AddItem(OrderItem item)
@@ -254,6 +257,7 @@ public class Order : AggregateRoot
             TenantId = OwnershipDefaults.LegacyTenantId,
             OrderDate = orderDate,
             Status = status,
+            DateCreated = orderDate,
             LastUpdated = lastUpdated
         };
         order._items.AddRange(items);

@@ -7,6 +7,7 @@ Architectural convention tests using [Best.Conventional](https://github.com/andr
 | File | Purpose |
 |------|---------|
 | `ApiConventionTests.cs` | Endpoint/validator/handler dependency boundaries; DTO/read-model/response serializability; materialized response collections |
+| `AuditTimestampConventionTests.cs` | Every aggregate carries a non-nullable `DateCreated`/`LastUpdated` pair, mapped by EF and declared as `timestamptz NOT NULL` in a migration |
 | `CachingConventionTests.cs` | `ICacheable` key/duration rules, deterministic same-id keys, different-id collision prevention, by-id-only caching, and mutation invalidation coverage |
 | `ConventionTestBase.cs` | Shared production assembly refs and compiler-generated type filtering |
 | `CqrsConventionTests.cs` | CQRS data-access separation, command/query handler wiring, validator coverage, marker/request interface pairing |

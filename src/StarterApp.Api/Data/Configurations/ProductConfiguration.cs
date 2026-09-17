@@ -44,6 +44,9 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.Stock)
             .HasColumnName("stock");
 
+        builder.Property(p => p.DateCreated)
+            .HasColumnName("date_created");
+
         builder.Property(p => p.LastUpdated)
             .HasColumnName("last_updated");
 

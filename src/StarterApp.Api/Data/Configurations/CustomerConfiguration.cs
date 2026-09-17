@@ -37,6 +37,9 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.DateCreated)
             .HasColumnName("date_created");
 
+        builder.Property(c => c.LastUpdated)
+            .HasColumnName("last_updated");
+
         builder.Property(c => c.IsActive)
             .HasColumnName("is_active");
 

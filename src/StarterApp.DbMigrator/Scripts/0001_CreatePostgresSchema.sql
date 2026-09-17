@@ -7,6 +7,7 @@ CREATE TABLE products (
     stock integer NOT NULL CONSTRAINT df_products_stock DEFAULT 0,
     owner_subject varchar(200) NOT NULL CONSTRAINT df_products_owner_subject DEFAULT 'legacy-owner',
     tenant_id varchar(100) NOT NULL CONSTRAINT df_products_tenant_id DEFAULT 'legacy-tenant',
+    date_created timestamptz NOT NULL CONSTRAINT df_products_date_created DEFAULT now(),
     last_updated timestamptz NOT NULL CONSTRAINT df_products_last_updated DEFAULT now(),
     CONSTRAINT pk_products PRIMARY KEY (id),
     CONSTRAINT ck_products_stock_non_negative CHECK (stock >= 0)
@@ -22,6 +23,7 @@ CREATE TABLE customers (
     owner_subject varchar(200) NOT NULL CONSTRAINT df_customers_owner_subject DEFAULT 'legacy-owner',
     tenant_id varchar(100) NOT NULL CONSTRAINT df_customers_tenant_id DEFAULT 'legacy-tenant',
     date_created timestamptz NOT NULL CONSTRAINT df_customers_date_created DEFAULT now(),
+    last_updated timestamptz NOT NULL CONSTRAINT df_customers_last_updated DEFAULT now(),
     is_active boolean NOT NULL CONSTRAINT df_customers_is_active DEFAULT true,
     CONSTRAINT pk_customers PRIMARY KEY (id)
 );
@@ -39,6 +41,7 @@ CREATE TABLE orders (
     status varchar(50) NOT NULL CONSTRAINT df_orders_status DEFAULT 'Pending',
     owner_subject varchar(200) NOT NULL CONSTRAINT df_orders_owner_subject DEFAULT 'legacy-owner',
     tenant_id varchar(100) NOT NULL CONSTRAINT df_orders_tenant_id DEFAULT 'legacy-tenant',
+    date_created timestamptz NOT NULL CONSTRAINT df_orders_date_created DEFAULT now(),
     last_updated timestamptz NOT NULL CONSTRAINT df_orders_last_updated DEFAULT now(),
     CONSTRAINT pk_orders PRIMARY KEY (id),
     CONSTRAINT fk_orders_customer_id FOREIGN KEY (customer_id) REFERENCES customers (id)

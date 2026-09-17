@@ -36,6 +36,9 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasMaxLength(OwnershipDefaults.MaxTenantIdLength)
             .IsRequired();
 
+        builder.Property(o => o.DateCreated)
+            .HasColumnName("date_created");
+
         builder.Property(o => o.LastUpdated)
             .HasColumnName("last_updated");
 

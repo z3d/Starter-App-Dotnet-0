@@ -13,6 +13,7 @@ public class Product
     public string OwnerSubject { get; private set; } = string.Empty;
     public string TenantId { get; private set; } = string.Empty;
     public int Stock { get; private set; }
+    public DateTimeOffset DateCreated { get; private set; }
     public DateTimeOffset LastUpdated { get; private set; }
     public uint RowVersion { get; private set; }
 
@@ -22,7 +23,8 @@ public class Product
         // Initialize default values to satisfy non-nullable warnings
         Name = string.Empty;
         Description = string.Empty;
-        LastUpdated = DateTimeOffset.UtcNow;
+        DateCreated = DateTimeOffset.UtcNow;
+        LastUpdated = DateCreated;
     }
 
     public Product(string name, string? description, Money price, int stock, string ownerSubject, string tenantId)
@@ -41,7 +43,8 @@ public class Product
         OwnerSubject = ownerSubject;
         TenantId = tenantId;
         Stock = stock;
-        LastUpdated = DateTimeOffset.UtcNow;
+        DateCreated = DateTimeOffset.UtcNow;
+        LastUpdated = DateCreated;
     }
 
     // Domain methods

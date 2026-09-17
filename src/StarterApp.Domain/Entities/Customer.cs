@@ -10,12 +10,14 @@ public class Customer
     public string OwnerSubject { get; private set; } = string.Empty;
     public string TenantId { get; private set; } = string.Empty;
     public DateTimeOffset DateCreated { get; private set; }
+    public DateTimeOffset LastUpdated { get; private set; }
     public bool IsActive { get; private set; }
 
     protected Customer()
     {
         Name = string.Empty;
         DateCreated = DateTimeOffset.UtcNow;
+        LastUpdated = DateCreated;
         IsActive = true;
     }
 
@@ -32,6 +34,7 @@ public class Customer
         OwnerSubject = ownerSubject;
         TenantId = tenantId;
         DateCreated = DateTimeOffset.UtcNow;
+        LastUpdated = DateCreated;
         IsActive = true;
     }
 
@@ -44,16 +47,19 @@ public class Customer
 
         Name = name;
         Email = email;
+        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     public void Activate()
     {
         IsActive = true;
+        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     public void Deactivate()
     {
         IsActive = false;
+        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     private static void ValidateName(string name)
