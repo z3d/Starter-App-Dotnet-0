@@ -1200,6 +1200,7 @@
         "type": "Project",
         "dependencies": {
           "Aspire.StackExchange.Redis.DistributedCaching": "[13.2.3, )",
+          "Azure.Identity": "[1.21.0, )",
           "Azure.Messaging.ServiceBus": "[7.20.1, )",
           "Dapper": "[2.1.35, )",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "[10.0.3, )",

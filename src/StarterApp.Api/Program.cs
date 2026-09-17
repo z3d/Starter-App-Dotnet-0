@@ -38,10 +38,11 @@ try
 {
     Log.Information("Starting up application");
 
+    // Which credential the database gets is decided by configuration, so say it once at start-up:
+    // it is the first question when the app cannot reach its database.
+    Log.Information("Database authentication: {DatabaseAuthentication}", StarterApp.Api.Infrastructure.Persistence.DatabaseAuthentication.Describe(connectionString));
     if (app.Environment.IsDevelopment())
         Log.Information("Database connection configured: {ConnectionString}", StarterApp.ServiceDefaults.ConnectionStringDescriptor.Describe(connectionString));
-    else
-        Log.Information("Database connection configured successfully");
 
     // Middleware pipeline — order matters
     if (app.Environment.IsDevelopment())

@@ -34,4 +34,24 @@ public class PersistenceRegistrationTests
 
         Assert.Equal(ServiceLifetime.Transient, descriptor.Lifetime);
     }
+
+    [Fact]
+    public void AddPersistence_GivesEfCoreAndDapper_TheSameDataSource()
+    {
+        // One NpgsqlDataSource per process is what lets the managed-identity password provider be
+        // configured once and still cover both the EF Core context and the Dapper connections.
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddPersistence("Host=localhost;Database=test;Username=postgres;Password=postgres");
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var dataSource = provider.GetRequiredService<NpgsqlDataSource>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        using var dapperConnection = scope.ServiceProvider.GetRequiredService<System.Data.IDbConnection>();
+
+        Assert.Same(dataSource, provider.GetRequiredService<NpgsqlDataSource>());
+        Assert.Equal(dataSource.ConnectionString, dbContext.Database.GetConnectionString());
+        Assert.Equal(dataSource.ConnectionString, dapperConnection.ConnectionString);
+    }
 }

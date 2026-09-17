@@ -54,6 +54,12 @@ supply a PostgreSQL, Redis, and OIDC authority the API can reach. Service Bus is
 Development: with no `ConnectionStrings:servicebus` the publisher is a no-op. Outside
 Development and Testing a missing Service Bus connection string fails start-up on purpose.
 
+A `ConnectionStrings:database` that names a `Username` but no `Password` makes the API connect
+to Azure Database for PostgreSQL as its hosting identity: `DatabaseAuthentication` fetches an
+Entra token through `DefaultAzureCredential` and Npgsql presents it as the password, refreshing
+it before expiry. The start-up log names the mode it chose. The migrator does not do this; hand
+it a token as the password from the deployment step that runs it.
+
 ## Migrations
 
 Migrations run only through `StarterApp.DbMigrator`, never at API start-up. Under Aspire that

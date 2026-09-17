@@ -2,6 +2,7 @@ using Azure.Messaging.ServiceBus;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Npgsql;
 using StarterApp.Api.Infrastructure.HealthChecks;
 using StarterApp.Api.Infrastructure.Outbox;
 
@@ -65,8 +66,12 @@ public static class ServiceCollectionExtensions
         // it reads the request's OwnerPolicyEvaluationTracker.
         services.TryAddScoped<OwnerPolicyEvaluationTracker>();
         services.AddScoped<OwnerAuthorizationWriteGuard>();
+
+        // One data source per process: EF Core and Dapper share the pool, and the managed-identity
+        // password provider (DatabaseAuthentication) is configured in exactly one place.
+        services.AddSingleton(_ => DatabaseAuthentication.CreateDataSource(connectionString));
         services.AddDbContext<ApplicationDbContext>((provider, options) =>
-            options.UseNpgsql(connectionString, postgres =>
+            options.UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>(), postgres =>
                 postgres.EnableRetryOnFailure(maxRetryCount: 6, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null))
                    .EnableSensitiveDataLogging(false)
                    .AddInterceptors(new DomainEventsInterceptor(), provider.GetRequiredService<OwnerAuthorizationWriteGuard>()));
@@ -76,7 +81,7 @@ public static class ServiceCollectionExtensions
         // connections are pooled, so this costs little. The query handlers wrap their calls in
         // PostgresRetryPolicy.ExecuteAsync.
         services.AddTransient<System.Data.IDbConnection>(provider =>
-            new Npgsql.NpgsqlConnection(connectionString));
+            provider.GetRequiredService<NpgsqlDataSource>().CreateConnection());
 
         return services;
     }
