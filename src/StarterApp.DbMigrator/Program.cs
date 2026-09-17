@@ -30,6 +30,11 @@ Log.Logger = loggerConfig.CreateLogger();
 // Every path returns an exit code instead of calling Environment.Exit so the finally block can
 // flush the Seq sink; Environment.Exit terminates before finally runs and a short migration or
 // replay would exit with its whole log batch undelivered.
+// Elapsed time is the diagnosis when a migration fails with nothing else to go on: a failure at
+// about fifteen seconds is Npgsql's connect timeout (no route to the server), a sub-second one is
+// the login or the SQL itself.
+var elapsed = System.Diagnostics.Stopwatch.StartNew();
+
 try
 {
     Log.Information("Starting database migration process");
@@ -55,23 +60,18 @@ try
         return OutboxReplayer.Run(connectionString, args.Skip(1).ToArray());
     }
 
-    // Use the DatabaseMigrationEngine to run migrations
-    bool success = DatabaseMigrationEngine.Migrate(connectionString);
-
-    if (success)
+    if (DatabaseMigrationEngine.Migrate(connectionString))
     {
-        Log.Information("Database migration completed successfully");
+        Log.Information("Database migration completed successfully in {Elapsed}", elapsed.Elapsed);
         return 0;
     }
-    else
-    {
-        Log.Error("Database migration failed");
-        return -1;
-    }
+
+    Log.Error("Database migration failed after {Elapsed}", elapsed.Elapsed);
+    return -1;
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "Database migration process failed with an exception");
+    Log.Fatal(ex, "Database migration failed after {Elapsed} with {ExceptionType}", elapsed.Elapsed, ex.GetType().Name);
     return -1;
 }
 finally

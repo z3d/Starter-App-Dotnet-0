@@ -4,32 +4,26 @@ public static class DatabaseMigrationEngine
 {
     public static bool MigrateDatabase(string connectionString, Assembly scriptsAssembly)
     {
-        Console.WriteLine($"Starting database migration with connection: {ConnectionStringDescriptor.Describe(connectionString)}");
+        var upgradeLog = new SerilogUpgradeLog(Log.Logger);
 
-        // Ensure database exists
-        EnsureDatabase.For.PostgresqlDatabase(connectionString);
+        EnsureDatabase.For.PostgresqlDatabase(connectionString, upgradeLog);
 
-        // Configure DbUp to use standard journal (default "__SchemaVersions" table)
         var upgrader = DeployChanges.To
             .PostgresqlDatabase(connectionString)
             .WithScriptsEmbeddedInAssembly(scriptsAssembly)
             .WithTransaction()
-            .LogToNowhere() // Don't log to console to avoid exposing connection strings
+            .LogTo(upgradeLog)
             .Build();
 
         var result = upgrader.PerformUpgrade();
 
         if (!result.Successful)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Database migration failed: {result.Error}");
-            Console.ResetColor();
+            Log.Error(result.Error, "Database migration failed while running {Script}", result.ErrorScript?.Name ?? "<no script>");
             return false;
         }
 
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("Database migration completed successfully!");
-        Console.ResetColor();
+        Log.Information("Database migration applied {ScriptCount} script(s)", result.Scripts.Count());
         return true;
     }
 
