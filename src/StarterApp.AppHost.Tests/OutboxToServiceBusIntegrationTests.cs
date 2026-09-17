@@ -9,7 +9,6 @@ using Npgsql;
 namespace StarterApp.AppHost.Tests;
 
 [Collection("Aspire E2E")]
-[Trait("Category", "Aspire")]
 public class OutboxToServiceBusIntegrationTests
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
@@ -21,7 +20,7 @@ public class OutboxToServiceBusIntegrationTests
         _fixture = fixture;
     }
 
-    [Fact]
+    [AspireFact]
     public async Task CreateOrder_ShouldSucceedEndToEnd()
     {
         // Arrange
@@ -78,7 +77,7 @@ public class OutboxToServiceBusIntegrationTests
         Assert.Equal(48, fetchedProduct.GetProperty("stock").GetInt32());
     }
 
-    [Fact]
+    [AspireFact]
     public async Task HealthEndpoints_ShouldBeReachable()
     {
         // Arrange — anonymous on purpose: orchestrator probes carry no credentials, so a
@@ -100,7 +99,7 @@ public class OutboxToServiceBusIntegrationTests
         Assert.Equal(HttpStatusCode.OK, readyResponse.StatusCode);
     }
 
-    [Fact]
+    [AspireFact]
     public async Task CreateOrder_ShouldWriteAndProcessOutboxEvent()
     {
         // Arrange
@@ -185,7 +184,7 @@ public class OutboxToServiceBusIntegrationTests
         Assert.Contains("\"operation\":\"InventoryReservationFunction\"", subscriberCaptureContent);
     }
 
-    [Fact]
+    [AspireFact]
     public async Task CreateCustomer_ShouldArchivePayloadsToAspireBlobStorage()
     {
         // Arrange

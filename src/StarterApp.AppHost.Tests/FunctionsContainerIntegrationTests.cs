@@ -1,7 +1,6 @@
 namespace StarterApp.AppHost.Tests;
 
 [Collection("Aspire E2E")]
-[Trait("Category", "Aspire")]
 public class FunctionsContainerIntegrationTests
 {
     private readonly AspireE2EFixture _fixture;
@@ -14,7 +13,7 @@ public class FunctionsContainerIntegrationTests
     // The CI docker-build job proves the Functions image BUILDS; nothing else ever proves it
     // BOOTS. This fact pays the in-container image build + boot cost (via the fixture's lazy
     // gate) and pins that the deployable subscriber container actually comes up and serves.
-    [Fact]
+    [AspireFact]
     public async Task FunctionsContainer_ShouldBuildBootAndServe()
     {
         await _fixture.EnsureFunctionsReadyAsync();

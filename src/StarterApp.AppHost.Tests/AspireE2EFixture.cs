@@ -28,6 +28,11 @@ public sealed class AspireE2EFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
+        // xUnit builds the collection fixture even when every fact in the collection is skipped,
+        // so the opt-in has to be honoured here too or a plain `dotnet test` still boots the rig.
+        if (!AspireFactAttribute.Enabled)
+            return;
+
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.StarterApp_AppHost>();
         App = await appHost.BuildAsync();

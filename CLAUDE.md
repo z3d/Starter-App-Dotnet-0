@@ -10,7 +10,8 @@ This codebase is maintained by AI agents, so it favours **mechanical rules over 
 dotnet format
 dotnet build
 dotnet test
-dotnet test --filter "FullyQualifiedName!~Integration&Category!=Aspire"   # fast: unit + convention + fuzz (its DB-backed handler tests need Docker)
+dotnet test --filter "FullyQualifiedName!~Integration"                  # fast: unit + convention + fuzz (its DB-backed handler tests need Docker)
+STARTERAPP_ASPIRE_TESTS=true dotnet test src/StarterApp.AppHost.Tests  # Aspire end-to-end; skipped unless opted in
 dotnet restore                                                            # locked mode is the default
 dotnet restore --force-evaluate                                           # only after an intentional dependency change
 dotnet run --project src/StarterApp.AppHost
