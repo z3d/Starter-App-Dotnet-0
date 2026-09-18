@@ -54,6 +54,10 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
+  <ItemGroup>
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
+  </ItemGroup>
+
   <!-- Point git at the tracked hooks (commit-msg checks the agent attribution trailers). Runs on
        every build so a fresh clone or worktree is covered without a setup step; a directory that
        is not a checkout, or a machine without git, is ignored. -->

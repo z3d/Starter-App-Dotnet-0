@@ -19,7 +19,7 @@ public class CommandHandlerValidationTests : CohortValidationTestBase<HandlerFin
         Assert.True(fp.ConstructorDependencyCount >= 1,
             $"{fp.TypeName} has no constructor dependencies (should at least have ApplicationDbContext)");
         Assert.True(fp.HasLogger,
-            $"{fp.TypeName} should emit Serilog diagnostics so handler execution is observable");
+            $"{fp.TypeName} should emit log diagnostics so handler execution is observable");
     }
 
     // Synthetic-fixture extraction tests: prove the fingerprint extractor reads real

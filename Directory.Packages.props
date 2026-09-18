@@ -5,6 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Bans the symbols in BannedSymbols.txt (RS0030); severities per project live in .editorconfig. -->
+    <GlobalPackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.2.3" />
     <PackageVersion Include="Aspire.Hosting.Azure.ServiceBus" Version="13.2.3" />
     <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.2.3" />

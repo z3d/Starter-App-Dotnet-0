@@ -17,19 +17,21 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ILogger<CreateProductCommandHandler> _logger;
 
-    public CreateProductCommandHandler(ApplicationDbContext dbContext, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public CreateProductCommandHandler(ApplicationDbContext dbContext, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<CreateProductCommandHandler> logger)
     {
         _dbContext = dbContext;
         _ownerOnlyPolicy = ownerOnlyPolicy;
+        _logger = logger;
     }
 
     public async Task<ProductDto> HandleAsync(
         CreateProductCommand command, CancellationToken cancellationToken)
     {
-        Log.Information("Handling CreateProductCommand to return ProductDto");
+        _logger.LogInformation("Handling CreateProductCommand to return ProductDto");
 
-        Log.Information("Creating product {Name} with EF Core", command.Name);
+        _logger.LogInformation("Creating product {Name} with EF Core", command.Name);
 
         var price = Money.Create(command.Price!.Value, command.Currency!);
         var ownerScope = _ownerOnlyPolicy.GetRequiredScope();
@@ -38,7 +40,7 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
         _dbContext.Products.Add(product);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        Log.Information("Created new product with ID: {ProductId}", product.Id);
+        _logger.LogInformation("Created new product with ID: {ProductId}", product.Id);
 
         // Map to DTO and return
         return new ProductDto

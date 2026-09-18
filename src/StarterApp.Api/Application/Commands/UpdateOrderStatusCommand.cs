@@ -11,23 +11,25 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
     private readonly ApplicationDbContext _dbContext;
     private readonly ICacheInvalidator _cacheInvalidator;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ILogger<UpdateOrderStatusCommandHandler> _logger;
 
-    public UpdateOrderStatusCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public UpdateOrderStatusCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<UpdateOrderStatusCommandHandler> logger)
     {
         _dbContext = dbContext;
         _cacheInvalidator = cacheInvalidator;
         _ownerOnlyPolicy = ownerOnlyPolicy;
+        _logger = logger;
     }
 
     public async Task<OrderDto> HandleAsync(UpdateOrderStatusCommand command, CancellationToken cancellationToken)
     {
-        Log.Information("Handling UpdateOrderStatusCommand to return OrderDto for order {OrderId}", command.OrderId);
+        _logger.LogInformation("Handling UpdateOrderStatusCommand to return OrderDto for order {OrderId}", command.OrderId);
 
         var order = await _dbContext.Orders.Include(o => o.Items)
             .FirstOrDefaultAsync(o => o.Id == command.OrderId, cancellationToken);
         if (order == null)
         {
-            Log.Warning("Order {OrderId} not found for status update", command.OrderId);
+            _logger.LogWarning("Order {OrderId} not found for status update", command.OrderId);
             throw new EntityNotFoundException($"Order with ID {command.OrderId} was not found");
         }
 
@@ -35,7 +37,7 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
 
         var status = command.Status!.Value;
         if (status == OrderStatus.Cancelled)
-            await OrderCancellationService.CancelAndRestoreStockAsync(_dbContext, order, cancellationToken);
+            await OrderCancellationService.CancelAndRestoreStockAsync(_dbContext, order, _logger, cancellationToken);
         else
             ApplyLifecycleTransition(order, status);
 

@@ -10,24 +10,26 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
     private readonly ApplicationDbContext _dbContext;
     private readonly ICacheInvalidator _cacheInvalidator;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ILogger<DeleteCustomerCommandHandler> _logger;
 
-    public DeleteCustomerCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public DeleteCustomerCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<DeleteCustomerCommandHandler> logger)
     {
         _dbContext = dbContext;
         _cacheInvalidator = cacheInvalidator;
         _ownerOnlyPolicy = ownerOnlyPolicy;
+        _logger = logger;
     }
 
     public async Task<Unit> HandleAsync(DeleteCustomerCommand command, CancellationToken cancellationToken)
     {
-        Log.Information("Handling DeleteCustomerCommand for Customer {CustomerId}", command.Id);
+        _logger.LogInformation("Handling DeleteCustomerCommand for Customer {CustomerId}", command.Id);
 
-        Log.Information("Deleting customer {Id} with EF Core", command.Id);
+        _logger.LogInformation("Deleting customer {Id} with EF Core", command.Id);
 
         var customer = await _dbContext.Customers.FindAsync([command.Id], cancellationToken);
         if (customer == null)
         {
-            Log.Warning("Customer {Id} not found for deletion", command.Id);
+            _logger.LogWarning("Customer {Id} not found for deletion", command.Id);
             throw new EntityNotFoundException($"Customer with ID {command.Id} not found");
         }
 
@@ -36,7 +38,7 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
         var hasOrders = await _dbContext.Orders.AnyAsync(o => o.CustomerId == command.Id, cancellationToken);
         if (hasOrders)
         {
-            Log.Warning("Customer {Id} cannot be deleted because they have existing orders", command.Id);
+            _logger.LogWarning("Customer {Id} cannot be deleted because they have existing orders", command.Id);
             throw new DomainRuleException("Cannot delete customer because they have existing orders");
         }
 
@@ -44,7 +46,7 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
         await _dbContext.SaveChangesAsync(cancellationToken);
         await _cacheInvalidator.InvalidateCustomerAsync(command.Id, cancellationToken);
 
-        Log.Information("Deleted customer with ID: {CustomerId}", command.Id);
+        _logger.LogInformation("Deleted customer with ID: {CustomerId}", command.Id);
         return Unit.Value;
     }
 }

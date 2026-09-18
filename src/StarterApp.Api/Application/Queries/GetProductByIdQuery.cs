@@ -17,16 +17,18 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, P
 {
     private readonly IDbConnection _connection;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ILogger<GetProductByIdQueryHandler> _logger;
 
-    public GetProductByIdQueryHandler(IDbConnection connection, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public GetProductByIdQueryHandler(IDbConnection connection, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<GetProductByIdQueryHandler> logger)
     {
         _connection = connection;
         _ownerOnlyPolicy = ownerOnlyPolicy;
+        _logger = logger;
     }
 
     public async Task<ProductReadModel?> HandleAsync(GetProductByIdQuery query, CancellationToken cancellationToken)
     {
-        Log.Information("Handling GetProductByIdQuery for product {Id}", query.Id);
+        _logger.LogInformation("Handling GetProductByIdQuery for product {Id}", query.Id);
         var ownerScope = _ownerOnlyPolicy.GetRequiredScope();
 
         var sqlQuery = @"

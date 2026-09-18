@@ -19,7 +19,7 @@ public class UpdateProductCommandHandlerTests : PostgresCommandHandlerTestBase
         context.Products.Add(originalProduct);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
+        var handler = new UpdateProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<UpdateProductCommandHandler>.Instance);
 
         var command = new UpdateProductCommand
         {
@@ -58,7 +58,7 @@ public class UpdateProductCommandHandlerTests : PostgresCommandHandlerTestBase
     {
         // Arrange
         await using var context = CreateContext();
-        var handler = new UpdateProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
+        var handler = new UpdateProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<UpdateProductCommandHandler>.Instance);
 
         var command = new UpdateProductCommand
         {

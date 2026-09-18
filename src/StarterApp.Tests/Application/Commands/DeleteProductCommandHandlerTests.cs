@@ -19,7 +19,7 @@ public class DeleteProductCommandHandlerTests : PostgresCommandHandlerTestBase
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var handler = new DeleteProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
+        var handler = new DeleteProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<DeleteProductCommandHandler>.Instance);
         var command = new DeleteProductCommand(product.Id);
 
         // Act
@@ -36,7 +36,7 @@ public class DeleteProductCommandHandlerTests : PostgresCommandHandlerTestBase
         // Arrange
         await using var context = CreateContext();
 
-        var handler = new DeleteProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
+        var handler = new DeleteProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<DeleteProductCommandHandler>.Instance);
         var command = new DeleteProductCommand(999);
 
         // Act & Assert
@@ -57,14 +57,14 @@ public class DeleteProductCommandHandlerTests : PostgresCommandHandlerTestBase
         await context.SaveChangesAsync();
 
         // Create an order referencing the product
-        var createHandler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
+        var createHandler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<CreateOrderCommandHandler>.Instance);
         await createHandler.HandleAsync(new CreateOrderCommand
         {
             CustomerId = customer.Id,
             Items = [new() { ProductId = product.Id, Quantity = 1 }]
         }, CancellationToken.None);
 
-        var handler = new DeleteProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
+        var handler = new DeleteProductCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<DeleteProductCommandHandler>.Instance);
         var command = new DeleteProductCommand(product.Id);
 
         // Act & Assert

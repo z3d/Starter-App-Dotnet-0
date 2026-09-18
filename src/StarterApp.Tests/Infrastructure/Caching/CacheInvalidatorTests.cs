@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace StarterApp.Tests.Infrastructure.Caching;

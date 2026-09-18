@@ -15,24 +15,26 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
     private readonly ApplicationDbContext _dbContext;
     private readonly ICacheInvalidator _cacheInvalidator;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ILogger<UpdateProductCommandHandler> _logger;
 
-    public UpdateProductCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public UpdateProductCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<UpdateProductCommandHandler> logger)
     {
         _dbContext = dbContext;
         _cacheInvalidator = cacheInvalidator;
         _ownerOnlyPolicy = ownerOnlyPolicy;
+        _logger = logger;
     }
 
     public async Task<ProductDto?> HandleAsync(UpdateProductCommand command, CancellationToken cancellationToken)
     {
-        Log.Information("Handling UpdateProductCommand for product {Id}", command.Id);
+        _logger.LogInformation("Handling UpdateProductCommand for product {Id}", command.Id);
 
-        Log.Information("Updating product {Id} with EF Core", command.Id);
+        _logger.LogInformation("Updating product {Id} with EF Core", command.Id);
 
         var product = await _dbContext.Products.FindAsync([command.Id], cancellationToken);
         if (product == null)
         {
-            Log.Warning("Product {Id} not found for update", command.Id);
+            _logger.LogWarning("Product {Id} not found for update", command.Id);
             throw new EntityNotFoundException($"Product with ID {command.Id} not found");
         }
 
@@ -51,7 +53,7 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         await _dbContext.SaveChangesAsync(cancellationToken);
         await _cacheInvalidator.InvalidateProductAsync(product.Id, cancellationToken);
 
-        Log.Information("Updated product with ID: {ProductId}", product.Id);
+        _logger.LogInformation("Updated product with ID: {ProductId}", product.Id);
 
         // Map to DTO and return
         return new ProductDto

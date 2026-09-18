@@ -11,16 +11,18 @@ public class GetOrdersByCustomerQueryHandler : IRequestHandler<GetOrdersByCustom
 {
     private readonly IDbConnection _connection;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ILogger<GetOrdersByCustomerQueryHandler> _logger;
 
-    public GetOrdersByCustomerQueryHandler(IDbConnection connection, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public GetOrdersByCustomerQueryHandler(IDbConnection connection, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<GetOrdersByCustomerQueryHandler> logger)
     {
         _connection = connection;
         _ownerOnlyPolicy = ownerOnlyPolicy;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<OrderReadModel>> HandleAsync(GetOrdersByCustomerQuery query, CancellationToken cancellationToken)
     {
-        Log.Information("Handling GetOrdersByCustomerQuery for customer {CustomerId} (page {Page}, size {PageSize})",
+        _logger.LogInformation("Handling GetOrdersByCustomerQuery for customer {CustomerId} (page {Page}, size {PageSize})",
             query.CustomerId, query.Page, query.PageSize);
 
         var offset = (query.Page - 1) * query.PageSize;

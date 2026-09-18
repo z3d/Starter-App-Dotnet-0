@@ -10,16 +10,18 @@ public class GetCustomersQueryHandler : IRequestHandler<GetCustomersQuery, IEnum
 {
     private readonly IDbConnection _connection;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ILogger<GetCustomersQueryHandler> _logger;
 
-    public GetCustomersQueryHandler(IDbConnection connection, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public GetCustomersQueryHandler(IDbConnection connection, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<GetCustomersQueryHandler> logger)
     {
         _connection = connection;
         _ownerOnlyPolicy = ownerOnlyPolicy;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<CustomerReadModel>> HandleAsync(GetCustomersQuery query, CancellationToken cancellationToken)
     {
-        Log.Information("Handling GetCustomersQuery (page {Page}, size {PageSize})", query.Page, query.PageSize);
+        _logger.LogInformation("Handling GetCustomersQuery (page {Page}, size {PageSize})", query.Page, query.PageSize);
 
         var offset = (query.Page - 1) * query.PageSize;
         var ownerScope = _ownerOnlyPolicy.GetRequiredScope();

@@ -61,14 +61,14 @@ public class ProductEndpoints : IEndpointDefinition
         return await mediator.PagedAsync(query, pageSize, cancellationToken);
     }
 
-    private static async Task<IResult> GetProduct(int id, IMediator mediator, CancellationToken cancellationToken)
+    private static async Task<IResult> GetProduct(int id, IMediator mediator, ILogger<ProductEndpoints> logger, CancellationToken cancellationToken)
     {
         var query = new GetProductByIdQuery(id);
         var result = await mediator.SendAsync(query, cancellationToken);
 
         if (result == null)
         {
-            Log.Warning("Product with ID: {Id} not found", id);
+            logger.LogWarning("Product with ID: {Id} not found", id);
             return Results.NotFound();
         }
 

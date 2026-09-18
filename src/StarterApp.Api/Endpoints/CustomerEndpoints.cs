@@ -61,14 +61,14 @@ public class CustomerEndpoints : IEndpointDefinition
         return await mediator.PagedAsync(query, pageSize, cancellationToken);
     }
 
-    private static async Task<IResult> GetCustomer(int id, IMediator mediator, CancellationToken cancellationToken)
+    private static async Task<IResult> GetCustomer(int id, IMediator mediator, ILogger<CustomerEndpoints> logger, CancellationToken cancellationToken)
     {
         var query = new GetCustomerQuery(id);
         var result = await mediator.SendAsync(query, cancellationToken);
 
         if (result == null)
         {
-            Log.Warning("Customer with ID: {Id} not found", id);
+            logger.LogWarning("Customer with ID: {Id} not found", id);
             return Results.NotFound();
         }
 

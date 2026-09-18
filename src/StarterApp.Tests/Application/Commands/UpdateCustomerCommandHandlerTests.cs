@@ -18,7 +18,7 @@ public class UpdateCustomerCommandHandlerTests : PostgresCommandHandlerTestBase
         context.Customers.Add(customer);
         await context.SaveChangesAsync();
 
-        var handler = new UpdateCustomerCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
+        var handler = new UpdateCustomerCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<UpdateCustomerCommandHandler>.Instance);
         var command = new UpdateCustomerCommand
         {
             Id = customer.Id,
@@ -49,7 +49,7 @@ public class UpdateCustomerCommandHandlerTests : PostgresCommandHandlerTestBase
         // Arrange
         await using var context = CreateContext();
 
-        var handler = new UpdateCustomerCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
+        var handler = new UpdateCustomerCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<UpdateCustomerCommandHandler>.Instance);
         var command = new UpdateCustomerCommand
         {
             Id = 99999,

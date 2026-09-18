@@ -9,16 +9,18 @@ public class GetOrderByIdQueryHandler : IRequestHandler<GetOrderByIdQuery, Order
 {
     private readonly IDbConnection _connection;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ILogger<GetOrderByIdQueryHandler> _logger;
 
-    public GetOrderByIdQueryHandler(IDbConnection connection, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public GetOrderByIdQueryHandler(IDbConnection connection, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<GetOrderByIdQueryHandler> logger)
     {
         _connection = connection;
         _ownerOnlyPolicy = ownerOnlyPolicy;
+        _logger = logger;
     }
 
     public async Task<OrderWithItemsReadModel?> HandleAsync(GetOrderByIdQuery query, CancellationToken cancellationToken)
     {
-        Log.Information("Handling GetOrderByIdQuery for order {Id}", query.Id);
+        _logger.LogInformation("Handling GetOrderByIdQuery for order {Id}", query.Id);
         var ownerScope = _ownerOnlyPolicy.GetRequiredScope();
 
         const string orderSql = @"

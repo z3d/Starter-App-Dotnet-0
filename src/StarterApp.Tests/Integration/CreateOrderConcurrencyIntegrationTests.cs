@@ -28,7 +28,7 @@ public class CreateOrderConcurrencyIntegrationTests : IAsyncLifetime
         // must avoid a second order / second stock reservation.
         var interceptor = new ThrowTransientOnceAfterCommitInterceptor();
         await using var context = CreateRetryingContext(interceptor);
-        var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
+        var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<CreateOrderCommandHandler>.Instance);
         var command = new CreateOrderCommand
         {
             CustomerId = customerId,
@@ -55,7 +55,7 @@ public class CreateOrderConcurrencyIntegrationTests : IAsyncLifetime
         async Task<bool> TryCreateAsync()
         {
             await using var context = CreateContext();
-            var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance);
+            var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<CreateOrderCommandHandler>.Instance);
             var command = new CreateOrderCommand
             {
                 CustomerId = customerId,

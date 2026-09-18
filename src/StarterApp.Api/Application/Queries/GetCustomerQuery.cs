@@ -17,16 +17,18 @@ public class GetCustomerQueryHandler : IRequestHandler<GetCustomerQuery, Custome
 {
     private readonly IDbConnection _connection;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ILogger<GetCustomerQueryHandler> _logger;
 
-    public GetCustomerQueryHandler(IDbConnection connection, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public GetCustomerQueryHandler(IDbConnection connection, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<GetCustomerQueryHandler> logger)
     {
         _connection = connection;
         _ownerOnlyPolicy = ownerOnlyPolicy;
+        _logger = logger;
     }
 
     public async Task<CustomerReadModel?> HandleAsync(GetCustomerQuery query, CancellationToken cancellationToken)
     {
-        Log.Information("Handling GetCustomerQuery for customer {Id}", query.Id);
+        _logger.LogInformation("Handling GetCustomerQuery for customer {Id}", query.Id);
         var ownerScope = _ownerOnlyPolicy.GetRequiredScope();
 
         var sqlQuery = @"

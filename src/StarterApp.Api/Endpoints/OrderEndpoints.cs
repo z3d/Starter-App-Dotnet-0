@@ -66,14 +66,14 @@ public class OrderEndpoints : IEndpointDefinition
             .ProducesProblem(500);
     }
 
-    private static async Task<IResult> GetOrder(Guid id, IMediator mediator, CancellationToken cancellationToken)
+    private static async Task<IResult> GetOrder(Guid id, IMediator mediator, ILogger<OrderEndpoints> logger, CancellationToken cancellationToken)
     {
         var query = new GetOrderByIdQuery { Id = id };
         var result = await mediator.SendAsync(query, cancellationToken);
 
         if (result == null)
         {
-            Log.Warning("Order with ID: {Id} not found", id);
+            logger.LogWarning("Order with ID: {Id} not found", id);
             return Results.NotFound();
         }
 

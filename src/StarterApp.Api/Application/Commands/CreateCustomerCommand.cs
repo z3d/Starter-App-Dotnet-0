@@ -10,18 +10,20 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ILogger<CreateCustomerCommandHandler> _logger;
 
-    public CreateCustomerCommandHandler(ApplicationDbContext dbContext, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public CreateCustomerCommandHandler(ApplicationDbContext dbContext, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<CreateCustomerCommandHandler> logger)
     {
         _dbContext = dbContext;
         _ownerOnlyPolicy = ownerOnlyPolicy;
+        _logger = logger;
     }
 
     public async Task<CustomerDto> HandleAsync(CreateCustomerCommand command, CancellationToken cancellationToken)
     {
-        Log.Information("Handling CreateCustomerCommand to return CustomerDto");
+        _logger.LogInformation("Handling CreateCustomerCommand to return CustomerDto");
 
-        Log.Information("Creating customer with EF Core");
+        _logger.LogInformation("Creating customer with EF Core");
 
         var email = Email.Create(command.Email);
         var ownerScope = _ownerOnlyPolicy.GetRequiredScope();
@@ -75,7 +77,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
             savedCustomer = customer;
         });
 
-        Log.Information("Created new customer with ID: {CustomerId}", savedCustomer!.Id);
+        _logger.LogInformation("Created new customer with ID: {CustomerId}", savedCustomer!.Id);
 
         // Map to DTO and return
         return new CustomerDto

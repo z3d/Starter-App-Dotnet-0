@@ -1,0 +1,2 @@
+# RS0030 fires on these in production code; see .editorconfig for the files that may still use them.
+T:Serilog.Log;Inject ILogger<T>. A static logger bypasses DI, carries no category, and cannot be asserted in a test.

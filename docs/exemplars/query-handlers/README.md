@@ -6,13 +6,13 @@ The consistency toolset (`StarterApp.Tests/Consistency/`) reports two measuremen
 
 <!-- Tests parse exemplar names from bold-backtick lines and dependency counts from "N dependencies". -->
 
-**`GetProductByIdQueryHandler.cs`** — Cached by-id lookup. Uses Dapper against `IDbConnection`, returns a nullable read model, filters through `IOwnerOnlyPolicy`, and the query implements `ICacheable`. Pinned as the default by-id cacheable read shape. 2 dependencies (IDbConnection, IOwnerOnlyPolicy).
+**`GetProductByIdQueryHandler.cs`** — Cached by-id lookup. Uses Dapper against `IDbConnection`, returns a nullable read model, filters through `IOwnerOnlyPolicy`, and the query implements `ICacheable`. Pinned as the default by-id cacheable read shape. 3 dependencies (IDbConnection, IOwnerOnlyPolicy, ILogger).
 
-**`GetAllProductsQueryHandler.cs`** — Paged list lookup. Uses `Page`/`PageSize`, PostgreSQL `LIMIT`/`OFFSET`, owner filtering through `IOwnerOnlyPolicy`, and returns `IEnumerable<ProductReadModel>`. Pinned as the standard collection query shape. 2 dependencies (IDbConnection, IOwnerOnlyPolicy).
+**`GetAllProductsQueryHandler.cs`** — Paged list lookup. Uses `Page`/`PageSize`, PostgreSQL `LIMIT`/`OFFSET`, owner filtering through `IOwnerOnlyPolicy`, and returns `IEnumerable<ProductReadModel>`. Pinned as the standard collection query shape. 3 dependencies (IDbConnection, IOwnerOnlyPolicy, ILogger).
 
-**`GetOrdersByCustomerQueryHandler.cs`** — Rich paged collection lookup. Uses `Page`/`PageSize`, PostgreSQL `LIMIT`/`OFFSET`, owner filtering through `IOwnerOnlyPolicy`, a `LEFT JOIN LATERAL` aggregate totals projection, and returns `IEnumerable<OrderReadModel>`. Pinned as the standard order-list read shape. 2 dependencies (IDbConnection, IOwnerOnlyPolicy).
+**`GetOrdersByCustomerQueryHandler.cs`** — Rich paged collection lookup. Uses `Page`/`PageSize`, PostgreSQL `LIMIT`/`OFFSET`, owner filtering through `IOwnerOnlyPolicy`, a `LEFT JOIN LATERAL` aggregate totals projection, and returns `IEnumerable<OrderReadModel>`. Pinned as the standard order-list read shape. 3 dependencies (IDbConnection, IOwnerOnlyPolicy, ILogger).
 
-**`GetOrderByIdQueryHandler.cs`** — Rich aggregate read. Uses two SQL statements: one owner-filtered root projection plus one item projection, then assembles an `OrderWithItemsReadModel`. Pinned as the intentionally complex by-id read shape. 2 dependencies (IDbConnection, IOwnerOnlyPolicy).
+**`GetOrderByIdQueryHandler.cs`** — Rich aggregate read. Uses two SQL statements: one owner-filtered root projection plus one item projection, then assembles an `OrderWithItemsReadModel`. Pinned as the intentionally complex by-id read shape. 3 dependencies (IDbConnection, IOwnerOnlyPolicy, ILogger).
 
 ## What the toolset measures
 

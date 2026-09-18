@@ -12,24 +12,26 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
     private readonly ApplicationDbContext _dbContext;
     private readonly ICacheInvalidator _cacheInvalidator;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ILogger<UpdateCustomerCommandHandler> _logger;
 
-    public UpdateCustomerCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public UpdateCustomerCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<UpdateCustomerCommandHandler> logger)
     {
         _dbContext = dbContext;
         _cacheInvalidator = cacheInvalidator;
         _ownerOnlyPolicy = ownerOnlyPolicy;
+        _logger = logger;
     }
 
     public async Task<CustomerDto> HandleAsync(UpdateCustomerCommand command, CancellationToken cancellationToken)
     {
-        Log.Information("Handling UpdateCustomerCommand to return CustomerDto for Customer {CustomerId}", command.Id);
+        _logger.LogInformation("Handling UpdateCustomerCommand to return CustomerDto for Customer {CustomerId}", command.Id);
 
-        Log.Information("Updating customer {Id} with EF Core", command.Id);
+        _logger.LogInformation("Updating customer {Id} with EF Core", command.Id);
 
         var customer = await _dbContext.Customers.FindAsync([command.Id], cancellationToken);
         if (customer == null)
         {
-            Log.Warning("Customer {Id} not found for update", command.Id);
+            _logger.LogWarning("Customer {Id} not found for update", command.Id);
             throw new EntityNotFoundException($"Customer with ID {command.Id} not found");
         }
 
@@ -50,7 +52,7 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
         }
 
         await _cacheInvalidator.InvalidateCustomerAsync(customer.Id, cancellationToken);
-        Log.Information("Updated customer with ID: {CustomerId}", customer.Id);
+        _logger.LogInformation("Updated customer with ID: {CustomerId}", customer.Id);
 
         // Map to DTO and return
         return new CustomerDto

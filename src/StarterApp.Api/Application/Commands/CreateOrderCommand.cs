@@ -22,17 +22,19 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
     private readonly ApplicationDbContext _dbContext;
     private readonly ICacheInvalidator _cacheInvalidator;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ILogger<CreateOrderCommandHandler> _logger;
 
-    public CreateOrderCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy)
+    public CreateOrderCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<CreateOrderCommandHandler> logger)
     {
         _dbContext = dbContext;
         _cacheInvalidator = cacheInvalidator;
         _ownerOnlyPolicy = ownerOnlyPolicy;
+        _logger = logger;
     }
 
     public async Task<OrderDto> HandleAsync(CreateOrderCommand command, CancellationToken cancellationToken)
     {
-        Log.Information("Creating order for customer {CustomerId} with EF Core", command.CustomerId);
+        _logger.LogInformation("Creating order for customer {CustomerId} with EF Core", command.CustomerId);
 
         EnsureNoDuplicateProducts(command);
         var ownerScope = _ownerOnlyPolicy.GetRequiredScope();
@@ -102,7 +104,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             }
         });
 
-        Log.Information("Created order with ID: {OrderId}", savedOrder!.Id);
+        _logger.LogInformation("Created order with ID: {OrderId}", savedOrder!.Id);
 
         // Stock was decremented for each ordered product; purge the cached by-id product read model
         // (which carries Stock) so a subsequent GetProductByIdQuery does not serve stale stock.

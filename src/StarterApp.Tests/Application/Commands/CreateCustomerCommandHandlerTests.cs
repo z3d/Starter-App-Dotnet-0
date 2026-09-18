@@ -13,7 +13,7 @@ public class CreateCustomerCommandHandlerTests : PostgresCommandHandlerTestBase
     {
         // Arrange
         await using var context = CreateContext();
-        var handler = new CreateCustomerCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+        var handler = new CreateCustomerCommandHandler(context, TestOwnerOnlyPolicy.Instance, NullLogger<CreateCustomerCommandHandler>.Instance);
 
         var command = new CreateCustomerCommand
         {
@@ -50,7 +50,7 @@ public class CreateCustomerCommandHandlerTests : PostgresCommandHandlerTestBase
         var results = await Task.WhenAll(attempts.Select(async name =>
         {
             await using var context = CreateContext();
-            var handler = new CreateCustomerCommandHandler(context, TestOwnerOnlyPolicy.Instance);
+            var handler = new CreateCustomerCommandHandler(context, TestOwnerOnlyPolicy.Instance, NullLogger<CreateCustomerCommandHandler>.Instance);
             try
             {
                 var dto = await handler.HandleAsync(new CreateCustomerCommand { Name = name, Email = email }, CancellationToken.None);

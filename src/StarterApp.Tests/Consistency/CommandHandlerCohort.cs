@@ -49,7 +49,7 @@ public class CommandHandlerCohort : ICohortDefinition<HandlerFingerprint>
             TypeName = type.Name,
             IlByteSize = IlInspector.SumIlByteSize(type),
             ConstructorDependencyCount = ctorParams.Length,
-            HasLogger = HasSerilogCalls(allMethods),
+            HasLogger = HasLoggerCalls(allMethods),
             HasCacheInvalidator = ctorParams.Any(p =>
                 p.ParameterType == typeof(ICacheInvalidator)),
             HasTryCatch = IlInspector.HasExceptionHandling(allMethods),
@@ -80,15 +80,15 @@ public class CommandHandlerCohort : ICohortDefinition<HandlerFingerprint>
         return count;
     }
 
-    private static bool HasSerilogCalls(IEnumerable<MethodInfo> methods)
+    private static bool HasLoggerCalls(IEnumerable<MethodInfo> methods)
     {
         foreach (var method in methods)
         {
             var count = IlInspector.CountMethodCallsByName(method,
-                "Information",
-                "Warning",
-                "Error",
-                "Debug");
+                "LogInformation",
+                "LogWarning",
+                "LogError",
+                "LogDebug");
             if (count > 0)
                 return true;
         }

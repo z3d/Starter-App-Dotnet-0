@@ -34,6 +34,10 @@ dotnet_diagnostic.IDE0051.severity = error
 dotnet_diagnostic.IDE0052.severity = error
 dotnet_diagnostic.IDE0059.severity = error
 dotnet_diagnostic.IDE0060.severity = error
+# RS0030: a symbol listed in BannedSymbols.txt (static Serilog.Log). Production code injects
+# ILogger<T>; the bootstrap files and the migrator below are the only places the static logger
+# is allowed, because there is no container yet (or it is already gone) when they log.
+dotnet_diagnostic.RS0030.severity = error
 
 # Global using preferences
 dotnet_style_prefer_global_using_directives = true:warning
@@ -86,7 +90,19 @@ dotnet_diagnostic.CA2213.severity = none
 # The TimerTrigger binding requires the TimerInfo parameter even when the body has no use for it.
 dotnet_diagnostic.IDE0060.severity = none
 
+[src/StarterApp.Tests/*.cs]
+dotnet_diagnostic.RS0030.severity = none
+
+[src/StarterApp.Api/Program.cs]
+# Start-up and shutdown log before and after the host exists.
+dotnet_diagnostic.RS0030.severity = none
+
+[src/StarterApp.DbMigrator/*.cs]
+# A console tool with no container; its Serilog logger is built in Program.cs.
+dotnet_diagnostic.RS0030.severity = none
+
 [src/StarterApp.Tests/**/*.cs]
+dotnet_diagnostic.RS0030.severity = none
 # Tests intentionally use BDD-style underscore names, fixture/helper types discovered by
 # reflection, and disposable lifetimes owned by xUnit/Testcontainers harnesses.
 dotnet_diagnostic.CA1034.severity = none
@@ -102,6 +118,7 @@ dotnet_diagnostic.CA2000.severity = none
 dotnet_diagnostic.CA2234.severity = none
 
 [src/StarterApp.AppHost.Tests/**/*.cs]
+dotnet_diagnostic.RS0030.severity = none
 # AppHost tests follow the same naming/reflection/resource-lifetime conventions as the
 # main test project.
 dotnet_diagnostic.CA1307.severity = none
@@ -111,6 +128,7 @@ dotnet_diagnostic.CA2000.severity = none
 dotnet_diagnostic.CA2234.severity = none
 
 [src/StarterApp.AppHost.Tests/*.cs]
+dotnet_diagnostic.RS0030.severity = none
 # Root-level AppHost test files use the same conventions as nested test files.
 dotnet_diagnostic.CA1307.severity = none
 dotnet_diagnostic.CA1707.severity = none
