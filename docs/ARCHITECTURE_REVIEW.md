@@ -125,7 +125,7 @@ are resolved, with failing-before/passing-after regressions and final validation
 - **Module-scoped agent docs.** A single root agent doc works at the current size. Trigger: the
   template grows into multiple modules. Then the root keeps vision, build and test commands, and an
   index; each module gets its own doc with business rules, command and event inventory, and a
-  pre-change checklist; `scripts/sync-agent-docs.sh` generates every new pair.
+  pre-change checklist; `AGENTS.md` stays a pointer to the root doc.
 - **Compiler-enforced module boundaries.** Trigger and design are in the folder-only entry above
   and the modular-monolith decision in `DECISIONS.md`.
 - **Broker-observed settlement tests.** Retry-then-complete, abandon-then-redeliver, dead-letter

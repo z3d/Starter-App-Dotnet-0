@@ -19,7 +19,6 @@
 .github/
 .vscode/
 .claude/
-.agents/
 .actrc
 .act.env
 

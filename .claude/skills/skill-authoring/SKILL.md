@@ -17,8 +17,6 @@ What is deleted rather than relocated: generic engineering behaviour (reproduce-
 
 Shared context lives in `CLAUDE.md`, referenced not restated — duplicated context drifts and then disagrees. End every skill with **Related skills**.
 
-**Mirror rule:** the `.agents` tree is generated from the Claude-side skills by `scripts/sync-agent-docs.sh` (run by the pre-commit hook, checked in CI). Never edit the mirror by hand; add, rename, or delete files on the Claude side only.
-
 ## Operational skills (anything that executes a workflow)
 
 - **Phase structure with an explicit approval gate:** context-gathering → analysis → plan → STOP for approval → execute. Anything destructive, externally visible, or production-affecting sits behind the gate.
