@@ -6,10 +6,10 @@ A production-grade starter template and reference architecture for modern .NET d
 
 ### Prerequisites
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
-- [Docker Desktop](https://www.docker.com/products/docker-desktop) (**Required** - Aspire-managed dependencies, the Functions runtime container, Testcontainers, and image builds use Docker)
+- A Docker-compatible container engine, running (**Required** - [Docker Desktop](https://www.docker.com/products/docker-desktop), [Podman](https://podman.io/), or similar). Aspire-managed dependencies, the Functions runtime container, Testcontainers, and image builds all talk to the engine's Docker-compatible socket; only `tests/k6/run-perf.sh` needs the `docker` CLI itself.
 - Visual Studio Code or Visual Studio 2026
 
-> **Important**: Docker Desktop must be installed and running before executing Aspire orchestration or integration tests. Aspire is the supported local run path; Docker provides the local infrastructure containers underneath it.
+> **Important**: the container engine must be running before executing Aspire orchestration or integration tests. Aspire is the supported local run path; the engine provides the local infrastructure containers underneath it. With Podman, `podman machine start` is the whole fix for a `DockerUnavailable` test failure.
 
 ### Running with .NET Aspire (Recommended for Development)
 ```powershell
@@ -95,7 +95,7 @@ container image builds.
 [Act](https://github.com/nektos/act) lets you run GitHub Actions workflows locally using Docker.
 
 ### Prerequisites
-- [Docker Desktop](https://www.docker.com/products/docker-desktop) (must be running)
+- A running Docker-compatible engine (see [Prerequisites](#prerequisites))
 - [Act](https://github.com/nektos/act#installation):
   ```powershell
   # macOS
@@ -139,7 +139,7 @@ dotnet run
 cd src\StarterApp.Api
 dotnet run
 
-# Run all tests (integration and Aspire tests require Docker Desktop to be running)
+# Run all tests (integration and Aspire tests require the container engine to be running)
 dotnet test
 
 # Run only non-integration tests (no Docker required)
