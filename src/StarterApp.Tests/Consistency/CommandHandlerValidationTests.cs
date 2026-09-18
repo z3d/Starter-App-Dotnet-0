@@ -91,6 +91,7 @@ public class CommandHandlerValidationTests : CohortValidationTestBase<HandlerFin
 
         private Task HelperAsync(CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _tracker.MarkEvaluated();
             return Task.CompletedTask;
         }
@@ -99,7 +100,6 @@ public class CommandHandlerValidationTests : CohortValidationTestBase<HandlerFin
     [Fact]
     public void CombinedScoring_ProducesRankedOutput()
     {
-        var handlerTypes = _cohort.DiscoverTypes();
         var fingerprints = ExtractAll();
 
         var exemplars = GetExemplars(fingerprints);

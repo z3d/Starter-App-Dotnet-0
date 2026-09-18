@@ -27,6 +27,13 @@ dotnet_diagnostic.CA1801.severity = warning
 dotnet_diagnostic.CS0219.severity = warning
 dotnet_remove_unnecessary_imports = true
 dotnet_diagnostic.IDE0005.severity = warning
+# Dead code fails the build: unused private members, write-only private members, useless
+# assignments and unused parameters. AnalysisMode=All does not raise IDE rules, so each needs a
+# severity here.
+dotnet_diagnostic.IDE0051.severity = error
+dotnet_diagnostic.IDE0052.severity = error
+dotnet_diagnostic.IDE0059.severity = error
+dotnet_diagnostic.IDE0060.severity = error
 
 # Global using preferences
 dotnet_style_prefer_global_using_directives = true:warning
@@ -74,6 +81,10 @@ dotnet_diagnostic.CA2227.severity = none
 [src/StarterApp.Api/Infrastructure/Payloads/PayloadCaptureMiddleware.cs]
 # BoundedCaptureStream forwards to the ASP.NET response body but does not own it.
 dotnet_diagnostic.CA2213.severity = none
+
+[src/StarterApp.Functions/PayloadArchiveCleanupFunction.cs]
+# The TimerTrigger binding requires the TimerInfo parameter even when the body has no use for it.
+dotnet_diagnostic.IDE0060.severity = none
 
 [src/StarterApp.Tests/**/*.cs]
 # Tests intentionally use BDD-style underscore names, fixture/helper types discovered by

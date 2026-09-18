@@ -25,6 +25,8 @@
     <!-- Deterministic Builds -->
     <Deterministic>true</Deterministic>
     <PathMap>$(MSBuildProjectDirectory)=/_/</PathMap>
+    <!-- Off locally so the debugger still resolves source paths. -->
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     
     <!-- Assembly Metadata -->
     <Company>Starter App</Company>

@@ -2,11 +2,8 @@ namespace StarterApp.Tests.Domain;
 
 public class EmailTests
 {
-    private readonly ITestOutputHelper _output;
-
     public EmailTests(ITestOutputHelper output)
     {
-        _output = output;
         TestLoggerConfiguration.ConfigureTestLogging(output);
     }
 

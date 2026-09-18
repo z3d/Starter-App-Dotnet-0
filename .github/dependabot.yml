@@ -8,6 +8,16 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 10
     groups:
+      # A family moves as one PR whatever the bump size, so its packages cannot drift apart
+      # inside one lock file.
+      aspire:
+        patterns: ["Aspire.*"]
+      opentelemetry:
+        patterns: ["OpenTelemetry*"]
+      serilog:
+        patterns: ["Serilog*"]
+      microsoft-extensions:
+        patterns: ["Microsoft.Extensions.*"]
       # One PR for low-risk patch/minor bumps to cut noise; majors stay individual.
       nuget-minor-patch:
         update-types:

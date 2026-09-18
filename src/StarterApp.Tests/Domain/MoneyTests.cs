@@ -2,11 +2,8 @@ namespace StarterApp.Tests.Domain;
 
 public class MoneyTests
 {
-    private readonly ITestOutputHelper _output;
-
     public MoneyTests(ITestOutputHelper output)
     {
-        _output = output;
         TestLoggerConfiguration.ConfigureTestLogging(output);
     }
 

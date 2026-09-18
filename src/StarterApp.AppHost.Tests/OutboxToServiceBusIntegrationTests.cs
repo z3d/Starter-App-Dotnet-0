@@ -24,7 +24,6 @@ public class OutboxToServiceBusIntegrationTests
     public async Task CreateOrder_ShouldSucceedEndToEnd()
     {
         // Arrange
-        var app = _fixture.App;
         var httpClient = _fixture.CreateApiClient();
 
         // Wait for API to be ready
@@ -82,7 +81,6 @@ public class OutboxToServiceBusIntegrationTests
     {
         // Arrange — anonymous on purpose: orchestrator probes carry no credentials, so a
         // regression that puts auth in front of readiness/liveness must fail HERE.
-        var app = _fixture.App;
         var httpClient = _fixture.CreateAnonymousApiClient();
 
         // Wait for full readiness before checking all endpoints
