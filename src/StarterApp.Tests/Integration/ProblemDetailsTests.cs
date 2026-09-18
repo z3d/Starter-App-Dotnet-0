@@ -47,6 +47,23 @@ public class ProblemDetailsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetCustomer_ThatDoesNotExist_ShouldReturnProblemDetails()
+    {
+        // The endpoint returns a bare 404; the body comes from UseStatusCodePages through the
+        // registered problem-details service. Pinning the wire shape here keeps that middleware
+        // from being dropped or reordered without a failing test.
+        var response = await _fixture.Client.GetAsync("/api/v1/customers/999999");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
+        var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problemDetails);
+        Assert.Equal(404, problemDetails.Status);
+        Assert.Equal("Not Found", problemDetails.Title);
+    }
+
+    [Fact]
     public async Task CreateCustomer_WithInvalidEmail_ShouldReturnProblemDetails()
     {
         // Arrange
