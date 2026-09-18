@@ -3,7 +3,7 @@
 # context and build-stage layers (audit finding L4). Keep the context minimal and free of
 # anything the runtime build does not need.
 #
-# Do NOT add Directory.Build.props, Directory.Packages.props, .editorconfig, NuGet.config,
+# Do NOT add Directory.Build.props, Directory.Packages.props, .editorconfig, BannedSymbols.txt, NuGet.config,
 # **/*.csproj or **/packages.lock.json here — the Dockerfiles COPY those in to restore.
 
 # Build outputs (regenerated inside the container)

@@ -5,6 +5,7 @@ WORKDIR /src
 COPY ["Directory.Build.props", "Directory.Build.props"]
 COPY ["Directory.Packages.props", "Directory.Packages.props"]
 COPY [".editorconfig", ".editorconfig"]
+COPY ["BannedSymbols.txt", "BannedSymbols.txt"]
 COPY ["NuGet.config", "NuGet.config"]
 COPY ["src/StarterApp.DbMigrator/StarterApp.DbMigrator.csproj", "src/StarterApp.DbMigrator/"]
 COPY ["src/StarterApp.DbMigrator/packages.lock.json", "src/StarterApp.DbMigrator/"]

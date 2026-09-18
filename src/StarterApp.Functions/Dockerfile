@@ -4,6 +4,7 @@ WORKDIR /src
 COPY Directory.Build.props .
 COPY Directory.Packages.props .
 COPY .editorconfig .
+COPY BannedSymbols.txt .
 COPY NuGet.config .
 COPY src/StarterApp.Functions/StarterApp.Functions.csproj src/StarterApp.Functions/
 COPY src/StarterApp.Functions/packages.lock.json src/StarterApp.Functions/

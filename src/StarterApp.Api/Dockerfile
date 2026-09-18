@@ -7,6 +7,7 @@ WORKDIR /src
 COPY ["Directory.Build.props", "Directory.Build.props"]
 COPY ["Directory.Packages.props", "Directory.Packages.props"]
 COPY [".editorconfig", ".editorconfig"]
+COPY ["BannedSymbols.txt", "BannedSymbols.txt"]
 COPY ["NuGet.config", "NuGet.config"]
 
 # Copy csproj + packages.lock.json files first for better layer caching
