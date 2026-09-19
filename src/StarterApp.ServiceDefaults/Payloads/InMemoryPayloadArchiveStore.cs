@@ -2,7 +2,7 @@ namespace StarterApp.ServiceDefaults.Payloads;
 
 public sealed class InMemoryPayloadArchiveStore : IPayloadArchiveStore
 {
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Dictionary<string, List<string>> _lines = [];
     private readonly PayloadCaptureOptions _options;
 

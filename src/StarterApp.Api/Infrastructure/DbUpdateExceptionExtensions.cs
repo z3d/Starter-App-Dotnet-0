@@ -4,31 +4,24 @@ namespace StarterApp.Api.Infrastructure;
 
 public static class DbUpdateExceptionExtensions
 {
-    public static bool IsUniqueConstraintViolation(this DbUpdateException exception, string? constraintName = null)
+    // A C# 14 extension block: the receiver is named once, the parameterless checks are extension
+    // properties, and the constraint-scoped checks stay methods because they take an argument.
+    extension(DbUpdateException exception)
     {
-        return HasPostgresSqlState(exception, PostgresErrorCodes.UniqueViolation, constraintName);
-    }
+        public bool IsUniqueConstraintViolation(string? constraintName = null) =>
+            HasPostgresSqlState(exception, PostgresErrorCodes.UniqueViolation, constraintName);
 
-    public static bool IsForeignKeyViolation(this DbUpdateException exception, string? constraintName = null)
-    {
-        return HasPostgresSqlState(exception, PostgresErrorCodes.ForeignKeyViolation, constraintName);
-    }
+        public bool IsForeignKeyViolation(string? constraintName = null) =>
+            HasPostgresSqlState(exception, PostgresErrorCodes.ForeignKeyViolation, constraintName);
 
-    public static bool IsCheckConstraintViolation(this DbUpdateException exception, string? constraintName = null)
-    {
-        return HasPostgresSqlState(exception, PostgresErrorCodes.CheckViolation, constraintName);
-    }
+        public bool IsCheckConstraintViolation(string? constraintName = null) =>
+            HasPostgresSqlState(exception, PostgresErrorCodes.CheckViolation, constraintName);
 
-    public static bool IsNotNullViolation(this DbUpdateException exception)
-    {
-        var postgresException = FindPostgresException(exception);
-        return postgresException?.SqlState == PostgresErrorCodes.NotNullViolation;
-    }
+        public bool IsNotNullViolation =>
+            FindPostgresException(exception)?.SqlState == PostgresErrorCodes.NotNullViolation;
 
-    public static bool IsStringTruncationViolation(this DbUpdateException exception)
-    {
-        var postgresException = FindPostgresException(exception);
-        return postgresException?.SqlState == PostgresErrorCodes.StringDataRightTruncation;
+        public bool IsStringTruncationViolation =>
+            FindPostgresException(exception)?.SqlState == PostgresErrorCodes.StringDataRightTruncation;
     }
 
     private static PostgresException? FindPostgresException(Exception exception)

@@ -211,6 +211,14 @@ It grows with the derived project.
 
 **Remove trigger:** two consecutive dated reviews record that no report line informed a finding.
 
+## C# 14 adoption is targeted, not a sweep (2026-09-19)
+
+The SDK pinned in `global.json` (10.0.300) compiles C# 14 by default; C# 15 needs a .NET 11 preview SDK and `allowPrerelease` is off, so it is out of scope until .NET 11 ships (November 2026). Taken where the language feature removes real code: an `extension` block with extension properties for the parameterless `DbUpdateException` checks (`IsNotNullViolation`, `IsStringTruncationViolation`), implicitly typed lambdas where the parameter type was only there to satisfy an older compiler (IDE0350), `System.Threading.Lock` for the in-memory archive gate (IDE0330, C# 13), and auto-properties where a backing field only forwarded (IDE0032). `field`-backed properties, null-conditional assignment and `nameof` on unbound generics have no sites in this codebase today; use them when one appears.
+
+Not applied on purpose: primary constructors (IDE0290, ~94 classes) and collection expressions for fluent chains (IDE0305, ~35 sites). Both are C# 12 and both are style-only rewrites of working code; the handlers' explicit constructors are also what the consistency cohort and the exemplar READMEs count. Re-add trigger: a deliberate decision to change the handler shape, made once here and mirrored in the forks.
+
+Gotcha: CA1034 ("do not nest type") fires on a C# 14 extension block; `.editorconfig` silences it for that one file rather than losing the feature.
+
 ## Considered and rejected
 
 Recorded so future sessions do not re-propose them.

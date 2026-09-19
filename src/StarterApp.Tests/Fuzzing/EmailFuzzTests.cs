@@ -54,7 +54,7 @@ public class EmailFuzzTests
     public Property RandomStrings_NeverCrashUnexpectedly()
     {
         return Prop.ForAll(ArbMap.Default.ArbFor<string>(),
-            (string value) =>
+            value =>
             {
                 try
                 {

@@ -101,6 +101,10 @@ dotnet_diagnostic.RS0030.severity = none
 # A console tool with no container; its Serilog logger is built in Program.cs.
 dotnet_diagnostic.RS0030.severity = none
 
+[src/StarterApp.Api/Infrastructure/DbUpdateExceptionExtensions.cs]
+# CA1034 reads a C# 14 extension block as a nested type; there is no nested type to un-nest.
+dotnet_diagnostic.CA1034.severity = none
+
 [src/StarterApp.Tests/**/*.cs]
 dotnet_diagnostic.RS0030.severity = none
 # Tests intentionally use BDD-style underscore names, fixture/helper types discovered by

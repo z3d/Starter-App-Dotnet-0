@@ -2,9 +2,6 @@ namespace StarterApp.Api.Infrastructure.Identity;
 
 public sealed class CurrentUser : ICurrentUser
 {
-    private readonly IReadOnlySet<string> _scopes;
-    private readonly IReadOnlySet<string> _authenticationMethods;
-
     public CurrentUser(
         string subject,
         AuthenticatedPrincipalType principalType,
@@ -15,8 +12,8 @@ public sealed class CurrentUser : ICurrentUser
         Subject = subject;
         PrincipalType = principalType;
         TenantId = tenantId;
-        _scopes = new HashSet<string>(scopes, StringComparer.Ordinal);
-        _authenticationMethods = new HashSet<string>(authenticationMethods ?? Array.Empty<string>(), StringComparer.Ordinal);
+        Scopes = new HashSet<string>(scopes, StringComparer.Ordinal);
+        AuthenticationMethods = new HashSet<string>(authenticationMethods ?? Array.Empty<string>(), StringComparer.Ordinal);
     }
 
     public static CurrentUser Anonymous { get; } = new(
@@ -33,17 +30,17 @@ public sealed class CurrentUser : ICurrentUser
 
     public string TenantId { get; }
 
-    public IReadOnlySet<string> Scopes => _scopes;
+    public IReadOnlySet<string> Scopes { get; }
 
-    public IReadOnlySet<string> AuthenticationMethods => _authenticationMethods;
+    public IReadOnlySet<string> AuthenticationMethods { get; }
 
     public bool HasScope(string scope)
     {
-        return _scopes.Contains(scope);
+        return Scopes.Contains(scope);
     }
 
     public bool HasAuthenticationMethod(string authenticationMethod)
     {
-        return _authenticationMethods.Contains(authenticationMethod);
+        return AuthenticationMethods.Contains(authenticationMethod);
     }
 }
