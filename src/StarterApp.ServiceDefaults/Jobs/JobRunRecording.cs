@@ -23,14 +23,14 @@ public sealed class NullJobRunRecorder : IJobRunRecorder
 
 public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
 {
-    private readonly string _connectionString;
+    private readonly NpgsqlDataSource _dataSource;
     private readonly int _retentionDays;
     private readonly ILogger<NpgsqlJobRunRecorder> _logger;
     private DateTimeOffset _lastPurgeUtc;
 
-    public NpgsqlJobRunRecorder(string connectionString, int retentionDays, ILogger<NpgsqlJobRunRecorder> logger)
+    public NpgsqlJobRunRecorder(NpgsqlDataSource dataSource, int retentionDays, ILogger<NpgsqlJobRunRecorder> logger)
     {
-        _connectionString = connectionString;
+        _dataSource = dataSource;
         _retentionDays = retentionDays;
         _logger = logger;
     }
@@ -40,7 +40,7 @@ public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
         var runId = Guid.CreateVersion7();
         try
         {
-            await using var connection = new NpgsqlConnection(_connectionString);
+            await using var connection = _dataSource.CreateConnection();
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
             await using var command = new NpgsqlCommand(
                 "INSERT INTO job_runs (id, job_name, started_on_utc) VALUES (@id, @jobName, @startedOnUtc)", connection);
@@ -77,7 +77,7 @@ public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
 
         try
         {
-            await using var connection = new NpgsqlConnection(_connectionString);
+            await using var connection = _dataSource.CreateConnection();
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
             await using var command = new NpgsqlCommand(
                 "UPDATE job_runs SET completed_on_utc = @completedOnUtc, outcome = @outcome, summary = @summary WHERE id = @id", connection);
@@ -97,7 +97,7 @@ public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
     {
         try
         {
-            await using var connection = new NpgsqlConnection(_connectionString);
+            await using var connection = _dataSource.CreateConnection();
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
             await using var command = new NpgsqlCommand(
                 "INSERT INTO job_runs (id, job_name, started_on_utc, completed_on_utc, outcome, summary) " +

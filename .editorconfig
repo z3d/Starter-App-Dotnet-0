@@ -34,9 +34,12 @@ dotnet_diagnostic.IDE0051.severity = error
 dotnet_diagnostic.IDE0052.severity = error
 dotnet_diagnostic.IDE0059.severity = error
 dotnet_diagnostic.IDE0060.severity = error
-# RS0030: a symbol listed in BannedSymbols.txt (static Serilog.Log). Production code injects
+# RS0030: a symbol listed in BannedSymbols.txt. Static Serilog.Log: production code injects
 # ILogger<T>; the bootstrap files and the migrator below are the only places the static logger
 # is allowed, because there is no container yet (or it is already gone) when they log.
+# Raw `new NpgsqlConnection(...)`: production code takes connections from the one
+# NpgsqlDataSource DatabaseAuthentication builds, so a password-less connection string (the
+# hosting identity's Entra token) works everywhere; tests own their own fixtures' connections.
 dotnet_diagnostic.RS0030.severity = error
 
 # Global using preferences

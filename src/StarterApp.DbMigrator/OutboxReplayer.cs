@@ -65,7 +65,10 @@ public static class OutboxReplayer
 
     private static int Execute(string connectionString, Guid? messageId)
     {
-        using var connection = new NpgsqlConnection(connectionString);
+        // The string arrives already resolved by DatabaseAuthentication (a token as the password
+        // for the hosting identity), so a plain data source is the right shape here.
+        using var dataSource = NpgsqlDataSource.Create(connectionString);
+        using var connection = dataSource.CreateConnection();
         connection.Open();
 
         using var command = messageId is null

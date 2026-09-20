@@ -1,2 +1,4 @@
 # RS0030 fires on these in production code; see .editorconfig for the files that may still use them.
 T:Serilog.Log;Inject ILogger<T>. A static logger bypasses DI, carries no category, and cannot be asserted in a test.
+M:Npgsql.NpgsqlConnection.#ctor(System.String);Take connections from the process NpgsqlDataSource (DatabaseAuthentication.CreateDataSource / AddDatabaseDataSource). A raw connection cannot carry the Entra token a password-less connection string stands for.
+M:Npgsql.NpgsqlConnection.#ctor;Take connections from the process NpgsqlDataSource (DatabaseAuthentication.CreateDataSource / AddDatabaseDataSource). A raw connection cannot carry the Entra token a password-less connection string stands for.

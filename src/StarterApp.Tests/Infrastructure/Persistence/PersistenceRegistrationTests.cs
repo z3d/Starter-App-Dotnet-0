@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Hosting;
+
 
 namespace StarterApp.Tests.Infrastructure.Persistence;
 
@@ -53,5 +55,41 @@ public class PersistenceRegistrationTests
         Assert.Same(dataSource, provider.GetRequiredService<NpgsqlDataSource>());
         Assert.Equal(dataSource.ConnectionString, dbContext.Database.GetConnectionString());
         Assert.Equal(dataSource.ConnectionString, dapperConnection.ConnectionString);
+    }
+
+    [Fact]
+    public void AddDatabaseDataSource_RegistersOnce_WhoeverAsksFirst()
+    {
+        // AddPersistence (API) and AddJobRunRecording (ServiceDefaults, also used by Functions)
+        // both call it; the process must end up with one data source, so the managed-identity
+        // password provider is configured once and every connection carries the token.
+        var services = new ServiceCollection();
+        services.AddDatabaseDataSource("Host=localhost;Database=test;Username=postgres;Password=postgres");
+        services.AddDatabaseDataSource("Host=localhost;Database=other;Username=postgres;Password=postgres");
+
+        var descriptors = services.Where(d => d.ServiceType == typeof(NpgsqlDataSource)).ToList();
+
+        Assert.Single(descriptors);
+        Assert.Equal(ServiceLifetime.Singleton, descriptors[0].Lifetime);
+        using var provider = services.BuildServiceProvider();
+        Assert.Equal("test", provider.GetRequiredService<NpgsqlDataSource>().ConnectionString.Split("Database=")[1].Split(';')[0]);
+    }
+
+    [Fact]
+    public void AddPersistence_AndAddJobRunRecording_ShareTheDataSource()
+    {
+        const string connectionString = "Host=localhost;Database=test;Username=postgres;Password=postgres";
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration["ConnectionStrings:database"] = connectionString;
+        builder.Services.AddPersistence(connectionString);
+        builder.AddJobRunRecording();
+
+        using var host = builder.Build();
+        var dataSource = host.Services.GetRequiredService<NpgsqlDataSource>();
+        var recorder = host.Services.GetRequiredService<IJobRunRecorder>();
+
+        Assert.Single(builder.Services, d => d.ServiceType == typeof(NpgsqlDataSource));
+        Assert.IsType<NpgsqlJobRunRecorder>(recorder);
+        Assert.Same(dataSource, host.Services.GetRequiredService<NpgsqlDataSource>());
     }
 }

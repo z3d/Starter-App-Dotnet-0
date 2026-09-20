@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Identity" />
     <PackageReference Include="dbup-postgresql" />
     <PackageReference Include="Npgsql" />
     <PackageReference Include="Microsoft.Extensions.Configuration" />
@@ -24,9 +25,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Shared with the API: the only sanctioned way to log a database connection. Linked rather
-         than referenced so the migrator keeps its minimal package closure. -->
+    <!-- Shared with the API: the only sanctioned way to log a database connection, and the only
+         place a database credential is decided. Linked rather than referenced so the migrator keeps
+         its minimal package closure. -->
     <Compile Include="..\StarterApp.ServiceDefaults\ConnectionStringDescriptor.cs" Link="ConnectionStringDescriptor.cs" />
+    <Compile Include="..\StarterApp.ServiceDefaults\DatabaseAuthentication.cs" Link="DatabaseAuthentication.cs" />
   </ItemGroup>
 
   <ItemGroup>

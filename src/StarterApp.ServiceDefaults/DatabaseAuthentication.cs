@@ -2,13 +2,24 @@ using Azure.Core;
 using Azure.Identity;
 using Npgsql;
 
-namespace StarterApp.Api.Infrastructure.Persistence;
+// Linked into StarterApp.DbMigrator with the DBMIGRATOR constant, like ConnectionStringDescriptor:
+// the migrator does not reference ServiceDefaults, and the test project references both assemblies.
+#if DBMIGRATOR
+namespace StarterApp.DbMigrator;
+#else
+namespace StarterApp.ServiceDefaults;
+#endif
 
 // A connection string that names a user but carries no password means "connect as the hosting
 // identity": Azure Database for PostgreSQL accepts an Entra access token as the password, and
 // Npgsql refreshes it on the interval below so a pooled connection never opens with a token about
-// to expire. A connection string with a password is used as given. This covers the API's data
-// source (EF Core and Dapper share it); the migrator connects with whatever string it is handed.
+// to expire. A connection string with a password is used as given.
+//
+// This is the only place a database credential is decided. Every long-running process takes its
+// connections from the one NpgsqlDataSource that CreateDataSource builds (EF Core, Dapper and the
+// job-run recorder share it); the migrator, which cannot hand DbUp a password provider, resolves the
+// token once up front with ResolveForDirectUseAsync. A raw `new NpgsqlConnection(string)` in
+// production code is banned (BannedSymbols.txt) because it cannot carry the token.
 public static class DatabaseAuthentication
 {
     // The audience Azure Database for PostgreSQL validates tokens against; a management-plane
@@ -53,5 +64,22 @@ public static class DatabaseAuthentication
         }
 
         return builder.Build();
+    }
+
+    // For a short-lived process that must hand a plain connection string to a library with no
+    // password-provider hook (DbUp in the migrator): the token becomes the password. The result
+    // is good for about an hour and must never be logged or stored; a string that already carries
+    // a password is returned untouched and the credential is never consulted.
+    public static async Task<string> ResolveForDirectUseAsync(
+        string connectionString,
+        TokenCredential? credential = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!UsesManagedIdentity(connectionString))
+            return connectionString;
+
+        var tokenCredential = credential ?? new DefaultAzureCredential();
+        var token = await tokenCredential.GetTokenAsync(new TokenRequestContext([TokenScope]), cancellationToken);
+        return new NpgsqlConnectionStringBuilder(connectionString) { Password = token.Token }.ConnectionString;
     }
 }

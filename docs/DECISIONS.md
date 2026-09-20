@@ -219,6 +219,30 @@ Not applied on purpose: primary constructors (IDE0290, ~94 classes) and collecti
 
 Gotcha: CA1034 ("do not nest type") fires on a C# 14 extension block; `.editorconfig` silences it for that one file rather than losing the feature.
 
+## The Entra token is the database credential; a password is the exception (2026-09-20)
+
+`DatabaseAuthentication` (ServiceDefaults, linked into the migrator) is the one place a database credential
+is decided: a connection string that names a user and carries no password means "connect as the hosting
+identity", and Azure Database for PostgreSQL accepts the identity's Entra access token as the password. Every
+long-running process takes its connections from the single `NpgsqlDataSource` that `AddDatabaseDataSource`
+registers (`TryAddSingleton`, so the API's `AddPersistence` and ServiceDefaults' `AddJobRunRecording` — also
+used by Functions — share it), where Npgsql's periodic password provider refreshes the token every 45 minutes.
+The migrator cannot hand DbUp a provider, so it resolves the token once up front
+(`ResolveForDirectUseAsync`) and finishes well inside the token's lifetime. A raw `new NpgsqlConnection(...)`
+in production code is a build error (`BannedSymbols.txt`), because it cannot carry the token.
+
+**What this replaced:** the API alone used the data source; the job-run recorder, the outbox replayer and
+DbUp opened raw connections and would have failed the moment the string had no password. The migrator's
+`appsettings.json` also shipped a plaintext local password; it is gone, and the AppHost injects the string.
+
+**Why not a password in Key Vault:** it is a secret to rotate, distribute and leak; the token is issued to the
+managed identity by the platform, expires in an hour, and never exists in configuration. Deployment
+templates (Aspire's `AddAzurePostgresFlexibleServer` in Entra mode) emit exactly the password-less shape.
+
+**Re-add trigger for password authentication:** a PostgreSQL host with no Entra support — a self-hosted
+deployment of a derived project. The code already handles it: a string with a password is used as given.
+Do not add a second credential mechanism; extend the string shape rule if a third kind of host appears.
+
 ## Considered and rejected
 
 Recorded so future sessions do not re-propose them.

@@ -1,4 +1,4 @@
-using StarterApp.Api.Infrastructure.Persistence;
+using DatabaseAuthentication = StarterApp.ServiceDefaults.DatabaseAuthentication;
 
 namespace StarterApp.Tests.Infrastructure.Persistence;
 
@@ -28,6 +28,37 @@ public class DatabaseAuthenticationTests
         using var dataSource = DatabaseAuthentication.CreateDataSource("Host=db;Database=app;Username=svc;Password=plainzz1", credential);
 
         Assert.Equal(0, credential.Requests);
+    }
+
+    [Fact]
+    public async Task ResolveForDirectUse_WithAPassword_ReturnsTheStringUntouched_AndNeverAsksForAToken()
+    {
+        var credential = new CountingCredential();
+        const string connectionString = "Host=db;Database=app;Username=svc;Password=plainzz1";
+
+        var resolved = await DatabaseAuthentication.ResolveForDirectUseAsync(connectionString, credential);
+
+        Assert.Equal(connectionString, resolved);
+        Assert.Equal(0, credential.Requests);
+    }
+
+    [Fact]
+    public async Task ResolveForDirectUse_WithoutAPassword_PutsTheTokenInThePassword()
+    {
+        // The migrator hands DbUp a plain string, so the hosting identity's token has to travel
+        // as the password. Everything else in the string is preserved.
+        var credential = new CountingCredential();
+
+        var resolved = await DatabaseAuthentication.ResolveForDirectUseAsync("Host=db;Database=app;Username=svc;SSL Mode=Require", credential);
+
+        var builder = new NpgsqlConnectionStringBuilder(resolved);
+        Assert.Equal("token", builder.Password);
+        Assert.Equal("svc", builder.Username);
+        Assert.Equal("db", builder.Host);
+        Assert.Equal("app", builder.Database);
+        Assert.Equal(SslMode.Require, builder.SslMode);
+        Assert.Equal(1, credential.Requests);
+        Assert.False(DatabaseAuthentication.UsesManagedIdentity(resolved));
     }
 
     private sealed class CountingCredential : Azure.Core.TokenCredential

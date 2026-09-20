@@ -1226,6 +1226,7 @@
       "starterapp.dbmigrator": {
         "type": "Project",
         "dependencies": {
+          "Azure.Identity": "[1.21.0, )",
           "Microsoft.Extensions.Configuration": "[10.0.5, )",
           "Microsoft.Extensions.Configuration.CommandLine": "[10.0.5, )",
           "Microsoft.Extensions.Configuration.EnvironmentVariables": "[10.0.5, )",

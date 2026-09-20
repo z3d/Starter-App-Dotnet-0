@@ -49,6 +49,9 @@ Push from the worktree and fast-forward `main` from it. Never revert or overwrit
 - **Owner authorization is application-layer, not endpoint metadata.** Route metadata enforces identity, scope, and MFA before dispatch, but it cannot know a specific row's owner — those checks belong in query predicates and command handlers.
 - **Identity is OIDC/JWT, validated in the API itself (zero trust).** `AddJwtBearer` against the configured authority is the only authentication registration. Self-contained JWTs only — never add token-introspection calls to the request path; discovery and JWKS are cached by the bearer handler. Production code reads identity through `ICurrentUser` (populated in exactly one place from validated claims), never `HttpContext.User`, raw claims, or the `Authorization` header outside `Infrastructure/Identity`.
 - **Migrations run only through `StarterApp.DbMigrator`** — never at API startup, which races across replicas.
+- **A connection string with a user and no password means the hosting identity's Entra token, everywhere.**
+  Take connections from the process `NpgsqlDataSource` (`AddDatabaseDataSource`); a raw `new NpgsqlConnection`
+  is a build error. The migrator resolves the token once via `DatabaseAuthentication.ResolveForDirectUseAsync`.
 - **Never put `Version=` on a `PackageReference`.** Versions are centralized in `Directory.Packages.props`, and `--force-evaluate` is the only sanctioned way to move a lock file.
 - **Never commit a real secret to the tracked tree.** `appsettings.Development.json` is git-ignored with a tracked `.example` template; the `secret-scan` workflow scans full history with a checksum-verified pinned `gitleaks`, and intentional placeholders belong in `.gitleaks.toml` rather than being worked around.
 - **Prefer an `.editorconfig` severity entry with a stated reason over a scattered `#pragma`.** Don't mass-apply public-to-internal churn, `ConfigureAwait(false)`, or XML doc comments to satisfy a broad analyzer rule.
@@ -70,6 +73,7 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Service Bus subscribers get no ordering guarantee (`maxConcurrentCalls: 16`, no sessions) | — subscriber implementations must tolerate out-of-order delivery |
 | Dapper reads retry through the hand-rolled `PostgresRetryPolicy` with a total delay budget, not Polly | Polly gains a total-delay budget, or the read path needs a second resilience concern (breaker, hedging) |
 | The `Consistency/` test suite is advisory and human-read; builds never gate on a distance | Two consecutive dated reviews record that no report line informed a finding |
+| The Entra token is the database credential in every process; a password-less connection string means the hosting identity, and raw `new NpgsqlConnection` is banned | A PostgreSQL host with no Entra support (self-hosted) — already handled: a string with a password is used as given; never add a second credential mechanism |
 
 ## Where to look
 

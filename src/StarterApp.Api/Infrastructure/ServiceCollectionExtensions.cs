@@ -67,9 +67,10 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<OwnerPolicyEvaluationTracker>();
         services.AddScoped<OwnerAuthorizationWriteGuard>();
 
-        // One data source per process: EF Core and Dapper share the pool, and the managed-identity
-        // password provider (DatabaseAuthentication) is configured in exactly one place.
-        services.AddSingleton(_ => DatabaseAuthentication.CreateDataSource(connectionString));
+        // One data source per process: EF Core, Dapper and the job-run recorder share the pool, and
+        // the managed-identity password provider (DatabaseAuthentication in ServiceDefaults) is
+        // configured in exactly one place, whichever registration runs first.
+        services.AddDatabaseDataSource(connectionString);
         services.AddDbContext<ApplicationDbContext>((provider, options) =>
             options.UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>(), postgres =>
                 postgres.EnableRetryOnFailure(maxRetryCount: 6, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null))

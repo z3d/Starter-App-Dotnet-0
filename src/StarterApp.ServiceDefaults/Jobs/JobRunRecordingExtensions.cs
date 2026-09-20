@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Npgsql;
 using StarterApp.ServiceDefaults.Jobs;
 
 namespace Microsoft.Extensions.Hosting;
@@ -21,8 +22,9 @@ public static class JobRunRecordingExtensions
         }
 
         var retentionDays = builder.Configuration.GetValue("JobRuns:RetentionDays", 30);
+        builder.Services.AddDatabaseDataSource(connectionString);
         builder.Services.AddSingleton<IJobRunRecorder>(provider => new NpgsqlJobRunRecorder(
-            connectionString,
+            provider.GetRequiredService<NpgsqlDataSource>(),
             retentionDays,
             provider.GetRequiredService<ILogger<NpgsqlJobRunRecorder>>()));
         return builder;

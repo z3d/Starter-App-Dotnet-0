@@ -53,7 +53,13 @@ try
         return -1;
     }
 
-    Log.Information("Using database connection: {ConnectionString}", ConnectionStringDescriptor.Describe(connectionString));
+    Log.Information("Using database connection: {ConnectionString} ({DatabaseAuthentication})",
+        ConnectionStringDescriptor.Describe(connectionString), DatabaseAuthentication.Describe(connectionString));
+
+    // DbUp takes a plain connection string, so a password-less (hosting identity) string is
+    // resolved to one carrying an Entra token here, once; the run finishes well inside the token's
+    // lifetime. The resolved string is never logged.
+    connectionString = await DatabaseAuthentication.ResolveForDirectUseAsync(connectionString);
 
     if (isReplayVerb)
     {
@@ -76,5 +82,5 @@ catch (Exception ex)
 }
 finally
 {
-    Log.CloseAndFlush();
+    await Log.CloseAndFlushAsync();
 }
