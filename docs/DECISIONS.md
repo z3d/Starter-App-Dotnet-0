@@ -285,6 +285,11 @@ settings, so the Functions resource must not `WithReference(serviceBus)` when pu
 assignment explicitly instead); and `ApplyAzureFunctionsConfiguration` fills `__fullyQualifiedNamespace`
 with the endpoint URL where the extension wants the bare host. And the archive health check probes the
 container, not the blob service's properties, because Storage Blob Data Contributor cannot read the latter.
+A third, found on the first derived deployment: the ingress applies the operator allow-list to *every*
+caller of a public hostname, other container apps included, so calls between the apps use the environment's
+internal hostnames (`<app>.internal.<domain>`); Keycloak pins its issuer to the public name (`KC_HOSTNAME`,
+backchannel dynamic) and the API fetches discovery from the internal one (`Identity:MetadataAddress`)
+while validating the public issuer (`Identity:Authority`).
 
 **Re-add trigger for any keyed credential in a deployed environment:** none. A service that cannot be
 reached with a managed identity is replaced or left out, not given a key.

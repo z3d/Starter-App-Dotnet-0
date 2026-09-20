@@ -79,6 +79,25 @@ public class JwtIdentityOptionsTests
     }
 
     [Fact]
+    public void MetadataAddress_FetchesDiscoveryElsewhere_ButValidatesTheConfiguredIssuer()
+    {
+        // A deployment reaches the identity provider over an internal hostname while the tokens
+        // carry the public issuer: discovery comes from MetadataAddress, the issuer stays Authority.
+        using var provider = BuildProvider("Production", new Dictionary<string, string?>
+        {
+            ["Identity:Authority"] = "https://idp.example.com/realms/starterapp",
+            ["Identity:MetadataAddress"] = "https://idp.internal.example/realms/starterapp/.well-known/openid-configuration",
+            ["Identity:Audience"] = "starterapp-api"
+        });
+
+        var bearer = provider.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>().Get(JwtBearerDefaults.AuthenticationScheme);
+
+        Assert.Equal("https://idp.internal.example/realms/starterapp/.well-known/openid-configuration", bearer.MetadataAddress);
+        Assert.Equal("https://idp.example.com/realms/starterapp", bearer.Authority);
+        Assert.Equal("https://idp.example.com/realms/starterapp", bearer.TokenValidationParameters.ValidIssuer);
+    }
+
+    [Fact]
     public void AddJwtIdentity_SetsAnAuthenticatedUserFallbackPolicy()
     {
         using var provider = BuildProvider("Production", new Dictionary<string, string?>

@@ -10,6 +10,11 @@ public sealed class JwtIdentityOptions
     // discovery + JWKS from here and caches them in memory; required outside Development/Testing.
     public string? Authority { get; set; }
 
+    // Where discovery is actually fetched when that differs from the issuer's public address —
+    // a deployment whose apps reach the identity provider over an internal hostname while the
+    // tokens carry (and Authority names) the public one. Optional; the issuer stays Authority.
+    public string? MetadataAddress { get; set; }
+
     [Required(AllowEmptyStrings = false)]
     public string Audience { get; set; } = string.Empty;
 
