@@ -60,6 +60,19 @@ Push from the worktree and fast-forward `main` from it. Never revert or overwrit
 - **This is a template: a seam with one implementation is an exemplar, not YAGNI.** `IFeatureToggles`, `IPayloadRedactor`, the cache envelope, and illustrative domain methods show a derived project the shape. Simplification (ponytail is enabled repo-wide) cuts duplication, dead tooling, and hand-rolled BCL, never a seam waiting for its second implementation. `docs/DERIVATION-PRUNING.md` is where a derived project prunes.
 - **Prohibited:** AutoMapper (write explicit mappers), MediatR (commercial licence — the custom mediator lives in `Api/Infrastructure/Mediator/`), the repository pattern (DbContext is already unit-of-work plus repository), anemic domain models, public `SetId()`, and code regions or XML doc comments in app code.
 
+## Traps
+
+Each of these cost a session, and none shows up in a diff.
+
+- **xUnit builds the collection fixture even when every fact in the collection is skipped.** An `[AspireFact]` skip alone still boots the distributed app. `AspireE2EFixture.InitializeAsync` returns early when `STARTERAPP_ASPIRE_TESTS` is unset; keep that guard if the fixture is rewritten.
+- **`dotnet format --verify-no-changes` exits 2 on any warning-level analyzer hit**, not only on formatting. A new rule at `warning` severity fails CI with the code untouched. Introduce rules at `suggestion` or `error`, never `warning`.
+- **Container image builds on a CRLF working tree fail formatting inside the image.** `EnforceCodeStyleInBuild` runs in the Dockerfile's build stage. Pass `-p:EnforceCodeStyleInBuild=false` to the in-container build or normalise line endings first.
+- **The Service Bus emulator exits 139 when several worktree stacks are running.** Each worktree's AppHost creates its own persistent container set; at around eight the emulator segfaults and the outbox and Functions facts fail for reasons unrelated to the change. Remove stale sets (`podman ps -a`, filter by the AppHost hash suffix) before an Aspire run.
+- **A staged rename survives an explicit `git add` of other paths.** `git mv` stages both halves; a later `git add <files>` and `git commit` carries the rename into an unrelated commit. Check `git status` before each commit while a rename is in flight.
+- **Never chain a destructive step after a commit with `;`.** A failed `git commit` stops an `&&` chain but not a `;` one, so a trailing `git worktree remove --force` or `rm -rf` runs against uncommitted work. Commit in its own command, confirm the hash, then merge, push and clean up separately. Never run `worktree remove` from inside that worktree.
+- **`.editorconfig` sections written as `**/*.cs` do not match files at the directory root.** `[src/X/**/*.cs]` misses `src/X/Program.cs`; add a sibling `[src/X/*.cs]` section, as the test-project sections do.
+- **Adding a constructor dependency to every handler moves the consistency fingerprints.** `ConstructorDependencyCount` changes and `ExemplarAlignment_DocumentedDependencyCountsMatchCode` fails until the counts in `docs/exemplars/*/README.md` are updated to match.
+
 ## Recorded decisions
 
 Each of these was chosen against a reasonable alternative and carries a **re-add trigger** — the specific fact that would justify revisiting it. Full rationale in [`docs/DECISIONS.md`](docs/DECISIONS.md); don't reverse one without hitting its trigger.
