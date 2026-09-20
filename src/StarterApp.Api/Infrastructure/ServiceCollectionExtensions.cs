@@ -140,6 +140,13 @@ public static class ServiceCollectionExtensions
                 var identity = identityOptions.Value;
                 if (!string.IsNullOrWhiteSpace(identity.Authority))
                     bearer.Authority = identity.Authority;
+                if (!string.IsNullOrWhiteSpace(identity.MetadataAddress))
+                {
+                    bearer.MetadataAddress = identity.MetadataAddress;
+                    // The document fetched from the internal name still states the public issuer;
+                    // validate against the configured authority, not the address it came from.
+                    bearer.TokenValidationParameters.ValidIssuer = identity.Authority;
+                }
                 bearer.RequireHttpsMetadata = identity.RequireHttpsMetadata;
                 // Keep raw OIDC claim types (sub/tid/scope/amr) — inbound claim remapping would
                 // rename them out from under JwtIdentityMiddleware.

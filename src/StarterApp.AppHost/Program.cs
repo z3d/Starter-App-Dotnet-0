@@ -15,7 +15,15 @@ IResourceBuilder<SeqResource>? seq = builder.ExecutionContext.IsRunMode
 
 // Publish mode targets Azure Container Apps; every project, container and Dockerfile resource
 // below becomes a container app in this one environment (the hosting environment runs the deploy).
-builder.AddAzureContainerAppEnvironment("aca");
+var aca = builder.AddAzureContainerAppEnvironment("aca");
+
+// Calls between the container apps use the environment's internal hostnames. The public
+// hostnames sit behind the operator allow-list below, which the ingress applies to every caller
+// including other apps in the environment; the internal names never cross it. Browsers keep the
+// public names (Keycloak pins its issuer to the public one so tokens validate either way).
+ReferenceExpression Internal(string app) => builder.ExecutionContext.IsPublishMode
+    ? ReferenceExpression.Create($"https://{app}.internal.{aca.GetOutput("AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN")}")
+    : throw new InvalidOperationException("Internal hostnames exist only in a published environment.");
 
 // A deployed instance is a TEST environment: its Keycloak ships well-known dev users, so every
 // public ingress is allow-listed to the operator's address (a CIDR the hosting environment
@@ -149,19 +157,23 @@ else
     // deployed instance is a literal in this repository.
     var keycloakAdminPassword = builder.AddParameter("keycloak-admin-password",
         new GenerateParameterDefault { MinLength = 32 }, secret: true, persist: true);
-    keycloak = builder.AddDockerfile("keycloak", "Realms")
+    var keycloakContainer = builder.AddDockerfile("keycloak", "Realms")
         .WithHttpEndpoint(targetPort: 8080, name: "http")
         .WithExternalHttpEndpoints()
         .PublishAsAzureContainerApp(RestrictIngressToOperator)
         .WithEnvironment("KC_BOOTSTRAP_ADMIN_USERNAME", "admin")
         .WithEnvironment("KC_BOOTSTRAP_ADMIN_PASSWORD", keycloakAdminPassword)
         .WithEnvironment("KC_HEALTH_ENABLED", "true")
-        // TLS terminates at the container app ingress; Keycloak derives its public hostname and
-        // https scheme (and so the token issuer) from the forwarded headers.
+        // TLS terminates at the container app ingress; Keycloak takes the https scheme from the
+        // forwarded headers. The issuer is pinned to the public name whatever hostname a caller
+        // used: the API reaches Keycloak over the internal name and must get metadata and tokens
+        // that carry the issuer it is configured to accept.
         .WithEnvironment("KC_HTTP_ENABLED", "true")
         .WithEnvironment("KC_PROXY_HEADERS", "xforwarded")
-        .WithEnvironment("KC_HOSTNAME_STRICT", "false")
+        .WithEnvironment("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true")
         .WithArgs("start-dev", "--import-realm");
+    keycloakContainer.WithEnvironment("KC_HOSTNAME", keycloakContainer.GetEndpoint("http"));
+    keycloak = keycloakContainer;
 }
 
 // Add the database migrator as a separate service (must complete before API starts)
@@ -205,11 +217,20 @@ if (seq is not null)
 // Point the API at the Keycloak realm. Locally the container speaks plain http, so
 // RequireHttpsMetadata=false (options validation rejects it outside Development/Testing); when
 // published the endpoint reference resolves to the container app's https ingress.
-api.WithEnvironment("Identity__Authority",
-        ReferenceExpression.Create($"{keycloak.GetEndpoint("http")}/realms/starterapp"))
-   .WaitFor(keycloak);
+// Identity:Authority is both the issuer the tokens must carry and where discovery is fetched.
+// Published, discovery would have to cross the allow-list at the public name, so the API is given
+// the public issuer to validate and the internal name to fetch metadata from.
+api.WaitFor(keycloak);
 if (builder.ExecutionContext.IsRunMode)
-    api.WithEnvironment("Identity__RequireHttpsMetadata", "false");
+{
+    api.WithEnvironment("Identity__Authority", ReferenceExpression.Create($"{keycloak.GetEndpoint("http")}/realms/starterapp"))
+       .WithEnvironment("Identity__RequireHttpsMetadata", "false");
+}
+else
+{
+    api.WithEnvironment("Identity__Authority", ReferenceExpression.Create($"{keycloak.GetEndpoint("http")}/realms/starterapp"))
+       .WithEnvironment("Identity__MetadataAddress", ReferenceExpression.Create($"{Internal("keycloak")}/realms/starterapp/.well-known/openid-configuration"));
+}
 
 // Add Azure Functions container for Service Bus subscribers.
 // Running through the Functions base image keeps local behavior aligned with the deployed worker runtime.
