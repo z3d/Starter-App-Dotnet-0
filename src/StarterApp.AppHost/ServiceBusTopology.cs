@@ -24,14 +24,17 @@ public static class ServiceBusTopology
         isEmulator && timeToLive > EmulatorMaxMessageTimeToLive ? EmulatorMaxMessageTimeToLive : timeToLive;
     public const string EmailNotificationsSubscription = "email-notifications";
     public const string InventoryReservationSubscription = "inventory-reservation";
-    public const string OrderCreatedRuleName = "OrderCreatedFilter";
-    public const string OrderStatusChangedRuleName = "OrderStatusChangedFilter";
+    // Rule names carry their subscription. Service Bus scopes rules per subscription, but the
+    // Bicep Aspire publishes turns every rule into a top-level identifier, so two subscriptions
+    // sharing a rule name cannot be provisioned. ServiceBusTopologyConventionTests pins uniqueness.
+    public const string OrderCreatedRuleName = "order-created";
+    public const string OrderStatusChangedRuleName = "order-status-changed";
 
     public static readonly IReadOnlyCollection<SubscriptionFilter> SubscriptionFilters =
     [
-        new(EmailNotificationsSubscription, OrderCreatedRuleName, OrderCreatedEventType),
-        new(EmailNotificationsSubscription, OrderStatusChangedRuleName, OrderStatusChangedEventType),
-        new(InventoryReservationSubscription, OrderCreatedRuleName, OrderCreatedEventType)
+        new(EmailNotificationsSubscription, $"{EmailNotificationsSubscription}-{OrderCreatedRuleName}", OrderCreatedEventType),
+        new(EmailNotificationsSubscription, $"{EmailNotificationsSubscription}-{OrderStatusChangedRuleName}", OrderStatusChangedEventType),
+        new(InventoryReservationSubscription, $"{InventoryReservationSubscription}-{OrderCreatedRuleName}", OrderCreatedEventType)
     ];
 
     public const string OrderCreatedEventType = "order.created.v1";

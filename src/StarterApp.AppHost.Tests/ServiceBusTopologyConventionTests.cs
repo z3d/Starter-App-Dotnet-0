@@ -195,4 +195,19 @@ public class ServiceBusTopologyConventionTests
         string TopicName,
         string SubscriptionName,
         string Connection);
+
+    [Fact]
+    public void SubscriptionFilterRuleNames_MustBeUniqueAcrossTheNamespace()
+    {
+        // Service Bus scopes rule names per subscription, but the Bicep Aspire publishes makes a
+        // top-level identifier of each rule, so a name reused by two subscriptions fails
+        // provisioning (BCP028) rather than the emulator.
+        var duplicates = ServiceBusTopology.SubscriptionFilters
+            .GroupBy(filter => filter.RuleName)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToList();
+
+        Assert.True(duplicates.Count == 0, $"Rule names reused across subscriptions: {string.Join(", ", duplicates)}");
+    }
 }

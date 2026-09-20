@@ -35,7 +35,7 @@ public static class PayloadArchiveConfiguration
 
         var connectionString = ResolveConnectionString(options, configuration);
         if (connectionString is not null)
-            return new BlobServiceClient(connectionString);
+            return AzureClientAuthentication.CreateBlobServiceClient(connectionString);
 
         return string.IsNullOrWhiteSpace(options.AccountUri)
             ? null

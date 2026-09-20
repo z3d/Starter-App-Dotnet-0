@@ -222,8 +222,14 @@ Gotcha: CA1034 ("do not nest type") fires on a C# 14 extension block; `.editorco
 ## The Entra token is the database credential; a password is the exception (2026-09-20)
 
 `DatabaseAuthentication` (ServiceDefaults, linked into the migrator) is the one place a database credential
-is decided: a connection string that names a user and carries no password means "connect as the hosting
-identity", and Azure Database for PostgreSQL accepts the identity's Entra access token as the password. Every
+is decided: a connection string that carries no password means "connect as the hosting identity", and Azure
+Database for PostgreSQL accepts the identity's Entra access token as the password. The user is the one the
+string names or, when it names none — the shape Aspire's `AddAzurePostgresFlexibleServer` emits in Entra mode
+(`Host=…;Database=…`) — the principal the token was issued to (`upn`, `preferred_username`, or the managed
+identity's name from `xms_mirid`), the same derivation Aspire's own Npgsql integration performs. TLS is
+forced to `Require` on that path so a refused token is never retried in the clear (Npgsql's default `Prefer`
+would). Found the hard way on the first deployment, 2026-09-20: the original rule demanded a named user, so the
+deployed migrator fell through to the password path and connected as the container's OS user. Every
 long-running process takes its connections from the single `NpgsqlDataSource` that `AddDatabaseDataSource`
 registers (`TryAddSingleton`, so the API's `AddPersistence` and ServiceDefaults' `AddJobRunRecording` — also
 used by Functions — share it), where Npgsql's periodic password provider refreshes the token every 45 minutes.
@@ -243,12 +249,52 @@ templates (Aspire's `AddAzurePostgresFlexibleServer` in Entra mode) emit exactly
 deployment of a derived project. The code already handles it: a string with a password is used as given.
 Do not add a second credential mechanism; extend the string shape rule if a third kind of host appears.
 
+## The credential is decided by the shape of the configured value, for every Azure client (2026-09-20)
+
+`AzureClientAuthentication` (ServiceDefaults) is `DatabaseAuthentication`'s counterpart for Blob Storage and
+Service Bus: a value carrying a key (`AccountKey`, `SharedAccessKey`, `SharedAccessSignature`,
+`UseDevelopmentStorage`, `UseDevelopmentEmulator`) is a connection string and is used as given; a bare
+endpoint or namespace means "connect as the hosting identity" with a `DefaultAzureCredential`. Aspire injects
+the keyed form for the local emulators and the endpoint form for deployed Azure resources under the *same*
+configuration key, so the API's `ServiceBusClient` and the payload archive's `BlobServiceClient` are built
+through it and nothing else changes between environments. The Functions host already follows the same rule
+natively (`servicebus__fullyQualifiedNamespace`, `AzureWebJobsStorage__blobServiceUri`), which is why the
+AppHost sets the bare `servicebus` connection string only in run mode.
+
+**Re-add trigger for a keyed connection string in a deployed environment:** none. A deployment that cannot
+use managed identity is not a supported deployment of this template.
+
+## Managed identity everywhere, and what publish mode drops to get there (2026-09-20)
+
+Deployed, every dependency is reached as the app's own managed identity and nothing in the environment holds
+a credential: Azure Database for PostgreSQL with password authentication disabled, Azure Managed Redis with
+access keys disabled and an access policy per identity, Service Bus and Storage through endpoint + identity,
+the image pull through the environment's identity. To hold that line, publish mode differs from the local
+rig in three places, all decided in the AppHost:
+
+- **Seq is not published.** It has no identity story (unauthenticated) and a deployed environment already
+  gets every log and trace over OTLP. Locally it stays.
+- **Redis is Azure Managed Redis when published** (`AddAzureManagedRedis(...).RunAsContainer()`), the one
+  line item this posture adds to a bill (Balanced B0, the smallest tier). A Redis container in the
+  environment would need a password.
+- **Keycloak's admin password is a generated secret parameter** rather than the local `admin`/`admin`.
+
+Two deployment facts that only surfaced on a real environment, both pinned in the AppHost with comments:
+the Functions host resolves a trigger connection from `ConnectionStrings:<name>` *before* the identity
+settings, so the Functions resource must not `WithReference(serviceBus)` when published (it takes the role
+assignment explicitly instead); and `ApplyAzureFunctionsConfiguration` fills `__fullyQualifiedNamespace`
+with the endpoint URL where the extension wants the bare host. And the archive health check probes the
+container, not the blob service's properties, because Storage Blob Data Contributor cannot read the latter.
+
+**Re-add trigger for any keyed credential in a deployed environment:** none. A service that cannot be
+reached with a managed identity is replaced or left out, not given a key.
+
 ## Considered and rejected
 
 Recorded so future sessions do not re-propose them.
 
 - **MediatR, AutoMapper, the repository pattern, an in-process background task queue.** Each conflicts with a documented prohibition or an existing mechanism (custom mediator, explicit mappers, DbContext directly, transactional outbox for anything that must survive a restart).
-- **Production infrastructure as code (Bicep or azd).** Maintainer decision, 2026-06-10: deployment topology is owned by the hosting environment; Aspire is the only orchestration path in this repo.
+- **Production infrastructure as code (Bicep or azd).** Maintainer decision, 2026-06-10: deployment topology is owned by the hosting environment; Aspire is the only orchestration path in this repo. Since 2026-09-20 the AppHost *does* describe the Azure shape in publish mode (`AddAzureContainerAppEnvironment`, `AddAzurePostgresFlexibleServer(...).RunAsContainer()`, the migrator as a Container App job, Keycloak from `Realms/Dockerfile`); that is still Aspire, not IaC. The `azure.yaml`, environment values, resource group and ingress restrictions live in the hosting environment's repository, never here.
 - **WORM immutability on audit blobs as a roadmap item.** Cannot be expressed here (the emulator does not enforce it and there is no IaC). Recorded instead as an accepted limitation with deployer guidance in `ARCHITECTURE_REVIEW.md`.
 - **A `spikes/` folder convention.** Maintainer decision, 2026-06-10: experiments go through normal branches and worktrees.
 - **Client-IP extraction chains in middleware.** The API runs behind a trusted edge; the edge owns client network identity.

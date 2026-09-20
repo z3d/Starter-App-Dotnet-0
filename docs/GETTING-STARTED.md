@@ -111,6 +111,28 @@ Production-like environments supply connection strings and the `Identity:Authori
 `Identity:Audience` settings through the platform. OpenAPI and Scalar are exposed only in
 Development.
 
+## Publishing to Azure
+
+The AppHost describes the Azure shape in publish mode and nothing else in this repository does:
+
+| Resource | Locally | Published |
+|---|---|---|
+| `postgres` | container (password) | Azure Database for PostgreSQL, Entra-only; each app's managed identity is the user |
+| `storage`, `servicebus` | emulators (keyed connection strings) | the Azure services, endpoints + managed identity |
+| `redis` | container | Azure Managed Redis (Balanced B0), Entra auth only — access keys disabled |
+| `seq` | container | not published; logs and traces reach the Aspire dashboard and Log Analytics over OTLP |
+| `keycloak` | container with `Realms/` bind-mounted, `admin`/`admin` | the same image with the realm copied in (`Realms/Dockerfile`); admin password is a generated secret parameter |
+| `migrator` | project, run once | a Container App **job** the deployer starts after each deploy |
+| `api`, `functions` | as today | container apps in one Container Apps environment, each with its own managed identity |
+
+Every deployed dependency is reached with the app's managed identity: there is no key, password or
+connection string anywhere in the environment (Postgres has password authentication disabled, Redis has
+access keys disabled). The one exception is the Keycloak *realm*, whose well-known dev users are the point.
+
+The `azure.yaml`, environment values and ingress restrictions belong to the hosting environment's
+repository (`docs/DECISIONS.md`, "Production infrastructure as code"); run `azd` from there, never from here.
+To see exactly what would be published: `dotnet run --project src/StarterApp.AppHost -- --publisher manifest --output-path /tmp/manifest/manifest.json`.
+
 ## Troubleshooting
 
 - **API never becomes healthy.** Check the migrator resource in the dashboard first; the API waits

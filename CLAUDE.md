@@ -49,10 +49,12 @@ Push from the worktree and fast-forward `main` from it. Never revert or overwrit
 - **Owner authorization is application-layer, not endpoint metadata.** Route metadata enforces identity, scope, and MFA before dispatch, but it cannot know a specific row's owner — those checks belong in query predicates and command handlers.
 - **Identity is OIDC/JWT, validated in the API itself (zero trust).** `AddJwtBearer` against the configured authority is the only authentication registration. Self-contained JWTs only — never add token-introspection calls to the request path; discovery and JWKS are cached by the bearer handler. Production code reads identity through `ICurrentUser` (populated in exactly one place from validated claims), never `HttpContext.User`, raw claims, or the `Authorization` header outside `Infrastructure/Identity`.
 - **Migrations run only through `StarterApp.DbMigrator`** — never at API startup, which races across replicas.
-- **A connection string with a user and no password means the hosting identity's Entra token, everywhere.**
+- **A connection string with no password means the hosting identity's Entra token, everywhere.** The user is
+  the one named, or — the shape Aspire emits for an Entra-only server — the principal the token was issued to.
   Take connections from the process `NpgsqlDataSource` (`AddDatabaseDataSource`); a raw `new NpgsqlConnection`
   is a build error. The migrator resolves the token once via `DatabaseAuthentication.ResolveForDirectUseAsync`.
 - **Never put `Version=` on a `PackageReference`.** Versions are centralized in `Directory.Packages.props`, and `--force-evaluate` is the only sanctioned way to move a lock file.
+- **Build Azure clients through `AzureClientAuthentication`, never `new BlobServiceClient(string)` / `new ServiceBusClient(string)` directly.** The shape of the configured value picks the credential (keyed connection string locally, endpoint + managed identity when deployed), the same rule as `DatabaseAuthentication`.
 - **Never commit a real secret to the tracked tree.** `appsettings.Development.json` is git-ignored with a tracked `.example` template; the `secret-scan` workflow scans full history with a checksum-verified pinned `gitleaks`, and intentional placeholders belong in `.gitleaks.toml` rather than being worked around.
 - **Prefer an `.editorconfig` severity entry with a stated reason over a scattered `#pragma`.** Don't mass-apply public-to-internal churn, `ConfigureAwait(false)`, or XML doc comments to satisfy a broad analyzer rule.
 - **This is a template: a seam with one implementation is an exemplar, not YAGNI.** `IFeatureToggles`, `IPayloadRedactor`, the cache envelope, and illustrative domain methods show a derived project the shape. Simplification (ponytail is enabled repo-wide) cuts duplication, dead tooling, and hand-rolled BCL, never a seam waiting for its second implementation. `docs/DERIVATION-PRUNING.md` is where a derived project prunes.
@@ -73,7 +75,8 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Service Bus subscribers get no ordering guarantee (`maxConcurrentCalls: 16`, no sessions) | — subscriber implementations must tolerate out-of-order delivery |
 | Dapper reads retry through the hand-rolled `PostgresRetryPolicy` with a total delay budget, not Polly | Polly gains a total-delay budget, or the read path needs a second resilience concern (breaker, hedging) |
 | The `Consistency/` test suite is advisory and human-read; builds never gate on a distance | Two consecutive dated reviews record that no report line informed a finding |
-| The Entra token is the database credential in every process; a password-less connection string means the hosting identity, and raw `new NpgsqlConnection` is banned | A PostgreSQL host with no Entra support (self-hosted) — already handled: a string with a password is used as given; never add a second credential mechanism |
+| Managed identity everywhere when published: Seq is not published, Redis becomes Azure Managed Redis (keys disabled), Keycloak's admin password is a generated secret | None — a dependency that cannot take a managed identity is replaced or dropped, never given a key |
+| The Entra token is the database credential in every process; a password-less connection string means the hosting identity (the named user, or the token's own principal when none is named), and raw `new NpgsqlConnection` is banned | A PostgreSQL host with no Entra support (self-hosted) — already handled: a string with a password is used as given; never add a second credential mechanism |
 
 ## Where to look
 

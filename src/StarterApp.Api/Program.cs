@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Scalar.AspNetCore;
 using StarterApp.Api.Endpoints;
+using StarterApp.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,7 +14,7 @@ var connectionString = builder.Configuration.GetConnectionString("database")
     ?? throw new InvalidOperationException("Connection string 'database' not found. Ensure Aspire is configured correctly.");
 
 if (!string.IsNullOrEmpty(builder.Configuration.GetConnectionString("redis")))
-    builder.AddRedisDistributedCache("redis");
+    builder.AddRedisDistributedCache("redis", configureOptions: options => AzureClientAuthentication.ConfigureRedis(options));
 else
     builder.Services.AddDistributedMemoryCache();
 

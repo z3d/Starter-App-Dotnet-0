@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
 using StarterApp.Api.Infrastructure.HealthChecks;
 using StarterApp.Api.Infrastructure.Outbox;
+using StarterApp.ServiceDefaults;
 
 namespace StarterApp.Api.Infrastructure;
 
@@ -296,7 +297,7 @@ public static class ServiceCollectionExtensions
         var options = new OutboxProcessorOptions();
         configuration.GetSection("OutboxProcessor").Bind(options);
 
-        services.AddSingleton(_ => new ServiceBusClient(connectionString));
+        services.AddSingleton(_ => AzureClientAuthentication.CreateServiceBusClient(connectionString));
         services.AddSingleton(provider =>
             provider.GetRequiredService<ServiceBusClient>().CreateSender(options.TopicName));
         services.AddHostedService<OutboxProcessor>();

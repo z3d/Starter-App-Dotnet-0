@@ -10,9 +10,16 @@
          churned with every developer's restore and broke Linux CI. See CLAUDE.md, Build
          Configuration, Central Package Management for the rationale. -->
     <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <!-- ASPIREAZURE002: PublishAsAzureContainerAppJob is marked evaluation-only in Aspire 13.2;
+         it is the only way to publish a run-to-completion process (the migrator) as a Container
+         App job rather than an always-restarting app. Revisit when the API graduates. -->
+    <NoWarn>$(NoWarn);ASPIREAZURE002</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.Azure.AppContainers" />
+    <PackageReference Include="Aspire.Hosting.Azure.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.Azure.Redis" />
     <PackageReference Include="Aspire.Hosting.Azure.ServiceBus" />
     <PackageReference Include="Aspire.Hosting.Azure.Storage" />
     <PackageReference Include="Aspire.Hosting.DevTunnels" />

@@ -11,6 +11,9 @@
 
   <ItemGroup>
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.2.3" />
+    <PackageVersion Include="Aspire.Hosting.Azure.AppContainers" Version="13.2.3" />
+    <PackageVersion Include="Aspire.Hosting.Azure.PostgreSQL" Version="13.2.3" />
+    <PackageVersion Include="Aspire.Hosting.Azure.Redis" Version="13.2.3" />
     <PackageVersion Include="Aspire.Hosting.Azure.ServiceBus" Version="13.2.3" />
     <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="13.2.3" />
     <PackageVersion Include="Aspire.Hosting.DevTunnels" Version="13.2.3" />
@@ -19,6 +22,7 @@
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.2.3" />
     <PackageVersion Include="Aspire.Hosting.Testing" Version="13.2.3" />
     <PackageVersion Include="Aspire.StackExchange.Redis.DistributedCaching" Version="13.2.3" />
+    <PackageVersion Include="Microsoft.Azure.StackExchangeRedis" Version="3.3.1" />
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
     <PackageVersion Include="Azure.Messaging.ServiceBus" Version="7.20.1" />
     <PackageVersion Include="Azure.Storage.Blobs" Version="12.27.0" />
