@@ -1,6 +1,6 @@
 # Writing Convention Tests
 
-Built on [Best.Conventional](https://github.com/andrewabest/Conventional), in `src/StarterApp.Tests/Conventions/`.
+Built on [Best.Conventional](https://github.com/andrewabest/Conventional), in `tests/StarterApp.Tests/Conventions/`.
 
 ## Use built-ins where one fits
 

@@ -132,7 +132,7 @@ public class EventContractSnapshotTests
 
     private static string SnapshotDirectory()
     {
-        var snapshots = Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.Tests", "Contracts", "snapshots");
+        var snapshots = Path.Combine(TestPaths.RepoRoot, "tests", "StarterApp.Tests", "Contracts", "snapshots");
         Directory.CreateDirectory(snapshots);
         return snapshots;
     }

@@ -13,7 +13,7 @@ a verdict.
 1. Open the cited file/symbol and read the surrounding code. Do not trust the finding's summary —
    confirm it against the real lines.
 2. Check whether the concern is already handled elsewhere: a convention test in
-   `src/StarterApp.Tests/Conventions/`, a domain guard, a validator, a mediator pipeline behavior
+   `tests/StarterApp.Tests/Conventions/`, a domain guard, a validator, a mediator pipeline behavior
    (caching, owner-authorization, feature-toggle), gateway-identity metadata, or an existing test.
    This repo encodes many invariants as convention tests — a "missing check" the reviewer flagged
    may be mechanically enforced already.

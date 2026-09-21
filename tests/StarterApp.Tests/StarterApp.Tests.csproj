@@ -37,11 +37,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\StarterApp.Api\StarterApp.Api.csproj" />
-    <ProjectReference Include="..\StarterApp.DbMigrator\StarterApp.DbMigrator.csproj" />
-    <ProjectReference Include="..\StarterApp.Domain\StarterApp.Domain.csproj" />
-    <ProjectReference Include="..\StarterApp.Functions\StarterApp.Functions.csproj" />
-    <ProjectReference Include="..\StarterApp.ServiceDefaults\StarterApp.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\src\StarterApp.Api\StarterApp.Api.csproj" />
+    <ProjectReference Include="..\..\src\StarterApp.DbMigrator\StarterApp.DbMigrator.csproj" />
+    <ProjectReference Include="..\..\src\StarterApp.Domain\StarterApp.Domain.csproj" />
+    <ProjectReference Include="..\..\src\StarterApp.Functions\StarterApp.Functions.csproj" />
+    <ProjectReference Include="..\..\src\StarterApp.ServiceDefaults\StarterApp.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>
