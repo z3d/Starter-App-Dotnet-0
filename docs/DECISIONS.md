@@ -235,7 +235,9 @@ registers (`TryAddSingleton`, so the API's `AddPersistence` and ServiceDefaults'
 used by Functions — share it), where Npgsql's periodic password provider refreshes the token every 45 minutes.
 The migrator cannot hand DbUp a provider, so it resolves the token once up front
 (`ResolveForDirectUseAsync`) and finishes well inside the token's lifetime. A raw `new NpgsqlConnection(...)`
-in production code is a build error (`BannedSymbols.txt`), because it cannot carry the token.
+or `UseNpgsql(string)` in production code is a build error (`BannedSymbols.txt`), because neither can
+carry the token (taken from Gumnut, 2026-09-22, which found the `UseNpgsql` hole when its module contexts
+were still built from the string).
 
 **What this replaced:** the API alone used the data source; the job-run recorder, the outbox replayer and
 DbUp opened raw connections and would have failed the moment the string had no password. The migrator's
@@ -305,4 +307,5 @@ Recorded so future sessions do not re-propose them.
 - **Client-IP extraction chains in middleware.** The API runs behind a trusted edge; the edge owns client network identity.
 - **List-query caching.** No pattern-based invalidation in `IDistributedCache`; revisit only with a versioned-namespace design (see the caching decision above).
 - **TypeScript client codegen.** Marginal for an API-only template; the OpenAPI output already serves contract consumers.
+- **A multi-issuer bearer path (`Authentication:Issuers[]`, a policy scheme forwarding on the token's unverified `iss`, per-issuer claim-name mapping).** Gumnut carries this shape (`BearerSchemes`, `ConfigureBearerSchemes`, `IdentityClaims` in ServiceDefaults) because one API there accepts staff, parent and Auth0 realms. Looked at on 2026-09-22 and left there: the template has one authority (`Identity:Authority`, with `Identity:MetadataAddress` for a discovery document that lives elsewhere), and every derived repo but Gumnut follows it. Re-add trigger: one API must accept tokens from a second issuer — take Gumnut's shape whole rather than registering a second `AddJwtBearer`. Left in Gumnut for the same reason (org- or product-specific, no caller here): `ResourceNaming` (every Azure resource named after its resource group), the landing-zone private endpoints, backups and standby parameters, the Docker Compose publish target, and the `SqlLike` / Dapper `DateOnly` handlers.
 - **A request-row audit `action` stamp.** Captured before routing, the verb-derived value was wrong on exactly the override routes and duplicated `method`; the response row is the authoritative carrier (complexity review, 2026-06-12).
