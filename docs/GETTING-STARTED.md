@@ -50,15 +50,18 @@ dotnet run --project src/StarterApp.Api
 
 Standalone runs fall back to the connection strings in `appsettings.Development.json` (copy the
 tracked `.example` file; the real file is git-ignored). You must run migrations yourself first and
-supply a PostgreSQL, Redis, and OIDC authority the API can reach. Service Bus is optional in
+supply a PostgreSQL, Redis, and OIDC authority the API can reach. `scripts/dev/keycloak.sh` starts
+(or reuses) the same dev Keycloak the AppHost runs, on `:8090` with the committed realm imported;
+point `Identity:Authority` at `http://localhost:8090/realms/starterapp` with
+`Identity:RequireHttpsMetadata=false`, and `scripts/dev/keycloak.sh stop` removes it. Service Bus is optional in
 Development: with no `ConnectionStrings:servicebus` the publisher is a no-op. Outside
 Development and Testing a missing Service Bus connection string fails start-up on purpose.
 
 A `ConnectionStrings:database` that names a `Username` but no `Password` makes the API connect
 to Azure Database for PostgreSQL as its hosting identity: `DatabaseAuthentication` fetches an
 Entra token through `DefaultAzureCredential` and Npgsql presents it as the password, refreshing
-it before expiry. The start-up log names the mode it chose. The migrator does not do this; hand
-it a token as the password from the deployment step that runs it.
+it before expiry. The start-up log names the mode it chose. The migrator resolves the same token
+once up front (`DatabaseAuthentication.ResolveForDirectUseAsync`) and finishes inside its lifetime.
 
 ## Migrations
 

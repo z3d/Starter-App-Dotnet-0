@@ -1,5 +1,6 @@
-# Shared helpers for booting the dev Keycloak IdP in throwaway-stack scripts
-# (tests/k6/run-perf.sh, dast/run-dast.sh) and minting access tokens from it.
+# Shared helpers for the dev Keycloak IdP: booting it in throwaway-stack scripts
+# (tests/k6/run-perf.sh, dast/run-dast.sh), running it beside a standalone API
+# (scripts/dev/keycloak.sh), and minting access tokens from it.
 #
 # The realm is the same committed file the Aspire AppHost imports
 # (src/StarterApp.AppHost/Realms/starterapp-realm.json), so scripted stacks and
@@ -28,16 +29,21 @@ idp_start() {
     -v "${repo_root}/src/StarterApp.AppHost/Realms:/opt/keycloak/data/import:ro" \
     -p "${port}:8080" \
     "$DEV_IDP_IMAGE" start-dev --import-realm >/dev/null
+  idp_wait "http://localhost:${port}"
+}
 
-  local ready=0
+# idp_wait <idp-base-url>
+# Waits up to two minutes for the realm endpoint to answer.
+idp_wait() {
+  local base_url="$1" ready=0
   for _ in $(seq 1 60); do
-    if curl -fsS "http://localhost:${port}/realms/${DEV_IDP_REALM}" >/dev/null 2>&1; then
+    if curl -fsS "${base_url}/realms/${DEV_IDP_REALM}" >/dev/null 2>&1; then
       ready=1
       break
     fi
     sleep 2
   done
-  [[ "$ready" == "1" ]] || return 1
+  [[ "$ready" == "1" ]]
 }
 
 # idp_json_string_field <field>
