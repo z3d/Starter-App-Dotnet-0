@@ -29,6 +29,9 @@ SMOKE_BASE_URL=https://staging.example.com ./scripts/smoke-test.sh
 
 DEV_TUNNEL_ACK_DEV_IDP=true \
   dotnet run --project src/StarterApp.AppHost -- --devtunnel
+
+scripts/dev/keycloak.sh                               # the dev Keycloak on :8090 beside a standalone API
+scripts/dev/keycloak.sh stop
 ```
 
 The dev-tunnel acknowledgment is a real gate, not ceremony: the tunneled API accepts tokens minted by the local dev Keycloak, whose realm ships well-known development credentials — anyone who can reach the tunnel can mint a valid token. AppHost refuses to start the tunnel without the acknowledgment.
