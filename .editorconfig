@@ -40,6 +40,8 @@ dotnet_diagnostic.IDE0060.severity = error
 # Raw `new NpgsqlConnection(...)`: production code takes connections from the one
 # NpgsqlDataSource DatabaseAuthentication builds, so a password-less connection string (the
 # hosting identity's Entra token) works everywhere; tests own their own fixtures' connections.
+# `UseNpgsql(string)` is banned for the same reason: a DbContext built from the raw string bypasses
+# DatabaseAuthentication too.
 dotnet_diagnostic.RS0030.severity = error
 
 # Global using preferences
