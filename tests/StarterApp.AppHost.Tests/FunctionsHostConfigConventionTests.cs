@@ -1,9 +1,10 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace StarterApp.AppHost.Tests;
 
-public class FunctionsHostConfigConventionTests
+public partial class FunctionsHostConfigConventionTests
 {
     [Fact]
     public void HandlerRetryDeadline_MustFitInsideLockRenewal_WithoutUnsupportedHostPolicy()
@@ -51,4 +52,41 @@ public class FunctionsHostConfigConventionTests
             "Trigger %setting% expressions must use ':' configuration keys, not '__' env-var names:\n" +
             string.Join("\n", offenders));
     }
+
+    // A %Section:Key% timer schedule with no value fails that function's indexing on the real host
+    // (see above), so every schedule setting carries a default wherever the worker runs: baked into
+    // the image, in local.settings.json for the Core Tools, and set by the AppHost on the container.
+    [Fact]
+    public void EveryTimerSchedule_IsASettingWithADefaultEverywhereTheWorkerRuns()
+    {
+        var functionsDirectory = Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.Functions");
+        var settings = Directory.EnumerateFiles(functionsDirectory, "*.cs", SearchOption.AllDirectories)
+            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .SelectMany(file => TimerSettingRegex().Matches(File.ReadAllText(file)).Select(match => match.Groups[1].Value))
+            .Distinct()
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        Assert.NotEmpty(settings);
+
+        var dockerfile = File.ReadAllText(Path.Combine(functionsDirectory, "Dockerfile"));
+        var localSettings = File.ReadAllText(Path.Combine(functionsDirectory, "local.settings.json"));
+        var appHost = File.ReadAllText(Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.AppHost", "Program.cs"));
+
+        var failures = new List<string>();
+        foreach (var setting in settings)
+        {
+            var variable = setting.Replace(':', '_').Replace("_", "__", StringComparison.Ordinal);
+            if (!dockerfile.Contains($"ENV {variable}=", StringComparison.Ordinal))
+                failures.Add($"{setting}: the Functions image bakes no default (ENV {variable}=...)");
+            if (!localSettings.Contains($"\"{variable}\"", StringComparison.Ordinal))
+                failures.Add($"{setting}: local.settings.json does not set {variable}");
+            if (!appHost.Contains($"\"{variable}\"", StringComparison.Ordinal))
+                failures.Add($"{setting}: the AppHost does not set {variable} on the functions container");
+        }
+
+        Assert.True(failures.Count == 0, string.Join("\n", failures));
+    }
+
+    [GeneratedRegex("""TimerTrigger\("%([^%"]+)%"\)""")]
+    private static partial Regex TimerSettingRegex();
 }
