@@ -420,16 +420,10 @@ public class PersistenceConventionTests : ConventionTestBase
 
     private static string? ResolveScriptsDirectory()
     {
-        var scriptsDir = Path.Combine(
-            Path.GetDirectoryName(typeof(ApplicationDbContext).Assembly.Location)!,
-            "..", "..", "..", "..", "StarterApp.DbMigrator", "Scripts");
-
-        if (!Directory.Exists(scriptsDir))
-        {
-            scriptsDir = Path.GetFullPath(Path.Combine(
-                Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!,
-                "..", "..", "..", "..", "..", "StarterApp.DbMigrator", "Scripts"));
-        }
+        // Anchored on the repo root rather than a count of parent-directory hops from an assembly
+        // location: moving a project used to change that count and turn every scan below into a
+        // silent no-op.
+        var scriptsDir = Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.DbMigrator", "Scripts");
 
         return Directory.Exists(scriptsDir) ? scriptsDir : null;
     }

@@ -88,10 +88,10 @@ scope and `mfa` in the `amr` claim, which the dev realm stamps.
 ```bash
 dotnet test                                                                # everything; needs Docker
 dotnet test --filter "FullyQualifiedName!~Integration"                  # unit + convention + fuzz; its DB-backed handler tests still need Docker
-STARTERAPP_ASPIRE_TESTS=true dotnet test src/StarterApp.AppHost.Tests  # Aspire end-to-end
+STARTERAPP_ASPIRE_TESTS=true dotnet test tests/StarterApp.AppHost.Tests  # Aspire end-to-end
 ```
 
-Aspire end-to-end tests live in `src/StarterApp.AppHost.Tests` and boot the full distributed app
+Aspire end-to-end tests live in `tests/StarterApp.AppHost.Tests` and boot the full distributed app
 once per collection. They are `[AspireFact]`s: skipped, and reported as skipped, unless
 `STARTERAPP_ASPIRE_TESTS=true` is set. Which project a new test belongs in is covered by
 `.claude/skills/testing-strategy/SKILL.md`.

@@ -128,7 +128,7 @@ public class HousekeepingConventionTests : ConventionTestBase
     [Fact]
     public void ConventionTestFiles_MustUseGlobalUsings()
     {
-        var conventionRoot = Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.Tests", "Conventions");
+        var conventionRoot = Path.Combine(TestPaths.RepoRoot, "tests", "StarterApp.Tests", "Conventions");
         var failures = new List<string>();
 
         foreach (var file in Directory.EnumerateFiles(conventionRoot, "*.cs", SearchOption.AllDirectories)
@@ -139,7 +139,7 @@ public class HousekeepingConventionTests : ConventionTestBase
             {
                 lineNumber++;
                 if (IsUsingDirective(line))
-                    failures.Add($"{FormatPath(file)}:{lineNumber} move this using directive to src/StarterApp.Tests/GlobalUsings.cs.");
+                    failures.Add($"{FormatPath(file)}:{lineNumber} move this using directive to tests/StarterApp.Tests/GlobalUsings.cs.");
             }
         }
 
@@ -183,10 +183,11 @@ public class HousekeepingConventionTests : ConventionTestBase
         Assert.Equal(expectedVersion, actualVersion);
     }
 
+    // Every project in the repository, not just src/: the two test projects live under tests/
+    // and still carry GlobalUsings.cs files this rule must cover.
     private static IEnumerable<string> EnumerateProjectDirectories()
     {
-        var srcRoot = Path.Combine(TestPaths.RepoRoot, "src");
-        foreach (var projectFile in Directory.EnumerateFiles(srcRoot, "*.csproj", SearchOption.AllDirectories)
+        foreach (var projectFile in Directory.EnumerateFiles(TestPaths.RepoRoot, "*.csproj", SearchOption.AllDirectories)
                      .Where(file => !IsInIgnoredDirectory(file)))
         {
             var projectDirectory = Path.GetDirectoryName(projectFile);
@@ -202,9 +203,8 @@ public class HousekeepingConventionTests : ConventionTestBase
         // the next four bytes and can hide a genuine call from a negative assertion, so the test
         // passes having checked nothing. IlInstructionWalker.Walk is the only sanctioned scan
         // (testing-strategy skill: "never hand-roll a raw IL byte loop").
-        var testSources = Directory.EnumerateFiles(Path.Combine(TestPaths.RepoRoot, "src"), "*.cs", SearchOption.AllDirectories)
+        var testSources = Directory.EnumerateFiles(Path.Combine(TestPaths.RepoRoot, "tests"), "*.cs", SearchOption.AllDirectories)
             .Where(file => !IsInIgnoredDirectory(file))
-            .Where(file => file.Contains(".Tests" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
             .Where(file => !file.EndsWith("IlInstructionWalker.cs", StringComparison.Ordinal))
             .Where(file => File.ReadAllText(file).Contains("GetILAsByteArray", StringComparison.Ordinal))
             .ToList();
@@ -232,9 +232,9 @@ public class HousekeepingConventionTests : ConventionTestBase
 
     private static IEnumerable<string> EnumerateProductionSourceFiles()
     {
+        // src/ holds only shipping code since the test projects moved to tests/.
         return Directory.EnumerateFiles(Path.Combine(TestPaths.RepoRoot, "src"), "*.cs", SearchOption.AllDirectories)
-            .Where(file => !IsInIgnoredDirectory(file))
-            .Where(file => !file.Contains(".Tests" + Path.DirectorySeparatorChar, StringComparison.Ordinal));
+            .Where(file => !IsInIgnoredDirectory(file));
     }
 
     private static IEnumerable<string> ReadGlobalUsingNamespaces(string globalUsingsPath)

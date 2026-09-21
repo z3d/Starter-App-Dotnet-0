@@ -132,7 +132,7 @@ That is an intentional scope decision, not an oversight:
   application/handler surface behind real authentication.
 - The signed-assertion / `Required`-mode path — assertion forgery, signature
   validation, expiry, wrong-audience/path/key rejection — is covered statically by
-  `JwtIdentityIntegrationTests` (`src/StarterApp.Tests/Integration/JwtIdentityIntegrationTests.cs`),
+  `JwtIdentityIntegrationTests` (`tests/StarterApp.Tests/Integration/JwtIdentityIntegrationTests.cs`),
   not by this dynamic scan.
 
 Consequence: the production transport posture (HSTS, signed-assertion enforcement)

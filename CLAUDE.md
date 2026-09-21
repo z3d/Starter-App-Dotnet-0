@@ -2,7 +2,7 @@
 
 Aspire-orchestrated Clean Architecture / CQRS / DDD solution over PostgreSQL, with Azure Functions consuming domain events off a Service Bus topic.
 
-This codebase is maintained by AI agents, so it favours **mechanical rules over architectural taste**. The convention tests in `src/StarterApp.Tests/Conventions/` are the authority on structure — read them rather than a prose summary of them. Everything below is the part they *can't* enforce.
+This codebase is maintained by AI agents, so it favours **mechanical rules over architectural taste**. The convention tests in `tests/StarterApp.Tests/Conventions/` are the authority on structure — read them rather than a prose summary of them. Everything below is the part they *can't* enforce.
 
 ## Commands
 
@@ -11,7 +11,7 @@ dotnet format
 dotnet build
 dotnet test
 dotnet test --filter "FullyQualifiedName!~Integration"                  # fast: unit + convention + fuzz (its DB-backed handler tests need Docker)
-STARTERAPP_ASPIRE_TESTS=true dotnet test src/StarterApp.AppHost.Tests  # Aspire end-to-end; skipped unless opted in
+STARTERAPP_ASPIRE_TESTS=true dotnet test tests/StarterApp.AppHost.Tests  # Aspire end-to-end; skipped unless opted in
 dotnet restore                                                            # locked mode is the default
 dotnet restore --force-evaluate                                           # only after an intentional dependency change
 dotnet run --project src/StarterApp.AppHost
@@ -95,7 +95,7 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 
 | Task | Source of truth |
 |---|---|
-| Structural rules of any kind | `src/StarterApp.Tests/Conventions/` |
+| Structural rules of any kind | `tests/StarterApp.Tests/Conventions/` |
 | Command/query handlers | `.claude/skills/cqrs-patterns/SKILL.md`, pinned exemplars in `docs/exemplars/` |
 | Domain models, value objects | `.claude/skills/ddd-implementation/SKILL.md` |
 | EF Core config, migrations, Aspire wiring | `.claude/skills/data-access/SKILL.md` |

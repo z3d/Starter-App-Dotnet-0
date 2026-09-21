@@ -18,7 +18,7 @@ Architectural convention tests using [Best.Conventional](https://github.com/andr
 | `PersistenceConventionTests.cs` | Entity registration, value-object mapping, enum string conversions, DbContext state, collection setters, migration script safety and embedding |
 | `TypeExtensions.cs` | Open-generic type discovery helper from the Conventional.Samples pattern |
 
-AppHost-specific conventions live in `src/StarterApp.AppHost.Tests`:
+AppHost-specific conventions live in `tests/StarterApp.AppHost.Tests`:
 
 | File | Purpose |
 |------|---------|
@@ -62,7 +62,7 @@ AppHost-specific conventions live in `src/StarterApp.AppHost.Tests`:
 - Project files do not reference build-output artifacts from `bin`/`obj`
 - Production app code does not use regions, XML documentation comments, or historical workaround comments
 - Source files do not repeat namespaces already imported by their project `GlobalUsings.cs`
-- Convention tests add shared imports to `src/StarterApp.Tests/GlobalUsings.cs`, not per-file using directives
+- Convention tests add shared imports to `tests/StarterApp.Tests/GlobalUsings.cs`, not per-file using directives
 
 ## Adding a New Convention
 
@@ -88,6 +88,6 @@ public void MyTypes_MustFollowRule()
 ## Running
 
 ```bash
-dotnet test src/StarterApp.Tests/StarterApp.Tests.csproj --filter "FullyQualifiedName~Convention"
-dotnet test src/StarterApp.AppHost.Tests/StarterApp.AppHost.Tests.csproj --filter "FullyQualifiedName~Convention"
+dotnet test tests/StarterApp.Tests/StarterApp.Tests.csproj --filter "FullyQualifiedName~Convention"
+dotnet test tests/StarterApp.AppHost.Tests/StarterApp.AppHost.Tests.csproj --filter "FullyQualifiedName~Convention"
 ```

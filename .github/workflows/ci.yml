@@ -78,7 +78,7 @@ jobs:
     - name: Aspire tests
       env:
         STARTERAPP_ASPIRE_TESTS: "true"
-      run: dotnet test src/StarterApp.AppHost.Tests --no-build --configuration Release --verbosity normal
+      run: dotnet test tests/StarterApp.AppHost.Tests --no-build --configuration Release --verbosity normal
 
   docker-build:
     runs-on: ubuntu-latest

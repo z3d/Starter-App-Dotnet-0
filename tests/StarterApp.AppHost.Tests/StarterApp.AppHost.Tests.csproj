@@ -30,10 +30,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\StarterApp.AppHost\StarterApp.AppHost.csproj" />
-    <ProjectReference Include="..\StarterApp.Domain\StarterApp.Domain.csproj" />
-    <ProjectReference Include="..\StarterApp.Functions\StarterApp.Functions.csproj" />
-    <ProjectReference Include="..\StarterApp.ServiceDefaults\StarterApp.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\src\StarterApp.AppHost\StarterApp.AppHost.csproj" />
+    <ProjectReference Include="..\..\src\StarterApp.Domain\StarterApp.Domain.csproj" />
+    <ProjectReference Include="..\..\src\StarterApp.Functions\StarterApp.Functions.csproj" />
+    <ProjectReference Include="..\..\src\StarterApp.ServiceDefaults\StarterApp.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>

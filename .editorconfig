@@ -93,7 +93,7 @@ dotnet_diagnostic.CA2213.severity = none
 # The TimerTrigger binding requires the TimerInfo parameter even when the body has no use for it.
 dotnet_diagnostic.IDE0060.severity = none
 
-[src/StarterApp.Tests/*.cs]
+[tests/StarterApp.Tests/*.cs]
 dotnet_diagnostic.RS0030.severity = none
 
 [src/StarterApp.Api/Program.cs]
@@ -108,7 +108,7 @@ dotnet_diagnostic.RS0030.severity = none
 # CA1034 reads a C# 14 extension block as a nested type; there is no nested type to un-nest.
 dotnet_diagnostic.CA1034.severity = none
 
-[src/StarterApp.Tests/**/*.cs]
+[tests/StarterApp.Tests/**/*.cs]
 dotnet_diagnostic.RS0030.severity = none
 # Tests intentionally use BDD-style underscore names, fixture/helper types discovered by
 # reflection, and disposable lifetimes owned by xUnit/Testcontainers harnesses.
@@ -124,7 +124,7 @@ dotnet_diagnostic.CA1869.severity = none
 dotnet_diagnostic.CA2000.severity = none
 dotnet_diagnostic.CA2234.severity = none
 
-[src/StarterApp.AppHost.Tests/**/*.cs]
+[tests/StarterApp.AppHost.Tests/**/*.cs]
 dotnet_diagnostic.RS0030.severity = none
 # AppHost tests follow the same naming/reflection/resource-lifetime conventions as the
 # main test project.
@@ -134,7 +134,7 @@ dotnet_diagnostic.CA1869.severity = none
 dotnet_diagnostic.CA2000.severity = none
 dotnet_diagnostic.CA2234.severity = none
 
-[src/StarterApp.AppHost.Tests/*.cs]
+[tests/StarterApp.AppHost.Tests/*.cs]
 dotnet_diagnostic.RS0030.severity = none
 # Root-level AppHost test files use the same conventions as nested test files.
 dotnet_diagnostic.CA1307.severity = none

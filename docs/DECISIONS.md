@@ -21,7 +21,7 @@ Intentional failure signals use dedicated types keyed in `ResolveExceptionStatus
 
 There is deliberately no separate `IIntegrationEvent`/`ExternalEvent` type and no in-process domain-event dispatcher. The single `IDomainEvent` an aggregate raises is the same object serialized into the outbox, published to the `domain-events` topic, consumed by the Functions subscribers, and archived full-fidelity (so it may contain PII).
 
-The usual reason to split the two — keeping an internal model from leaking into a contract consumers depend on — is handled mechanically instead: each event exposes a stable versioned `EventType` via a `const Contract` (e.g. `order.created.v1`), `OutboxMessage.Create` persists that contract rather than the CLR type name, and `EventContractSnapshotTests` renders every event through the real create path and byte-compares against fixtures in `src/StarterApp.Tests/Contracts/snapshots/`. A property rename, removal, or reorder under the same contract id fails the build with a pinned-vs-actual diff, so a class rename cannot silently break a subscriber.
+The usual reason to split the two — keeping an internal model from leaking into a contract consumers depend on — is handled mechanically instead: each event exposes a stable versioned `EventType` via a `const Contract` (e.g. `order.created.v1`), `OutboxMessage.Create` persists that contract rather than the CLR type name, and `EventContractSnapshotTests` renders every event through the real create path and byte-compares against fixtures in `tests/StarterApp.Tests/Contracts/snapshots/`. A property rename, removal, or reorder under the same contract id fails the build with a pinned-vs-actual diff, so a class rename cannot silently break a subscriber.
 
 The assumption this bakes in: **every domain event is a public, archived contract.** Any property added to one is also a wire-contract and a data-retention decision.
 
@@ -191,7 +191,7 @@ convention's type-name pin.
 
 ## The consistency suite is advisory and human-read
 
-`src/StarterApp.Tests/Consistency/` scores command handlers, query handlers and EF configurations
+`tests/StarterApp.Tests/Consistency/` scores command handlers, query handlers and EF configurations
 against pinned exemplars (z-scored Mahalanobis distance with Ledoit-Wolf shrinkage, plus a
 per-feature divergence list) and writes the result to `docs/_local/consistency-*.txt` on every
 test run. Design rationale: <https://z3d.github.io/blog/consistency-checks/>. Its consumer is a
