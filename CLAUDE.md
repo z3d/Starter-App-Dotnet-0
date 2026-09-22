@@ -114,6 +114,6 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Read-only support SQL | `scripts/reporting/` |
 | Reviewer subagents and the branch-review workflow | `.claude/agents/`, `.claude/workflows/architect-review.js` |
 
-A `PreToolUse` hook (`.claude/hooks/protect-commands.sh`) denies catastrophic wipes and prompts on recoverable-but-destructive commands; `permissions.deny` in `.claude/settings.json` blocks reading `.env*`, `appsettings.Development.json`, `secrets/**`, and key material. Both fail open, so neither is a substitute for care.
+Two `PreToolUse` hooks enforce what an instruction can only ask for: `.claude/hooks/protect-commands.sh` denies catastrophic wipes and prompts on recoverable-but-destructive commands, and `.claude/hooks/guard-edits.sh` refuses a `Version=` on a `PackageReference`, a hand-edited lock file and any write to a secrets file; `permissions.deny` in `.claude/settings.json` blocks reading `.env*`, `appsettings.Development.json`, `secrets/**`, and key material. All fail open, so none is a substitute for care.
 
 `AGENTS.md` is a pointer to this file, so other agent harnesses read the same instructions. There is no mirror to keep in step; edit this file and `.claude/skills/` only.
