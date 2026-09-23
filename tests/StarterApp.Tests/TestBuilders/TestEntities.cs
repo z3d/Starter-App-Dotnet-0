@@ -7,10 +7,10 @@ namespace StarterApp.Tests.TestBuilders;
 internal static class TestEntities
 {
     public static Order Order(int customerId) =>
-        new(customerId, OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId);
+        new(customerId, OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId, DateTimeOffset.UtcNow);
 
     public static Order Order(Guid id, int customerId) =>
-        new(id, customerId, OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId);
+        new(id, customerId, OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId, DateTimeOffset.UtcNow);
 
     public static Customer Customer(string name, Email email) =>
         new(name, email, OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId);

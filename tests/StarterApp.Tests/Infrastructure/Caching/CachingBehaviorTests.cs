@@ -22,7 +22,7 @@ public class CachingBehaviorTests
         _behavior = new CachingBehavior<TestQuery, string>(
             _cacheMock.Object,
             CurrentUser.Anonymous,
-            new LoggerFactory().CreateLogger<CachingBehavior<TestQuery, string>>());
+            new LoggerFactory().CreateLogger<CachingBehavior<TestQuery, string>>(), TimeProvider.System);
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public class CachingBehaviorTests
         var behavior = new CachingBehavior<NonCacheableQuery, string>(
             _cacheMock.Object,
             CurrentUser.Anonymous,
-            new LoggerFactory().CreateLogger<CachingBehavior<NonCacheableQuery, string>>());
+            new LoggerFactory().CreateLogger<CachingBehavior<NonCacheableQuery, string>>(), TimeProvider.System);
 
         var result = await behavior.HandleAsync(nonCacheableRequest, () =>
         {
@@ -116,7 +116,7 @@ public class CachingBehaviorTests
         var behavior = new CachingBehavior<NullableTestQuery, string?>(
             _cacheMock.Object,
             CurrentUser.Anonymous,
-            new LoggerFactory().CreateLogger<CachingBehavior<NullableTestQuery, string?>>());
+            new LoggerFactory().CreateLogger<CachingBehavior<NullableTestQuery, string?>>(), TimeProvider.System);
 
         var result = await behavior.HandleAsync(request, () => Task.FromResult<string?>(null), CancellationToken.None);
 
@@ -133,7 +133,7 @@ public class CachingBehaviorTests
         var behavior = new CachingBehavior<OwnerScopedTestQuery, string>(
             _cacheMock.Object,
             CurrentUser.Anonymous,
-            new LoggerFactory().CreateLogger<CachingBehavior<OwnerScopedTestQuery, string>>());
+            new LoggerFactory().CreateLogger<CachingBehavior<OwnerScopedTestQuery, string>>(), TimeProvider.System);
 
         var result = await behavior.HandleAsync(new OwnerScopedTestQuery { Id = 42 }, () => Task.FromResult("from handler"), CancellationToken.None);
 
@@ -153,7 +153,7 @@ public class CachingBehaviorTests
         var behavior = new CachingBehavior<OwnerScopedTestQuery, string>(
             _cacheMock.Object,
             currentUser,
-            new LoggerFactory().CreateLogger<CachingBehavior<OwnerScopedTestQuery, string>>());
+            new LoggerFactory().CreateLogger<CachingBehavior<OwnerScopedTestQuery, string>>(), TimeProvider.System);
         var request = new OwnerScopedTestQuery { Id = 42 };
         _cacheMock.Setup(c => c.GetAsync(
                 It.Is<string>(key => key.StartsWith("Test:42:Owner:", StringComparison.Ordinal)),

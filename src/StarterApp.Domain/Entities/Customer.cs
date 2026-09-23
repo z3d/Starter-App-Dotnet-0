@@ -16,8 +16,6 @@ public class Customer
     protected Customer()
     {
         Name = string.Empty;
-        DateCreated = DateTimeOffset.UtcNow;
-        LastUpdated = DateCreated;
         IsActive = true;
     }
 
@@ -33,8 +31,6 @@ public class Customer
         Email = email;
         OwnerSubject = ownerSubject;
         TenantId = tenantId;
-        DateCreated = DateTimeOffset.UtcNow;
-        LastUpdated = DateCreated;
         IsActive = true;
     }
 
@@ -47,19 +43,16 @@ public class Customer
 
         Name = name;
         Email = email;
-        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     public void Activate()
     {
         IsActive = true;
-        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     public void Deactivate()
     {
         IsActive = false;
-        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     private static void ValidateName(string name)

@@ -23,9 +23,11 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
     private readonly ICacheInvalidator _cacheInvalidator;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
     private readonly ILogger<CreateOrderCommandHandler> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public CreateOrderCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<CreateOrderCommandHandler> logger)
+    public CreateOrderCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<CreateOrderCommandHandler> logger, TimeProvider timeProvider)
     {
+        _timeProvider = timeProvider;
         _dbContext = dbContext;
         _cacheInvalidator = cacheInvalidator;
         _ownerOnlyPolicy = ownerOnlyPolicy;
@@ -77,7 +79,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
             try
             {
-                var order = new Order(orderId, command.CustomerId, ownerScope.OwnerSubject, ownerScope.TenantId);
+                var order = new Order(orderId, command.CustomerId, ownerScope.OwnerSubject, ownerScope.TenantId, _timeProvider.GetUtcNow());
                 foreach (var itemCommand in command.Items)
                 {
                     var product = await ReserveStockAsync(itemCommand, ownerScope, ct);
@@ -151,7 +153,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(p => p.Stock, p => p.Stock - itemCommand.Quantity)
-                    .SetProperty(p => p.LastUpdated, _ => DateTimeOffset.UtcNow),
+                    .SetProperty(p => p.LastUpdated, _ => _timeProvider.GetUtcNow()),
                 cancellationToken);
 
         if (updatedRows == 0)

@@ -113,7 +113,7 @@ public class OutboxClaimConcurrencyIntegrationTests : IAsyncLifetime
             Mock.Of<IPayloadCaptureSink>(),
             options,
             new NullJobRunRecorder(),
-            new LoggerFactory().CreateLogger<OutboxProcessor>());
+            new LoggerFactory().CreateLogger<OutboxProcessor>(), TimeProvider.System);
     }
 
     private sealed record ClaimTestEvent(DateTimeOffset OccurredOnUtc) : IDomainEvent

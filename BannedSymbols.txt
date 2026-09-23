@@ -4,3 +4,8 @@ M:Npgsql.NpgsqlConnection.#ctor(System.String);Take connections from the process
 M:Npgsql.NpgsqlConnection.#ctor;Take connections from the process NpgsqlDataSource (DatabaseAuthentication.CreateDataSource / AddDatabaseDataSource). A raw connection cannot carry the Entra token a password-less connection string stands for.
 M:Microsoft.EntityFrameworkCore.NpgsqlDbContextOptionsBuilderExtensions.UseNpgsql(Microsoft.EntityFrameworkCore.DbContextOptionsBuilder,System.String,System.Action{Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure.NpgsqlDbContextOptionsBuilder});Pass the process NpgsqlDataSource (provider.GetRequiredService<NpgsqlDataSource>()), not a connection string: a context built from the string bypasses DatabaseAuthentication and cannot carry the Entra token.
 M:Microsoft.EntityFrameworkCore.NpgsqlDbContextOptionsBuilderExtensions.UseNpgsql``1(Microsoft.EntityFrameworkCore.DbContextOptionsBuilder{``0},System.String,System.Action{Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure.NpgsqlDbContextOptionsBuilder});Pass the process NpgsqlDataSource (provider.GetRequiredService<NpgsqlDataSource>()), not a connection string: a context built from the string bypasses DatabaseAuthentication and cannot carry the Entra token.
+P:System.DateTimeOffset.UtcNow;Read the clock through TimeProvider so a test can set it. Aggregates never read it: DomainEventsInterceptor stamps audit columns and event times at save.
+P:System.DateTimeOffset.Now;Read the clock through TimeProvider so a test can set it.
+P:System.DateTime.UtcNow;Read the clock through TimeProvider so a test can set it.
+P:System.DateTime.Now;Read the clock through TimeProvider so a test can set it.
+P:System.DateTime.Today;Read the clock through TimeProvider so a test can set it.

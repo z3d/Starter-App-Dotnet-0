@@ -15,6 +15,7 @@ public class OutboxProcessor : BackgroundService
     private readonly IJobRunRecorder _jobRunRecorder;
     private readonly ILogger<OutboxProcessor> _logger;
     private readonly OutboxRunAggregator _runAggregator;
+    private readonly TimeProvider _timeProvider;
     private DateTimeOffset _lastCleanupUtc;
 
     public OutboxProcessor(
@@ -23,15 +24,17 @@ public class OutboxProcessor : BackgroundService
         IPayloadCaptureSink payloadCaptureSink,
         IOptions<OutboxProcessorOptions> options,
         IJobRunRecorder jobRunRecorder,
-        ILogger<OutboxProcessor> logger)
+        ILogger<OutboxProcessor> logger,
+        TimeProvider timeProvider)
     {
+        _timeProvider = timeProvider;
         _scopeFactory = scopeFactory;
         _sender = sender;
         _payloadCaptureSink = payloadCaptureSink;
         _options = options.Value;
         _jobRunRecorder = jobRunRecorder;
         _logger = logger;
-        _runAggregator = new OutboxRunAggregator(TimeSpan.FromMinutes(_options.HealthRowIntervalMinutes), DateTimeOffset.UtcNow);
+        _runAggregator = new OutboxRunAggregator(TimeSpan.FromMinutes(_options.HealthRowIntervalMinutes), _timeProvider.GetUtcNow());
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -45,15 +48,15 @@ public class OutboxProcessor : BackgroundService
             {
                 await ProcessBatchAsync(stoppingToken);
 
-                if (DateTimeOffset.UtcNow - _lastCleanupUtc >= TimeSpan.FromMinutes(_options.CleanupIntervalMinutes))
+                if (_timeProvider.GetUtcNow() - _lastCleanupUtc >= TimeSpan.FromMinutes(_options.CleanupIntervalMinutes))
                 {
                     _runAggregator.AddPurged(await CleanupExpiredMessagesAsync(stoppingToken));
-                    _lastCleanupUtc = DateTimeOffset.UtcNow;
+                    _lastCleanupUtc = _timeProvider.GetUtcNow();
                 }
 
                 // Periodic aggregate health row (never per message): one job_runs row per
                 // interval that saw activity, so support can query what the outbox did.
-                var healthWindow = _runAggregator.TryFlush(DateTimeOffset.UtcNow);
+                var healthWindow = _runAggregator.TryFlush(_timeProvider.GetUtcNow());
                 if (healthWindow is not null)
                 {
                     await _jobRunRecorder.RecordRunAsync(
@@ -82,7 +85,7 @@ public class OutboxProcessor : BackgroundService
     {
         using var scope = _scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var cutoffUtc = DateTimeOffset.UtcNow.AddDays(-_options.RetentionDays);
+        var cutoffUtc = _timeProvider.GetUtcNow().AddDays(-_options.RetentionDays);
 
         int deleted;
         if (dbContext.Database.IsRelational())
@@ -117,7 +120,7 @@ public class OutboxProcessor : BackgroundService
 
         var strategy = dbContext.Database.CreateExecutionStrategy();
         var processingId = Guid.CreateVersion7();
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         var lockedUntilUtc = now.AddSeconds(_options.LockDurationSeconds);
 
         // EnableRetryOnFailure's execution strategy rejects user-initiated transactions unless
@@ -167,7 +170,7 @@ public class OutboxProcessor : BackgroundService
 
                 await _sender.SendMessageAsync(serviceBusMessage, cancellationToken);
 
-                message.MarkAsProcessed(DateTimeOffset.UtcNow);
+                message.MarkAsProcessed(_timeProvider.GetUtcNow());
                 _runAggregator.AddPublished();
                 _logger.LogInformation("Published outbox message {MessageId} ({Type})", message.Id, message.Type);
             }
@@ -191,7 +194,7 @@ public class OutboxProcessor : BackgroundService
 
                 if (message.RetryCount >= _options.MaxRetries)
                 {
-                    message.MarkAsError(ex.Message, DateTimeOffset.UtcNow);
+                    message.MarkAsError(ex.Message, _timeProvider.GetUtcNow());
                     _runAggregator.AddErrored();
                     _logger.LogError(ex, "Outbox message {MessageId} ({Type}) permanently failed after {RetryCount} attempts",
                         message.Id, message.Type, message.RetryCount);

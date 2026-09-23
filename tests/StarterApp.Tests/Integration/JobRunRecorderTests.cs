@@ -17,7 +17,7 @@ public class JobRunRecorderTests : IAsyncLifetime
     public async Task DisposeAsync() => await Task.CompletedTask;
 
     private NpgsqlJobRunRecorder CreateRecorder(int retentionDays = 30) =>
-        new(NpgsqlDataSource.Create(_fixture.ConnectionString), retentionDays, new LoggerFactory().CreateLogger<NpgsqlJobRunRecorder>());
+        new(NpgsqlDataSource.Create(_fixture.ConnectionString), retentionDays, new LoggerFactory().CreateLogger<NpgsqlJobRunRecorder>(), TimeProvider.System);
 
     [Fact]
     public async Task StartAndComplete_PersistsTheFullRunRecord()
@@ -57,7 +57,7 @@ public class JobRunRecorderTests : IAsyncLifetime
         var broken = new NpgsqlJobRunRecorder(
             NpgsqlDataSource.Create("Host=localhost;Port=1;Database=nope;Username=x;Password=y;Timeout=1"),
             30,
-            new LoggerFactory().CreateLogger<NpgsqlJobRunRecorder>());
+            new LoggerFactory().CreateLogger<NpgsqlJobRunRecorder>(), TimeProvider.System);
 
         var runId = await broken.StartRunAsync("test-job", DateTimeOffset.UtcNow, CancellationToken.None);
 

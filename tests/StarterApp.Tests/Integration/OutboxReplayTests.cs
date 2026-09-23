@@ -114,7 +114,7 @@ public class OutboxReplayTests : IAsyncLifetime
         await using var scope = _fixture.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        var order = new Order(Guid.CreateVersion7(), 42, "replay-owner", "replay-tenant");
+        var order = new Order(Guid.CreateVersion7(), 42, "replay-owner", "replay-tenant", DateTimeOffset.UtcNow);
         order.AddItem(7, "Replay Product", 1, Money.Create(10m, "USD"));
         var message = OutboxMessage.Create(new OrderCreatedDomainEvent(order));
 

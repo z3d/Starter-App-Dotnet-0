@@ -37,7 +37,7 @@ public class CachePublicationRaceTests
                 }
                 entries[k] = value;
             });
-        var behavior = new CachingBehavior<ProductQuery, string>(cache.Object, user, NullLogger<CachingBehavior<ProductQuery, string>>.Instance);
+        var behavior = new CachingBehavior<ProductQuery, string>(cache.Object, user, NullLogger<CachingBehavior<ProductQuery, string>>.Instance, TimeProvider.System);
         var invalidator = new CacheInvalidator(cache.Object, user, NullLogger<CacheInvalidator>.Instance);
         var pendingRead = behavior.HandleAsync(query, () => Task.FromResult("database-old"), CancellationToken.None);
         await publicationStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
@@ -66,7 +66,7 @@ public class CachePublicationRaceTests
         cache.Setup(c => c.GetAsync(key, It.IsAny<CancellationToken>()))
             .ReturnsAsync(Envelope("expired", DateTimeOffset.UtcNow.AddMinutes(5), DateTimeOffset.UtcNow.AddSeconds(-1)));
         cache.Setup(c => c.GetAsync(CacheTombstone.KeyFor(key), It.IsAny<CancellationToken>())).ReturnsAsync((byte[]?)null);
-        var behavior = new CachingBehavior<ProductQuery, string>(cache.Object, user, NullLogger<CachingBehavior<ProductQuery, string>>.Instance);
+        var behavior = new CachingBehavior<ProductQuery, string>(cache.Object, user, NullLogger<CachingBehavior<ProductQuery, string>>.Instance, TimeProvider.System);
 
         var result = await behavior.HandleAsync(new ProductQuery(), () => Task.FromResult("fresh"), CancellationToken.None);
 

@@ -15,11 +15,11 @@ public class PersistenceConventionTests : ConventionTestBase
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase($"outbox-capture-{Guid.NewGuid()}")
-            .AddInterceptors(new DomainEventsInterceptor())
+            .AddInterceptors(new DomainEventsInterceptor(TimeProvider.System))
             .Options;
 
         await using var dbContext = new ApplicationDbContext(options);
-        var order = new Order(Guid.CreateVersion7(), 42, "capture-owner", "capture-tenant");
+        var order = new Order(Guid.CreateVersion7(), 42, "capture-owner", "capture-tenant", DateTimeOffset.UtcNow);
         order.AddItem(7, "Capture Product", 2, Money.Create(19.99m, "USD"));
         dbContext.Orders.Add(order);
 

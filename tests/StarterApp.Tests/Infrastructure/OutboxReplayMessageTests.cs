@@ -4,7 +4,7 @@ public class OutboxReplayMessageTests
 {
     private static OutboxMessage CreateMessage()
     {
-        var order = new Order(Guid.CreateVersion7(), 42, "replay-owner", "replay-tenant");
+        var order = new Order(Guid.CreateVersion7(), 42, "replay-owner", "replay-tenant", DateTimeOffset.UtcNow);
         order.AddItem(7, "Replay Product", 1, Money.Create(10m, "USD"));
         return OutboxMessage.Create(new OrderCreatedDomainEvent(order));
     }

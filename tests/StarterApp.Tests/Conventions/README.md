@@ -12,7 +12,7 @@ Architectural convention tests using [Best.Conventional](https://github.com/andr
 | `ConventionTestBase.cs` | Shared production assembly refs and compiler-generated type filtering |
 | `CqrsConventionTests.cs` | CQRS data-access separation, command/query handler wiring, validator coverage, marker/request interface pairing |
 | `DapperConventionTests.cs` | SQL literal inspection for `SELECT *` prevention and Dapper retry-policy usage |
-| `DomainConventionTests.cs` | Domain encapsulation, constructors, value-object equality, async safety, `DateTime` safety, aggregate creation-event rules |
+| `DomainConventionTests.cs` | Domain encapsulation, constructors, value-object equality, async safety, `DateTimeOffset` property types, aggregate creation-event rules |
 | `HousekeepingConventionTests.cs` | GlobalUsings reuse; no direct `bin`/`obj` project references; no regions/XML docs/historical workaround comments in production code |
 | `NamingConventionTests.cs` | Naming suffixes plus namespace locality for commands, queries, validators, handlers, DTOs, and read models |
 | `PersistenceConventionTests.cs` | Entity registration, value-object mapping, enum string conversions, DbContext state, collection setters, migration script safety and embedding |
@@ -59,7 +59,7 @@ AppHost-specific conventions live in `tests/StarterApp.AppHost.Tests`:
 
 **Safety and housekeeping**
 - Async methods end with `Async`; no `async void`
-- Production code does not call `DateTime.Now`, `DateTime.Today`, or `DateTime.UtcNow`
+- Production code never reads the clock; `BannedSymbols.txt` bans `DateTime`/`DateTimeOffset` `Now`, `UtcNow` and `Today` (RS0030) and `TimeProvider` is injected instead
 - Project files do not reference build-output artifacts from `bin`/`obj`
 - Production app code does not use regions, XML documentation comments, or historical workaround comments
 - Source files do not repeat namespaces already imported by their project `GlobalUsings.cs`

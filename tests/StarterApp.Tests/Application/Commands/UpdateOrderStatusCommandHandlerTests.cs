@@ -152,7 +152,7 @@ public class UpdateOrderStatusCommandHandlerTests : PostgresCommandHandlerTestBa
         context.Products.Add(product);
         await context.SaveChangesAsync();
 
-        var createHandler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<CreateOrderCommandHandler>.Instance);
+        var createHandler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<CreateOrderCommandHandler>.Instance, TimeProvider.System);
         var orderDto = await createHandler.HandleAsync(new CreateOrderCommand
         {
             CustomerId = customer.Id,

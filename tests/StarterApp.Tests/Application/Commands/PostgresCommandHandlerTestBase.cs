@@ -23,7 +23,7 @@ public abstract class PostgresCommandHandlerTestBase : IAsyncLifetime
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql(_fixture.ConnectionString)
-            .AddInterceptors(new DomainEventsInterceptor())
+            .AddInterceptors(new DomainEventsInterceptor(TimeProvider.System))
             .Options;
 
         return new ApplicationDbContext(options);

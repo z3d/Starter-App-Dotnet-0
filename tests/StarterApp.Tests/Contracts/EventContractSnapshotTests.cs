@@ -30,7 +30,7 @@ public class EventContractSnapshotTests
 
     private static Order CreateRepresentativeOrder()
     {
-        var order = new Order(new Guid("00000000-0000-0000-0000-000000000001"), 42, "snapshot-owner", "snapshot-tenant");
+        var order = new Order(new Guid("00000000-0000-0000-0000-000000000001"), 42, "snapshot-owner", "snapshot-tenant", DateTimeOffset.UtcNow);
         order.AddItem(7, "Snapshot Product", 2, Money.Create(19.99m, "USD"));
         return order;
     }
