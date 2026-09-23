@@ -1,10 +1,29 @@
 # Pruning a Derived Project
 
 This template ships deliberately heavy: the sample domain teaches the patterns, and the
-convention fleet is the product. A project derived from it SHOULD prune — most slices will not
-need every pattern. What separates safe pruning from silent regression is discipline, not
-taste. These rules were proven out by a production derivation's complexity review and are
-binding on any fork that wants to stay supportable.
+convention fleet is the product. **A derived project MUST prune.** Once it is derived, anything
+that was there only to teach is vestigial, and vestigial code misleads the agents that maintain
+the project: they copy its shapes, keep its rules, and route new work through it.
+
+## When
+
+- **At the first module, the sample goes, whole.** The day a derived project's first real module
+  lands under `Api/Modules/`, the Customer/Product/Order sample is removed end to end in one
+  change: entities, events, handlers, endpoints, EF configurations, Functions and their
+  subscriptions, tests, k6 and DAST seeds, reporting SQL, a migration dropping its tables, and
+  every rule, skill and doc that described only the sample. It is not "replaced module by
+  module" and it is not kept as a reference: the template is the reference.
+- **In the same change, every support capability is decided.** Owner scoping, the distributed
+  cache and Redis, feature toggles and the rest either have a module consumer or are removed
+  with a re-add trigger. None is left in place waiting for a use.
+- **The template's rules become the project's rules only where they fit.** The template's
+  "a seam with one implementation is an exemplar" rule protects the template's teaching seams.
+  In a derived project a seam stays only when it is a real boundary (a module's `Contracts/`
+  interface) or a module uses it.
+
+`DerivationConventionTests` enforces the first two mechanically: in the template it passes (no
+modules), and in a derived project it fails from the first module until the sample types and any
+unused `ICacheable` / owner-scoping markers are gone.
 
 ## The discipline
 
@@ -24,17 +43,16 @@ binding on any fork that wants to stay supportable.
    publish instantly while the outbox row reads processed: a silent shredder, not a backlog.
    This repo pins the rule mechanically (every contract must be covered by a subscription
    filter or an explicit publish-only allowlist entry); keep that convention in forks.
-5. **Keep read-path seams until first use is decided, then decide once.** Caching and the
-   read-model split look removable in a write-heavy slice; they are cheap to keep and
-   expensive to re-thread. Decide deliberately ("no cacheable reads in this slice, remove the
-   wheel, keep the chassis") and record it — don't let the seam rot half-removed.
+5. **Decide each read-path seam once, at the first module.** Caching and the read-model split
+   look removable in a write-heavy slice. Decide deliberately (either a module uses it, or it is
+   removed with its trigger) and record it. Don't let a seam rot half-removed.
 
 ## Common prune candidates, with their re-add triggers
 
 | Candidate | Usually safe to prune when… | Named re-add trigger |
 |-----------|------------------------------|----------------------|
-| Sample domain (Customer/Product/Order) | immediately — it exists to be replaced | n/a (it never comes back) |
-| Owner/tenant scoping | the fork serves exactly one tenant by construction | a second tenant/brand, or external exposure of per-caller data |
+| Sample domain (Customer/Product/Order) | required at the first module — it exists to be replaced | n/a (it never comes back) |
+| Owner/tenant scoping | no module scopes a row to the person who created it | a second tenant/brand, or external exposure of per-caller data |
 | Distributed caching | the slice has no cacheable reads | first read endpoint with measurable repeat traffic |
 | Feature toggles | the fork deploys continuously with instant rollback | first change that needs dark-launch or a kill switch |
 | Perf gate thresholds | the fork's SLOs differ | recalibrate, don't delete — a red gate found a real defect here on its first night |
