@@ -15,9 +15,11 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
     private readonly IDistributedCache _cache;
     private readonly ICurrentUser _currentUser;
     private readonly ILogger<CachingBehavior<TRequest, TResponse>> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public CachingBehavior(IDistributedCache cache, ICurrentUser currentUser, ILogger<CachingBehavior<TRequest, TResponse>> logger)
+    public CachingBehavior(IDistributedCache cache, ICurrentUser currentUser, ILogger<CachingBehavior<TRequest, TResponse>> logger, TimeProvider timeProvider)
     {
+        _timeProvider = timeProvider;
         _cache = cache;
         _currentUser = currentUser;
         _logger = logger;
@@ -40,7 +42,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         if (cacheable is IOwnerScopedRequest && !_currentUser.IsAuthenticated)
             return await next();
 
-        var expiresAtUtc = DateTimeOffset.UtcNow + cacheable.CacheDuration;
+        var expiresAtUtc = _timeProvider.GetUtcNow() + cacheable.CacheDuration;
         var cacheKey = ResolveCacheKey(cacheable);
         var cached = (await TryGetAsync(cacheKey, cancellationToken)).Value;
         var (generationKnown, generation) = await TryGetAsync(CacheTombstone.KeyFor(cacheKey), cancellationToken);
@@ -50,9 +52,9 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         {
             var envelope = TryDeserializeEnvelope(cached);
             if (envelope is not null && generationKnown && envelope.Generation == generation &&
-                DateTimeOffset.UtcNow < envelope.ExpiresAtUtc)
+                _timeProvider.GetUtcNow() < envelope.ExpiresAtUtc)
             {
-                if (cacheable.CacheRefreshWindow <= TimeSpan.Zero || DateTimeOffset.UtcNow < envelope.RefreshAfterUtc)
+                if (cacheable.CacheRefreshWindow <= TimeSpan.Zero || _timeProvider.GetUtcNow() < envelope.RefreshAfterUtc)
                 {
                     _logger.LogDebug("Cache hit for {CacheKey}", cacheKey);
                     return envelope.Value!;
@@ -76,7 +78,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
                         await StoreAsync(cacheKey, cacheable, refreshed, generation, expiresAtUtc, cancellationToken);
                     return refreshed;
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException && DateTimeOffset.UtcNow < envelope.ExpiresAtUtc)
+                catch (Exception ex) when (ex is not OperationCanceledException && _timeProvider.GetUtcNow() < envelope.ExpiresAtUtc)
                 {
                     // The refresh failed but the cached value is still inside its TTL, so serve it.
                     // Only the early refresh gets this fallback; a plain cache miss still throws.
@@ -126,7 +128,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         string? generation, DateTimeOffset expiresAtUtc, CancellationToken cancellationToken)
     {
         var (known, currentGeneration) = await TryGetAsync(CacheTombstone.KeyFor(cacheKey), cancellationToken);
-        if (!known || currentGeneration != generation || DateTimeOffset.UtcNow >= expiresAtUtc)
+        if (!known || currentGeneration != generation || _timeProvider.GetUtcNow() >= expiresAtUtc)
             return;
 
         // The pre-write check only avoids needless obsolete writes. Correctness comes from storing

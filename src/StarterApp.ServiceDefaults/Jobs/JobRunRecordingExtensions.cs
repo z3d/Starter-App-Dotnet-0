@@ -26,7 +26,8 @@ public static class JobRunRecordingExtensions
         builder.Services.AddSingleton<IJobRunRecorder>(provider => new NpgsqlJobRunRecorder(
             provider.GetRequiredService<NpgsqlDataSource>(),
             retentionDays,
-            provider.GetRequiredService<ILogger<NpgsqlJobRunRecorder>>()));
+            provider.GetRequiredService<ILogger<NpgsqlJobRunRecorder>>(),
+            provider.GetRequiredService<TimeProvider>()));
         return builder;
     }
 }

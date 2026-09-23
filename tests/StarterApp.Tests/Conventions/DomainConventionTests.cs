@@ -121,24 +121,9 @@ public class DomainConventionTests : ConventionTestBase
         }
     }
 
-    // === DateTime Safety ===
-    // Domain entities use DateTimeOffset.UtcNow for timestamps. API-layer code must not resolve
-    // time directly, ensuring testability of application logic.
-
-    [Fact]
-    public void CoreProductionTypes_MustNotResolveCurrentTimeViaDateTime()
-    {
-        foreach (var assembly in CoreProductionAssemblies)
-        {
-            var types = assembly.GetTypes()
-                .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
-            types
-                .MustConformTo(Convention.MustNotResolveCurrentTimeViaDateTime)
-                .WithFailureAssertion(Assert.Fail);
-        }
-    }
-
     // === DateTimeOffset Enforcement ===
+    // Reading the clock is banned outright by BannedSymbols.txt (RS0030); production code takes
+    // TimeProvider. This rule covers the other half: the type a timestamp is stored as.
 
     [Fact]
     public void DomainTypes_MustUseDateTimeOffsetNotDateTime()

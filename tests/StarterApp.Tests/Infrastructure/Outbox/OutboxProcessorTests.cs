@@ -13,7 +13,7 @@ public class OutboxProcessorTests
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(databaseName)
-            .AddInterceptors(new DomainEventsInterceptor())
+            .AddInterceptors(new DomainEventsInterceptor(TimeProvider.System))
             .Options;
         return new ApplicationDbContext(options);
     }
@@ -617,7 +617,7 @@ public class OutboxProcessorTests
             CreatePayloadCaptureSink(payloadStore ?? new InMemoryPayloadArchiveStore(), payloadCaptureOptions),
             options,
             new NullJobRunRecorder(),
-            new LoggerFactory().CreateLogger<OutboxProcessor>());
+            new LoggerFactory().CreateLogger<OutboxProcessor>(), TimeProvider.System);
     }
 
     private static PayloadCaptureSink CreatePayloadCaptureSink(IPayloadArchiveStore payloadStore, PayloadCaptureOptions? captureOptions)

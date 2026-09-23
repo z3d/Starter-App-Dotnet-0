@@ -41,7 +41,7 @@ public class OptimisticConcurrencyIntegrationTests : IAsyncLifetime
 
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql(_fixture.ConnectionString)
-            .AddInterceptors(new DomainEventsInterceptor())
+            .AddInterceptors(new DomainEventsInterceptor(TimeProvider.System))
             .Options;
 
         await using var firstContext = new ApplicationDbContext(options);

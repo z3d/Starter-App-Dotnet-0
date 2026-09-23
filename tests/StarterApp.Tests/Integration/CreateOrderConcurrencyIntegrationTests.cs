@@ -28,7 +28,7 @@ public class CreateOrderConcurrencyIntegrationTests : IAsyncLifetime
         // must avoid a second order / second stock reservation.
         var interceptor = new ThrowTransientOnceAfterCommitInterceptor();
         await using var context = CreateRetryingContext(interceptor);
-        var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<CreateOrderCommandHandler>.Instance);
+        var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<CreateOrderCommandHandler>.Instance, TimeProvider.System);
         var command = new CreateOrderCommand
         {
             CustomerId = customerId,
@@ -55,7 +55,7 @@ public class CreateOrderConcurrencyIntegrationTests : IAsyncLifetime
         async Task<bool> TryCreateAsync()
         {
             await using var context = CreateContext();
-            var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<CreateOrderCommandHandler>.Instance);
+            var handler = new CreateOrderCommandHandler(context, NullCacheInvalidator.Instance, TestOwnerOnlyPolicy.Instance, NullLogger<CreateOrderCommandHandler>.Instance, TimeProvider.System);
             var command = new CreateOrderCommand
             {
                 CustomerId = customerId,
@@ -95,7 +95,7 @@ public class CreateOrderConcurrencyIntegrationTests : IAsyncLifetime
     private ApplicationDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql(_fixture.ConnectionString)
-            .AddInterceptors(new DomainEventsInterceptor())
+            .AddInterceptors(new DomainEventsInterceptor(TimeProvider.System))
             .Options);
 
     private ApplicationDbContext CreateRetryingContext(IInterceptor interceptor)
@@ -103,7 +103,7 @@ public class CreateOrderConcurrencyIntegrationTests : IAsyncLifetime
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql(_fixture.ConnectionString, npgsql =>
                 npgsql.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null))
-            .AddInterceptors(interceptor, new DomainEventsInterceptor())
+            .AddInterceptors(interceptor, new DomainEventsInterceptor(TimeProvider.System))
             .Options;
         return new ApplicationDbContext(options);
     }

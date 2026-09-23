@@ -28,18 +28,17 @@ public class Order : AggregateRoot
 
     protected Order()
     {
-        OrderDate = DateTimeOffset.UtcNow;
         Status = OrderStatus.Pending;
-        DateCreated = OrderDate;
-        LastUpdated = OrderDate;
     }
 
-    public Order(int customerId, string ownerSubject, string tenantId)
-        : this(Guid.CreateVersion7(), customerId, ownerSubject, tenantId)
+    public Order(int customerId, string ownerSubject, string tenantId, DateTimeOffset orderDate)
+        : this(Guid.CreateVersion7(), customerId, ownerSubject, tenantId, orderDate)
     {
     }
 
-    internal Order(Guid id, int customerId, string ownerSubject, string tenantId)
+    // orderDate is a business fact the caller supplies; DateCreated and LastUpdated are audit
+    // stamps DomainEventsInterceptor writes at save, so nothing here reads a clock.
+    internal Order(Guid id, int customerId, string ownerSubject, string tenantId, DateTimeOffset orderDate)
     {
         if (id == Guid.Empty)
             throw new ArgumentException("Order id cannot be empty", nameof(id));
@@ -54,10 +53,8 @@ public class Order : AggregateRoot
         CustomerId = customerId;
         OwnerSubject = ownerSubject;
         TenantId = tenantId;
-        OrderDate = DateTimeOffset.UtcNow;
+        OrderDate = orderDate;
         Status = OrderStatus.Pending;
-        DateCreated = OrderDate;
-        LastUpdated = OrderDate;
     }
 
     public void AddItem(OrderItem item)
@@ -83,7 +80,6 @@ public class Order : AggregateRoot
         }
 
         _items.Add(item);
-        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     // EF Core sets the order FK on save, so callers do not need a persisted OrderId yet.
@@ -106,7 +102,6 @@ public class Order : AggregateRoot
             throw new DomainRuleException($"An order cannot contain more than {MaxItems} items");
 
         _items.Add(item);
-        LastUpdated = DateTimeOffset.UtcNow;
         return item;
     }
 
@@ -133,10 +128,7 @@ public class Order : AggregateRoot
 
         var item = _items.FirstOrDefault(i => i.ProductId == productId);
         if (item != null)
-        {
             _items.Remove(item);
-            LastUpdated = DateTimeOffset.UtcNow;
-        }
     }
 
     public void UpdateStatus(OrderStatus newStatus)
@@ -146,7 +138,6 @@ public class Order : AggregateRoot
 
         var previousStatus = Status;
         Status = newStatus;
-        LastUpdated = DateTimeOffset.UtcNow;
         RaiseDomainEvent(new OrderStatusChangedDomainEvent(this, previousStatus, newStatus));
     }
 

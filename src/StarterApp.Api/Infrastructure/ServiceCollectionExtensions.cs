@@ -67,6 +67,7 @@ public static class ServiceCollectionExtensions
         // it reads the request's OwnerPolicyEvaluationTracker.
         services.TryAddScoped<OwnerPolicyEvaluationTracker>();
         services.AddScoped<OwnerAuthorizationWriteGuard>();
+        services.TryAddSingleton(TimeProvider.System);
 
         // One data source per process: EF Core, Dapper and the job-run recorder share the pool, and
         // the managed-identity password provider (DatabaseAuthentication in ServiceDefaults) is
@@ -76,7 +77,7 @@ public static class ServiceCollectionExtensions
             options.UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>(), postgres =>
                 postgres.EnableRetryOnFailure(maxRetryCount: 6, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null))
                    .EnableSensitiveDataLogging(false)
-                   .AddInterceptors(new DomainEventsInterceptor(), provider.GetRequiredService<OwnerAuthorizationWriteGuard>()));
+                   .AddInterceptors(new DomainEventsInterceptor(provider.GetRequiredService<TimeProvider>()), provider.GetRequiredService<OwnerAuthorizationWriteGuard>()));
 
         // The Dapper connection is transient, not scoped: Npgsql cannot run two queries on one
         // connection at the same time, so each query handler gets its own. The physical

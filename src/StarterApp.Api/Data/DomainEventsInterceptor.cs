@@ -3,15 +3,18 @@ using StarterApp.Api.Infrastructure.Outbox;
 
 namespace StarterApp.Api.Data;
 
-// Writes the aggregates' domain events to the outbox table in the same SaveChanges call
-// that saves the aggregates. AddPersistence attaches this interceptor; a context built without
-// it saves nothing to the outbox.
+// Closes the unit of work with one clock read: stamps DateCreated on added rows and LastUpdated
+// on added and modified rows, gives every pending domain event that same OccurredOnUtc, and
+// writes the events to the outbox table in the same SaveChanges call that saves the aggregates.
+// The domain never reads a clock; this is the only place a timestamp enters a saved row.
+// AddPersistence attaches this interceptor; a context built without it saves nothing to the
+// outbox and leaves the audit columns at their defaults.
 // EF calls SavingChanges once per SaveChanges, outside the retrying execution strategy, so
 // EnableRetryOnFailure cannot run the capture twice and duplicate outbox rows.
 // The event payload is serialized before the save, so an aggregate that raises a creation event
 // must assign its own Id. DomainConventionTests.AggregatesOverridingRecordCreation_MustHaveGuidId
 // enforces that.
-public sealed class DomainEventsInterceptor : SaveChangesInterceptor
+public sealed class DomainEventsInterceptor(TimeProvider timeProvider) : SaveChangesInterceptor
 {
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
@@ -25,10 +28,13 @@ public sealed class DomainEventsInterceptor : SaveChangesInterceptor
         return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
-    private static void CaptureDomainEventsIntoOutbox(DbContext? context)
+    private void CaptureDomainEventsIntoOutbox(DbContext? context)
     {
         if (context is null)
             return;
+
+        var now = timeProvider.GetUtcNow();
+        StampAuditColumns(context, now);
 
         var newAggregates = context.ChangeTracker.Entries<AggregateRoot>()
             .Where(entry => entry.State == EntityState.Added)
@@ -46,6 +52,9 @@ public sealed class DomainEventsInterceptor : SaveChangesInterceptor
         if (aggregatesWithEvents.Count == 0)
             return;
 
+        foreach (var aggregate in aggregatesWithEvents)
+            aggregate.StampDomainEvents(now);
+
         var outboxMessages = aggregatesWithEvents
             .SelectMany(aggregate => aggregate.DomainEvents)
             .Select(OutboxMessage.Create)
@@ -58,5 +67,22 @@ public sealed class DomainEventsInterceptor : SaveChangesInterceptor
         // would otherwise duplicate the outbox rows. Aggregate state is still dirty in the tracker.
         foreach (var aggregate in aggregatesWithEvents)
             aggregate.ClearDomainEvents();
+    }
+
+    // Any tracked entity that maps DateCreated / LastUpdated gets them here, by property name, so
+    // an aggregate never has to remember the stamps and a new aggregate gets them for free.
+    private static void StampAuditColumns(DbContext context, DateTimeOffset now)
+    {
+        foreach (var entry in context.ChangeTracker.Entries())
+        {
+            if (entry.State is not (EntityState.Added or EntityState.Modified))
+                continue;
+
+            if (entry.State == EntityState.Added && entry.Metadata.FindProperty("DateCreated") is not null)
+                entry.Property("DateCreated").CurrentValue = now;
+
+            if (entry.Metadata.FindProperty("LastUpdated") is not null)
+                entry.Property("LastUpdated").CurrentValue = now;
+        }
     }
 }

@@ -120,17 +120,6 @@ are resolved, with failing-before/passing-after regressions and final validation
 
 - **Doc-mirror generator.** `AGENTS.md` is a two-line pointer to `CLAUDE.md` since 2026-09-18;
   there is no mirror. Trigger: a harness that cannot follow a pointer and needs its own copy.
-- **`TimeProvider` in the aggregates.** `Customer`, `Product` and `Order` read
-  `DateTimeOffset.UtcNow` for `DateCreated`, `LastUpdated`, `OrderDate` and the events'
-  `OccurredOnUtc`; the caching behaviour, outbox processor and job-run recording read it too.
-  Only the Functions worker and the payload sink go through `TimeProvider`, so cache-expiry and
-  outbox-cleanup tests cannot move time. The design when this is picked up: a `SaveChanges`
-  interceptor stamps `DateCreated` on added rows and `LastUpdated` on modified rows from an
-  injected `TimeProvider`, business times such as `OrderDate` become constructor arguments the
-  handler supplies, infrastructure injects `TimeProvider`, and then the clock properties join
-  `BannedSymbols.txt` and the IL-scan clock convention retires. Trigger: the first test that has
-  to sleep to observe a time-based behaviour, or the first bug traced to an audit stamp a domain
-  method forgot to set.
 - **Per-stage capture-sink failure isolation.** Trigger: a deployment opts the HTTP channel into
   FailClosed, or duplicate archive rows become a support problem. Under ServiceBus FailClosed an
   entity-index failure after the archive append rethrows, and the subscriber's in-process retry

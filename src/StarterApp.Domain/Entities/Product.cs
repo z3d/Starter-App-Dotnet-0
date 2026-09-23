@@ -23,8 +23,6 @@ public class Product
         // Initialize default values to satisfy non-nullable warnings
         Name = string.Empty;
         Description = string.Empty;
-        DateCreated = DateTimeOffset.UtcNow;
-        LastUpdated = DateCreated;
     }
 
     public Product(string name, string? description, Money price, int stock, string ownerSubject, string tenantId)
@@ -43,8 +41,6 @@ public class Product
         OwnerSubject = ownerSubject;
         TenantId = tenantId;
         Stock = stock;
-        DateCreated = DateTimeOffset.UtcNow;
-        LastUpdated = DateCreated;
     }
 
     // Domain methods
@@ -59,7 +55,6 @@ public class Product
         Name = name;
         Description = description ?? string.Empty;
         Price = price;
-        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     public void UpdateStock(int quantity)
@@ -68,7 +63,6 @@ public class Product
             throw new DomainRuleException("Cannot reduce stock below zero");
 
         Stock += quantity;
-        LastUpdated = DateTimeOffset.UtcNow;
     }
 
     private static void ValidateName(string name)

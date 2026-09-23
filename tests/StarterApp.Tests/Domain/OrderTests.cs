@@ -18,8 +18,6 @@ public class OrderTests
         Assert.Equal(OrderStatus.Pending, order.Status);
         Assert.Empty(order.Items);
         Assert.NotEqual(Guid.Empty, order.Id);
-        Assert.True(order.OrderDate <= DateTimeOffset.UtcNow);
-        Assert.True(order.LastUpdated <= DateTimeOffset.UtcNow);
     }
 
     [Fact]

@@ -2,7 +2,7 @@ using StarterApp.Domain.Entities;
 
 namespace StarterApp.Domain.Events;
 
-public sealed class OrderCreatedDomainEvent : IDomainEvent
+public sealed class OrderCreatedDomainEvent : DomainEvent
 {
     public const string Contract = "order.created.v1";
 
@@ -21,10 +21,9 @@ public sealed class OrderCreatedDomainEvent : IDomainEvent
         // Order.RecordCreation guards against zero items, so a created order always has ≥1 item
         // and a real currency — no fabricated fallback needed.
         Currency = order.Items[0].UnitPriceExcludingGst.Currency;
-        OccurredOnUtc = DateTimeOffset.UtcNow;
     }
 
-    public string EventType => Contract;
+    public override string EventType => Contract;
     public Guid OrderId { get; }
     public int CustomerId { get; }
     public string Status { get; }
@@ -34,5 +33,4 @@ public sealed class OrderCreatedDomainEvent : IDomainEvent
     public decimal TotalIncludingGst { get; }
     public decimal TotalGstAmount { get; }
     public string Currency { get; }
-    public DateTimeOffset OccurredOnUtc { get; }
 }

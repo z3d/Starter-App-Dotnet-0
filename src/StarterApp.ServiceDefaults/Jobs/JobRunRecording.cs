@@ -26,10 +26,12 @@ public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
     private readonly NpgsqlDataSource _dataSource;
     private readonly int _retentionDays;
     private readonly ILogger<NpgsqlJobRunRecorder> _logger;
+    private readonly TimeProvider _timeProvider;
     private DateTimeOffset _lastPurgeUtc;
 
-    public NpgsqlJobRunRecorder(NpgsqlDataSource dataSource, int retentionDays, ILogger<NpgsqlJobRunRecorder> logger)
+    public NpgsqlJobRunRecorder(NpgsqlDataSource dataSource, int retentionDays, ILogger<NpgsqlJobRunRecorder> logger, TimeProvider timeProvider)
     {
+        _timeProvider = timeProvider;
         _dataSource = dataSource;
         _retentionDays = retentionDays;
         _logger = logger;
@@ -129,7 +131,7 @@ public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
     private async Task PurgeIfDueAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
     {
         // Opportunistic retention: at most one purge attempt per day per process.
-        var nowUtc = DateTimeOffset.UtcNow;
+        var nowUtc = _timeProvider.GetUtcNow();
         if (nowUtc - _lastPurgeUtc < TimeSpan.FromHours(24))
             return;
 
