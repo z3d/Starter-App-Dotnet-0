@@ -54,7 +54,6 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
         await _cacheInvalidator.InvalidateCustomerAsync(customer.Id, cancellationToken);
         _logger.LogInformation("Updated customer with ID: {CustomerId}", customer.Id);
 
-        // Map to DTO and return
         return new CustomerDto
         {
             Id = customer.Id,

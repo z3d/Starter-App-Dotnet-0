@@ -125,7 +125,6 @@ public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
 
     private async Task PurgeIfDueAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
     {
-        // Opportunistic retention: at most one purge attempt per day per process.
         var nowUtc = _timeProvider.GetUtcNow();
         if (nowUtc - _lastPurgeUtc < TimeSpan.FromHours(24))
             return;

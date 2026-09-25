@@ -131,7 +131,6 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         _ownerOnlyPolicy.Authorize(product.OwnerSubject, product.TenantId);
 
-        // Atomic stock reservation — WHERE Stock >= @qty prevents concurrent overselling
         var updatedRows = await _dbContext.Products
             .Where(p =>
                 p.Id == itemCommand.ProductId &&

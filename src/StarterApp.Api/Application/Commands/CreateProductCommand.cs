@@ -39,7 +39,6 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
 
         _logger.LogInformation("Created new product with ID: {ProductId}", product.Id);
 
-        // Map to DTO and return
         return new ProductDto
         {
             Id = product.Id,

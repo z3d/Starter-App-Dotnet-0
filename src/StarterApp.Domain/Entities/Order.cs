@@ -61,11 +61,9 @@ public class Order : AggregateRoot
         EnsureCurrencyMatchesExistingItems(item.UnitPriceExcludingGst.Currency);
         EnsureOrderTotalWithinMaxAmount(item);
 
-        // Check if item with same product already exists
         var existingItem = _items.FirstOrDefault(i => i.ProductId == item.ProductId);
         if (existingItem != null)
         {
-            // Remove the existing item and add the new one (replacing it)
             _items.Remove(existingItem);
         }
         else if (_items.Count >= MaxItems)
@@ -76,7 +74,6 @@ public class Order : AggregateRoot
         _items.Add(item);
     }
 
-    // EF Core sets the order FK on save, so callers do not need a persisted OrderId yet.
     public OrderItem AddItem(int productId, string productName, int quantity, Money unitPrice, decimal gstRate = OrderItem.DefaultGstRate)
     {
         if (Status != OrderStatus.Pending)

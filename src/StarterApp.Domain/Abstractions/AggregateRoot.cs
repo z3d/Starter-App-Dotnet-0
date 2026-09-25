@@ -22,7 +22,6 @@ public abstract class AggregateRoot
                 stamped.OccurredOnUtc = occurredOnUtc;
     }
 
-    // Called by the DbContext before SaveChanges so creation events share the same unit of work.
     internal virtual void RecordCreation()
     {
     }

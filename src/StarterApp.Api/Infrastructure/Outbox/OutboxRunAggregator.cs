@@ -31,7 +31,6 @@ internal sealed class OutboxRunAggregator
 
         if (_published == 0 && _errored == 0 && _retried == 0 && _purged == 0 && _paused == 0)
         {
-            // Idle window: advance without emitting a row.
             _windowStartUtc = nowUtc;
             return null;
         }

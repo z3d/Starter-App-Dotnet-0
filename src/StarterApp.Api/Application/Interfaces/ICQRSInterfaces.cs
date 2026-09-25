@@ -1,6 +1,5 @@
 namespace StarterApp.Api.Application.Interfaces;
 
-// Marker interfaces for CQRS pattern - used for type safety and categorization
 public interface ICommand { }
 
 // IQuery extends IRequest so every query is dispatchable by construction; the reverse rule is convention-tested.
