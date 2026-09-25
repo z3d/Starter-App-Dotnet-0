@@ -104,7 +104,7 @@ public class SupplyChainConventionTests : ConventionTestBase
     private static IEnumerable<string> EnumerateDockerfiles()
     {
         return Directory.EnumerateFiles(TestPaths.RepoRoot, "Dockerfile", SearchOption.AllDirectories)
-            .Where(file => !file.Split(Path.DirectorySeparatorChar).Any(segment => segment is "bin" or "obj"));
+            .Where(file => !file.Split(Path.DirectorySeparatorChar).Any(segment => segment is "bin" or "obj" or ".git" or ".claude"));
     }
 
     private static string FormatPath(string file)
