@@ -25,7 +25,7 @@ dotnet run
 
 #### Identity in the local rig
 
-The AppHost boots a **dev Keycloak** container with the committed `starterapp` realm and points the API's `Identity:Authority` at it, so local dev exercises the exact production path: OIDC discovery → JWKS fetch → asymmetric (RS256) token verification inside the API. There is no unsigned or bypass mode in any environment. Mint a token with the `starterapp-dev` client (secret and dev users are well-known, committed dev credentials — see `src/StarterApp.AppHost/Realms/`).
+The AppHost boots a **dev Keycloak** container with the committed `starterapp` realm and points the API's `Identity:Authority` at it, so local dev exercises the exact production path: OIDC discovery → JWKS fetch → asymmetric (RS256) token verification inside the API. There is no unsigned or bypass mode in any environment. Mint a token with the `starterapp-dev` client (secret and dev users are well-known, committed dev credentials — see `dev/StarterApp.AppHost/Realms/`).
 
 With the stack running, open **`/demo.html`** on the API origin (Development only) for a self-contained interactive walkthrough: it signs in against Keycloak, then drives probe → token → product → customer → order with an animated pipeline. Untick `orders:write` in the sign-in step to watch the API refuse the order write with `403` decided from the token's scopes alone.
 
