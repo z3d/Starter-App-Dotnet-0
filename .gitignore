@@ -1,7 +1,7 @@
 # .NET Core
 # Aspire host projects are exempt from lock files (host-RID-specific Direct packages are not
 # reproducible cross-platform and break `restore --locked-mode` in CI). Ignore any stray
-# regeneration so a local restore can't re-commit them. See CLAUDE.md > Build Configuration.
+# regeneration so a local restore can't re-commit them. See docs/DECISIONS.md, "AppHost projects are exempt from lock files".
 dev/StarterApp.AppHost/packages.lock.json
 tests/StarterApp.AppHost.Tests/packages.lock.json
 *.swp

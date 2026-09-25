@@ -7,7 +7,7 @@ namespace StarterApp.Tests.Consistency;
 /// Features were chosen so that two handlers differing on any one of them would look
 /// materially different to a reviewer. <see cref="IsCacheable"/> and
 /// <see cref="ReturnsList"/> are kept as independent dimensions so the composite picks
-/// up their crossing — the anti-pattern CLAUDE.md warns about is a list query that's
+/// up their crossing — the anti-pattern AGENTS.md warns about is a list query that's
 /// cacheable, and independent features let the distance score surface that combination
 /// even when neither feature is unusual on its own.
 /// </remarks>

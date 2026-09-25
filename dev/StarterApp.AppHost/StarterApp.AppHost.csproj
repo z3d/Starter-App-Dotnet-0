@@ -7,8 +7,8 @@
     <!-- Lock-file exemption: the Aspire SDK injects host-RID-specific Direct packages
          (Aspire.Dashboard.Sdk and Aspire.Hosting.Orchestration, per RID). A single committed
          packages.lock.json can never satisfy locked-mode restore across win/osx/linux, so it
-         churned with every developer's restore and broke Linux CI. See CLAUDE.md, Build
-         Configuration, Central Package Management for the rationale. -->
+         churned with every developer's restore and broke Linux CI. See
+         docs/DECISIONS.md, "AppHost projects are exempt from lock files". -->
     <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
     <!-- ASPIREAZURE002: PublishAsAzureContainerAppJob is marked evaluation-only in Aspire 13.2;
          it is the only way to publish a run-to-completion process (the migrator) as a Container

@@ -308,7 +308,7 @@ public class HousekeepingConventionTests : ConventionTestBase
             .Replace(Path.DirectorySeparatorChar, '/')
             .Replace(Path.AltDirectorySeparatorChar, '/');
 
-        // .claude holds gitignored sibling worktrees (CLAUDE.md, "Working alongside other
+        // .claude holds gitignored sibling worktrees (AGENTS.md, "Working alongside other
         // sessions"); another agent's uncommitted branch must not decide this branch's verdict.
         return relative.Split('/')
             .Any(segment => segment is "bin" or "obj" or ".git" or ".claude");
