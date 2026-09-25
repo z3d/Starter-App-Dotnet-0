@@ -14,7 +14,7 @@ dotnet test --filter "FullyQualifiedName!~Integration"                  # fast: 
 STARTERAPP_ASPIRE_TESTS=true dotnet test tests/StarterApp.AppHost.Tests  # Aspire end-to-end; skipped unless opted in
 dotnet restore                                                            # locked mode is the default
 dotnet restore --force-evaluate                                           # only after an intentional dependency change
-dotnet run --project src/StarterApp.AppHost
+dotnet run --project dev/StarterApp.AppHost
 act                                                                       # run CI locally (flags in .actrc)
 ```
 

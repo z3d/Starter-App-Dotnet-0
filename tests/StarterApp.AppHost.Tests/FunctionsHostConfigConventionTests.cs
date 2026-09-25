@@ -70,7 +70,7 @@ public partial class FunctionsHostConfigConventionTests
 
         var dockerfile = File.ReadAllText(Path.Combine(functionsDirectory, "Dockerfile"));
         var localSettings = File.ReadAllText(Path.Combine(functionsDirectory, "local.settings.json"));
-        var appHost = File.ReadAllText(Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.AppHost", "Program.cs"));
+        var appHost = File.ReadAllText(Path.Combine(TestPaths.RepoRoot, "dev", "StarterApp.AppHost", "Program.cs"));
 
         var failures = new List<string>();
         foreach (var setting in settings)

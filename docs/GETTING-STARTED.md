@@ -14,7 +14,7 @@ How to run this template locally for the first time. For the rules of the codeba
 ## Run the whole stack
 
 ```bash
-dotnet run --project src/StarterApp.AppHost
+dotnet run --project dev/StarterApp.AppHost
 ```
 
 Aspire is the only supported local orchestration path. There is deliberately no compose file. The
@@ -26,7 +26,7 @@ AppHost starts, in dependency order:
 | Redis | Distributed cache for by-id queries |
 | Azure Storage emulator | Payload archive, audit, and entity-index blobs |
 | Azure Service Bus emulator | `domain-events` topic with the `email-notifications` and `inventory-reservation` subscriptions |
-| Keycloak | Dev OIDC realm with asymmetric signing, imported from `src/StarterApp.AppHost/Realms/` |
+| Keycloak | Dev OIDC realm with asymmetric signing, imported from `dev/StarterApp.AppHost/Realms/` |
 | Functions container | `StarterApp.Functions` Service Bus subscribers in the Azure Functions isolated-worker image |
 | Seq | Structured log sink |
 | `api` | The Minimal API plus the outbox processor |
@@ -134,7 +134,7 @@ access keys disabled). The one exception is the Keycloak *realm*, whose well-kno
 
 The `azure.yaml`, environment values and ingress restrictions belong to the hosting environment's
 repository (`docs/DECISIONS.md`, "Production infrastructure as code"); run `azd` from there, never from here.
-To see exactly what would be published: `dotnet run --project src/StarterApp.AppHost -- --publisher manifest --output-path /tmp/manifest/manifest.json`.
+To see exactly what would be published: `dotnet run --project dev/StarterApp.AppHost -- --publisher manifest --output-path /tmp/manifest/manifest.json`.
 
 ## Troubleshooting
 

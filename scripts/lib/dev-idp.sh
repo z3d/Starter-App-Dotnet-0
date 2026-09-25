@@ -3,7 +3,7 @@
 # (scripts/dev/keycloak.sh), and minting access tokens from it.
 #
 # The realm is the same committed file the Aspire AppHost imports
-# (src/StarterApp.AppHost/Realms/starterapp-realm.json), so scripted stacks and
+# (dev/StarterApp.AppHost/Realms/starterapp-realm.json), so scripted stacks and
 # the local dev loop validate against identical claims: username-as-sub,
 # tenant_id attribute -> tid, hardcoded amr incl. mfa, audience starterapp-api.
 #
@@ -26,7 +26,7 @@ idp_start() {
   "${CONTAINER_CLI:-docker}" run -d --name "$container" \
     -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
     -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
-    -v "${repo_root}/src/StarterApp.AppHost/Realms:/opt/keycloak/data/import:ro" \
+    -v "${repo_root}/dev/StarterApp.AppHost/Realms:/opt/keycloak/data/import:ro" \
     -p "${port}:8080" \
     "$DEV_IDP_IMAGE" start-dev --import-realm >/dev/null
   idp_wait "http://localhost:${port}"

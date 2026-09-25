@@ -28,7 +28,7 @@ act -j build
 SMOKE_BASE_URL=https://staging.example.com ./scripts/smoke-test.sh
 
 DEV_TUNNEL_ACK_DEV_IDP=true \
-  dotnet run --project src/StarterApp.AppHost -- --devtunnel
+  dotnet run --project dev/StarterApp.AppHost -- --devtunnel
 
 scripts/dev/keycloak.sh                               # the dev Keycloak on :8090 beside a standalone API
 scripts/dev/keycloak.sh stop
