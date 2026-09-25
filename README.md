@@ -167,7 +167,7 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 
 - **[Getting Started](docs/GETTING-STARTED.md)**: Prerequisites, running the stack, migrations, tests, and image builds
 - **[API Endpoints](docs/API-ENDPOINTS.md)**: Every Minimal API endpoint with examples and how to mint a dev token
-- **[Rules of the codebase](CLAUDE.md)**: The conventions agents and people must follow, and where each subsystem is documented
+- **[Rules of the codebase](AGENTS.md)**: The conventions agents and people must follow, and where each subsystem is documented
 - **[Recorded decisions](docs/DECISIONS.md)**: Why each notable choice was made and what would justify revisiting it
 - **[Architecture review](docs/ARCHITECTURE_REVIEW.md)**: Open findings and accepted limitations, with dated records under `docs/reviews/`
 

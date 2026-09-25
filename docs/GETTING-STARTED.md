@@ -1,7 +1,7 @@
 # Getting Started
 
 How to run this template locally for the first time. For the rules of the codebase read
-`CLAUDE.md`; for endpoint details and how to mint a dev token read [API-ENDPOINTS.md](API-ENDPOINTS.md).
+[`AGENTS.md`](../AGENTS.md); for endpoint details and how to mint a dev token read [API-ENDPOINTS.md](API-ENDPOINTS.md).
 
 ## Prerequisites
 
