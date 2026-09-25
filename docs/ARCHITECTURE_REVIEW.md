@@ -118,8 +118,9 @@ are resolved, with failing-before/passing-after regressions and final validation
 
 ## Deferred with named triggers
 
-- **Doc-mirror generator.** `AGENTS.md` is a two-line pointer to `CLAUDE.md` since 2026-09-18;
-  there is no mirror. Trigger: a harness that cannot follow a pointer and needs its own copy.
+- **Doc-mirror generator.** Since 2026-09-25 `AGENTS.md` holds the instructions and `CLAUDE.md`
+  is a one-line `@AGENTS.md` import; there is no mirror. Trigger: a harness that reads neither
+  `AGENTS.md` nor an import and needs its own copy.
 - **Per-stage capture-sink failure isolation.** Trigger: a deployment opts the HTTP channel into
   FailClosed, or duplicate archive rows become a support problem. Under ServiceBus FailClosed an
   entity-index failure after the archive append rethrows, and the subscriber's in-process retry
