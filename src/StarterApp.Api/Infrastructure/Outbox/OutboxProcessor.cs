@@ -328,7 +328,7 @@ public class OutboxProcessor : BackgroundService
             .ToListAsync(cancellationToken);
     }
 
-    // The runbook and CLAUDE.md promise that audit distinguishes an operator republish from a
+    // The runbook and DECISIONS.md promise that audit distinguishes an operator republish from a
     // first delivery; the capture metadata must carry the same marker as the message itself,
     // because for dead-letter resubmits the captured record is the only durable artifact.
     internal static Dictionary<string, string> BuildCaptureMetadata(OutboxMessage message, string topicName)

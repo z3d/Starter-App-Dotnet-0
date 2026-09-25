@@ -9,7 +9,7 @@
 #            history rewrites, discarding work, dropping/truncating data).
 #
 # DELIBERATE DIVERGENCE from the upstream PowerShell version: it ASKs on every git
-# add/commit/push ("git is confirm-per-action by governance"). This repo's CLAUDE.md instead
+# add/commit/push ("git is confirm-per-action by governance"). This repo's AGENTS.md instead
 # says to ALWAYS commit after a task and runs its own format/build/test pre-commit gate, so
 # gating routine commits here would fight the workflow. We therefore do NOT ask on
 # add/commit/push (history-rewriting variants below are still gated).

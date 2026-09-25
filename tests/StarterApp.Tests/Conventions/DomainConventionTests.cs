@@ -220,7 +220,7 @@ public class DomainConventionTests : ConventionTestBase
             }
 
             // Guid type alone is not enough: a regression to Guid.NewGuid() would still pass the type
-            // check above but lose the time-ordered insert locality that Guid v7 guarantees (CLAUDE.md
+            // check above but lose the time-ordered insert locality that Guid v7 guarantees (AGENTS.md
             // mandates Guid.CreateVersion7() specifically). At least one PUBLIC constructor must mint the
             // Id via Guid.CreateVersion7(); internal/explicit-id constructors are exempt because they exist
             // for the retry-safe path where the caller pre-generates the v7 Id (see CreateOrderCommandHandler).

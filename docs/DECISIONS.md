@@ -1,6 +1,6 @@
 # Recorded Decisions and Subsystem Notes
 
-Long-form rationale that `CLAUDE.md` only summarises. Read the relevant section when you are about to touch that subsystem — not before.
+Long-form rationale that `AGENTS.md` only summarises. Read the relevant section when you are about to touch that subsystem — not before.
 
 Each recorded decision states what was chosen, what was rejected, and the **re-add trigger**: the specific falsifiable fact that would justify revisiting it. Absent that fact, the decision stands. See also [`DERIVATION-PRUNING.md`](DERIVATION-PRUNING.md), which applies the same trigger discipline to removing features from a derived project.
 

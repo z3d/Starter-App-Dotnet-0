@@ -6,7 +6,7 @@ public class Order : AggregateRoot
 {
     // Aggregate invariant: an order is bounded to MaxItems distinct line items. Enforced here
     // (last line of defense) and mirrored by CreateOrderCommandValidator, which references this
-    // const so the two cannot drift — see CLAUDE.md "Validator–Domain Guard Sync Rule".
+    // const so the two cannot drift.
     public const int MaxItems = 50;
 
     private readonly List<OrderItem> _items = [];
@@ -204,8 +204,8 @@ public class Order : AggregateRoot
 
     internal override void RecordCreation()
     {
-        // Domain guard mirroring CreateOrderCommandValidator's "at least one item" rule
-        // (CLAUDE.md Validator–Domain Guard Sync Rule). Fires during the SaveChanges outbox
+        // Domain guard mirroring CreateOrderCommandValidator's "at least one item" rule.
+        // Fires during the SaveChanges outbox
         // capture — after the create handler's add-items loop — so the build-then-add-items
         // construction flow is unaffected; an order can never be persisted/published empty.
         if (_items.Count == 0)
