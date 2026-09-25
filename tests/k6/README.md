@@ -22,7 +22,7 @@ docker run --rm -v "$PWD":/app -w /app grafana/k6 run tests/k6/smoke.js
 Start the API with Aspire and use the API endpoint shown in the dashboard:
 
 ```bash
-dotnet run --project src/StarterApp.AppHost
+dotnet run --project dev/StarterApp.AppHost
 K6_BASE_URL=https://localhost:<api-port> k6 run tests/k6/smoke.js
 K6_BASE_URL=https://localhost:<api-port> k6 run tests/k6/load.js
 ```

@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\StarterApp.AppHost\StarterApp.AppHost.csproj" />
+    <ProjectReference Include="..\..\dev\StarterApp.AppHost\StarterApp.AppHost.csproj" />
     <ProjectReference Include="..\..\src\StarterApp.Domain\StarterApp.Domain.csproj" />
     <ProjectReference Include="..\..\src\StarterApp.Functions\StarterApp.Functions.csproj" />
     <ProjectReference Include="..\..\src\StarterApp.ServiceDefaults\StarterApp.ServiceDefaults.csproj" />

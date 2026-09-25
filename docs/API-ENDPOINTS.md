@@ -26,7 +26,7 @@ Authorization: Bearer <access-token>
 X-Correlation-ID: demo-correlation-id
 ```
 
-The API validates issuer, audience, signature, and expiry itself against `Identity:Authority`. Locally, mint a token from the dev Keycloak realm (client `starterapp-dev`, user `dev-user` — well-known dev credentials, see `src/StarterApp.AppHost/Realms/`); request the resource scopes explicitly, they are optional client scopes:
+The API validates issuer, audience, signature, and expiry itself against `Identity:Authority`. Locally, mint a token from the dev Keycloak realm (client `starterapp-dev`, user `dev-user` — well-known dev credentials, see `dev/StarterApp.AppHost/Realms/`); request the resource scopes explicitly, they are optional client scopes:
 
 ```bash
 curl -s "$KEYCLOAK/realms/starterapp/protocol/openid-connect/token" \

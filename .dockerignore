@@ -37,5 +37,5 @@ scripts/
 
 # Test and orchestration projects are not needed by the API / DbMigrator / Functions images
 tests/StarterApp.Tests/
-src/StarterApp.AppHost/
+dev/StarterApp.AppHost/
 tests/StarterApp.AppHost.Tests/

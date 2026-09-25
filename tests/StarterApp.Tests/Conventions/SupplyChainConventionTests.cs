@@ -99,10 +99,11 @@ public class SupplyChainConventionTests : ConventionTestBase
                !imageRef.Contains('.', StringComparison.Ordinal);
     }
 
+    // Whole repository, not src/: the Keycloak realm image lives under dev/, and a Dockerfile that
+    // falls outside this scan keeps its base image unpinned with nothing failing to say so.
     private static IEnumerable<string> EnumerateDockerfiles()
     {
-        var srcRoot = Path.Combine(TestPaths.RepoRoot, "src");
-        return Directory.EnumerateFiles(srcRoot, "Dockerfile", SearchOption.AllDirectories)
+        return Directory.EnumerateFiles(TestPaths.RepoRoot, "Dockerfile", SearchOption.AllDirectories)
             .Where(file => !file.Split(Path.DirectorySeparatorChar).Any(segment => segment is "bin" or "obj"));
     }
 

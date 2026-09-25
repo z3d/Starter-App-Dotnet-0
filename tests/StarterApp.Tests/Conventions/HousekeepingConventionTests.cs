@@ -152,7 +152,7 @@ public class HousekeepingConventionTests : ConventionTestBase
     public void AppHost_MustRunFunctionsWithAzureFunctionsRuntimeContainer()
     {
         var root = TestPaths.RepoRoot;
-        var appHostProgram = File.ReadAllText(Path.Combine(root, "src", "StarterApp.AppHost", "Program.cs"));
+        var appHostProgram = File.ReadAllText(Path.Combine(root, "dev", "StarterApp.AppHost", "Program.cs"));
         var functionsDockerfile = File.ReadAllText(Path.Combine(root, "src", "StarterApp.Functions", "Dockerfile"));
 
         Assert.Contains("AddDockerfile(\"functions\"", appHostProgram);
@@ -175,12 +175,43 @@ public class HousekeepingConventionTests : ConventionTestBase
             .Single(element => (string?)element.Attribute("Include") == "Aspire.Hosting.AppHost")
             .Attribute("Version")?.Value;
 
-        var appHostProject = XDocument.Load(Path.Combine(root, "src", "StarterApp.AppHost", "StarterApp.AppHost.csproj"));
+        var appHostProject = XDocument.Load(Path.Combine(root, "dev", "StarterApp.AppHost", "StarterApp.AppHost.csproj"));
         var actualVersion = appHostProject.Root?.Elements()
             .Single(element => element.Name.LocalName == "Sdk" && (string?)element.Attribute("Name") == "Aspire.AppHost.Sdk")
             .Attribute("Version")?.Value;
 
         Assert.Equal(expectedVersion, actualVersion);
+    }
+
+    // src/ is what deploys, dev/ is local orchestration, tests/ is the suites. The split only means
+    // something if the dependency runs one way: a reference pointing back into dev/ or tests/ would
+    // put the Aspire host or a test fixture in a published image.
+    [Fact]
+    public void ShippingProjects_MustNotReferenceDevOrTestProjects()
+    {
+        var srcRoot = Path.Combine(TestPaths.RepoRoot, "src");
+        var offenders = new List<string>();
+
+        foreach (var projectFile in Directory.EnumerateFiles(srcRoot, "*.csproj", SearchOption.AllDirectories)
+                     .Where(file => !IsInIgnoredDirectory(file)))
+        {
+            var references = XDocument.Load(projectFile).Descendants()
+                .Where(element => element.Name.LocalName == "ProjectReference")
+                .Select(element => (string?)element.Attribute("Include"))
+                .Where(include => !string.IsNullOrWhiteSpace(include))
+                .Select(include => include!.Replace('\\', '/'));
+
+            foreach (var reference in references)
+            {
+                var resolved = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(projectFile)!, reference));
+                if (!resolved.StartsWith(srcRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    offenders.Add($"{FormatPath(projectFile)} -> {reference}");
+            }
+        }
+
+        Assert.True(offenders.Count == 0,
+            "A project under src/ may only reference other projects under src/. Offending references:" +
+            Environment.NewLine + string.Join(Environment.NewLine, offenders));
     }
 
     // Every project in the repository, not just src/: the two test projects live under tests/

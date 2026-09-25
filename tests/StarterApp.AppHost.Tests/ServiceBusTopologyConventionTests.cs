@@ -149,7 +149,7 @@ public class ServiceBusTopologyConventionTests
     {
         // The fluent AppHost config is the deployed topology. Pin it to the ServiceBusTopology
         // constants so the lifecycle posture above cannot drift via inline literals in Program.cs.
-        var programSource = File.ReadAllText(Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.AppHost", "Program.cs"));
+        var programSource = File.ReadAllText(Path.Combine(TestPaths.RepoRoot, "dev", "StarterApp.AppHost", "Program.cs"));
 
         var subscriptionBlocks = programSource
             .Split("AddServiceBusSubscription", StringSplitOptions.RemoveEmptyEntries)
