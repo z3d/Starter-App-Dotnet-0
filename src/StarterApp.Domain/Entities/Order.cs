@@ -36,8 +36,6 @@ public class Order : AggregateRoot
     {
     }
 
-    // orderDate is a business fact the caller supplies; DateCreated and LastUpdated are audit
-    // stamps DomainEventsInterceptor writes at save, so nothing here reads a clock.
     internal Order(Guid id, int customerId, string ownerSubject, string tenantId, DateTimeOffset orderDate)
     {
         if (id == Guid.Empty)

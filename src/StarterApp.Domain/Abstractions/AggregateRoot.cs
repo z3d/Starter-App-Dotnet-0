@@ -15,9 +15,6 @@ public abstract class AggregateRoot
 
     internal void ClearDomainEvents() => _domainEvents.Clear();
 
-    // The domain never reads a clock. DomainEventsInterceptor stamps every pending event with the
-    // one instant it also writes into the aggregates' audit columns, so an event and the row it
-    // describes never disagree about when the change happened.
     internal void StampDomainEvents(DateTimeOffset occurredOnUtc)
     {
         foreach (var domainEvent in _domainEvents)
