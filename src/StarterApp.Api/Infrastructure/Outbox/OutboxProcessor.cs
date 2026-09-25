@@ -299,7 +299,6 @@ public class OutboxProcessor : BackgroundService
                 .ToListAsync(cancellationToken);
         }
 
-        // InMemory fallback (tests)
         return await dbContext.OutboxMessages
             .Where(m => m.ProcessedOnUtc == null &&
                         m.Error == null &&

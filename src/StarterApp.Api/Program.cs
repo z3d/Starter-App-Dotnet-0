@@ -44,7 +44,6 @@ try
     if (app.Environment.IsDevelopment())
         Log.Information("Database connection configured: {ConnectionString}", StarterApp.ServiceDefaults.ConnectionStringDescriptor.Describe(connectionString));
 
-    // Middleware pipeline — order matters
     if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi().AllowAnonymous();

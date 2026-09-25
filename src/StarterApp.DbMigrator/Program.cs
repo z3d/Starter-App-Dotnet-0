@@ -4,7 +4,6 @@ using StarterApp.DbMigrator;
 var isReplayVerb = args.Length > 0 && string.Equals(args[0], "replay-outbox", StringComparison.OrdinalIgnoreCase);
 var configurationArgs = isReplayVerb ? Array.Empty<string>() : args;
 
-// Create configuration from appsettings.json
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: true)
@@ -12,11 +11,9 @@ var configuration = new ConfigurationBuilder()
     .AddCommandLine(configurationArgs)
     .Build();
 
-// Configure Serilog
 var loggerConfig = new LoggerConfiguration()
     .WriteTo.Console();
 
-// Add Seq sink if URL is provided
 var seqUrl = configuration["SEQ_URL"] ?? configuration["SeqUrl"];
 if (!string.IsNullOrEmpty(seqUrl))
 {

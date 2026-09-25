@@ -62,7 +62,6 @@ internal sealed class JwtIdentityMiddleware
                 }
                 catch (JsonException)
                 {
-                    // Not a JSON array after all — fall through to space-splitting.
                 }
             }
 

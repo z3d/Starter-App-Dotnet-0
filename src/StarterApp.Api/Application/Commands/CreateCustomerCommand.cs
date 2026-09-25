@@ -75,7 +75,6 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
 
         _logger.LogInformation("Created new customer with ID: {CustomerId}", savedCustomer!.Id);
 
-        // Map to DTO and return
         return new CustomerDto
         {
             Id = savedCustomer.Id,

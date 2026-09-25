@@ -43,7 +43,6 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         var price = Money.Create(command.Price!.Value, command.Currency!);
         product.UpdateDetails(command.Name!, command.Description, price);
 
-        // Update stock separately
         var stockDifference = command.Stock!.Value - product.Stock;
         if (stockDifference != 0)
         {
@@ -55,7 +54,6 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
 
         _logger.LogInformation("Updated product with ID: {ProductId}", product.Id);
 
-        // Map to DTO and return
         return new ProductDto
         {
             Id = product.Id,
