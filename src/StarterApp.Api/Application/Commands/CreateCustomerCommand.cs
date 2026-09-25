@@ -29,10 +29,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         var ownerScope = _ownerOnlyPolicy.GetRequiredScope();
         await EnsureEmailIsUniqueAsync(email.Value, ownerScope, cancellationToken);
 
-        // The database may commit the insert even if we never receive confirmation.
-        // On retry, return an existing customer only if owner scope, email, and name match.
-        // On the first attempt, let the unique constraint reject a concurrent duplicate
-        // with 409; an existing customer must not count as a successful create.
+        // On retry an existing customer counts as success only when owner, email and name all match; a first-attempt duplicate is left to the unique constraint.
         var strategy = _dbContext.Database.CreateExecutionStrategy();
         Customer? savedCustomer = null;
         var attempt = 0;
@@ -41,8 +38,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         {
             attempt++;
 
-            // Clear tracker so a prior failed attempt's tracked entity does not leak into this
-            // retry — otherwise two Added customers would be inserted on a second pass.
+            // A prior failed attempt's tracked entity would be inserted again on this pass.
             _dbContext.ChangeTracker.Clear();
 
             if (attempt > 1)

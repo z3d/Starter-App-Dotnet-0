@@ -4,10 +4,7 @@ public class CreateProductCommand : ICommand, IRequest<ProductDto>
 {
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    // Price, Currency and Stock are nullable so an absent JSON field is distinguishable from an
-    // explicit value: a non-nullable decimal deserializes a missing "price" to 0 and the product
-    // silently becomes free, and a defaulted currency silently prices it in USD while the update
-    // endpoint rejects the same body. The validator rejects null, so handlers may dereference.
+    // Nullable so a missing JSON field is not silently a free product in USD; the validator rejects null.
     public decimal? Price { get; set; }
     public string? Currency { get; set; }
     public int? Stock { get; set; }

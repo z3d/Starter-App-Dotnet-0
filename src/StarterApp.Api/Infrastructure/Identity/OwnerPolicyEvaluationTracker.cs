@@ -1,8 +1,6 @@
 namespace StarterApp.Api.Infrastructure.Identity;
 
-// Scoped per request. OwnerAuthorizationBehavior marks the request as one that must authorize
-// an owner before it writes; OwnerOnlyPolicy.Authorize marks that it did. OwnerAuthorizationWriteGuard
-// reads both before any write reaches the database.
+// Scoped per request: the behaviour marks that authorization is required, the policy marks that it ran, the guard reads both.
 public sealed class OwnerPolicyEvaluationTracker
 {
     public bool RequiresEvaluation { get; private set; }

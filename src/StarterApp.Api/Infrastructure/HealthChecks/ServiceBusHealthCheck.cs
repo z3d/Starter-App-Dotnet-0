@@ -5,9 +5,7 @@ using StarterApp.Api.Infrastructure.Outbox;
 
 namespace StarterApp.Api.Infrastructure.HealthChecks;
 
-// Probes the Service Bus namespace by opening a sender link to the domain-events topic and asking
-// for a message batch — that round-trips the AMQP link (the service reports the max batch size)
-// without sending anything, so the probe has no side effects on the topic.
+// Asking for a batch round-trips the AMQP link without sending anything.
 public sealed class ServiceBusHealthCheck : IHealthCheck
 {
     private readonly ServiceBusClient _client;

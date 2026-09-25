@@ -6,26 +6,17 @@ using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Functions;
 
-// Service Bus triggers have no built-in retry, so the handler is retried here while the
-// message lock is held. The Complete call sits outside the retry loop so that a failed
-// Complete does not rerun the handler.
-// The execution deadline covers the handler work and the backoff only. Settlement runs on the
-// host token, so a handler that finished late is still completed and a poison message that
-// surfaced late is still dead-lettered. A cancellation during the handler work leaves the
-// message unsettled, and the broker redelivers it.
+// Complete sits outside the retry loop so a failed Complete does not rerun the handler; settlement runs on the host token, so a late finish is still completed.
 public static class MessageSettlement
 {
     private const int MaxReasonDescriptionLength = 2048;
     internal const int MaxRetries = 5;
 
-    // Handler attempts plus backoff must finish inside this window. Backoff alone is 120 seconds
-    // (5/10/20/40/45); MessageSettlementTests pins what remains as per-attempt handler budget so a
-    // change to MaxRetries or the schedule cannot silently make the abandon branch unreachable.
+    // Backoff alone is 120 s (5/10/20/40/45); MessageSettlementTests pins the remainder as per-attempt budget.
     internal static readonly TimeSpan ExecutionTimeout = TimeSpan.FromSeconds(210);
     internal static readonly TimeSpan MinimumHandlerBudgetPerAttempt = TimeSpan.FromSeconds(15);
 
-    // Settlement calls run after the deadline on the host token. FunctionsHostConfigConventionTests
-    // keeps ExecutionTimeout + SettlementReserve inside maxAutoLockRenewalDuration with margin.
+    // FunctionsHostConfigConventionTests keeps ExecutionTimeout + SettlementReserve inside maxAutoLockRenewalDuration.
     internal static readonly TimeSpan SettlementReserve = TimeSpan.FromSeconds(30);
 
     public static Task SettleAsync(
@@ -44,8 +35,7 @@ public static class MessageSettlement
     internal static TimeSpan TotalBackoff =>
         Enumerable.Range(0, MaxRetries).Aggregate(TimeSpan.Zero, (sum, attempt) => sum + BackoffFor(attempt));
 
-    // Inject only the wait and deadline for deterministic retry tests. Production waits through the
-    // host's TimeProvider and uses one deadline shared by handler execution and backoff.
+    // Wait and deadline are injected for deterministic tests.
     internal static async Task SettleAsync(
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions,
@@ -75,8 +65,7 @@ public static class MessageSettlement
             }
             catch (Exception exception) when (IsNonRetryable(exception))
             {
-                // Settle on the host token: an expired deadline must not turn a dead-letter into a
-                // redelivery that uses up MaxDeliveryCount.
+                // An expired deadline must not turn a dead-letter into a redelivery that spends MaxDeliveryCount.
                 cancellationToken.ThrowIfCancellationRequested();
                 logger.LogError(
                     "Dead-lettering message {MessageId} ({Subject}, correlation {CorrelationId}): {FailureType} cannot succeed on redelivery",
@@ -89,8 +78,7 @@ public static class MessageSettlement
             catch (Exception exception)
             {
                 token.ThrowIfCancellationRequested();
-                // No exception objects: worker logs have no PII redaction stage. Host invocation
-                // logging of propagated settlement/cancellation failures is outside this helper.
+                // No exception objects: worker logs have no PII redaction stage.
                 if (attempt == MaxRetries)
                 {
                     logger.LogError(
@@ -112,23 +100,17 @@ public static class MessageSettlement
         await messageActions.CompleteMessageAsync(message, cancellationToken);
     }
 
-    // Redelivering the same bytes cannot fix these. Extend as real handler logic lands
-    // (e.g. domain rule violations surfaced while applying an event).
+    // Redelivering the same bytes cannot fix these.
     public static bool IsNonRetryable(Exception exception) =>
         exception is JsonException or InvalidDataException;
 
-    // The dead-letter description is broker metadata and is never redacted, and an exception
-    // message can quote the payload once the handlers deserialize domain events. Record only the
-    // exception type and the correlation ID; the archived payload is found by that ID.
-    // Truncate because the broker caps the field length.
+    // Broker metadata is never redacted and an exception message can quote the payload, so only the type and correlation id go here.
     private static string DescribeFailure(Exception exception, ServiceBusReceivedMessage message) =>
         Truncate($"{exception.GetType().Name}; correlationId={message.CorrelationId}");
 
     private static string Truncate(string value) =>
         value.Length <= MaxReasonDescriptionLength ? value : value[..MaxReasonDescriptionLength];
 
-    // Message correlation id, then the CorrelationId application property, else a fresh id. Shared
-    // by every subscriber so a new Function copies one attribute and one log line, not sixty lines.
     internal static string ResolveCorrelationId(ServiceBusReceivedMessage message)
     {
         if (!string.IsNullOrWhiteSpace(message.CorrelationId))
@@ -140,8 +122,7 @@ public static class MessageSettlement
         return CorrelationContext.Create();
     }
 
-    // Replayed/resubmitted messages keep their marker in the inbound capture: for dead-letter
-    // resubmits this captured record is the only durable artifact of the redelivery.
+    // For dead-letter resubmits this captured record is the only durable artifact of the redelivery.
     internal static Dictionary<string, string> BuildCaptureMetadata(ServiceBusReceivedMessage message, string subscription)
     {
         var metadata = new Dictionary<string, string>

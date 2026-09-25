@@ -34,8 +34,7 @@ public class OrderConfirmationEmailFunction
 
     private async Task ProcessAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken)
     {
-        // RunAsync resolved and pushed the id; resolving again would mint a second one for a
-        // message that carries none, splitting its log scope and its archive blob.
+        // Resolving again would mint a second id for a message that carries none.
         var correlationId = CorrelationContext.GetOrCreate();
         var body = message.Body.ToString();
 
@@ -53,10 +52,6 @@ public class OrderConfirmationEmailFunction
         _logger.LogInformation("Order confirmation email triggered. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
             message.MessageId, message.Subject, correlationId);
 
-        // TODO: Deserialize the payload and send the confirmation email.
-        // Delivery is unordered: host.json allows 16 concurrent calls and the subscription has no
-        // sessions, so a status change can arrive before the order-created event for the same
-        // order. The implementation must cope with either order (for example, upsert by order ID),
-        // or the subscription must move to sessions keyed by order ID.
+        // TODO: send the confirmation email. Delivery is unordered (16 concurrent calls, no sessions), so a status change can arrive before order-created.
     }
 }

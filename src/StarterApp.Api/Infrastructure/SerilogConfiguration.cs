@@ -2,9 +2,7 @@ using Serilog.Enrichers.Sensitive;
 
 namespace StarterApp.Api.Infrastructure;
 
-// Single source of truth for the API's Serilog pipeline. The host and the masking regression
-// test (SensitiveLogMaskingTests) both call Apply, so the composition that is tested is always
-// the composition that runs — sensitive-data masking cannot silently drop out of either path.
+// The host and SensitiveLogMaskingTests both call Apply, so the tested pipeline is the one that runs.
 public static class SerilogConfiguration
 {
     public static void Apply(LoggerConfiguration loggerConfiguration, IConfiguration configuration, IServiceProvider? services = null)

@@ -1,15 +1,9 @@
 namespace StarterApp.Api.Infrastructure.Identity;
 
-// WWW-Authenticate challenge values for the identity endpoint filters, so a token shortfall is
-// machine-actionable: a client reads the error code (and optional parameters), re-authorizes at
-// the IdP, and retries — the API never proxies elevation. Formats per RFC 6750 §3
-// (invalid_token, insufficient_scope) and RFC 9470 §3 (insufficient_user_authentication).
-// Inputs are compile-time scope constants and deployer config, so quoting is sufficient.
+// RFC 6750 §3 and RFC 9470 §3 challenge formats; inputs are constants and deployer config, so quoting suffices.
 internal static class BearerChallenges
 {
-    // Reaching a filter unauthenticated means the bearer handler accepted the token but the
-    // identity contract mapping rejected it (e.g. missing sub/tid) — invalid_token, not a missing
-    // Authorization header (that 401s at the authorization middleware).
+    // Unauthenticated here means the token validated but the identity mapping rejected it: invalid_token, not a missing header.
     public static IResult Unauthenticated(EndpointFilterInvocationContext context) =>
         Problem(context, StatusCodes.Status401Unauthorized, "Unauthorized", "Authentication is required.",
             InvalidToken("The token does not satisfy the identity claim contract."));

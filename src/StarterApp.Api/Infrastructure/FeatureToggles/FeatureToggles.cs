@@ -5,10 +5,7 @@ public interface IFeatureToggles
     bool IsEnabled(string name);
 }
 
-// Configuration-driven (FeatureToggles:{name}); any provider works, so a toggle can be
-// flipped via appsettings, environment variable, or orchestration config without a
-// redeploy. A missing entry means ENABLED — toggles exist to switch features off, and
-// the convention test requires every declared toggle to have an explicit entry anyway.
+// A missing entry means enabled; the convention test requires an explicit entry per toggle anyway.
 public sealed class ConfigurationFeatureToggles : IFeatureToggles
 {
     private readonly IConfiguration _configuration;

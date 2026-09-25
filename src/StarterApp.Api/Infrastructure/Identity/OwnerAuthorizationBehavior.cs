@@ -12,16 +12,13 @@ public sealed class OwnerAuthorizationBehavior<TRequest, TResponse> : IPipelineB
 
     public async Task<TResponse> HandleAsync(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
-        // Flag the request before the handler runs. OwnerAuthorizationWriteGuard then refuses
-        // any write from a handler that has not called IOwnerOnlyPolicy.Authorize, so a missing
-        // check fails the request before anything is persisted, in every environment.
+        // Flagged before the handler so OwnerAuthorizationWriteGuard can refuse a write with no owner check.
         if (request is IOwnerAuthorizedMutation)
             _tracker.RequireEvaluation();
 
         var response = await next();
 
-        // A handler that threw already failed the request on its own. One that completed without
-        // writing and without authorizing is still a bug, so fail it here.
+        // A handler that completed without writing and without authorizing is still a bug.
         if (_tracker.IsViolated)
         {
             throw new InvalidOperationException(

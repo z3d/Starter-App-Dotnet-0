@@ -5,9 +5,6 @@ public interface ICacheable
     string CacheKey { get; }
     TimeSpan CacheDuration { get; }
 
-    // Stampede protection: in the final CacheRefreshWindow of CacheDuration, one request
-    // recomputes inline (correct caller identity — never a background scope) while
-    // concurrent requests keep the cached value. Must be positive and smaller than
-    // CacheDuration (convention-tested).
+    // In this final window one request recomputes inline while the rest keep the cached value. Positive and smaller than CacheDuration.
     TimeSpan CacheRefreshWindow { get; }
 }

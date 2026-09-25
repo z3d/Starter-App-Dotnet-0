@@ -2,8 +2,6 @@ namespace StarterApp.Api.Application.Validators;
 
 public class CreateOrderCommandValidator : IValidator<CreateOrderCommand>
 {
-    // References the domain invariant so the validator (API UX, multi-error) and the
-    // Order.AddItem guard (last line of defense) stay in lockstep.
     private const int MaxItemsPerOrder = Order.MaxItems;
     public IEnumerable<ValidationError> Validate(CreateOrderCommand request)
     {

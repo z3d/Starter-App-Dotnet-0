@@ -2,10 +2,7 @@ namespace StarterApp.Api.Infrastructure.Payloads;
 
 public sealed record AuditActionMetadata(string Action);
 
-// Business-action taxonomy stamped onto payload-capture audit rows so support and
-// compliance queries can ask "all deletes by subject X" without parsing routes.
-// Derived from the HTTP method; routes whose verb misrepresents the business action
-// override per endpoint via WithAuditAction (allowlist convention-tested).
+// Derived from the HTTP method; endpoints whose verb misrepresents the action override via WithAuditAction.
 public static class AuditAction
 {
     public const string Create = "Create";
@@ -27,8 +24,7 @@ public static class AuditAction
         _ => Other
     };
 
-    // Request rows are captured before routing selects an endpoint, so they carry the
-    // verb-derived action; response rows resolve the endpoint override here.
+    // Request rows are captured before routing, so only response rows can see the endpoint override.
     public static string Resolve(HttpContext context)
     {
         var endpointOverride = context.GetEndpoint()?.Metadata.GetMetadata<AuditActionMetadata>();

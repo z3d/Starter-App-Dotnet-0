@@ -1,8 +1,6 @@
 using StarterApp.DbMigrator;
 
-// Ops verbs (currently: replay-outbox) bypass AddCommandLine — the bare verb token
-// is not key=value shaped and would fail configuration parsing. Their arguments are
-// parsed explicitly by the verb handler instead.
+// The bare verb token is not key=value shaped and would fail AddCommandLine parsing.
 var isReplayVerb = args.Length > 0 && string.Equals(args[0], "replay-outbox", StringComparison.OrdinalIgnoreCase);
 var configurationArgs = isReplayVerb ? Array.Empty<string>() : args;
 
@@ -27,20 +25,13 @@ if (!string.IsNullOrEmpty(seqUrl))
 
 Log.Logger = loggerConfig.CreateLogger();
 
-// Every path returns an exit code instead of calling Environment.Exit so the finally block can
-// flush the Seq sink; Environment.Exit terminates before finally runs and a short migration or
-// replay would exit with its whole log batch undelivered.
-// Elapsed time is the diagnosis when a migration fails with nothing else to go on: a failure at
-// about fifteen seconds is Npgsql's connect timeout (no route to the server), a sub-second one is
-// the login or the SQL itself.
+// Returned exit codes let finally flush the Seq sink. A failure at about fifteen seconds is Npgsql's connect timeout; sub-second is login or SQL.
 var elapsed = System.Diagnostics.Stopwatch.StartNew();
 
 try
 {
     Log.Information("Starting database migration process");
 
-    // Get connection string from configuration
-    // Use the same connection string priority logic as the API
     var databaseConnection = configuration.GetConnectionString("database");
     var postgresConnection = configuration.GetConnectionString("postgres");
     var defaultConnection = configuration.GetConnectionString("DefaultConnection");
@@ -56,9 +47,7 @@ try
     Log.Information("Using database connection: {ConnectionString} ({DatabaseAuthentication})",
         ConnectionStringDescriptor.Describe(connectionString), DatabaseAuthentication.Describe(connectionString));
 
-    // DbUp takes a plain connection string, so a password-less (hosting identity) string is
-    // resolved to one carrying an Entra token here, once; the run finishes well inside the token's
-    // lifetime. The resolved string is never logged.
+    // DbUp takes a plain string, so the token is resolved once here; never log the result.
     connectionString = await DatabaseAuthentication.ResolveForDirectUseAsync(connectionString);
 
     if (isReplayVerb)

@@ -65,11 +65,7 @@ public class OrderItem
         return Money.Create(GetUnitGstAmount() * Quantity, UnitPriceExcludingGst.Currency);
     }
 
-    // GST is rounded to whole cents PER UNIT, then multiplied by quantity, so per-unit and per-line
-    // figures stay internally consistent: total GST == unit GST x qty, and total incl == total excl +
-    // total GST. Rounding the line total instead can diverge from unit x qty by a cent at scale.
-    // Raw decimal, not Money: Order uses it to check a prospective order total against
-    // Money.MaxAmount before any Money.Create could throw for exceeding it.
+    // GST rounds per unit, then multiplies, so unit and line figures stay consistent. Raw decimal so Order can check MaxAmount before Money.Create throws.
     internal decimal GetLineTotalIncludingGstAmount()
     {
         return (UnitPriceExcludingGst.Amount + GetUnitGstAmount()) * Quantity;

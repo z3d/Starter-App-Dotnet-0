@@ -2,8 +2,6 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace StarterApp.Api.Application.Commands;
 
-// The template's live feature-toggle exemplar: flipping FeatureToggles:order-placement to
-// false in configuration refuses order placement with 503 — no redeploy (kill-switch shape).
 [FeatureToggle("order-placement")]
 public class CreateOrderCommand : ICommand, IRequest<OrderDto>, IOwnerAuthorizedMutation
 {
@@ -49,19 +47,14 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         _ownerOnlyPolicy.Authorize(customer.OwnerSubject, customer.TenantId);
 
-        // Atomic stock-reservation + order-insert must share one transaction (ExecuteUpdate bypasses
-        // the SaveChanges transaction). With EnableRetryOnFailure, user transactions must be wrapped
-        // in the execution strategy so transient SQL faults can retry the whole unit of work.
-        // On InMemory (tests) the strategy is a no-op; the transaction is skipped via IsRelational —
-        // same outer code path runs safely for both providers.
+        // The stock update and the insert share one transaction, which must run inside the execution strategy; skipped on the non-relational test provider.
         var orderId = Guid.CreateVersion7();
         var strategy = _dbContext.Database.CreateExecutionStrategy();
         Order? savedOrder = null;
 
         await strategy.ExecuteAsync(cancellationToken, async ct =>
         {
-            // Clear tracker so a prior failed attempt's tracked entities do not leak into this retry —
-            // otherwise two Added orders would be inserted on a second pass.
+            // A prior failed attempt's tracked entities would be inserted again on this pass.
             _dbContext.ChangeTracker.Clear();
 
             var committedOrder = await _dbContext.Orders
@@ -108,17 +101,14 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         _logger.LogInformation("Created order with ID: {OrderId}", savedOrder!.Id);
 
-        // Stock was decremented for each ordered product; purge the cached by-id product read model
-        // (which carries Stock) so a subsequent GetProductByIdQuery does not serve stale stock.
+        // Evict the cached product read model so it does not serve the pre-reservation stock.
         foreach (var productId in command.Items.Select(item => item.ProductId).Distinct())
             await _cacheInvalidator.InvalidateProductAsync(productId, cancellationToken);
 
         return OrderMapper.ToDto(savedOrder);
     }
 
-    // Single provider branch: relational uses atomic SQL (UPDATE ... WHERE Stock >= qty) to prevent
-    // overselling under concurrency; InMemory (tests only) falls back to tracked read-modify-write
-    // because ExecuteUpdateAsync is not supported on that provider.
+    // Relational: atomic UPDATE ... WHERE Stock >= qty. InMemory (tests) cannot ExecuteUpdate, so it falls back to read-modify-write.
     private Task<Product> ReserveStockAsync(CreateOrderItemCommand itemCommand, OwnerScope ownerScope, CancellationToken cancellationToken)
     {
         return _dbContext.Database.IsRelational()
@@ -131,9 +121,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         OwnerScope ownerScope,
         CancellationToken cancellationToken)
     {
-        // Load product first to verify existence and get catalog details (name, price).
-        // AsNoTracking because ExecuteUpdateAsync below bypasses the change tracker —
-        // a tracked entity would hold a stale Stock snapshot after the direct SQL update.
+        // AsNoTracking: the ExecuteUpdate below bypasses the tracker, so a tracked entity would hold stale stock.
         var product = await _dbContext.Products
             .AsNoTracking()
             .SingleOrDefaultAsync(p => p.Id == itemCommand.ProductId, cancellationToken);
@@ -183,8 +171,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
     private static void EnsureNoDuplicateProducts(CreateOrderCommand command)
     {
-        // Mirrors CreateOrderCommandValidator (validator/guard sync rule): the mediator validates
-        // first, but a handler invoked directly must not dereference a null element from the wire.
+        // Mirrors the validator: a handler invoked directly must not dereference a null item.
         if (command.Items.Any(item => item is null))
             throw new ValidationException([new ValidationError(nameof(command.Items), "Order item must not be null")]);
 

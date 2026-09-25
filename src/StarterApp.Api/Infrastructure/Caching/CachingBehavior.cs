@@ -7,9 +7,7 @@ namespace StarterApp.Api.Infrastructure.Caching;
 public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {
-    // Keys currently being early-recomputed (in-process). Bounded by in-flight refreshes:
-    // entries are removed in finally. Single-flight is per replica — cross-replica the
-    // herd is reduced to one request per replica, which is the acceptable residual.
+    // Per-replica single-flight for early recomputes; entries are removed in finally.
     private static readonly ConcurrentDictionary<string, byte> RefreshesInFlight = new();
 
     private readonly IDistributedCache _cache;
@@ -30,15 +28,11 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         if (request is not ICacheable cacheable)
             return await next();
 
-        // An invalidation generation must outlive every value that observed its predecessor.
-        // Pin expiry before the database read (and even before cache I/O), so slow publishers
-        // cannot extend that value beyond the generation's retention window.
+        // Pin expiry before any I/O so a slow publisher cannot extend a value past the generation's retention.
         if (cacheable.CacheDuration > CacheTombstone.Ttl)
             return await next();
 
-        // Owner-scoped values must never share a key across identities. Without an authenticated
-        // subject there is nothing to scope by, so serve uncached rather than fall back to a global
-        // key that a later authenticated reader could hit.
+        // No authenticated subject means no owner scope, so serve uncached rather than share a global key.
         if (cacheable is IOwnerScopedRequest && !_currentUser.IsAuthenticated)
             return await next();
 
@@ -60,10 +54,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
                     return envelope.Value!;
                 }
 
-                // The value is close to expiry. Only one request recomputes it, so a busy key does
-                // not make every caller recompute at once; the others keep the cached value, which
-                // is still valid. The recompute runs on the caller's own request rather than in a
-                // background scope so that owner-scoped keys keep the right identity.
+                // One caller recomputes inline, keeping its own identity; the rest keep the still-valid cached value.
                 if (!RefreshesInFlight.TryAdd(cacheKey, 0))
                 {
                     _logger.LogDebug("Refresh already in flight for {CacheKey}; serving cached value", cacheKey);
@@ -80,8 +71,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException && _timeProvider.GetUtcNow() < envelope.ExpiresAtUtc)
                 {
-                    // The refresh failed but the cached value is still inside its TTL, so serve it.
-                    // Only the early refresh gets this fallback; a plain cache miss still throws.
+                    // The cached value is still inside its TTL; only the early refresh gets this fallback.
                     _logger.LogWarning(ex, "Refresh-ahead recompute failed for {CacheKey}; serving the cached value until the next attempt", cacheKey);
                     return envelope.Value!;
                 }
@@ -91,9 +81,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
                 }
             }
 
-            // A superseded generation or pinned expiry is the normal post-invalidation miss;
-            // unreadable or pre-envelope content is the unusual one. Log them apart so an
-            // operator does not read routine invalidation as cache corruption.
+            // A superseded generation is a routine miss; unreadable content is not. Log them apart.
             if (envelope is null)
                 _logger.LogDebug("Cache entry for {CacheKey} is not a valid envelope; treating as miss", cacheKey);
             else
@@ -108,9 +96,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         return result;
     }
 
-    // The cache is best-effort infrastructure: a Redis outage must degrade to uncached database
-    // reads, never turn a healthy read into a 500 (before or after PostgreSQL has answered).
-    // Cancellation always propagates. Mirrors the fail-open posture of CacheInvalidator.
+    // Fails open: a Redis outage degrades to database reads, never a 500. Cancellation still propagates.
     private async Task<(bool Success, string? Value)> TryGetAsync(string cacheKey, CancellationToken cancellationToken)
     {
         try
@@ -131,9 +117,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         if (!known || currentGeneration != generation || _timeProvider.GetUtcNow() >= expiresAtUtc)
             return;
 
-        // The pre-write check only avoids needless obsolete writes. Correctness comes from storing
-        // the generation observed BEFORE the handler and checking it on every hit. An invalidation
-        // can complete between this check and SetAsync; that publication is still rejected on reads.
+        // Correctness comes from storing the generation observed before the handler; this check only avoids needless writes.
         var refreshAfterUtc = expiresAtUtc - cacheable.CacheRefreshWindow;
         var serialized = JsonSerializer.Serialize(new CacheEnvelope(result, refreshAfterUtc, expiresAtUtc, generation));
         var options = new DistributedCacheEntryOptions { AbsoluteExpiration = expiresAtUtc };

@@ -27,9 +27,7 @@ internal sealed class TwoFactorEndpointFilter : IEndpointFilter
         if (missingAuthenticationMethod == null)
             return await next(context);
 
-        // RFC 9470 step-up challenge: the client re-authorizes at the IdP (passing the advertised
-        // acr_values when a deployer configured one) and retries with the stepped-up token. The
-        // access check itself stays amr-based — acr_values here is advisory routing only.
+        // acr_values is advisory routing for the IdP; the access check stays amr-based.
         var acrValues = context.HttpContext.RequestServices
             .GetRequiredService<IOptions<JwtIdentityOptions>>().Value.StepUpAcrValues;
         return BearerChallenges.Forbidden(context, "Forbidden", "Two-factor authentication is required for this operation.",

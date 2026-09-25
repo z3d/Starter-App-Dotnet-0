@@ -14,18 +14,11 @@ public class PayloadCaptureOptions
 
     public bool RequireArchiveStore { get; set; }
 
-    // Each channel has its own failure mode. Payload capture is an audit sidecar, so the HTTP
-    // channel stays FailOpen: a capture failure is logged and the request goes on. The Service
-    // Bus channel runs in the background, so the AppHost production-like config sets it to
-    // FailClosed, and the OutboxProcessor pauses the batch until the capture succeeds. Both
-    // default to FailOpen in code so that standalone development and tests work with no archive store.
+    // HTTP stays FailOpen; the AppHost sets the Service Bus channel FailClosed and the outbox pauses until capture succeeds.
     public PayloadCaptureFailureMode HttpFailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
 
     public PayloadCaptureFailureMode ServiceBusFailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
 
-    // Generated artifacts and intermediate transformations (channel "artifact") run inside
-    // request/handler flows, so they default FailOpen like HTTP; a compliance domain whose
-    // artifacts ARE the deliverable can opt into FailClosed.
     public PayloadCaptureFailureMode ArtifactFailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
 
     public PayloadCaptureFailureMode FailureModeFor(string? channel)
@@ -55,19 +48,14 @@ public class PayloadCaptureOptions
     [Range(1, 3650)]
     public int RetentionDays { get; set; } = 30;
 
-    // The time budget for one cleanup run, split evenly across the three prefixes. There is no
-    // cap on deletes; a run that uses up the budget records a Degraded job run, so an archive
-    // that is falling behind is visible. The default fits inside the 5-minute functionTimeout
-    // of the Consumption plan; raise the two together in host.json.
+    // Must fit inside the Consumption plan's 5-minute functionTimeout; raise the two together in host.json.
     [Range(1, 3600)]
     public int CleanupTimeBudgetSeconds { get; set; } = 300;
 
     [Range(1, 104_857_600)]
     public int MaxPayloadBytes { get; set; } = 1_048_576;
 
-    // Bounds how many entity-index references a single capture may fan out into; each reference is a
-    // separate serial blob round trip on the request thread, so this caps request-path amplification
-    // from a hostile body packed with distinct *Id properties.
+    // Each reference is a serial blob round trip on the request thread; this caps amplification from a hostile body.
     [Range(1, 4096)]
     public int MaxEntityReferences { get; set; } = PayloadEntityReferenceExtractor.DefaultMaxEntityReferences;
 
@@ -79,9 +67,7 @@ public class PayloadCaptureOptions
         "text/plain"
     ];
 
-    // Shared by the JSON payload redactor (log masking), the capture sink (metadata/query-string
-    // masking), and the entity-reference extractor (blob-path exclusion) — matched as normalized
-    // substrings, so "ssn" also covers "ssnId" and "license" covers "driversLicenseNumber".
+    // Matched as normalized substrings, so "ssn" also covers "ssnId".
     internal static readonly string[] DefaultSensitivePropertyNames =
     [
         "address",

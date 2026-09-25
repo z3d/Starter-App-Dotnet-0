@@ -29,8 +29,7 @@ public sealed class OwnerOnlyPolicy : IOwnerOnlyPolicy
 
     public void Authorize(string ownerSubject, string tenantId)
     {
-        // Marked before the comparison: a Forbidden outcome still counts as the
-        // policy having been consulted (the request fails on its own).
+        // Marked before the comparison: a Forbidden outcome still counts as consulted.
         _tracker.MarkEvaluated();
 
         var scope = GetRequiredScope();

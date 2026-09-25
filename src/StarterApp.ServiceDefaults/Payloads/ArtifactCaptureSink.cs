@@ -1,11 +1,6 @@
 namespace StarterApp.ServiceDefaults.Payloads;
 
-// Correlation-bound capture for generated artifacts (rendered documents, exports, batch
-// files) and significant intermediate transformations. "The payload that arrived" and
-// "the artifact we produced" are different evidence; this is the slot for the latter.
-// Reuses the full archive/audit/entity-index scheme and the per-channel failure-mode
-// policy (PayloadCapture:ArtifactFailureMode) — the API surface is ready before any
-// concrete artifact producer exists.
+// The slot for artifacts the system produced, as opposed to payloads that arrived; no producer exists yet.
 public interface IArtifactCaptureSink
 {
     Task CaptureArtifactAsync(ArtifactCaptureRequest request, CancellationToken cancellationToken);
@@ -52,8 +47,6 @@ public sealed class ArtifactCaptureSink : IArtifactCaptureSink
         var payloadSizeBytes = (long)System.Text.Encoding.UTF8.GetByteCount(payload);
         if (payloadSizeBytes > _options.MaxPayloadBytes)
         {
-            // Mirrors the HTTP middleware's bounded-capture semantics: the audit row says
-            // explicitly that this is a bounded capture, not a full-fidelity artifact.
             payload = TruncateToByteBudget(payload, _options.MaxPayloadBytes);
             truncated = true;
         }

@@ -3,11 +3,7 @@ using System.Text.Json;
 
 namespace StarterApp.Api.Infrastructure.Identity;
 
-// The single writer of ICurrentUser: maps the claims principal produced by the JWT bearer
-// handler onto the scoped CurrentUserAccessor. Everything downstream (handlers, owner policy,
-// cache keys, rate limiting, audit stamping) reads ICurrentUser and never touches
-// HttpContext.User — convention-enforced, so claim-shape differences between IdPs stay
-// contained here.
+// The single writer of ICurrentUser; nothing downstream reads HttpContext.User (convention-enforced).
 internal sealed class JwtIdentityMiddleware
 {
     private readonly RequestDelegate _next;
@@ -31,17 +27,13 @@ internal sealed class JwtIdentityMiddleware
 
     private static CurrentUser? Map(ClaimsPrincipal principal)
     {
-        // Both sub and tid are required: owner scoping, cache keys, and rate-limit partitions
-        // key on subject + tenant, so a token missing either maps to no identity (the scope
-        // filter then 401s) rather than authenticating with an empty owner-scope component —
-        // an IdP missing its tenant mapper must fail loudly, not stamp rows with "".
+        // A token missing sub or tid maps to no identity rather than stamping rows with an empty owner scope.
         var subject = principal.FindFirstValue("sub");
         var tenantId = principal.FindFirstValue("tid");
         if (string.IsNullOrWhiteSpace(subject) || string.IsNullOrWhiteSpace(tenantId))
             return null;
 
-        // pty is an optional custom claim a deployer's IdP may stamp to mark non-user callers
-        // (daemons, service accounts); anything else — including its absence — maps to User.
+        // pty is an optional deployer claim marking non-user callers; anything else, including absence, is User.
         var principalType = string.Equals(principal.FindFirstValue("pty"), nameof(AuthenticatedPrincipalType.Service), StringComparison.Ordinal)
             ? AuthenticatedPrincipalType.Service
             : AuthenticatedPrincipalType.User;
@@ -54,9 +46,7 @@ internal sealed class JwtIdentityMiddleware
             ReadMultiValueClaim(principal, "amr"));
     }
 
-    // Claim shapes differ by IdP: Entra emits space-delimited "scp", Keycloak a space-delimited
-    // "scope"; JSON-array claims (Keycloak's amr) surface either as repeated claims or as a
-    // single claim whose value is the serialized array. Normalize all of them.
+    // Entra emits space-delimited scp, Keycloak scope; array claims arrive repeated or as one serialized array.
     private static IReadOnlyList<string> ReadMultiValueClaim(ClaimsPrincipal principal, params string[] claimTypes)
     {
         var values = new List<string>();

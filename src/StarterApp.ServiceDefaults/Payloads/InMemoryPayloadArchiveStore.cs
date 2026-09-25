@@ -46,10 +46,7 @@ public sealed class InMemoryPayloadArchiveStore : IPayloadArchiveStore
         return Task.CompletedTask;
     }
 
-    // Cleanup mirrors AzureBlobPayloadArchiveStore semantics so the tests that run against this
-    // double exercise the same contract: every expired blob under the three configured prefixes
-    // is deleted in one pass, nothing outside them is touched. The double has no wall clock, so
-    // the budget never runs out here.
+    // Mirrors AzureBlobPayloadArchiveStore's contract; no wall clock, so the budget never runs out.
     public Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
     {
         lock (_gate)

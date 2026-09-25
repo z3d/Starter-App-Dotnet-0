@@ -2,17 +2,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace StarterApp.Api.Infrastructure;
 
-// Every anonymous endpoint in the API, in one place:
-//   /health, /health/ready, /health/live, /alive — the Aspire and Kubernetes probes.
-//   /liveness    — answers from the process alone, evaluates no dependencies.
-//   /healthiness — deep probe of the durable (deployable) backing resources: every health check
-//                  tagged "durable" (database, distributed cache, Service Bus, payload archive
-//                  where configured) with per-check detail; 503 when any check is unhealthy.
-// Probes carry no bearer token, so each one opts out of the fallback authorization policy with
-// AllowAnonymous. ApiConventionTests checks that nothing else does.
-// They also opt out of the global rate limiter: the limiter buckets anonymous traffic by client
-// IP, and under Kubernetes the kubelet probes from the node IP, so a 429 on a probe could
-// restart an otherwise healthy pod.
+// Every anonymous endpoint, in one place. Probes also skip the rate limiter: kubelet probes from the node IP, and a 429 could restart a healthy pod.
 public static class ProbeEndpoints
 {
     public static IEndpointRouteBuilder MapProbeEndpoints(this IEndpointRouteBuilder app)

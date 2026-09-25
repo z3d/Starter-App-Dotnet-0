@@ -33,10 +33,7 @@ public static class PayloadEntityReferenceExtractor
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxReferences);
         ArgumentNullException.ThrowIfNull(sensitivePropertyNames);
 
-        // Entity references become blob PATH segments and are echoed in Information logs by the
-        // sink — they must never carry redaction-bypassing sensitive values (e.g. nationalId),
-        // so sensitive property names are excluded with the same normalized-substring semantics
-        // the JSON payload redactor uses.
+        // References become blob path segments and appear in logs, so sensitive names are screened out here too.
         var sensitiveTokens = sensitivePropertyNames
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Select(NormalizePropertyName)
@@ -46,9 +43,7 @@ public static class PayloadEntityReferenceExtractor
         var references = new Dictionary<string, PayloadEntityReference>(StringComparer.OrdinalIgnoreCase);
         var contextEntityType = InferRootEntityType(request.Operation, request.Metadata);
 
-        // Every reference source passes the same name screen. The route path is caller-controlled
-        // and captured before routing, so an unauthenticated GET /api/v1/nationalId/{value} would
-        // otherwise publish {value} through the one door the JSON and metadata paths close.
+        // The route path is caller-controlled and captured before routing; without this screen it would publish a value the JSON path masks.
         foreach (var reference in request.EntityReferences)
             AddReference(reference.EntityType, reference.EntityId, sensitiveTokens, references);
 
@@ -64,9 +59,7 @@ public static class PayloadEntityReferenceExtractor
             .ThenBy(reference => reference.EntityId, StringComparer.Ordinal)
             .ToList();
 
-        // Cap the number of entity-index references. Each returned reference drives a separate serial
-        // blob round trip in the sink, so an attacker-controlled body packed with thousands of distinct
-        // *Id properties would otherwise amplify a single request into thousands of inline storage calls.
+        // Each reference is a serial blob round trip; cap the fan-out from a body packed with distinct *Id properties.
         truncated = ordered.Count > maxReferences;
         return truncated ? ordered.Take(maxReferences).ToList() : ordered;
     }
@@ -144,8 +137,7 @@ public static class PayloadEntityReferenceExtractor
 
         string? entityType = null;
 
-        // The suffix match is case-sensitive on purpose: an OrdinalIgnoreCase "Id" suffix turns
-        // ordinary words ending in "id" (paid, valid, bid) into junk entity references.
+        // Case-sensitive on purpose: an ignore-case "Id" suffix turns paid, valid and bid into entity references.
         if (string.Equals(name, "id", StringComparison.OrdinalIgnoreCase))
         {
             entityType = contextEntityType;
@@ -273,9 +265,7 @@ public static class PayloadEntityReferenceExtractor
             segment.Any(char.IsDigit);
     }
 
-    // Every source funnels through here, so this is the one screen that cannot be bypassed: the
-    // resolved entity type (a property name, a route segment, a caller-supplied reference, or the
-    // root path segment behind a bare "id") becomes a blob path segment and is echoed in logs.
+    // Every source funnels through here, so this is the one screen that cannot be bypassed.
     private static void AddReference(
         string entityType,
         string entityId,

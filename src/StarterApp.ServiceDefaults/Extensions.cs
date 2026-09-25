@@ -11,9 +11,6 @@ using StarterApp.ServiceDefaults.Payloads;
 
 namespace Microsoft.Extensions.Hosting;
 
-// Adds common .NET Aspire services: service discovery, resilience, health checks, and OpenTelemetry.
-// This project should be referenced by each service project in your solution.
-// To learn more about using this project, see https://aka.ms/dotnet/aspire/service-defaults
 public static class Extensions
 {
     public static IHostApplicationBuilder AddServiceDefaults(this IHostApplicationBuilder builder)
@@ -96,10 +93,7 @@ public static class Extensions
         builder.Services.AddSingleton<IPayloadRedactor, JsonPayloadRedactor>();
         builder.Services.AddSingleton<IPayloadCaptureSink, PayloadCaptureSink>();
         builder.Services.AddSingleton<IArtifactCaptureSink, ArtifactCaptureSink>();
-        // One BlobServiceClient per process, resolved from the bound options. The archive store and
-        // the API's payload-archive health check both take it through the provider, so a health
-        // probe reuses the warm client and its credential's token cache instead of re-walking the
-        // DefaultAzureCredential chain on every call.
+        // One client per process; the health check reuses it and its token cache.
         builder.Services.AddSingleton(provider => new PayloadArchiveClientProvider(
             PayloadArchiveConfiguration.CreateClient(
                 provider.GetRequiredService<IOptions<PayloadCaptureOptions>>().Value,

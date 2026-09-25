@@ -4,9 +4,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace StarterApp.ServiceDefaults.Payloads;
 
-// Single owner of "is a payload archive configured, and with which client?" The bound options
-// are the source of truth at resolution time (so Configure/PostConfigure<PayloadCaptureOptions>
-// is honoured); the raw-configuration probe exists only for registration-time decisions.
+// Bound options are the truth at resolution time; the raw probe is for registration-time decisions only.
 public static class PayloadArchiveConfiguration
 {
     public static bool IsConfigured(IConfiguration configuration)
@@ -51,10 +49,7 @@ public static class PayloadArchiveConfiguration
     }
 }
 
-// The one BlobServiceClient the process holds for the payload archive, or null when none is
-// configured. A dedicated wrapper rather than a bare BlobServiceClient registration so an
-// unrelated Azure client added to DI (e.g. Aspire's AddAzureBlobClient for another account)
-// can never be picked up by the archive store or its health check.
+// A wrapper so an unrelated BlobServiceClient in DI can never be picked up by the archive store.
 public sealed class PayloadArchiveClientProvider
 {
     public PayloadArchiveClientProvider(BlobServiceClient? client)

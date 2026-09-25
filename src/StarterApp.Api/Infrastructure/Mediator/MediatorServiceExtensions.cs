@@ -6,10 +6,7 @@ public static class MediatorServiceExtensions
     {
         services.AddScoped<IMediator, Mediator>();
         services.AddSingleton<FeatureToggles.IFeatureToggles, FeatureToggles.ConfigurationFeatureToggles>();
-        // Feature toggles are gated in the mediator BEFORE validators and before any pipeline
-        // behavior runs (Mediator.RunFeatureToggleGate), so a disabled feature can never be served
-        // from cache. Registration order below still matters for the remaining behaviors: first
-        // registered runs outermost.
+        // Toggles are gated in the mediator before all of these. First registered runs outermost.
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(Identity.OwnerAuthorizationBehavior<,>));
         services.AddScoped<ICacheInvalidator, CacheInvalidator>();

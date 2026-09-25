@@ -6,13 +6,10 @@ public sealed class JwtIdentityOptions
 {
     public const string SectionName = "Identity";
 
-    // OIDC authority (e.g. https://idp.example.com/realms/starterapp). The bearer handler fetches
-    // discovery + JWKS from here and caches them in memory; required outside Development/Testing.
+    // Required outside Development and Testing.
     public string? Authority { get; set; }
 
-    // Where discovery is actually fetched when that differs from the issuer's public address —
-    // a deployment whose apps reach the identity provider over an internal hostname while the
-    // tokens carry (and Authority names) the public one. Optional; the issuer stays Authority.
+    // Where discovery is fetched when that differs from the public issuer address; the issuer stays Authority.
     public string? MetadataAddress { get; set; }
 
     [Required(AllowEmptyStrings = false)]
@@ -24,13 +21,10 @@ public sealed class JwtIdentityOptions
     [Range(0, 300)]
     public int ClockSkewSeconds { get; set; } = 30;
 
-    // Advisory acr_values advertised in the RFC 9470 step-up challenge when a write lacks the
-    // mfa amr — the ACR the deployer's IdP uses to mean "MFA performed" (Keycloak LoA name,
-    // Entra auth-context id). Optional: when unset the challenge carries the error code alone.
+    // Advisory acr_values for the step-up challenge; the access check itself stays amr-based.
     public string? StepUpAcrValues { get; set; }
 
-    // RSA and ECDSA only, which is what an OIDC JWKS document publishes. HMAC algorithms would
-    // let anyone holding the shared secret mint tokens, and there is no such secret here.
+    // Asymmetric only: an HMAC algorithm would let anyone holding the secret mint tokens.
     public static readonly IReadOnlyList<string> AllowedSigningAlgorithms =
     [
         "RS256", "RS384", "RS512",

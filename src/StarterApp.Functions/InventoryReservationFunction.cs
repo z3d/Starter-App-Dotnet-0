@@ -34,8 +34,7 @@ public class InventoryReservationFunction
 
     private async Task ProcessAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken)
     {
-        // RunAsync resolved and pushed the id; resolving again would mint a second one for a
-        // message that carries none, splitting its log scope and its archive blob.
+        // Resolving again would mint a second id for a message that carries none.
         var correlationId = CorrelationContext.GetOrCreate();
         var body = message.Body.ToString();
 
@@ -53,8 +52,6 @@ public class InventoryReservationFunction
         _logger.LogInformation("Inventory reservation event received. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
             message.MessageId, message.Subject, correlationId);
 
-        // CreateOrderCommandHandler already reserved the stock, in the same unit of work that
-        // created the order. Do not change the catalog stock here, or it is reserved twice.
-        // TODO: Deserialize the payload and build the downstream projection or warehouse notification.
+        // TODO: build the downstream projection. Stock is already reserved by CreateOrderCommandHandler; do not reserve it again.
     }
 }

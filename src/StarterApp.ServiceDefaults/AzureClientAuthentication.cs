@@ -6,13 +6,7 @@ using StackExchange.Redis;
 
 namespace StarterApp.ServiceDefaults;
 
-// The Azure-client counterpart of DatabaseAuthentication: the shape of the configured value
-// decides the credential. A connection string that carries a key or password (AccountKey,
-// SharedAccessKey, SharedAccessSignature, password=, or the emulator's UseDevelopmentStorage) is
-// used as given; a bare endpoint, namespace or Redis host means "connect as the hosting identity"
-// and takes a DefaultAzureCredential. Aspire injects the keyed form for the local emulators and
-// containers and the bare form for the deployed Azure resources, so the same configuration key
-// works in both places.
+// The shape of the value picks the credential: a key or password is used as given, a bare endpoint means the hosting identity.
 public static class AzureClientAuthentication
 {
     public static bool UsesManagedIdentity(string? value)
@@ -49,11 +43,7 @@ public static class AzureClientAuthentication
             : new ServiceBusClient(value);
     }
 
-    // Azure Managed Redis / Azure Cache for Redis with access keys disabled: the StackExchange.Redis
-    // options Aspire builds from the connection string get Microsoft's Entra token exchange
-    // (Microsoft.Azure.StackExchangeRedis), which sets the user from the token and refreshes it.
-    // A local container's "host:port,password=…" is left alone. Called from the client
-    // registration's configureOptions hook, which is synchronous, hence the blocking wait at start-up.
+    // Entra token exchange for Azure Redis with keys disabled; called from a synchronous hook, hence the blocking wait at start-up.
     public static void ConfigureRedis(ConfigurationOptions options, TokenCredential? credential = null)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -69,8 +59,7 @@ public static class AzureClientAuthentication
         (dns.Host.EndsWith(".redis.azure.net", StringComparison.OrdinalIgnoreCase) ||
          dns.Host.EndsWith(".redis.cache.windows.net", StringComparison.OrdinalIgnoreCase));
 
-    // Accepts "https://account.blob.core.windows.net", "Endpoint=sb://ns.servicebus.windows.net/"
-    // or a bare "ns.servicebus.windows.net".
+    // Accepts a full URL, an Endpoint=sb://... string or a bare namespace.
     internal static Uri Endpoint(string value)
     {
         var endpoint = value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

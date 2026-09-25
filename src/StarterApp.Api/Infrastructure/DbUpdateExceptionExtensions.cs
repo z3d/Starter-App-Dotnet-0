@@ -4,8 +4,6 @@ namespace StarterApp.Api.Infrastructure;
 
 public static class DbUpdateExceptionExtensions
 {
-    // A C# 14 extension block: the receiver is named once, the parameterless checks are extension
-    // properties, and the constraint-scoped checks stay methods because they take an argument.
     extension(DbUpdateException exception)
     {
         public bool IsUniqueConstraintViolation(string? constraintName = null) =>

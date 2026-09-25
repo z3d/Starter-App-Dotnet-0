@@ -2,13 +2,7 @@ using Npgsql;
 
 namespace StarterApp.Api.Infrastructure.Persistence;
 
-// EF's retry policy covers only the DbContext. Dapper reads go through plain ADO.NET, so the
-// query handlers wrap them in this helper instead. Dapper reopens a pooled connection on each
-// attempt.
-// The backoff is randomized so that saturated readers do not retry in lockstep. The total
-// delay budget is 10 seconds, down from about 61: a longer failover now fails the request
-// instead of holding it open, which the usual 60-second ingress timeout would have done anyway.
-// The budget counts the waits between attempts, not the time spent running the query.
+// EF's retry covers only the DbContext; Dapper reads wrap here. The 10 s budget counts waits, not query time.
 public static class PostgresRetryPolicy
 {
     private const int MaxRetries = 5;
@@ -40,8 +34,7 @@ public static class PostgresRetryPolicy
         return ExecuteAsync(operation, IsTransientException, MaxRetries, cancellationToken);
     }
 
-    // Test-friendly overload: the retry predicate, retry count and delay budget are injected so
-    // unit tests don't have to fabricate provider-specific exceptions or wait out real backoff.
+    // Predicate, count and budget are injected for tests.
     internal static async Task<T> ExecuteAsync<T>(
         Func<CancellationToken, Task<T>> operation,
         Func<Exception, bool> shouldRetry,
@@ -86,13 +79,11 @@ public static class PostgresRetryPolicy
         return TransientSqlStates.Contains(sqlState);
     }
 
-    // The delay is a random point between half the exponential ceiling and the ceiling, so
-    // concurrent retries land at different moments.
+    // Randomized between half the ceiling and the ceiling so concurrent retries do not align.
     internal static TimeSpan ComputeBackoff(int attempt)
     {
         var ceiling = ComputeBackoffCeiling(attempt);
-        // Not a security decision, but RandomNumberGenerator is what the analyzer set admits and
-        // it is cheap at this call rate (one draw per retry, never per request).
+        // Not a security decision; RandomNumberGenerator is what the analyzer set admits.
         var factor = 0.5 + System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 1001) / 2000.0;
         return TimeSpan.FromMilliseconds(ceiling.TotalMilliseconds * factor);
     }

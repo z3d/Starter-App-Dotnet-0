@@ -8,8 +8,7 @@ namespace Microsoft.Extensions.Hosting;
 
 public static class JobRunRecordingExtensions
 {
-    // Conditional like Service Bus registration: standalone dev and unit tests without a
-    // database connection string get a no-op recorder instead of a startup failure.
+    // No connection string means a no-op recorder, not a startup failure.
     public static IHostApplicationBuilder AddJobRunRecording(this IHostApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);

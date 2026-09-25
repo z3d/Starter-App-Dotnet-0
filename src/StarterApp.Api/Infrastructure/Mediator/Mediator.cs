@@ -4,11 +4,7 @@ namespace StarterApp.Api.Infrastructure.Mediator;
 
 public class Mediator : IMediator
 {
-    // One wrapper is built per concrete request type on first dispatch and cached
-    // for the process lifetime. MakeGenericType / Activator.CreateInstance runs
-    // once per request type — every subsequent SendAsync is a dictionary lookup
-    // plus a strongly-typed virtual call. No MethodInfo.Invoke, no per-call
-    // object[] argument allocation, no per-behavior GetMethod lookup.
+    // One wrapper per request type, built on first dispatch; every later SendAsync is a lookup plus a typed call.
     private static readonly ConcurrentDictionary<Type, object> RequestHandlerWrappers = new();
     private static readonly ConcurrentDictionary<Type, ValidatorInvoker> ValidatorInvokers = new();
 

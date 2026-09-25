@@ -39,8 +39,7 @@ public static class CorrelationContext
         if (trimmed.Length == 0)
             return Create();
 
-        // The output contract is ASCII [A-Za-z0-9._-]{1,128} — it feeds archive blob names and
-        // the echoed X-Correlation-ID response header, so only this exact set may pass.
+        // Feeds blob names and the echoed response header, so only this exact set may pass.
         var chars = trimmed
             .Where(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '-' or '_' or '.')
             .Take(MaxSanitizedLength)
@@ -50,12 +49,7 @@ public static class CorrelationContext
         if (sanitized.Length == trimmed.Length)
             return sanitized;
 
-        // Stripping characters or truncating can turn two different raw IDs into the same
-        // sanitized ID, which mixes unrelated requests into one archive stream. A short hash of
-        // the raw input keeps them apart. When nothing survives the filter the result is
-        // "invalid.<hash>", so one caller's ID still maps to one stream instead of a random ID
-        // per request. This only prevents accidents: the ID is unauthenticated caller input, so
-        // the hash is not a security boundary.
+        // The hash keeps two raw ids that sanitize alike in separate streams; it is not a security boundary.
         var rawHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(trimmed)))[..HashSuffixLength].ToLowerInvariant();
         if (sanitized.Length == 0)
             return $"invalid.{rawHash}";

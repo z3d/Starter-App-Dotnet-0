@@ -3,10 +3,7 @@ using Npgsql;
 
 namespace StarterApp.ServiceDefaults.Jobs;
 
-// Durable run history for background work (the "what did the background work actually do"
-// trail). Telemetry sidecar semantics: recording failures are logged and swallowed — a
-// history write must never take down the job it describes. Rows land in job_runs
-// (migration 0003) and age out after JobRuns:RetentionDays (default 30).
+// Recording failures are logged and swallowed: a history write must never take down the job it describes.
 public interface IJobRunRecorder
 {
     Task<Guid> StartRunAsync(string jobName, DateTimeOffset startedOnUtc, CancellationToken cancellationToken);
@@ -51,9 +48,7 @@ public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
             command.Parameters.AddWithValue("startedOnUtc", startedOnUtc);
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-            // The purge is a best-effort sidecar and must never turn a committed start row into an
-            // orphan: when it shared this try, a failed delete discarded runId, CompleteRunAsync
-            // skipped, and job-run-history.sql reported the run as a crash.
+            // A failed purge in the same try discarded runId and made job-run-history.sql report the run as a crash.
             try
             {
                 await PurgeIfDueAsync(connection, cancellationToken).ConfigureAwait(false);

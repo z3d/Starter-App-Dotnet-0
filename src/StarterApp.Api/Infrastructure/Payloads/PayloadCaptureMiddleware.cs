@@ -24,10 +24,7 @@ public sealed class PayloadCaptureMiddleware
         _logger = logger;
     }
 
-    // Exact-match only, deliberately hardcoded (configuration would allow excluding business
-    // routes): platform liveness/readiness probes hammer these paths and their capture is pure
-    // noise in the audit artifact ops actually reads. Everything else — including 404 junk and
-    // rejected traffic — is captured by design (see the capture-first recorded decision).
+    // Hardcoded on purpose: only probe noise is skipped, and configuration would let business routes opt out.
     internal static readonly IReadOnlySet<string> ProbeSkipRoutes = new HashSet<string>(StringComparer.Ordinal)
     {
         "/health",
@@ -49,18 +46,13 @@ public sealed class PayloadCaptureMiddleware
         var correlationId = ResolveCorrelationId(context, out var hadInboundCorrelationId);
         context.TraceIdentifier = correlationId;
 
-        // Leave a caller-supplied correlation id on the request unchanged — the request headers are
-        // the caller's own data; the sanitized form is applied wherever the id is reflected or
-        // persisted (TraceIdentifier, the echoed response header, archive naming, log scope). Only
-        // inject the generated id when the caller sent none, so downstream capture always has one.
+        // The caller's request headers stay untouched; the sanitized id is used wherever it is reflected or persisted.
         if (!hadInboundCorrelationId)
             context.Request.Headers[CorrelationContext.HeaderName] = correlationId;
 
         context.Response.Headers[CorrelationContext.HeaderName] = correlationId;
 
-        // UseExceptionHandler clears every response header before writing ProblemDetails. The
-        // OnStarting callback survives that reset, so the echo reaches error responses too and
-        // support can still jump from a failed call's correlation id to its archive blob.
+        // UseExceptionHandler clears response headers; an OnStarting callback survives that, so the echo reaches error responses.
         context.Response.OnStarting(static state =>
         {
             var (response, id) = ((HttpResponse, string))state;
@@ -84,10 +76,7 @@ public sealed class PayloadCaptureMiddleware
         }
         catch (OperationCanceledException)
         {
-            // A client abort must not silently suppress the audit record — a caller could
-            // otherwise deliberately disconnect to keep responses out of the audit trail. The
-            // response bytes written so far are already buffered, so capture them with an
-            // unlinked token before rethrowing the cancellation.
+            // A client abort must not suppress the audit record, so capture the buffered bytes with an unlinked token.
             _logger.LogWarning("HTTP request was canceled for correlation {CorrelationId}; capturing the partial response for audit", correlationId);
             await CaptureResponseAsync(context, correlationId, responseBody);
             throw;
@@ -159,18 +148,14 @@ public sealed class PayloadCaptureMiddleware
             ["action"] = AuditAction.Resolve(context)
         };
 
-        // The verified token identity makes "all deletes by subject X" answerable from
-        // audit rows alone. Audit blobs are full-fidelity support artifacts (may contain
-        // PII per the payload-capture policy); logs stay redacted as before.
+        // Audit blobs may carry PII by policy; logs stay redacted.
         if (context.RequestServices?.GetService<ICurrentUser>() is { IsAuthenticated: true } currentUser)
         {
             metadata["subject"] = currentUser.Subject;
             metadata["tenantId"] = currentUser.TenantId;
         }
 
-        // The response payload is already buffered in memory, so the audit write deliberately runs
-        // on CancellationToken.None: cancelling it with RequestAborted would let a client abort
-        // suppress the audit record after the response was produced.
+        // CancellationToken.None: a client abort must not suppress the audit record after the response was produced.
         if (!ShouldCaptureContentType(context.Response.ContentType))
         {
             await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
