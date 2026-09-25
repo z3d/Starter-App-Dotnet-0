@@ -4,32 +4,17 @@ using Azure.Core;
 using Azure.Identity;
 using Npgsql;
 
-// Linked into StarterApp.DbMigrator with the DBMIGRATOR constant, like ConnectionStringDescriptor:
-// the migrator does not reference ServiceDefaults, and the test project references both assemblies.
+// Also compiled into StarterApp.DbMigrator under DBMIGRATOR, like ConnectionStringDescriptor.
 #if DBMIGRATOR
 namespace StarterApp.DbMigrator;
 #else
 namespace StarterApp.ServiceDefaults;
 #endif
 
-// A connection string with no password means "connect as the hosting identity": Azure Database
-// for PostgreSQL accepts an Entra access token as the password, and Npgsql refreshes it on the
-// interval below so a pooled connection never opens with a token about to expire. The user is the
-// one named in the string, or — when the string names none, which is the shape Aspire emits for an
-// Entra-only flexible server — the identity the token was issued to (its upn, preferred_username
-// or, for a managed identity, the name in xms_mirid), the same derivation Aspire's own Npgsql
-// integration performs. TLS is required on that path so a rejected token can never be retried in
-// the clear. A connection string with a password is used as given.
-//
-// This is the only place a database credential is decided. Every long-running process takes its
-// connections from the one NpgsqlDataSource that CreateDataSource builds (EF Core, Dapper and the
-// job-run recorder share it); the migrator, which cannot hand DbUp a password provider, resolves the
-// token once up front with ResolveForDirectUseAsync. A raw `new NpgsqlConnection(string)` in
-// production code is banned (BannedSymbols.txt) because it cannot carry the token.
+// No password means connect as the hosting identity with an Entra token; the user comes from the string or, when it names none, from the token. This is the only place a database credential is decided.
 public static class DatabaseAuthentication
 {
-    // The audience Azure Database for PostgreSQL validates tokens against; a management-plane
-    // token is rejected by the server.
+    // A management-plane token is rejected by the server.
     public const string TokenScope = "https://ossrdbms-aad.database.windows.net/.default";
 
     // Tokens last about an hour. Refresh well inside that, and retry a failed fetch quickly.
@@ -64,8 +49,7 @@ public static class DatabaseAuthentication
         var settings = new NpgsqlConnectionStringBuilder(connectionString);
         if (string.IsNullOrEmpty(settings.Username))
         {
-            // The user is fixed for the life of the data source, so it is derived from one token
-            // here rather than in the password provider.
+            // The user is fixed for the life of the data source, so one token here rather than in the password provider.
             var token = tokenCredential.GetToken(new TokenRequestContext([TokenScope]), CancellationToken.None);
             settings.Username = UsernameFromToken(token.Token);
         }
@@ -81,10 +65,7 @@ public static class DatabaseAuthentication
         return builder.Build();
     }
 
-    // For a short-lived process that must hand a plain connection string to a library with no
-    // password-provider hook (DbUp in the migrator): the token becomes the password. The result
-    // is good for about an hour and must never be logged or stored; a string that already carries
-    // a password is returned untouched and the credential is never consulted.
+    // For DbUp, which has no password-provider hook: the token becomes the password, good for about an hour, never logged.
     public static async Task<string> ResolveForDirectUseAsync(
         string connectionString,
         TokenCredential? credential = null,
@@ -102,17 +83,14 @@ public static class DatabaseAuthentication
         return settings.ConnectionString;
     }
 
-    // Npgsql's default (Prefer) would retry in the clear after a refused TLS handshake, and a
-    // token must never travel unencrypted. An explicit stricter mode in the string is kept.
+    // Npgsql's default (Prefer) would retry in the clear after a refused TLS handshake.
     private static void RequireEncryption(NpgsqlConnectionStringBuilder settings)
     {
         if (settings.SslMode is SslMode.Disable or SslMode.Allow or SslMode.Prefer)
             settings.SslMode = SslMode.Require;
     }
 
-    // Azure Database for PostgreSQL matches the token to a principal by name: a user's upn or
-    // preferred_username, or a managed identity's name, which the token carries only inside
-    // xms_mirid (".../userAssignedIdentities/<name>"). Same lookup order as Aspire.Azure.Npgsql.
+    // A managed identity's name is only inside xms_mirid; same lookup order as Aspire.Azure.Npgsql.
     internal static string UsernameFromToken(string accessToken)
     {
         var parts = accessToken.Split('.');

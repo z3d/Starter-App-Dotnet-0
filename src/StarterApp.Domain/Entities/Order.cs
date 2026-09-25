@@ -4,9 +4,7 @@ namespace StarterApp.Domain.Entities;
 
 public class Order : AggregateRoot
 {
-    // Aggregate invariant: an order is bounded to MaxItems distinct line items. Enforced here
-    // (last line of defense) and mirrored by CreateOrderCommandValidator, which references this
-    // const so the two cannot drift.
+    // Mirrored by CreateOrderCommandValidator through this const so the two cannot drift.
     public const int MaxItems = 50;
 
     private readonly List<OrderItem> _items = [];
@@ -44,9 +42,7 @@ public class Order : AggregateRoot
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(customerId);
         OwnershipDefaults.Validate(ownerSubject, tenantId);
 
-        // Client-assigned Id is required so creation events can be built before SaveChanges —
-        // this is what keeps outbox capture inside a single SaveChanges and makes
-        // EnableRetryOnFailure safe. Guid v7 is time-ordered, preserving insert locality.
+        // Client-assigned so the creation event can be built before SaveChanges; v7 keeps insert locality.
         Id = id;
         CustomerId = customerId;
         OwnerSubject = ownerSubject;
@@ -103,10 +99,7 @@ public class Order : AggregateRoot
         return item;
     }
 
-    // The GST-inclusive order total is what OrderCreatedDomainEvent computes during outbox capture,
-    // where Money.Create would throw a bare ArgumentOutOfRangeException after stock was reserved.
-    // Checking the prospective total (this item replacing any existing line for the same product)
-    // before mutating keeps it a DomainRuleException and leaves the order untouched on failure.
+    // Checked before mutating so an over-limit total is a DomainRuleException here rather than an ArgumentOutOfRangeException during outbox capture.
     private void EnsureOrderTotalWithinMaxAmount(OrderItem item)
     {
         var othersIncludingGst = _items
@@ -202,10 +195,7 @@ public class Order : AggregateRoot
 
     internal override void RecordCreation()
     {
-        // Domain guard mirroring CreateOrderCommandValidator's "at least one item" rule.
-        // Fires during the SaveChanges outbox
-        // capture — after the create handler's add-items loop — so the build-then-add-items
-        // construction flow is unaffected; an order can never be persisted/published empty.
+        // Fires during outbox capture, after the create handler's add-items loop, so an order can never be persisted empty.
         if (_items.Count == 0)
             throw new DomainRuleException("Cannot create an order with no items");
 

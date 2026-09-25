@@ -4,9 +4,6 @@ namespace StarterApp.Api.Data;
 
 public class ApplicationDbContext : DbContext
 {
-    // Domain-event capture into the outbox lives in DomainEventsInterceptor (attached by AddPersistence),
-    // not here: the context owns persistence only. A context constructed without the interceptor
-    // (design-time tooling, model-only tests) simply does not capture.
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
     {

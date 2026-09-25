@@ -1,8 +1,6 @@
 namespace StarterApp.Api.Infrastructure.Mediator;
 
-// Void result type so commands with no return value still flow through the single
-// SendAsync<TResponse> pipeline (and its IPipelineBehavior chain). There is deliberately
-// no behavior-bypassing void dispatch path — every command is IRequest<T>.
+// Every command is IRequest<T>; there is deliberately no behaviour-bypassing void dispatch.
 public readonly record struct Unit
 {
     public static Unit Value => default;

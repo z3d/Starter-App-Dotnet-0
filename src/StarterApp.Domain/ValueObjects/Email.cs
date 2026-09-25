@@ -15,10 +15,7 @@ public sealed record Email
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
 
-        // Normalize to a canonical lower-case form so the value object, the EF uniqueness query,
-        // and the case-sensitive unique index all agree on identity. ToLowerInvariant (not ToLower)
-        // is required: culture-sensitive casing would make the same address normalize differently
-        // by locale (e.g. the Turkish dotless-i), so two hosts could disagree about collisions.
+        // ToLowerInvariant, not ToLower: culture-sensitive casing (Turkish dotless i) would make hosts disagree about collisions.
         var normalized = value.ToLowerInvariant();
 
         if (normalized.Length > MaxEmailLength)

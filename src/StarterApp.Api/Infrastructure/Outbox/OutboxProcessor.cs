@@ -54,8 +54,7 @@ public class OutboxProcessor : BackgroundService
                     _lastCleanupUtc = _timeProvider.GetUtcNow();
                 }
 
-                // Periodic aggregate health row (never per message): one job_runs row per
-                // interval that saw activity, so support can query what the outbox did.
+                // One job_runs row per interval with activity, never per message.
                 var healthWindow = _runAggregator.TryFlush(_timeProvider.GetUtcNow());
                 if (healthWindow is not null)
                 {
@@ -77,10 +76,7 @@ public class OutboxProcessor : BackgroundService
         }
     }
 
-    // Outbox rows carry full event payloads. Processed rows are pure history after publish, and
-    // errored rows are a manual-replay surface that RetentionDays bounds — counted from the failure
-    // (ErroredOnUtc), never from the event time, so a permanent failure always gets a full replay
-    // window. Both are purged so the table cannot grow forever. Unprocessed rows are never touched.
+    // Errored rows are purged RetentionDays after the failure, not the event time; unprocessed rows are never touched.
     internal async Task<int> CleanupExpiredMessagesAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -123,9 +119,7 @@ public class OutboxProcessor : BackgroundService
         var now = _timeProvider.GetUtcNow();
         var lockedUntilUtc = now.AddSeconds(_options.LockDurationSeconds);
 
-        // EnableRetryOnFailure's execution strategy rejects user-initiated transactions unless
-        // wrapped in ExecuteAsync. Keep the transaction scoped only to row claiming so SQL locks
-        // are released before Blob capture or Service Bus publish network calls begin.
+        // The transaction covers only the claim, so row locks are released before any network call.
         var messages = await strategy.ExecuteAsync(cancellationToken, async ct =>
         {
             dbContext.ChangeTracker.Clear();
@@ -158,9 +152,7 @@ public class OutboxProcessor : BackgroundService
                 }
                 catch (Exception captureEx) when (captureEx is not OperationCanceledException)
                 {
-                    // Under FailClosed the audit capture failed before the publish, so nothing was
-                    // sent. Pause the batch and leave the message's retry budget alone; it will
-                    // publish once the archive store is back.
+                    // FailClosed: nothing was sent, so pause the batch and leave the retry budget alone.
                     _logger.LogWarning(captureEx,
                         "Payload capture failed for outbox message {MessageId} ({Type}) before publish; pausing batch until the archive store recovers (retry budget untouched)",
                         message.Id, message.Type);
@@ -176,12 +168,7 @@ public class OutboxProcessor : BackgroundService
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // Only publish failures reach here; the audit capture failures are caught above.
-                // A Service Bus outage must not use up each message's retry budget, or a few
-                // minutes of downtime would push every polled message into the Error state.
-                // Pause the batch and keep the claims locked until LockedUntilUtc, which delays
-                // the next attempt. IsTransientDependencyError stays broad on purpose: the SDK
-                // does not wrap every socket or timeout fault in a ServiceBusException.
+                // A broker outage must not spend each message's retry budget: pause the batch and keep the claims locked until LockedUntilUtc.
                 if (IsTransientDependencyError(ex))
                 {
                     _logger.LogWarning(ex, "Transient dependency error publishing outbox message {MessageId} ({Type}); pausing batch until claim lock expires",
@@ -211,10 +198,7 @@ public class OutboxProcessor : BackgroundService
         await SaveOutcomesAsync(dbContext, cancellationToken);
     }
 
-    // The whole batch's outcomes go into one SaveChanges. If another replica reclaimed a row
-    // whose lock expired mid-batch, its ProcessingId changed and the save would fail for every
-    // row, and the messages this replica already published would be sent again. Detach the
-    // reclaimed rows, which now belong to the other replica, and save the rest.
+    // A row another replica reclaimed mid-batch would fail the whole save and republish everything; detach it and save the rest.
     internal async Task SaveOutcomesAsync(ApplicationDbContext dbContext, CancellationToken cancellationToken)
     {
         while (true)
@@ -239,8 +223,7 @@ public class OutboxProcessor : BackgroundService
         }
     }
 
-    // internal (not private) so integration tests can drive the claim path against real PostgreSQL
-    // to verify FOR UPDATE SKIP LOCKED concurrency behaviour, which EF InMemory cannot model.
+    // internal so integration tests can drive SKIP LOCKED against real PostgreSQL.
     internal async Task<List<OutboxMessage>> ClaimBatchInTransactionAsync(
         ApplicationDbContext dbContext,
         Guid processingId,
@@ -297,8 +280,6 @@ public class OutboxProcessor : BackgroundService
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        // PostgreSQL's FOR UPDATE SKIP LOCKED lets concurrent processors claim different rows
-        // without waiting on locks held by another worker.
         if (dbContext.Database.IsRelational())
         {
             return await dbContext.OutboxMessages
@@ -328,9 +309,7 @@ public class OutboxProcessor : BackgroundService
             .ToListAsync(cancellationToken);
     }
 
-    // The runbook and DECISIONS.md promise that audit distinguishes an operator republish from a
-    // first delivery; the capture metadata must carry the same marker as the message itself,
-    // because for dead-letter resubmits the captured record is the only durable artifact.
+    // For dead-letter resubmits the captured record is the only durable artifact, so it carries the replay marker too.
     internal static Dictionary<string, string> BuildCaptureMetadata(OutboxMessage message, string topicName)
     {
         var metadata = new Dictionary<string, string>
@@ -363,8 +342,7 @@ public class OutboxProcessor : BackgroundService
         serviceBusMessage.ApplicationProperties["EventType"] = message.Type;
         serviceBusMessage.ApplicationProperties[CorrelationContext.ApplicationPropertyName] = message.CorrelationId;
 
-        // Replayed messages are marked so audit and subscribers can distinguish an
-        // operator-initiated republish from a first delivery (see docs/runbooks/event-replay.md).
+        // Lets audit and subscribers tell an operator republish from a first delivery (docs/runbooks/event-replay.md).
         if (message.ReplayCount > 0)
         {
             serviceBusMessage.ApplicationProperties["Replay"] = true;

@@ -43,13 +43,8 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.IsActive)
             .HasColumnName("is_active");
 
-        // No (tenant_id, owner_subject) index: the unique (tenant_id, owner_subject, email) index
-        // below serves that prefix (0005_DropRedundantIndexes.sql).
+        // No (tenant_id, owner_subject) index: the unique index below serves that prefix.
 
-        // The unique index ix_customers_tenant_id_owner_subject_email lives only in the DbUp
-        // baseline migration. EF cannot declare an index that spans Customer and its owned Email
-        // type, even though they share a table, so HasIndex("...", "Email.Value") fails.
-        // The create and update customer handlers catch that constraint name when two requests
-        // race to insert the same email.
+        // The unique (tenant_id, owner_subject, email) index lives only in the DbUp baseline: EF cannot index across the owned Email type.
     }
 }

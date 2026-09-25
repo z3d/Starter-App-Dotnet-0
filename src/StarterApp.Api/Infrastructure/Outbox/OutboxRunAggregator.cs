@@ -1,8 +1,5 @@
 namespace StarterApp.Api.Infrastructure.Outbox;
 
-// Accumulates per-message outcomes into periodic health windows so the outbox writes one
-// job_runs row per interval with activity — never one per message, never noise for idle
-// intervals. Pure logic, unit-tested directly; OutboxProcessor drives it.
 internal sealed class OutboxRunAggregator
 {
     private readonly TimeSpan _interval;
@@ -24,9 +21,7 @@ internal sealed class OutboxRunAggregator
     public void AddRetried() => _retried++;
     public void AddPurged(int count) => _purged += count;
 
-    // A batch paused on a dependency fault (archive store or Service Bus). Counted so a fully
-    // stalled outbox is distinguishable from an idle one — without it, hours of zero throughput
-    // left no job_runs row at all.
+    // Counted so a stalled outbox is distinguishable from an idle one.
     public void AddPaused() => _paused++;
 
     public OutboxHealthWindow? TryFlush(DateTimeOffset nowUtc)
@@ -61,9 +56,7 @@ internal sealed record OutboxHealthWindow(
     int Purged,
     int Paused)
 {
-    // Degraded on any permanent error, or when the window paused without publishing anything (a
-    // stalled outbox). Routine throttling that pauses a batch but still publishes stays Succeeded;
-    // the paused count in the summary keeps it visible.
+    // Throttling that still publishes stays Succeeded; a window that paused and published nothing is a stall.
     public string Outcome => Errored > 0 || (Paused > 0 && Published == 0) ? "Degraded" : "Succeeded";
 
     public string ToSummaryJson() =>

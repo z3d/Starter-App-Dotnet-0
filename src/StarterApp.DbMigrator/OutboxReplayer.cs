@@ -4,12 +4,7 @@ namespace StarterApp.DbMigrator;
 
 public static class OutboxReplayer
 {
-    // The sanctioned operator recovery path for errored outbox rows (see
-    // docs/runbooks/event-replay.md). Mirrors OutboxMessage.ResetForReplay
-    // semantics: only unprocessed, errored rows are eligible; the reset clears
-    // error state and any stale claim, restores the retry budget, and stamps
-    // replay metadata so the processor can mark the republished message.
-    // OutboxReplayTests asserts the SQL and OutboxMessage.ResetForReplay stay in sync.
+    // Mirrors OutboxMessage.ResetForReplay; OutboxReplayTests keeps the SQL and the method in sync.
     private const string ReplayAllErroredSql = """
         UPDATE outbox_messages
         SET error = NULL,
@@ -65,8 +60,7 @@ public static class OutboxReplayer
 
     private static int Execute(string connectionString, Guid? messageId)
     {
-        // The string arrives already resolved by DatabaseAuthentication (a token as the password
-        // for the hosting identity), so a plain data source is the right shape here.
+        // The string arrives already resolved by DatabaseAuthentication.
         using var dataSource = NpgsqlDataSource.Create(connectionString);
         using var connection = dataSource.CreateConnection();
         connection.Open();

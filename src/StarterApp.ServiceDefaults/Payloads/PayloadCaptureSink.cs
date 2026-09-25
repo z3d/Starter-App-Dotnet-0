@@ -48,9 +48,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
                 request.Operation,
                 CorrelationContext.Sanitize(request.CorrelationId ?? CorrelationContext.GetOrCreate()));
 
-            // Honor FailClosed even when the store is absent: a missing store is the one case that must
-            // not silently fail open. (Production-like config also guards this with RequireArchiveStore
-            // at startup, but the two settings can disagree, so enforce the contract here too.)
+            // A missing store must not silently fail open even though RequireArchiveStore also guards it at startup.
             if (_options.FailureModeFor(request.Channel) == PayloadCaptureFailureMode.FailClosed)
                 throw new InvalidOperationException(
                     $"Payload capture is FailClosed for channel '{request.Channel}', but no payload archive store is configured; refusing to proceed without an audit record.");
@@ -96,15 +94,11 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
 
         try
         {
-            // The per-correlation archive is THE durable record: this append is the one governed by
-            // the channel's FailOpen/FailClosed policy.
+            // The durable record; the only append governed by the channel's failure mode.
             var line = JsonSerializer.Serialize(record, SerializerOptions);
             await _store.AppendLineAsync(archiveBlobName, line, cancellationToken);
 
-            // The per-minute audit stream is ops' time-window view (tail one blob for "everything in
-            // this minute" without knowing correlation ids) and is BEST-EFFORT: the durable record
-            // already exists above, and the shared fan-in blob is the most contended write in the
-            // system, so a failure here must never fail traffic or pause the outbox — even FailClosed.
+            // Best-effort: the most contended write in the system must never fail traffic or pause the outbox, even FailClosed.
             await AppendAuditBestEffortAsync(auditBlobName, line, request, cancellationToken);
 
             var entityIndexBlobNames = new List<string>();
@@ -200,11 +194,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
     }
 
-    // The archive/audit record is the full-fidelity support artifact and may intentionally contain PII in the
-    // payload body. The query string, however, can carry bearer secrets (token/password/secret/authorization),
-    // and the equivalent request headers are never captured. The entity index drops queryString entirely because
-    // it is a pointer-only cross-correlation index; the archive keeps benign params (e.g. page/pageSize) but
-    // masks the values of sensitive parameters so debugging context survives without leaking secrets.
+    // The query string can carry bearer secrets, so sensitive parameter values are masked; the entity index drops it entirely.
     private Dictionary<string, string> BuildArchiveMetadata(Dictionary<string, string> metadata)
     {
         return metadata.ToDictionary(

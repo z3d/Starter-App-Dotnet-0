@@ -47,8 +47,6 @@ public static class ServiceCollectionExtensions
                 document.Info.Description = "A sample API for the Starter App built with .NET 10 Minimal APIs";
                 document.Info.Contact = new() { Name = "Starter App Team" };
 
-                // Scalar renders an Auth panel only for declared security schemes; the identity
-                // layer owns the scheme declaration (convention-enforced boundary).
                 JwtIdentityOpenApi.ApplySecuritySchemes(document);
                 return Task.CompletedTask;
             });
@@ -59,19 +57,12 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddPersistence(this IServiceCollection services, string connectionString)
     {
-        // EnableRetryOnFailure is safe because the aggregates and the outbox rows go into one
-        // SaveChanges with no explicit transaction. A handler that does open a transaction must
-        // run it inside CreateExecutionStrategy().ExecuteAsync, as CreateOrderCommandHandler does;
-        // otherwise the first transient fault throws. The DomainEventsInterceptor is stateless,
-        // so one instance serves every context. The OwnerAuthorizationWriteGuard is scoped because
-        // it reads the request's OwnerPolicyEvaluationTracker.
+        // A handler that opens its own transaction must run it inside CreateExecutionStrategy().ExecuteAsync or the first transient fault throws.
         services.TryAddScoped<OwnerPolicyEvaluationTracker>();
         services.AddScoped<OwnerAuthorizationWriteGuard>();
         services.TryAddSingleton(TimeProvider.System);
 
-        // One data source per process: EF Core, Dapper and the job-run recorder share the pool, and
-        // the managed-identity password provider (DatabaseAuthentication in ServiceDefaults) is
-        // configured in exactly one place, whichever registration runs first.
+        // One data source per process so the managed-identity password provider is configured once.
         services.AddDatabaseDataSource(connectionString);
         services.AddDbContext<ApplicationDbContext>((provider, options) =>
             options.UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>(), postgres =>
@@ -79,10 +70,7 @@ public static class ServiceCollectionExtensions
                    .EnableSensitiveDataLogging(false)
                    .AddInterceptors(new DomainEventsInterceptor(provider.GetRequiredService<TimeProvider>()), provider.GetRequiredService<OwnerAuthorizationWriteGuard>()));
 
-        // The Dapper connection is transient, not scoped: Npgsql cannot run two queries on one
-        // connection at the same time, so each query handler gets its own. The physical
-        // connections are pooled, so this costs little. The query handlers wrap their calls in
-        // PostgresRetryPolicy.ExecuteAsync.
+        // Transient, not scoped: Npgsql cannot run two queries on one connection at once.
         services.AddTransient<System.Data.IDbConnection>(provider =>
             provider.GetRequiredService<NpgsqlDataSource>().CreateConnection());
 
@@ -102,13 +90,10 @@ public static class ServiceCollectionExtensions
                 else
                     policy.WithOrigins(configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
                           .WithMethods("GET", "POST", "PUT", "DELETE")
-                          // X-Correlation-ID is a documented client-settable request header (echoed on
-                          // responses); omitting it here blocks browser callers from supplying their own.
+                          // Omitting X-Correlation-ID here blocks browser callers from supplying their own.
                           .WithHeaders("Authorization", "Content-Type", "X-Correlation-ID");
 
-                // Browsers hide non-safelisted response headers from cross-origin scripts unless the
-                // policy exposes them. WWW-Authenticate carries the machine-actionable scope/step-up
-                // challenge, X-Correlation-ID is the support handle, Retry-After the 429 back-off.
+                // Browsers hide non-safelisted response headers from cross-origin scripts unless exposed.
                 policy.WithExposedHeaders(ExposedResponseHeaders);
             });
         });
@@ -129,9 +114,7 @@ public static class ServiceCollectionExtensions
                 "Identity:Authority must be an absolute http(s) URI, and https unless Identity:RequireHttpsMetadata is false.")
             .ValidateOnStart();
 
-        // Self-contained JWTs only: the handler's ConfigurationManager caches discovery + JWKS in
-        // memory (rate-limited refresh on unknown kid), so steady-state validation is a CPU-only
-        // asymmetric verify. Never add a token-introspection call to this path.
+        // Self-contained JWTs only; never add a token-introspection call to this path.
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer();
 
@@ -144,19 +127,14 @@ public static class ServiceCollectionExtensions
                 if (!string.IsNullOrWhiteSpace(identity.MetadataAddress))
                 {
                     bearer.MetadataAddress = identity.MetadataAddress;
-                    // The document fetched from the internal name still states the public issuer;
-                    // validate against the configured authority, not the address it came from.
+                    // The document fetched from the internal name still states the public issuer.
                     bearer.TokenValidationParameters.ValidIssuer = identity.Authority;
                 }
                 bearer.RequireHttpsMetadata = identity.RequireHttpsMetadata;
-                // Keep raw OIDC claim types (sub/tid/scope/amr) — inbound claim remapping would
-                // rename them out from under JwtIdentityMiddleware.
+                // Inbound claim remapping would rename sub/tid/scope/amr out from under JwtIdentityMiddleware.
                 bearer.MapInboundClaims = false;
-                // The raw token is never needed after validation. Not saving it keeps
-                // HttpContext.GetTokenAsync("access_token") from handing it back to app code.
+                // Keeps GetTokenAsync("access_token") from handing the raw token back to app code.
                 bearer.SaveToken = false;
-                // Only asymmetric signatures. The JWKS keys are RSA or EC, so an HMAC or "none"
-                // token would fail anyway; pinning the list makes that explicit.
                 bearer.TokenValidationParameters.ValidAlgorithms = JwtIdentityOptions.AllowedSigningAlgorithms;
                 bearer.TokenValidationParameters.ValidateAudience = true;
                 bearer.TokenValidationParameters.ValidAudience = identity.Audience;
@@ -165,8 +143,7 @@ public static class ServiceCollectionExtensions
                 bearer.TokenValidationParameters.NameClaimType = "sub";
             });
 
-        // Every endpoint requires an authenticated caller unless it says AllowAnonymous. The
-        // convention tests check the /api/v1 routes; this catches a route mapped anywhere else.
+        // Catches a route mapped outside /api/v1, which the convention tests do not see.
         services.AddAuthorizationBuilder()
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
@@ -219,8 +196,7 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    // Authenticated traffic is partitioned by the verified token identity so one tenant
-    // cannot starve another; only unauthenticated traffic falls back to client IP.
+    // Partitioned by verified identity so one tenant cannot starve another; client IP only when anonymous.
     internal static string ResolveRateLimitPartitionKey(HttpContext httpContext)
     {
         var currentUser = httpContext.RequestServices.GetService<ICurrentUser>();
@@ -229,9 +205,7 @@ public static class ServiceCollectionExtensions
             : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
     }
 
-    // Fail at startup, not on the first token: a relative or malformed authority, or a plain-http
-    // authority alongside RequireHttpsMetadata, otherwise surfaces only when the bearer handler
-    // builds its metadata address. Presence is validated separately (environment-gated).
+    // A malformed authority otherwise surfaces only when the bearer handler builds its metadata address.
     internal static bool AuthorityIsWellFormed(JwtIdentityOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.Authority))
@@ -252,17 +226,13 @@ public static class ServiceCollectionExtensions
             environment.EnvironmentName == "Testing";
     }
 
-    // The "durable" tag marks checks against deployable backing resources; /healthiness runs
-    // exactly that set. Service Bus and the payload archive register conditionally, mirroring
-    // their service registrations, so standalone dev/tests without them stay healthy.
+    // "durable" is the set /healthiness runs; Service Bus and the archive register only when configured.
     public static IServiceCollection AddApiHealthChecks(this IServiceCollection services, IConfiguration configuration)
     {
         var healthChecks = services.AddHealthChecks()
             .AddCheck<DatabaseReadinessHealthCheck>("database", tags: ["ready", "durable"]);
 
-        // Only a real distributed cache (Redis) is a durable backing resource. The in-memory
-        // fallback (Program.cs, when no redis connection string) is per-process, so tagging it
-        // "durable" would make /healthiness green for a non-durable cache and mask a missing Redis.
+        // The in-memory fallback is per-process, so tagging it durable would mask a missing Redis.
         if (!string.IsNullOrEmpty(configuration.GetConnectionString("redis")))
             healthChecks.AddCheck<DistributedCacheHealthCheck>("distributed-cache", tags: ["durable"]);
 
@@ -271,8 +241,7 @@ public static class ServiceCollectionExtensions
 
         if (StarterApp.ServiceDefaults.Payloads.PayloadArchiveConfiguration.IsConfigured(configuration))
         {
-            // AddCheck<T> alone activates a fresh instance on every health run. Registering the
-            // check in DI makes HealthCheckService reuse one instance and the shared client.
+            // AddCheck<T> alone activates a fresh instance per run; registering it makes HealthCheckService reuse one.
             services.AddSingleton<PayloadArchiveHealthCheck>();
             healthChecks.AddCheck<PayloadArchiveHealthCheck>("payload-archive", tags: ["durable"]);
         }
@@ -285,10 +254,7 @@ public static class ServiceCollectionExtensions
         var connectionString = configuration.GetConnectionString("servicebus");
         if (string.IsNullOrEmpty(connectionString))
         {
-            // The no-op fallback exists for tests and standalone dev only. In production-like
-            // environments a missing/typo'd connection string would otherwise boot green, pass
-            // /health/ready (database-only), and silently accumulate outbox rows forever — so
-            // fail startup loudly, mirroring the Identity options environment gate.
+            // Outside dev a missing connection string would boot green and accumulate outbox rows forever.
             if (!IsDevelopmentLike(environment))
                 throw new InvalidOperationException(
                     "ConnectionStrings:servicebus is required outside Development/Testing environments. " +

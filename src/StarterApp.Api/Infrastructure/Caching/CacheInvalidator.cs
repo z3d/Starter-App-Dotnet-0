@@ -33,10 +33,7 @@ public class CacheInvalidator : ICacheInvalidator
 
     private async Task RemoveAsync(string cacheKey, CancellationToken cancellationToken)
     {
-        // Only the owner-scoped key is ever written: cacheable queries are owner-scoped and
-        // the protected surface is unreachable without an authenticated identity, so the bare key
-        // has no writer and needs no invalidation. Mutations always run authenticated; the
-        // guard below is a belt for test harnesses that invalidate without an identity.
+        // Only owner-scoped keys are ever written; this guard is for test harnesses that invalidate without an identity.
         if (!_currentUser.IsAuthenticated)
             return;
 
@@ -45,14 +42,10 @@ public class CacheInvalidator : ICacheInvalidator
 
     private async Task InvalidateKeyAsync(string cacheKey, CancellationToken cancellationToken)
     {
-        // Caching is a best-effort sidecar (it falls back to in-memory when Redis is absent), so a
-        // transient cache outage must not turn an already-committed write into a 500. Each step
-        // fails open on its own: the generation advance and the eviction are independent defences,
-        // and a failure in the first must not skip the second.
+        // Fails open: a cache outage must not turn a committed write into a 500, and each step is an independent defence.
         try
         {
-            // Advance the generation first. Readers validate it even when removal races a
-            // pending publication or fails; every mutation needs a distinct value.
+            // Generation first: readers validate it even when the removal below fails.
             await _cache.SetStringAsync(
                 CacheTombstone.KeyFor(cacheKey),
                 Guid.NewGuid().ToString("N"),
@@ -66,8 +59,7 @@ public class CacheInvalidator : ICacheInvalidator
 
         try
         {
-            // Evict unconditionally: after a delete, this is what stops the removed row being served
-            // for the rest of its cache duration when the generation write above did not land.
+            // Evict unconditionally: this is what stops a deleted row being served when the generation write did not land.
             await _cache.RemoveAsync(cacheKey, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

@@ -43,8 +43,7 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        // Only the cancellation path mutates stock; when it does, purge the cached product read model
-        // so a subsequent GetProductByIdQuery does not serve stale (pre-restore) stock.
+        // Only cancellation touches stock; evict the cached product read model so it does not serve the pre-restore value.
         if (status == OrderStatus.Cancelled)
         {
             foreach (var productId in order.Items.Select(item => item.ProductId).Distinct())

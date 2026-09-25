@@ -3,12 +3,7 @@ using StarterApp.Api.Infrastructure.Outbox;
 
 namespace StarterApp.Api.Data;
 
-// A context built without this interceptor writes no outbox rows and leaves the audit columns unset.
-// EF calls SavingChanges once per SaveChanges, outside the retrying execution strategy, so
-// EnableRetryOnFailure cannot run the capture twice and duplicate outbox rows.
-// The event payload is serialized before the save, so an aggregate that raises a creation event
-// must assign its own Id. DomainConventionTests.AggregatesOverridingRecordCreation_MustHaveGuidId
-// enforces that.
+// Without this interceptor a context writes no outbox rows and no audit stamps; EF calls it outside the retry strategy, so a retry cannot duplicate rows.
 public sealed class DomainEventsInterceptor(TimeProvider timeProvider) : SaveChangesInterceptor
 {
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
@@ -58,8 +53,7 @@ public sealed class DomainEventsInterceptor(TimeProvider timeProvider) : SaveCha
         if (outboxMessages.Count > 0)
             context.Set<OutboxMessage>().AddRange(outboxMessages);
 
-        // Clear now — if SaveChanges throws, the caller retries at the use-case layer; a second pass
-        // would otherwise duplicate the outbox rows. Aggregate state is still dirty in the tracker.
+        // Cleared before the save: a retry at the use-case layer would otherwise duplicate the outbox rows.
         foreach (var aggregate in aggregatesWithEvents)
             aggregate.ClearDomainEvents();
     }

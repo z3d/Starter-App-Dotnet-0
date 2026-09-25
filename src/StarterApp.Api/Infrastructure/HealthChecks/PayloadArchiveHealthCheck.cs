@@ -5,13 +5,7 @@ using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Api.Infrastructure.HealthChecks;
 
-// Probes the payload archive with a container-existence read: the cheapest call that proves
-// authenticated connectivity *with the permission the store actually uses*. A read of the blob
-// service's own properties would need blobServices/read, which Storage Blob Data Contributor —
-// the role a deployed identity holds — does not carry, so it reported a working archive as
-// unhealthy. Takes the process-wide client through the provider that AddPayloadCapture registers
-// (the archive store uses the same one), and is itself a DI singleton, so a probe never
-// constructs a client or a DefaultAzureCredential of its own.
+// Probes container existence, not service properties: Storage Blob Data Contributor lacks blobServices/read and reported a working archive as unhealthy.
 public sealed class PayloadArchiveHealthCheck : IHealthCheck
 {
     private readonly BlobContainerClient? _container;
@@ -30,8 +24,7 @@ public sealed class PayloadArchiveHealthCheck : IHealthCheck
 
         try
         {
-            // The container is created on first write, so "does not exist yet" is still a healthy,
-            // authenticated answer; only a failed call is unhealthy.
+            // The container is created on first write, so "does not exist yet" is still healthy.
             await _container.ExistsAsync(cancellationToken);
             return HealthCheckResult.Healthy("Payload archive storage is reachable");
         }

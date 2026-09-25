@@ -21,8 +21,7 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
         _containerClient = blobServiceClient.GetBlobContainerClient(_options.ContainerName);
     }
 
-    // Azure Append Blob rejects any single AppendBlock larger than 4 MiB. MaxPayloadBytes can be
-    // configured up to 100 MiB, so a captured line can exceed one block.
+    // Azure rejects a single AppendBlock over 4 MiB; MaxPayloadBytes can be far larger.
     internal const int MaxAppendBlockBytes = 4 * 1024 * 1024;
 
     public async Task AppendLineAsync(string blobName, string line, CancellationToken cancellationToken)
@@ -32,17 +31,12 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
         var bytes = Encoding.UTF8.GetBytes(line + Environment.NewLine);
         if (bytes.Length <= MaxAppendBlockBytes)
         {
-            // A single AppendBlock is atomic, so concurrent writers to a shared blob (the
-            // per-minute audit stream) can never interleave inside one record.
+            // A single AppendBlock is atomic, so concurrent writers never interleave inside one record.
             await AppendBlocksAsync(blobName, bytes, cancellationToken);
             return;
         }
 
-        // Multi-block appends are NOT atomic: with no append-position guarantee across blocks,
-        // a concurrent writer's record can land between two chunks of this line and splice two
-        // records. Write the oversize record to a dedicated single-writer sidecar blob (chunked
-        // appends are safe with one writer) and append a small, atomic pointer line to the shared
-        // blob. Sidecar first, so a pointer can never dangle.
+        // Multi-block appends are not atomic: write the record to a single-writer sidecar first, then an atomic pointer line here.
         var sidecarBlobName = BuildOversizeSidecarBlobName(blobName);
         await AppendBlocksAsync(sidecarBlobName, bytes, cancellationToken);
 
@@ -62,8 +56,7 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
         }
     }
 
-    // The sidecar keeps the date/hour/minute path segments of its parent, so retention cleanup's
-    // minute parsing covers it; the unique suffix makes it single-writer by construction.
+    // Keeps the parent's date/hour/minute segments so retention cleanup covers it.
     internal static string BuildOversizeSidecarBlobName(string blobName)
     {
         return string.Create(CultureInfo.InvariantCulture, $"{blobName}.oversize-{Guid.CreateVersion7():N}.jsonl");
@@ -90,11 +83,7 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
         }
     }
 
-    // One listing pass per prefix, deleting expired blobs as they are encountered. Listing is
-    // lexicographic and continuation markers are name-based, so deleting already-listed blobs
-    // mid-enumeration is safe, and the cost is O(blobs under the prefix) per run. The wall-clock
-    // budget is split evenly across the three prefixes so a large archive/ backlog cannot starve
-    // entity-index/, and checked inline so a run never overshoots by more than one delete.
+    // Deleting already-listed blobs mid-enumeration is safe; the budget is split across the three prefixes so archive/ cannot starve entity-index/.
     public async Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
     {
         await _containerClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);

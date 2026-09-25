@@ -2,10 +2,7 @@ using DbUp.Engine.Output;
 
 namespace StarterApp.DbMigrator;
 
-// Routes DbUp's own output (database creation, each script as it runs, the failing statement)
-// through the migrator's Serilog pipeline, so a deployment log shows what was executing when a
-// migration failed instead of only the final error. DbUp logs script and database names, never
-// the connection string.
+// DbUp logs script and database names, never the connection string.
 public sealed class SerilogUpgradeLog(ILogger logger) : IUpgradeLog
 {
     public void LogTrace(string format, params object[] args) => logger.Verbose(format, args);

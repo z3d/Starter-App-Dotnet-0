@@ -9,8 +9,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.ToTable("orders");
         builder.HasKey(o => o.Id);
 
-        // Order.Id is assigned client-side in the aggregate constructor (Guid v7).
-        // EF must not attempt to generate a value for it.
+        // Id is assigned in the aggregate constructor; EF must not generate it.
         builder.Property(o => o.Id)
             .HasColumnName("id")
             .ValueGeneratedNever();
@@ -46,8 +45,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasColumnName("xmin")
             .IsRowVersion();
 
-        // No (tenant_id, owner_subject) index: the two wider indexes below serve that prefix
-        // (0005_DropRedundantIndexes.sql).
+        // No (tenant_id, owner_subject) index: the wider indexes below serve that prefix.
 
         builder.HasIndex(o => new { o.TenantId, o.OwnerSubject, o.CustomerId })
             .HasDatabaseName("ix_orders_tenant_id_owner_subject_customer_id");
@@ -55,8 +53,6 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(o => new { o.TenantId, o.OwnerSubject, o.Status })
             .HasDatabaseName("ix_orders_tenant_id_owner_subject_status");
 
-        // Configure Items navigation via backing field (_items).
-        // EF Core sets OrderId on each item when the Order is saved.
         builder.HasMany(o => o.Items)
             .WithOne()
             .HasForeignKey(oi => oi.OrderId)

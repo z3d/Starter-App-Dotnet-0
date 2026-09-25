@@ -3,8 +3,6 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace StarterApp.Api.Infrastructure.HealthChecks;
 
-// Round-trips a probe key through IDistributedCache — Redis when orchestrated, the in-memory
-// fallback in standalone dev/tests (where the round-trip is trivially healthy).
 public sealed class DistributedCacheHealthCheck : IHealthCheck
 {
     private const string ProbeKey = "health-probe:distributed-cache";

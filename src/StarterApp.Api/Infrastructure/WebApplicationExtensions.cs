@@ -8,9 +8,7 @@ public static class WebApplicationExtensions
 
         app.Use((context, next) =>
         {
-            // UseExceptionHandler clears the response headers before it writes ProblemDetails.
-            // An OnStarting callback survives that reset, so the security headers reach the error
-            // responses too. The callback assigns rather than appends, so it has the last word.
+            // UseExceptionHandler clears response headers; an OnStarting callback survives that, and it assigns rather than appends.
             context.Response.OnStarting(static state =>
             {
                 var (httpContext, development) = ((HttpContext, bool))state;
@@ -29,9 +27,7 @@ public static class WebApplicationExtensions
         var headers = context.Response.Headers;
         headers["X-Content-Type-Options"] = "nosniff";
         headers["X-Frame-Options"] = "DENY";
-        // "0" is the current OWASP recommendation: modern browsers no longer ship the XSS
-        // auditor, and enabling it ("1; mode=block") created XS-Leak side channels in the
-        // browsers that did.
+        // "0" is the OWASP recommendation: the auditor is gone and enabling it created XS-Leak side channels.
         headers["X-XSS-Protection"] = "0";
         headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
 
@@ -56,9 +52,7 @@ public static class WebApplicationExtensions
 
     public static WebApplication UseJwtIdentity(this WebApplication app)
     {
-        // This runs after UseRouting, because the authorization metadata is per endpoint, and
-        // before UseRateLimiter, because the rate limiter partitions on ICurrentUser.
-        // JwtIdentityMiddleware is the only place that copies the validated claims into ICurrentUser.
+        // After UseRouting (authorization metadata is per endpoint) and before UseRateLimiter (it partitions on ICurrentUser).
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseMiddleware<JwtIdentityMiddleware>();
@@ -86,8 +80,7 @@ public static class WebApplicationExtensions
             EntityNotFoundException => StatusCodes.Status404NotFound,
             FeatureToggles.FeatureDisabledException => StatusCodes.Status503ServiceUnavailable,
             DomainRuleException => StatusCodes.Status409Conflict,
-            // Bare BCL InvalidOperationException/KeyNotFoundException are server bugs, not
-            // client faults — they fall through to 500 so alerting sees them.
+            // Bare BCL exceptions are server bugs; they fall through to 500 so alerting sees them.
             _ => StatusCodes.Status500InternalServerError
         };
     }

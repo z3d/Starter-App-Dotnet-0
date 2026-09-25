@@ -1,5 +1,3 @@
-// Essential .NET namespaces
-// Third-party libraries
 global using System.Data;
 global using System.Globalization;
 global using System.Reflection;
