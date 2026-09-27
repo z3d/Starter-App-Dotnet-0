@@ -99,6 +99,31 @@ public class SupplyChainConventionTests : ConventionTestBase
                !imageRef.Contains('.', StringComparison.Ordinal);
     }
 
+    // src/ only: those images ship. The dev Keycloak image under dev/ is a test-environment IdP on its vendor's user model.
+    [Fact]
+    public void ShippingDockerfiles_MustRunTheFinalStageAsNonRoot()
+    {
+        var failures = new List<string>();
+        var dockerfiles = EnumerateDockerfiles()
+            .Where(file => Path.GetRelativePath(TestPaths.RepoRoot, file).StartsWith("src" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            .ToList();
+
+        foreach (var dockerfile in dockerfiles)
+        {
+            var finalStage = File.ReadLines(dockerfile)
+                .Select(line => line.Trim())
+                .Reverse()
+                .TakeWhile(line => !line.StartsWith("FROM ", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var user = finalStage.FirstOrDefault(line => line.StartsWith("USER ", StringComparison.OrdinalIgnoreCase));
+            if (user is null || user[5..].Trim() is "root" or "0" or "0:0")
+                failures.Add($"{FormatPath(dockerfile)} runs its final stage as root; end it with USER $APP_UID.");
+        }
+
+        Assert.NotEmpty(dockerfiles);
+        Assert.True(failures.Count == 0, string.Join("\n", failures));
+    }
+
     // Whole repository, not src/: the Keycloak realm image lives under dev/, and a Dockerfile that
     // falls outside this scan keeps its base image unpinned with nothing failing to say so.
     private static IEnumerable<string> EnumerateDockerfiles()
