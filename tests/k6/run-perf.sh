@@ -28,11 +28,11 @@ SKIP_BOOT="${SKIP_BOOT:-0}"               # 1 = use an existing instance, skip D
 SKIP_SEED="${SKIP_SEED:-0}"               # 1 = skip the bulk data seed
 SKIP_REDIS="${SKIP_REDIS:-0}"             # 1 = no Redis; by-id reads fall back to in-memory cache
 PG_IMAGE="${PG_IMAGE:-postgres:16-alpine}"
-PG_PORT="${PG_PORT:-55433}"               # distinct from the DAST runner's 55432
+PG_PORT="${PG_PORT:-15433}"               # distinct from the DAST runner's 15432; host ports stay below the Linux ephemeral range (32768-60999)
 PG_DB="starterapp_perf"
 REDIS_IMAGE="${REDIS_IMAGE:-redis:7-alpine}"
-REDIS_PORT="${REDIS_PORT:-56379}"         # distinct from PG_PORT; dedicated perf-Redis host port
-IDP_PORT="${IDP_PORT:-58080}"             # dev Keycloak host port (DAST uses 58081)
+REDIS_PORT="${REDIS_PORT:-16379}"         # distinct from PG_PORT; dedicated perf-Redis host port
+IDP_PORT="${IDP_PORT:-18080}"             # dev Keycloak host port (DAST uses 18081)
 K6_SCRIPT="${K6_SCRIPT:-$SCRIPT_DIR/load.js}"
 # Volume floor for list-endpoint checks: with the bulk seed in place every list
 # page must come back full. Unseeded runs (SKIP_SEED=1) drop the floor to 1
