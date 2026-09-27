@@ -1,3 +1,4 @@
+using Azure;
 using Azure.Messaging.ServiceBus;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
@@ -157,12 +158,26 @@ public class OutboxProcessor : BackgroundService
                 }
                 catch (Exception captureEx) when (captureEx is not OperationCanceledException)
                 {
-                    // FailClosed: nothing was sent, so pause the batch and leave the retry budget alone.
-                    _logger.LogWarning(captureEx,
-                        "Payload capture failed for outbox message {MessageId} ({Type}) before publish; pausing batch until the archive store recovers (retry budget untouched)",
-                        message.Id, message.Type);
+                    // FailClosed: nothing was sent and the retry budget stays untouched (#79). A store failure pauses the batch;
+                    // a failure specific to this message leaves it claimed until its lock expires and lets the rest publish.
                     _runAggregator.AddPaused();
-                    break;
+                    if (IsStoreWideCaptureFailure(captureEx))
+                    {
+                        if (PayloadCaptureFailureClassifier.IsTransientDependencyFailure(captureEx))
+                            _logger.LogWarning(captureEx,
+                                "Payload capture failed for outbox message {MessageId} ({Type}) before publish; pausing batch until the archive store recovers (retry budget untouched)",
+                                message.Id, message.Type);
+                        else
+                            _logger.LogError(captureEx,
+                                "The archive store refused capture for outbox message {MessageId} ({Type}); pausing all publishing until its configuration or permissions are fixed (retry budget untouched)",
+                                message.Id, message.Type);
+                        break;
+                    }
+
+                    _logger.LogError(captureEx,
+                        "Payload capture failed for outbox message {MessageId} ({Type}) alone; holding it until its claim lock expires and publishing the rest of the batch (retry budget untouched)",
+                        message.Id, message.Type);
+                    continue;
                 }
 
                 await _sender.SendMessageAsync(serviceBusMessage, cancellationToken);
@@ -275,6 +290,18 @@ public class OutboxProcessor : BackgroundService
             ServiceBusFailureReason.ServiceTimeout or
             ServiceBusFailureReason.ServiceBusy or
             ServiceBusFailureReason.QuotaExceeded;
+    }
+
+    // Any storage error means every message would fail the same way; anything else is specific to the one message.
+    internal static bool IsStoreWideCaptureFailure(Exception ex)
+    {
+        for (var current = ex; current is not null; current = current.InnerException)
+        {
+            if (current is RequestFailedException)
+                return true;
+        }
+
+        return PayloadCaptureFailureClassifier.IsTransientDependencyFailure(ex);
     }
 
     private static bool IsTransientDependencyError(Exception ex)

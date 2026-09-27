@@ -315,6 +315,76 @@ public class OutboxProcessorTests
     }
 
     [Fact]
+    public async Task ProcessBatch_WhenCaptureFailsForOneMessageOnly_ShouldHoldItAndPublishTheRest()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var baseTime = DateTimeOffset.UtcNow.AddMinutes(-5);
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            setupContext.OutboxMessages.Add(CreateTestMessage(payload: "{\"Id\":1,\"marker\":\"poison\"}", occurredOnUtc: baseTime));
+            setupContext.OutboxMessages.Add(CreateTestMessage(payload: "{\"Id\":2}", occurredOnUtc: baseTime.AddSeconds(1)));
+            await setupContext.SaveChangesAsync();
+        }
+
+        var senderMock = new Mock<ServiceBusSender>();
+        senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var processor = CreateProcessor(
+            dbName,
+            senderMock.Object,
+            maxRetries: 1,
+            payloadStore: new SelectivelyThrowingPayloadArchiveStore("poison", new InvalidOperationException("capture defect for one payload")),
+            payloadCaptureOptions: new PayloadCaptureOptions { ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed });
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await RunSingleBatchAsync(processor, cts.Token);
+
+        senderMock.Verify(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        await using var verifyContext = CreateDbContext(dbName);
+        var messages = await verifyContext.OutboxMessages.OrderBy(m => m.OccurredOnUtc).ToListAsync();
+        Assert.Null(messages[0].ProcessedOnUtc);
+        Assert.Equal(0, messages[0].RetryCount);
+        Assert.Null(messages[0].Error);
+        Assert.NotNull(messages[0].LockedUntilUtc);
+        Assert.NotNull(messages[1].ProcessedOnUtc);
+    }
+
+    [Fact]
+    public async Task ProcessBatch_WhenArchiveStoreRefusesCapture_ShouldPauseWithoutTryingTheRest()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var baseTime = DateTimeOffset.UtcNow.AddMinutes(-5);
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            setupContext.OutboxMessages.Add(CreateTestMessage(occurredOnUtc: baseTime));
+            setupContext.OutboxMessages.Add(CreateTestMessage(occurredOnUtc: baseTime.AddSeconds(1)));
+            await setupContext.SaveChangesAsync();
+        }
+
+        var senderMock = new Mock<ServiceBusSender>();
+        var store = new ThrowingPayloadArchiveStore(new RequestFailedException(403, "AuthorizationPermissionMismatch"));
+        var processor = CreateProcessor(
+            dbName,
+            senderMock.Object,
+            maxRetries: 1,
+            payloadStore: store,
+            payloadCaptureOptions: new PayloadCaptureOptions { ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed });
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await RunSingleBatchAsync(processor, cts.Token);
+
+        Assert.Equal(1, store.AppendAttempts);
+        await using var verifyContext = CreateDbContext(dbName);
+        Assert.All(await verifyContext.OutboxMessages.ToListAsync(), m =>
+        {
+            Assert.Equal(0, m.RetryCount);
+            Assert.Null(m.Error);
+        });
+    }
+
+    [Fact]
     public async Task ProcessBatch_WhenTransientFailureMidBatch_ShouldPauseRemainingMessages()
     {
         // Arrange — 3 messages; sender throws transient on the 2nd call. OccurredOnUtc is spaced
@@ -667,6 +737,27 @@ public class OutboxProcessorTests
         public string EventType => "test.event.v1";
     }
 
+    private sealed class SelectivelyThrowingPayloadArchiveStore : IPayloadArchiveStore
+    {
+        private readonly string _marker;
+        private readonly Exception _exception;
+        private readonly InMemoryPayloadArchiveStore _inner = new();
+
+        public SelectivelyThrowingPayloadArchiveStore(string marker, Exception exception)
+        {
+            _marker = marker;
+            _exception = exception;
+        }
+
+        public Task AppendLineAsync(string blobName, string line, CancellationToken cancellationToken) =>
+            line.Contains(_marker, StringComparison.Ordinal)
+                ? Task.FromException(_exception)
+                : _inner.AppendLineAsync(blobName, line, cancellationToken);
+
+        public Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken) =>
+            _inner.DeleteOlderThanAsync(cutoffUtc, cancellationToken);
+    }
+
     private sealed class ThrowingPayloadArchiveStore : IPayloadArchiveStore
     {
         private readonly Exception _exception;
@@ -676,8 +767,11 @@ public class OutboxProcessorTests
             _exception = exception;
         }
 
+        public int AppendAttempts { get; private set; }
+
         public Task AppendLineAsync(string blobName, string line, CancellationToken cancellationToken)
         {
+            AppendAttempts++;
             return Task.FromException(_exception);
         }
 
