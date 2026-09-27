@@ -43,6 +43,10 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.IsActive)
             .HasColumnName("is_active");
 
+        builder.Property(c => c.RowVersion)
+            .HasColumnName("xmin")
+            .IsRowVersion();
+
         // No (tenant_id, owner_subject) index: the unique index below serves that prefix.
 
         // The unique (tenant_id, owner_subject, email) index lives only in the DbUp baseline: EF cannot index across the owned Email type.

@@ -191,6 +191,7 @@ public class PersistenceConventionTests : ConventionTestBase
 
         var requiredTokens = new Dictionary<Type, string[]>
         {
+            [typeof(Customer)] = [nameof(Customer.RowVersion)],
             [typeof(Order)] = [nameof(Order.RowVersion)],
             [typeof(Product)] = [nameof(Product.RowVersion)]
         };
