@@ -71,6 +71,7 @@ try
     app.UseCors();
     app.UseRouting();
     app.UseJwtIdentity();
+    app.UseRateLimiter();
 
     app.MapApiEndpoints();
 

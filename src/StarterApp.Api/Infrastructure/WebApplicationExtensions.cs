@@ -52,11 +52,10 @@ public static class WebApplicationExtensions
 
     public static WebApplication UseJwtIdentity(this WebApplication app)
     {
-        // After UseRouting (per-endpoint metadata); the limiter follows identity so it partitions on ICurrentUser, and precedes authorization so 401s are throttled too.
+        // After UseRouting (authorization metadata is per endpoint) and before UseRateLimiter (it partitions on ICurrentUser).
         app.UseAuthentication();
-        app.UseMiddleware<JwtIdentityMiddleware>();
-        app.UseRateLimiter();
         app.UseAuthorization();
+        app.UseMiddleware<JwtIdentityMiddleware>();
         return app;
     }
 
