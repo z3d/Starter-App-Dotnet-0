@@ -1,6 +1,6 @@
 namespace StarterApp.Tests.Integration;
 
-// The xmin row-version token on Product/Order is convention-checked for configuration, but the
+// The xmin row-version token on Customer/Product/Order is convention-checked for configuration, but the
 // runtime behaviour (a stale write actually failing) was previously untested. This exercises it
 // against real PostgreSQL: two contexts load the same row, the first write wins, the second write
 // carries a stale xmin and must surface DbUpdateConcurrencyException — which the API maps to 409.
@@ -56,6 +56,36 @@ public class OptimisticConcurrencyIntegrationTests : IAsyncLifetime
 
         // Second writer still holds the original xmin — its UPDATE matches zero rows.
         secondView.UpdateStock(-10);
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => secondContext.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task ConcurrentCustomerWrites_StaleUpdate_ThrowsConcurrencyException()
+    {
+        var created = await _fixture.Client.PostAsJsonAsync("/api/v1/customers", new CreateCustomerCommand
+        {
+            Name = "Concurrency Customer",
+            Email = "concurrency@example.com"
+        });
+        created.EnsureSuccessStatusCode();
+        var customer = await created.Content.ReadFromJsonAsync<CustomerDto>();
+        Assert.NotNull(customer);
+
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(_fixture.ConnectionString)
+            .AddInterceptors(new DomainEventsInterceptor(TimeProvider.System))
+            .Options;
+
+        await using var firstContext = new ApplicationDbContext(options);
+        await using var secondContext = new ApplicationDbContext(options);
+
+        var firstView = await firstContext.Customers.SingleAsync(c => c.Id == customer.Id);
+        var secondView = await secondContext.Customers.SingleAsync(c => c.Id == customer.Id);
+
+        firstView.UpdateDetails("First Writer", Email.Create("first@example.com"));
+        await firstContext.SaveChangesAsync();
+
+        secondView.UpdateDetails("Second Writer", Email.Create("second@example.com"));
         await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => secondContext.SaveChangesAsync());
     }
 }

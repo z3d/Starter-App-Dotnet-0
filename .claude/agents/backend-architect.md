@@ -46,7 +46,7 @@ signatures with Glob/Grep/Read.
   `Guid.CreateVersion7()`. Validator–domain-guard sync (defense-in-depth) preserved.
 - **Outbox/events** — domain events captured in the single `SaveChangesAsync`; each event has a
   stable `const Contract` (`EventType`), not the CLR name; event-shape snapshots respected.
-- **Concurrency** — `Order`/`Product` keep `xmin` `IsRowVersion()` tokens; stale writes must
+- **Concurrency** — `Customer`/`Order`/`Product` keep `xmin` `IsRowVersion()` tokens; stale writes must
   surface as `DbUpdateConcurrencyException` → 409.
 - **Validator coverage** — every command and query has an `IValidator<T>` (convention-enforced).
 - **Build integrity** — nothing suppresses analyzers/warnings or skips tests to go green.

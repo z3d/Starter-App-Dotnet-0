@@ -12,6 +12,7 @@ public class Customer
     public DateTimeOffset DateCreated { get; private set; }
     public DateTimeOffset LastUpdated { get; private set; }
     public bool IsActive { get; private set; }
+    public uint RowVersion { get; private set; }
 
     protected Customer()
     {

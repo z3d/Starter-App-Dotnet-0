@@ -131,10 +131,13 @@ The AppHost describes the Azure shape in publish mode and nothing else in this r
 Every deployed dependency is reached with the app's managed identity: there is no key, password or
 connection string anywhere in the environment (Postgres has password authentication disabled, Redis has
 access keys disabled). The one exception is the Keycloak *realm*, whose well-known dev users are the point.
+Because that realm also stamps `amr: ["pwd","mfa"]` on every token, publish mode refuses to run unless
+`DEPLOY_ACK_DEV_IDP=true` acknowledges the deployment is a test environment; a derived project replaces
+the `keycloak` resource with its real identity provider instead.
 
 The `azure.yaml`, environment values and ingress restrictions belong to the hosting environment's
 repository (`docs/DECISIONS.md`, "Production infrastructure as code"); run `azd` from there, never from here.
-To see exactly what would be published: `dotnet run --project dev/StarterApp.AppHost -- --publisher manifest --output-path /tmp/manifest/manifest.json`.
+To see exactly what would be published: `DEPLOY_ACK_DEV_IDP=true dotnet run --project dev/StarterApp.AppHost -- --publisher manifest --output-path /tmp/manifest/manifest.json`.
 
 ## Troubleshooting
 

@@ -152,6 +152,13 @@ if (builder.ExecutionContext.IsRunMode)
 }
 else
 {
+    // The published realm stamps amr=mfa on every token and ships well-known users, so a derived project must not deploy it as its real IdP by default.
+    if (Environment.GetEnvironmentVariable("DEPLOY_ACK_DEV_IDP") != "true")
+        throw new InvalidOperationException(
+            "Refusing to publish: the deployed Keycloak is the dev realm, whose well-known users mint valid tokens and whose " +
+            "hardcoded amr claim satisfies every MFA requirement. Set DEPLOY_ACK_DEV_IDP=true to acknowledge this is a test " +
+            "environment, or replace the keycloak resource with your real identity provider.");
+
     // The admin console password is generated once per environment (persisted in the deployer's
     // state, never prompted for) and lives only as a container app secret — nothing about the
     // deployed instance is a literal in this repository.
