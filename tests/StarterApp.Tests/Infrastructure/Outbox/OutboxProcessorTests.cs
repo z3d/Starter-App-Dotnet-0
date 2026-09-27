@@ -590,6 +590,33 @@ public class OutboxProcessorTests
         Assert.Contains(remaining, m => m.Error == "failed after recovery"); // recently errored old event kept for replay
     }
 
+    [Theory]
+    [InlineData(2, 2, false, true)]
+    [InlineData(1, 2, false, false)]
+    [InlineData(2, 2, true, false)]
+    public async Task ProcessBatch_ReportsBacklogOnlyWhenFullBatchPublishedCleanly(int messageCount, int batchSize, bool sendFails, bool expectBacklog)
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var baseTime = DateTimeOffset.UtcNow.AddMinutes(-5);
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            for (var i = 0; i < messageCount; i++)
+                setupContext.OutboxMessages.Add(CreateTestMessage(occurredOnUtc: baseTime.AddSeconds(i)));
+            await setupContext.SaveChangesAsync();
+        }
+
+        var senderMock = new Mock<ServiceBusSender>();
+        senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .Returns(sendFails ? Task.FromException(new InvalidOperationException("rejected")) : Task.CompletedTask);
+
+        var processor = CreateProcessor(dbName, senderMock.Object, batchSize: batchSize);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        var backlogRemains = await RunSingleBatchAsync(processor, cts.Token);
+
+        Assert.Equal(expectBacklog, backlogRemains);
+    }
+
     private static OutboxProcessor CreateProcessor(
         string databaseName,
         ServiceBusSender sender,
@@ -627,13 +654,12 @@ public class OutboxProcessorTests
         return new PayloadCaptureSink(payloadStore, new JsonPayloadRedactor(options), TimeProvider.System, options, logger);
     }
 
-    private static async Task RunSingleBatchAsync(OutboxProcessor processor, CancellationToken cancellationToken)
+    private static async Task<bool> RunSingleBatchAsync(OutboxProcessor processor, CancellationToken cancellationToken)
     {
         // Use reflection to call the private ProcessBatchAsync method
         var method = typeof(OutboxProcessor).GetMethod("ProcessBatchAsync",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var task = (Task)method!.Invoke(processor, [cancellationToken])!;
-        await task;
+        return await (Task<bool>)method!.Invoke(processor, [cancellationToken])!;
     }
 
     private sealed record TestDomainEvent(string Type, string Data, DateTimeOffset OccurredOnUtc) : IDomainEvent

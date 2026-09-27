@@ -26,8 +26,6 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
 
     public async Task AppendLineAsync(string blobName, string line, CancellationToken cancellationToken)
     {
-        await _containerClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
-
         var bytes = Encoding.UTF8.GetBytes(line + Environment.NewLine);
         if (bytes.Length <= MaxAppendBlockBytes)
         {
@@ -47,13 +45,32 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
     private async Task AppendBlocksAsync(string blobName, byte[] bytes, CancellationToken cancellationToken)
     {
         var appendBlobClient = _containerClient.GetAppendBlobClient(blobName);
-        await appendBlobClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
-
         foreach (var block in ChunkBlocks(bytes, MaxAppendBlockBytes))
+            await AppendBlockCreatingOnDemandAsync(appendBlobClient, block, cancellationToken);
+    }
+
+    // Appending first keeps the common case to one round trip; the container and blob are created only when Azure reports them missing.
+    private async Task AppendBlockCreatingOnDemandAsync(AppendBlobClient appendBlobClient, ArraySegment<byte> block, CancellationToken cancellationToken)
+    {
+        try
         {
-            await using var stream = new MemoryStream(block.Array!, block.Offset, block.Count, writable: false);
-            await appendBlobClient.AppendBlockAsync(stream, cancellationToken: cancellationToken);
+            await AppendBlockAsync(appendBlobClient, block, cancellationToken);
+            return;
         }
+        catch (RequestFailedException ex) when (ex.ErrorCode is "BlobNotFound" or "ContainerNotFound")
+        {
+            if (ex.ErrorCode == "ContainerNotFound")
+                await _containerClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+            await appendBlobClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+        }
+
+        await AppendBlockAsync(appendBlobClient, block, cancellationToken);
+    }
+
+    private static async Task AppendBlockAsync(AppendBlobClient appendBlobClient, ArraySegment<byte> block, CancellationToken cancellationToken)
+    {
+        await using var stream = new MemoryStream(block.Array!, block.Offset, block.Count, writable: false);
+        await appendBlobClient.AppendBlockAsync(stream, cancellationToken: cancellationToken);
     }
 
     // Keeps the parent's date/hour/minute segments so retention cleanup covers it.
