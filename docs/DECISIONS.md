@@ -31,7 +31,7 @@ Updating a contract deliberately: `UPDATE_EVENT_SNAPSHOTS=1 dotnet test --filter
 
 ## Payload capture runs first
 
-`UsePayloadCapture()` is deliberately the first middleware, ahead of exception handling, authentication, and rate limiting. Rejected traffic (401/403/429, 404 junk) is captured *by design* as part of the full-fidelity audit posture. Request-path amplification is bounded by `MaxPayloadBytes`, `CapturedContentTypes`, and `MaxEntityReferences`; total inbound volume is the upstream gateway's problem.
+`UsePayloadCapture()` is deliberately the first middleware, ahead of exception handling, authentication, and rate limiting. Rejected traffic (401/403/429, 404 junk) is captured *by design* as part of the full-fidelity audit posture. Request-path amplification is bounded by `MaxPayloadBytes`, `CapturedContentTypes`, and `MaxEntityReferences`; total inbound volume is the upstream gateway's problem. The inbound request's *entity-index* lines are the one deferred write (2026-09-27): the archive and audit record are written first as always and list the request's entity references, but the `entity-index/...` lines are appended after the pipeline and only for an authenticated caller, so an anonymous body cannot plant ids beside real ones in the index an investigator searches by.
 
 The only exclusions are the six platform probe routes (`/health`, `/health/ready`, `/health/live`, `/alive`, `/liveness`, `/healthiness`) — exact-match and hardcoded, with a test pinning that the skip list can never cover the business surface. Response capture runs on an unlinked token, and still runs when the client aborts, so a deliberate disconnect can't suppress the audit record.
 

@@ -101,29 +101,9 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
             // Best-effort: the most contended write in the system must never fail traffic or pause the outbox, even FailClosed.
             await AppendAuditBestEffortAsync(auditBlobName, line, request, cancellationToken);
 
-            var entityIndexBlobNames = new List<string>();
-            foreach (var entityReference in entityReferences)
-            {
-                var entityIndexBlobName = PayloadBlobNaming.BuildEntityIndexBlobName(timestampUtc, entityReference, correlationId, _options.EntityIndexPrefix);
-                var entityIndexRecord = new PayloadEntityIndexRecord
-                {
-                    OperationId = record.OperationId,
-                    TimestampUtc = timestampUtc,
-                    CorrelationId = correlationId,
-                    Direction = request.Direction,
-                    Channel = request.Channel,
-                    Operation = request.Operation,
-                    EntityType = entityReference.EntityType,
-                    EntityId = entityReference.EntityId,
-                    ArchiveBlobName = archiveBlobName,
-                    AuditBlobName = auditBlobName,
-                    PayloadSha256 = record.PayloadSha256,
-                    Metadata = BuildEntityIndexMetadata(request.Metadata)
-                };
-
-                await _store.AppendLineAsync(entityIndexBlobName, JsonSerializer.Serialize(entityIndexRecord, SerializerOptions), cancellationToken);
-                entityIndexBlobNames.Add(entityIndexBlobName);
-            }
+            var entityIndexBlobNames = request.DeferEntityIndex
+                ? []
+                : await WriteEntityIndexAsync(record, cancellationToken);
 
             var redactedPayload = RedactForLog(request);
             _logger.LogInformation(
@@ -151,6 +131,56 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
         }
 
         return record;
+    }
+
+    public async Task IndexEntitiesAsync(PayloadCaptureRecord record, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        if (!_options.Enabled || record.EntityReferences.Count == 0 || _store is NullPayloadArchiveStore)
+            return;
+
+        try
+        {
+            await WriteEntityIndexAsync(record, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException && _options.FailureModeFor(record.Channel) == PayloadCaptureFailureMode.FailOpen)
+        {
+            _logger.LogError(ex,
+                "Deferred entity-index write failed for {Direction} {Channel} {Operation} with correlation {CorrelationId}; continuing because FailureMode is FailOpen",
+                record.Direction,
+                record.Channel,
+                record.Operation,
+                record.CorrelationId);
+        }
+    }
+
+    private async Task<List<string>> WriteEntityIndexAsync(PayloadCaptureRecord record, CancellationToken cancellationToken)
+    {
+        var entityIndexBlobNames = new List<string>();
+        foreach (var entityReference in record.EntityReferences)
+        {
+            var entityIndexBlobName = PayloadBlobNaming.BuildEntityIndexBlobName(record.TimestampUtc, entityReference, record.CorrelationId, _options.EntityIndexPrefix);
+            var entityIndexRecord = new PayloadEntityIndexRecord
+            {
+                OperationId = record.OperationId,
+                TimestampUtc = record.TimestampUtc,
+                CorrelationId = record.CorrelationId,
+                Direction = record.Direction,
+                Channel = record.Channel,
+                Operation = record.Operation,
+                EntityType = entityReference.EntityType,
+                EntityId = entityReference.EntityId,
+                ArchiveBlobName = record.ArchiveBlobName,
+                AuditBlobName = record.AuditBlobName,
+                PayloadSha256 = record.PayloadSha256,
+                Metadata = BuildEntityIndexMetadata(record.Metadata)
+            };
+
+            await _store.AppendLineAsync(entityIndexBlobName, JsonSerializer.Serialize(entityIndexRecord, SerializerOptions), cancellationToken);
+            entityIndexBlobNames.Add(entityIndexBlobName);
+        }
+
+        return entityIndexBlobNames;
     }
 
     private async Task AppendAuditBestEffortAsync(string auditBlobName, string line, PayloadCaptureRequest request, CancellationToken cancellationToken)
