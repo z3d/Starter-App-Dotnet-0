@@ -43,7 +43,16 @@ public sealed partial class JsonPayloadRedactor : IPayloadRedactor
             }
         }
 
-        return RedactText(payload);
+        // Free text has no property names to screen, so a password or token in it would reach the log with only emails masked.
+        return SuppressUnscreenable(payload, contentType);
+    }
+
+    private static string SuppressUnscreenable(string payload, string? contentType)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(payload);
+        var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes));
+        var mediaType = string.IsNullOrWhiteSpace(contentType) ? "unknown content type" : contentType.Split(';', 2)[0].Trim();
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"[{mediaType} payload suppressed, {bytes.Length} bytes, sha256={hash}]");
     }
 
     private void RedactNode(JsonNode node)

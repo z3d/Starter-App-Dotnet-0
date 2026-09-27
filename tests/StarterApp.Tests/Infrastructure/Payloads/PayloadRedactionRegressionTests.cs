@@ -31,6 +31,44 @@ public class PayloadRedactionRegressionTests
         Assert.DoesNotContain(logger.Messages, message => message.Contains("sentinel-password", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("text/plain")]
+    [InlineData("text/plain; charset=utf-8")]
+    [InlineData("application/x-www-form-urlencoded")]
+    public async Task CaptureAsync_WithFreeText_LogsOnlySizeAndHashButArchivesTheBody(string contentType)
+    {
+        const string payload = "password=sentinel-password&tfn=123456789&contact=ada@example.com";
+        var store = new InMemoryPayloadArchiveStore();
+        var logger = new RecordingLogger();
+        var sink = CreateSink(store, logger, new PayloadCaptureOptions());
+
+        var record = await sink.CaptureAsync(new PayloadCaptureRequest
+        {
+            Channel = "http",
+            Operation = "POST /api/v1/customers",
+            ContentType = contentType,
+            Payload = payload
+        }, CancellationToken.None);
+
+        Assert.NotNull(record);
+        Assert.Equal(payload, record.Payload);
+        var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(payload)));
+        Assert.Contains(logger.Messages, message => message.Contains($"payload suppressed, {payload.Length} bytes, sha256={hash}", StringComparison.Ordinal));
+        Assert.DoesNotContain(logger.Messages, message => message.Contains("sentinel-password", StringComparison.Ordinal));
+        Assert.DoesNotContain(logger.Messages, message => message.Contains("123456789", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Redact_TextPlainThatIsJson_IsScreenedAsJsonRatherThanSuppressed()
+    {
+        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions()));
+
+        var redacted = redactor.Redact("""{"total":42,"password":"sentinel-password"}""", "text/plain");
+
+        Assert.Contains("\"total\":42", redacted, StringComparison.Ordinal);
+        Assert.DoesNotContain("sentinel-password", redacted, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Redact_WithDuplicateJsonKeys_SuppressesThePayloadInsteadOfThrowing()
     {
