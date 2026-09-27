@@ -25,6 +25,22 @@ public class PayloadCaptureConventionTests
             "Every Service Bus-triggered Function must capture its inbound payload:\n" + string.Join("\n", violations));
     }
 
+    // Delivery is at least once and unordered, so a subscriber that skips the inbox repeats its side effects on redelivery.
+    [Fact]
+    public void ServiceBusTriggeredFunctions_MustProcessThroughTheMessageInbox()
+    {
+        var functions = GetServiceBusTriggeredFunctionTypes().ToList();
+        Assert.NotEmpty(functions);
+
+        var violations = functions
+            .Where(type => !TypeInvokesInterface(type, nameof(IMessageInbox)))
+            .Select(type => $"{type.FullName} has a [ServiceBusTrigger] but never calls IMessageInbox.ProcessOnceAsync; a redelivered message would repeat its work.")
+            .ToList();
+
+        Assert.True(violations.Count == 0,
+            "Every Service Bus-triggered Function must process through the message inbox:\n" + string.Join("\n", violations));
+    }
+
     private static IEnumerable<Type> GetServiceBusTriggeredFunctionTypes()
     {
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;

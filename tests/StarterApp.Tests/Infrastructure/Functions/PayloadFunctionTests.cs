@@ -25,10 +25,10 @@ public class PayloadFunctionTests
 
         var time = new ImmediateTimeProvider();
         if (inventory)
-            await new InventoryReservationFunction(NullLogger<InventoryReservationFunction>.Instance, sink, time)
+            await new InventoryReservationFunction(NullLogger<InventoryReservationFunction>.Instance, sink, time, new NullMessageInbox())
                 .RunAsync(message, actions, CancellationToken.None);
         else
-            await new OrderConfirmationEmailFunction(NullLogger<OrderConfirmationEmailFunction>.Instance, sink, time)
+            await new OrderConfirmationEmailFunction(NullLogger<OrderConfirmationEmailFunction>.Instance, sink, time, new NullMessageInbox())
                 .RunAsync(message, actions, CancellationToken.None);
 
         Assert.Equal(new[] { "complete" }, actions.Calls);
@@ -82,7 +82,7 @@ public class PayloadFunctionTests
         var store = new InMemoryPayloadArchiveStore();
         var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
         var sink = PayloadCaptureTests.CreateSink(store, timestamp);
-        var function = new OrderConfirmationEmailFunction(new LoggerFactory().CreateLogger<OrderConfirmationEmailFunction>(), sink, TimeProvider.System);
+        var function = new OrderConfirmationEmailFunction(new LoggerFactory().CreateLogger<OrderConfirmationEmailFunction>(), sink, TimeProvider.System, new NullMessageInbox());
         var message = ServiceBusModelFactory.ServiceBusReceivedMessage(
             body: BinaryData.FromString("""{"email":"ada@example.com","orderId":"abc"}"""),
             messageId: "message-1",

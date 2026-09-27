@@ -10,12 +10,14 @@ public class InventoryReservationFunction
     private readonly ILogger<InventoryReservationFunction> _logger;
     private readonly IPayloadCaptureSink _payloadCaptureSink;
     private readonly TimeProvider _timeProvider;
+    private readonly IMessageInbox _inbox;
 
-    public InventoryReservationFunction(ILogger<InventoryReservationFunction> logger, IPayloadCaptureSink payloadCaptureSink, TimeProvider timeProvider)
+    public InventoryReservationFunction(ILogger<InventoryReservationFunction> logger, IPayloadCaptureSink payloadCaptureSink, TimeProvider timeProvider, IMessageInbox inbox)
     {
         _logger = logger;
         _payloadCaptureSink = payloadCaptureSink;
         _timeProvider = timeProvider;
+        _inbox = inbox;
     }
 
     [Function(nameof(InventoryReservationFunction))]
@@ -49,9 +51,14 @@ public class InventoryReservationFunction
             Metadata = MessageSettlement.BuildCaptureMetadata(message, "inventory-reservation")
         }, cancellationToken);
 
-        _logger.LogInformation("Inventory reservation event received. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
-            message.MessageId, message.Subject, correlationId);
+        await _inbox.ProcessOnceAsync(nameof(InventoryReservationFunction), message.MessageId, (inbox, _) =>
+        {
+            _logger.LogInformation("Inventory reservation event received. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
+                message.MessageId, message.Subject, correlationId);
 
-        // TODO: build the downstream projection. Stock is already reserved by CreateOrderCommandHandler; do not reserve it again.
+            // TODO: build the downstream projection through inbox.Connection/inbox.Transaction so it commits once with the claim.
+            // Stock is already reserved by CreateOrderCommandHandler; do not reserve it again.
+            return Task.CompletedTask;
+        }, cancellationToken);
     }
 }
