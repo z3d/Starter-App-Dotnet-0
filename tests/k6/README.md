@@ -97,7 +97,7 @@ See `tests/k6/baseline/README.md`.
 | `SKIP_SEED` | `0` | `1` = skip the bulk data seed |
 | `SKIP_REDIS` | `0` | `1` = no Redis; by-id reads fall back to in-memory cache (by-id thresholds not prod-meaningful) |
 | `REDIS_IMAGE` | `redis:7-alpine` | Throwaway Redis image |
-| `REDIS_PORT` | `56379` | Host port for the throwaway Redis (distinct from `PG_PORT` 55433) |
+| `REDIS_PORT` | `16379` | Host port for the throwaway Redis (distinct from `PG_PORT` 15433) |
 | `BASELINE_FILE` | `tests/k6/baseline/summary-baseline.json` | Baseline summary to compare against (if present) |
 | `REGRESSION_PCT` | `20` | % over baseline p95/p99 that counts as a regression |
 | `REGRESSION_FAIL` | `0` | `1` = fail the run on a detected regression (default: warn only) |

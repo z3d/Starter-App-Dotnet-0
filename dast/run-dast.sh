@@ -26,7 +26,7 @@ TARGET_URL="${TARGET_URL:-http://localhost:${API_PORT}}"
 SKIP_BOOT="${SKIP_BOOT:-0}"               # 1 = scan an existing instance, skip DB/API boot
 ZAP_IMAGE="${ZAP_IMAGE:-ghcr.io/zaproxy/zaproxy:stable}"
 PG_IMAGE="${PG_IMAGE:-postgres:16-alpine}"
-PG_PORT="${PG_PORT:-55432}"
+PG_PORT="${PG_PORT:-15432}"               # below the Linux ephemeral range (32768-60999), where an outbound socket can already hold the port
 PG_DB="starterapp_dast"
 FAIL_RISK="${FAIL_RISK:-Medium}"          # Fail the run on alerts >= this risk (High|Medium|Low)
 SKIP_SEED="${SKIP_SEED:-0}"               # 1 = skip the owner-scoped data seed
@@ -36,7 +36,7 @@ SKIP_SEED="${SKIP_SEED:-0}"               # 1 = skip the owner-scoped data seed
 # (plus the ZAP exit-code guard below) turns a dead/throttled scan into a hard
 # failure. It is the DAST analogue of the k6 gate's K6_MIN_LIST_ROWS volume floor.
 DAST_MIN_URLS="${DAST_MIN_URLS:-5}"
-IDP_PORT="${IDP_PORT:-58081}"             # dev Keycloak host port (perf runner uses 58080)
+IDP_PORT="${IDP_PORT:-18081}"             # dev Keycloak host port (perf runner uses 18080)
 RUN_ID="dast-$$"
 PG_CONTAINER="${RUN_ID}-pg"
 IDP_CONTAINER="${RUN_ID}-idp"

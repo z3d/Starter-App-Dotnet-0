@@ -95,7 +95,7 @@ SKIP_BOOT=1 TARGET_URL=http://localhost:5164 dast/run-dast.sh
 | `DAST_MIN_URLS` | `5`                              | Minimum URLs the scan must discover, else fail |
 | `TARGET_URL`    | `http://localhost:5164`          | API base URL                              |
 | `API_PORT`      | `5164`                           | Port the booted API listens on            |
-| `PG_PORT`       | `55432`                          | Host port for the throwaway PostgreSQL    |
+| `PG_PORT`       | `15432`                          | Host port for the throwaway PostgreSQL    |
 | `ZAP_IMAGE`     | `ghcr.io/zaproxy/zaproxy:stable` | ZAP container image                       |
 
 ## Output
