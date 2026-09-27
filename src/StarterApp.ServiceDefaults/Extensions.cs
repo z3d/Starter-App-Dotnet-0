@@ -44,7 +44,8 @@ public static class Extensions
             {
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddRuntimeInstrumentation();
+                    .AddRuntimeInstrumentation()
+                    .AddMeter(PayloadCaptureBackgroundQueue.MeterName);
             })
             .WithTracing(tracing =>
             {
@@ -88,6 +89,8 @@ public static class Extensions
 
         builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<IPayloadRedactor, JsonPayloadRedactor>();
+        builder.Services.AddSingleton<PayloadCaptureBackgroundQueue>();
+        builder.Services.AddHostedService<PayloadCaptureBackgroundWriter>();
         builder.Services.AddSingleton<IPayloadCaptureSink, PayloadCaptureSink>();
         builder.Services.AddSingleton<IArtifactCaptureSink, ArtifactCaptureSink>();
         // One client per process; the health check reuses it and its token cache.

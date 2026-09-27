@@ -55,9 +55,12 @@ public class PayloadCaptureOptions
     [Range(1, 104_857_600)]
     public int MaxPayloadBytes { get; set; } = 1_048_576;
 
-    // Each reference is a serial blob round trip on the request thread; this caps amplification from a hostile body.
+    // A hostile body packed with distinct *Id properties would otherwise fan out without limit.
     [Range(1, 4096)]
     public int MaxEntityReferences { get; set; } = PayloadEntityReferenceExtractor.DefaultMaxEntityReferences;
+
+    [Range(1_048_576, 1_073_741_824)]
+    public int BackgroundQueueMaxBytes { get; set; } = 32 * 1024 * 1024;
 
     public string[] CapturedContentTypes { get; set; } =
     [

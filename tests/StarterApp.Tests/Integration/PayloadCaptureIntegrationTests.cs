@@ -45,15 +45,13 @@ public class PayloadCaptureIntegrationTests : IAsyncLifetime
         var archiveEntry = _fixture.PayloadArchiveStore.Lines.Single(pair =>
             pair.Key.StartsWith("archive/", StringComparison.Ordinal) &&
             pair.Key.EndsWith($"/{correlationId}.jsonl", StringComparison.Ordinal));
-        var auditEntry = _fixture.PayloadArchiveStore.Lines.Single(pair =>
-            pair.Key.StartsWith("audit/", StringComparison.Ordinal) &&
-            pair.Key.EndsWith("/payload-audit.jsonl", StringComparison.Ordinal));
-        var entityIndexEntry = _fixture.PayloadArchiveStore.Lines.Single(pair =>
-            pair.Key.StartsWith($"entity-index/customer/{customerId}/", StringComparison.Ordinal) &&
-            pair.Key.EndsWith($"/{correlationId}.jsonl", StringComparison.Ordinal));
+        var lines = await WaitForAsync(lines =>
+            AuditLines(lines, correlationId).Count == 2 && lines.Keys.Any(key => IsEntityIndexFor(key, customerId, correlationId)));
+        var auditLines = AuditLines(lines, correlationId);
+        var entityIndexEntry = lines.Single(pair => IsEntityIndexFor(pair.Key, customerId, correlationId));
 
         Assert.Equal(2, archiveEntry.Value.Count);
-        Assert.Equal(2, auditEntry.Value.Count);
+        Assert.Equal(2, auditLines.Count);
         Assert.Single(entityIndexEntry.Value);
         Assert.Contains($"{correlationId}@example.com", archiveEntry.Value[0]);
         Assert.Contains("\"direction\":\"inbound\"", archiveEntry.Value[0]);
@@ -61,12 +59,11 @@ public class PayloadCaptureIntegrationTests : IAsyncLifetime
         Assert.Contains($"\"archiveBlobName\":\"{archiveEntry.Key}\"", entityIndexEntry.Value.Single());
         Assert.DoesNotContain($"{correlationId}@example.com", entityIndexEntry.Value.Single());
 
-        using var auditJson = JsonDocument.Parse(auditEntry.Value[0]);
+        using var auditJson = JsonDocument.Parse(auditLines[0]);
         Assert.Equal(correlationId, auditJson.RootElement.GetProperty("correlationId").GetString());
         Assert.Equal(archiveEntry.Key, auditJson.RootElement.GetProperty("archiveBlobName").GetString());
 
         _output.WriteLine($"Archive blob: {archiveEntry.Key}");
-        _output.WriteLine($"Audit blob: {auditEntry.Key}");
         _output.WriteLine($"Entity index blob: {entityIndexEntry.Key}");
     }
 
@@ -94,9 +91,33 @@ public class PayloadCaptureIntegrationTests : IAsyncLifetime
         var response = await PostOrderReferencingCustomerAsync(_fixture.Client, correlationId, customerId: 434343);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Contains(_fixture.PayloadArchiveStore.Lines, pair =>
-            pair.Key.StartsWith("entity-index/customer/434343/", StringComparison.Ordinal) &&
-            pair.Key.EndsWith($"/{correlationId}.jsonl", StringComparison.Ordinal));
+        var lines = await WaitForAsync(lines => lines.Keys.Any(key => IsEntityIndexFor(key, 434343, correlationId)));
+        Assert.Contains(lines.Keys, key => IsEntityIndexFor(key, 434343, correlationId));
+    }
+
+    private static bool IsEntityIndexFor(string key, int customerId, string correlationId) =>
+        key.StartsWith($"entity-index/customer/{customerId}/", StringComparison.Ordinal) &&
+        key.EndsWith($"/{correlationId}.jsonl", StringComparison.Ordinal);
+
+    private static List<string> AuditLines(IReadOnlyDictionary<string, IReadOnlyList<string>> lines, string correlationId) =>
+        lines
+            .Where(pair => pair.Key.StartsWith("audit/", StringComparison.Ordinal) && pair.Key.EndsWith("/payload-audit.jsonl", StringComparison.Ordinal))
+            .SelectMany(pair => pair.Value)
+            .Where(line => line.Contains($"\"correlationId\":\"{correlationId}\"", StringComparison.Ordinal))
+            .ToList();
+
+    private async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> WaitForAsync(
+        Func<IReadOnlyDictionary<string, IReadOnlyList<string>>, bool> condition)
+    {
+        var deadline = TimeProvider.System.GetUtcNow().AddSeconds(10);
+        while (true)
+        {
+            var lines = _fixture.PayloadArchiveStore.Lines;
+            if (condition(lines) || TimeProvider.System.GetUtcNow() > deadline)
+                return lines;
+
+            await Task.Delay(50);
+        }
     }
 
     private static async Task<HttpResponseMessage> PostOrderReferencingCustomerAsync(HttpClient client, string correlationId, int customerId)
