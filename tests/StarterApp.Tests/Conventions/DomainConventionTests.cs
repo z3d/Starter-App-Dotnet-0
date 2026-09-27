@@ -398,4 +398,56 @@ public class DomainConventionTests : ConventionTestBase
                 : ConventionResult.NotSatisfied(type.FullName!, string.Join("; ", failures));
         }
     }
+
+    // Reconstitute is test-only rehydration; InternalsVisibleTo lets the API see it, so only this scan keeps it off the write path.
+    [Fact]
+    public void ProductionCode_MustNotCallReconstitute()
+    {
+        Assert.NotEmpty(FindReconstituteCallers(typeof(ConventionTestBase).Assembly));
+
+        var callers = CoreProductionAssemblies.SelectMany(FindReconstituteCallers).Distinct().ToList();
+
+        Assert.True(callers.Count == 0,
+            "Reconstitute is test-only; production code loads tracked entities and mutates them through domain methods:\n" +
+            string.Join("\n", callers));
+    }
+
+    private static IEnumerable<string> FindReconstituteCallers(Assembly assembly)
+    {
+        foreach (var type in assembly.GetTypes().Where(type => !IsCompilerGenerated(type)))
+        {
+            foreach (var method in GetAllMethodsIncludingStateMachines(type))
+            {
+                if (CallsDomainReconstitute(method))
+                    yield return $"{type.FullName}.{method.Name}";
+            }
+        }
+    }
+
+    private static bool CallsDomainReconstitute(MethodInfo method)
+    {
+        var il = method.GetMethodBody()?.GetILAsByteArray();
+        if (il == null)
+            return false;
+
+        var found = false;
+        IlInstructionWalker.Walk(il, (opcode, _, operandStart, operandSize) =>
+        {
+            if (found || opcode is not (0x28 or 0x6F) || operandSize < 4 || operandStart + 3 >= il.Length)
+                return;
+
+            try
+            {
+                var member = method.Module.ResolveMember(BitConverter.ToInt32(il, operandStart));
+                if (member?.Name == "Reconstitute" && member.DeclaringType?.Assembly == DomainAssembly)
+                    found = true;
+            }
+            catch
+            {
+                // Unresolvable generic instantiation — not a Reconstitute call.
+            }
+        });
+
+        return found;
+    }
 }

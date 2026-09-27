@@ -29,6 +29,8 @@ The AppHost boots a **dev Keycloak** container with the committed `starterapp` r
 
 With the stack running, open **`/demo.html`** on the API origin (Development only) for a self-contained interactive walkthrough: it signs in against Keycloak, then drives probe → token → product → customer → order with an animated pipeline. Untick `orders:write` in the sign-in step to watch the API refuse the order write with `403` decided from the token's scopes alone.
 
+**The sample domain is owner-scoped end to end.** Products, customers and orders each belong to the tenant and subject that created them: every read filters by that owner and every write checks it. So a caller can order only products they created themselves; there is no shared catalogue. That is deliberate, because the sample exists to demonstrate owner scoping, not to model a store. A derived project with shared reference data decides owner scoping per entity when it prunes (`docs/DERIVATION-PRUNING.md`).
+
 ## What This Project Demonstrates
 
 1. **Modern .NET Development**
@@ -58,7 +60,7 @@ With the stack running, open **`/demo.html`** on the API origin (Development onl
 5. **Asynchronous Event Pipeline**
    - Domain events raised inside aggregates, persisted to outbox atomically
    - BackgroundService polls outbox and publishes to Azure Service Bus
-   - Azure Functions subscribe via topic subscriptions with correlation filters; current sample subscribers capture inbound payloads and log trigger activity
+   - Azure Functions subscribe via topic subscriptions with correlation filters; the sample subscribers capture inbound payloads and process each delivery once through a database inbox
    - Service Bus emulator for local development, started by Aspire through Docker
 
 6. **DevOps & CI**
@@ -158,7 +160,7 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 - **Distributed Caching**: Redis-backed by-id query caching via mediator pipeline behavior; list queries are intentionally not cached because `IDistributedCache` cannot invalidate by pattern
 - **Cache Safety Conventions**: Convention tests enforce non-empty deterministic cache keys, by-id-only caching, and invalidator injection for non-create mutations on cacheable entities
 - **Outbox Pattern**: Domain events are captured durably and published to Azure Service Bus via BackgroundService
-- **Azure Functions**: Service Bus subscriber samples for email notifications and inventory reservation; they currently archive inbound payloads and log trigger activity
+- **Azure Functions**: Service Bus subscriber samples for email notifications and inventory reservation; they archive inbound payloads and process each delivery once through a database inbox
 - **Payload Archive / PII Audit**: Bounded HTTP payload capture plus full Service Bus payload archiving to Blob storage with explicit fail-open/fail-closed policy
 - **Observability**: Distributed tracing, metrics, and structured logging
 - **Configuration Management**: Environment-specific settings with .NET configuration
