@@ -17,19 +17,22 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
     private readonly TimeProvider _timeProvider;
     private readonly PayloadCaptureOptions _options;
     private readonly ILogger<PayloadCaptureSink> _logger;
+    private readonly PayloadCaptureBackgroundQueue? _backgroundQueue;
 
     public PayloadCaptureSink(
         IPayloadArchiveStore store,
         IPayloadRedactor redactor,
         TimeProvider timeProvider,
         IOptions<PayloadCaptureOptions> options,
-        ILogger<PayloadCaptureSink> logger)
+        ILogger<PayloadCaptureSink> logger,
+        PayloadCaptureBackgroundQueue? backgroundQueue = null)
     {
         _store = store;
         _redactor = redactor;
         _timeProvider = timeProvider;
         _options = options.Value;
         _logger = logger;
+        _backgroundQueue = backgroundQueue;
     }
 
     public async Task<PayloadCaptureRecord?> CaptureAsync(PayloadCaptureRequest request, CancellationToken cancellationToken)
@@ -99,7 +102,10 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
             await _store.AppendLineAsync(archiveBlobName, line, cancellationToken);
 
             // Best-effort: the most contended write in the system must never fail traffic or pause the outbox, even FailClosed.
-            await AppendAuditBestEffortAsync(auditBlobName, line, request, cancellationToken);
+            if (_backgroundQueue is null)
+                await AppendAuditBestEffortAsync(auditBlobName, line, request, cancellationToken);
+            else
+                _backgroundQueue.TryEnqueue(auditBlobName, line);
 
             var entityIndexBlobNames = request.DeferEntityIndex
                 ? []
@@ -156,6 +162,11 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
 
     private async Task<List<string>> WriteEntityIndexAsync(PayloadCaptureRecord record, CancellationToken cancellationToken)
     {
+        // A FailClosed channel promises the index with the record, so only FailOpen defers it.
+        var queue = _options.FailureModeFor(record.Channel) == PayloadCaptureFailureMode.FailOpen
+            ? _backgroundQueue
+            : null;
+
         var entityIndexBlobNames = new List<string>();
         foreach (var entityReference in record.EntityReferences)
         {
@@ -176,7 +187,11 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
                 Metadata = BuildEntityIndexMetadata(record.Metadata)
             };
 
-            await _store.AppendLineAsync(entityIndexBlobName, JsonSerializer.Serialize(entityIndexRecord, SerializerOptions), cancellationToken);
+            var entityIndexLine = JsonSerializer.Serialize(entityIndexRecord, SerializerOptions);
+            if (queue is not null)
+                queue.TryEnqueue(entityIndexBlobName, entityIndexLine);
+            else
+                await _store.AppendLineAsync(entityIndexBlobName, entityIndexLine, cancellationToken);
             entityIndexBlobNames.Add(entityIndexBlobName);
         }
 

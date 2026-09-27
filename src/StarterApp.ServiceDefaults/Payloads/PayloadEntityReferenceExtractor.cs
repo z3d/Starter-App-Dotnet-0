@@ -59,7 +59,7 @@ public static class PayloadEntityReferenceExtractor
             .ThenBy(reference => reference.EntityId, StringComparer.Ordinal)
             .ToList();
 
-        // Each reference is a serial blob round trip; cap the fan-out from a body packed with distinct *Id properties.
+        // Cap the fan-out from a body packed with distinct *Id properties.
         truncated = ordered.Count > maxReferences;
         return truncated ? ordered.Take(maxReferences).ToList() : ordered;
     }
