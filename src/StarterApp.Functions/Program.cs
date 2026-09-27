@@ -1,10 +1,12 @@
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.Hosting;
+using StarterApp.Functions;
 
 var builder = FunctionsApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.AddPayloadCapture();
 builder.AddJobRunRecording();
+builder.AddMessageInbox();
 
 builder.Build().Run();

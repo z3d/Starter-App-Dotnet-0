@@ -10,12 +10,14 @@ public class OrderConfirmationEmailFunction
     private readonly ILogger<OrderConfirmationEmailFunction> _logger;
     private readonly IPayloadCaptureSink _payloadCaptureSink;
     private readonly TimeProvider _timeProvider;
+    private readonly IMessageInbox _inbox;
 
-    public OrderConfirmationEmailFunction(ILogger<OrderConfirmationEmailFunction> logger, IPayloadCaptureSink payloadCaptureSink, TimeProvider timeProvider)
+    public OrderConfirmationEmailFunction(ILogger<OrderConfirmationEmailFunction> logger, IPayloadCaptureSink payloadCaptureSink, TimeProvider timeProvider, IMessageInbox inbox)
     {
         _logger = logger;
         _payloadCaptureSink = payloadCaptureSink;
         _timeProvider = timeProvider;
+        _inbox = inbox;
     }
 
     [Function(nameof(OrderConfirmationEmailFunction))]
@@ -49,9 +51,14 @@ public class OrderConfirmationEmailFunction
             Metadata = MessageSettlement.BuildCaptureMetadata(message, "email-notifications")
         }, cancellationToken);
 
-        _logger.LogInformation("Order confirmation email triggered. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
-            message.MessageId, message.Subject, correlationId);
+        await _inbox.ProcessOnceAsync(nameof(OrderConfirmationEmailFunction), message.MessageId, (inbox, _) =>
+        {
+            _logger.LogInformation("Order confirmation email triggered. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
+                message.MessageId, message.Subject, correlationId);
 
-        // TODO: send the confirmation email. Delivery is unordered (16 concurrent calls, no sessions), so a status change can arrive before order-created.
+            // TODO: send the confirmation email. Delivery is unordered (16 concurrent calls, no sessions), so a status change can arrive before order-created.
+            // An email cannot join the inbox transaction: a send that succeeds before a failed commit is sent again on redelivery.
+            return Task.CompletedTask;
+        }, cancellationToken);
     }
 }

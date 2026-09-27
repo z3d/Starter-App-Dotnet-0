@@ -25,7 +25,7 @@ AppHost-specific conventions live in `tests/StarterApp.AppHost.Tests`:
 |------|---------|
 | `ServiceBusTopologyConventionTests.cs` | AppHost subscription filters, domain event contracts, and Azure Functions trigger wiring stay aligned |
 | `FunctionsHostConfigConventionTests.cs` | `host.json` retry/lock-renewal budget, `%Section:Key%` trigger settings (never `__`), and every timer schedule setting has a default in the Functions Dockerfile, `local.settings.json` and the AppHost |
-| `PayloadCaptureConventionTests.cs` | Every Service Bus-triggered function captures its inbound payload |
+| `PayloadCaptureConventionTests.cs` | Every Service Bus-triggered function captures its inbound payload and processes through `IMessageInbox` |
 
 ## Core Rules
 
