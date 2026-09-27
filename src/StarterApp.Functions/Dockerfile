@@ -23,15 +23,6 @@ COPY src/StarterApp.ServiceDefaults/ src/StarterApp.ServiceDefaults/
 # same tree passes locally), so a Windows clone cannot build the image the E2E suite boots.
 RUN dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Release -o /app/publish -p:EnforceCodeStyleInBuild=false
 
-# NOTE on root: the API and DbMigrator images drop to the non-root $APP_UID user, but
-# this Azure Functions base image deliberately stays on its default (root) user model.
-# The image defines APP_UID=1654, but the Functions host writes to privileged paths it
-# owns as root (e.g. /azure-functions-host/Secrets, log/data dirs), so switching to
-# USER $APP_UID requires validated chowns of every host-writable directory and a full
-# host-boot test — it is not a safe one-liner like the aspnet-based images. This worker
-# is an internal Service-Bus subscriber (not internet-facing) run via AppHost for local
-# integration tests. Harden to non-root as a validated deploy-time step if your platform
-# (Kubernetes runAsNonRoot / OpenShift) requires it.
 FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0@sha256:eec9b650e13cf4ec0cb75057f409669d3a806e344d113b21b9d7eed7f31e583c
 WORKDIR /home/site/wwwroot
 # Baked-in default for the cleanup timer schedule (hourly). The TimerTrigger's
@@ -40,3 +31,7 @@ WORKDIR /home/site/wwwroot
 # this env var to change the schedule.
 ENV PayloadCapture__CleanupCron="0 0 * * * *"
 COPY --from=build /app/publish .
+# Non-root like the API and migrator: the base image already gives $APP_UID /home and a world-writable
+# Secrets directory, so the one change is listening above 1024.
+ENV ASPNETCORE_URLS=http://+:8080
+USER $APP_UID

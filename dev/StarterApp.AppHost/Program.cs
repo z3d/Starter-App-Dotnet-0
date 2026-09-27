@@ -242,10 +242,10 @@ else
 // Add Azure Functions container for Service Bus subscribers.
 // Running through the Functions base image keeps local behavior aligned with the deployed worker runtime.
 var functions = builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Functions/Dockerfile")
-       // The Functions host serves a landing page on port 80 once the worker is up; exposing it
+       // The Functions host serves a landing page on 8080 (non-root) once the worker is up; exposing it
        // lets the E2E fixture (and the dashboard) verify the slowest resource is actually ready —
        // the API's readiness probe says nothing about the subscriber container.
-       .WithHttpEndpoint(targetPort: 80)
+       .WithHttpEndpoint(targetPort: 8080)
        .WithReference(payloadArchive)
        .WithEnvironment("FUNCTIONS_WORKER_RUNTIME", "dotnet-isolated")
        // The Functions image logs the host's own lines (startup, trigger listeners, invocations)
