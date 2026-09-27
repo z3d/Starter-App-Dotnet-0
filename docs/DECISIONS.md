@@ -83,7 +83,7 @@ A failed refresh-ahead recompute logs a warning and serves the still-within-TTL 
 
 Domain events are raised inside aggregates and persisted to `outbox_messages` by `DomainEventsInterceptor` (a `SaveChangesInterceptor` wired by `AddPersistence`, pinned by `PersistenceConventionTests.AddPersistence_WiresDomainEventsInterceptor`) during a single `SaveChangesAsync`. Single-save means no user transaction, which keeps `EnableRetryOnFailure` safe for transient PostgreSQL faults.
 
-`OutboxProcessor` claims a batch in a short transaction using `ProcessingId`/`LockedUntilUtc` plus `FOR UPDATE SKIP LOCKED`, publishes **outside** the lock, then persists outcomes in one save. A row whose claim was stolen by another replica is detached so the rest of the batch's outcomes still persist. Errored rows are skipped on later polls; `ProcessedOnUtc` strictly means published.
+`OutboxProcessor` claims a batch in a short transaction using `ProcessingId`/`LockedUntilUtc` plus `FOR UPDATE SKIP LOCKED`, publishes **outside** the lock, then persists outcomes in one save. A row whose claim was stolen by another replica is detached so the rest of the batch's outcomes still persist. Errored rows are skipped on later polls; `ProcessedOnUtc` strictly means published. A full batch that published cleanly goes straight to the next claim instead of sleeping `PollingIntervalSeconds`, so a backlog drains at broker speed; a batch with any retry or pause waits the interval, since retried rows are reclaimable at once.
 
 Recovery is the DbMigrator replay verb, not manual SQL:
 
