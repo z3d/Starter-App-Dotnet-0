@@ -80,6 +80,7 @@ public static class WebApplicationExtensions
             EntityNotFoundException => StatusCodes.Status404NotFound,
             FeatureToggles.FeatureDisabledException => StatusCodes.Status503ServiceUnavailable,
             DomainRuleException => StatusCodes.Status409Conflict,
+            Idempotency.IdempotencyKeyReusedException => StatusCodes.Status422UnprocessableEntity,
             // Bare BCL exceptions are server bugs; they fall through to 500 so alerting sees them.
             _ => StatusCodes.Status500InternalServerError
         };

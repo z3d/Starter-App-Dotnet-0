@@ -1,3 +1,4 @@
+using StarterApp.Api.Infrastructure.Idempotency;
 using StarterApp.Api.Infrastructure.Outbox;
 
 namespace StarterApp.Api.Data;
@@ -14,6 +15,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Order> Orders { get; set; } = null!;
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
     public DbSet<OutboxMessage> OutboxMessages { get; set; } = null!;
+    public DbSet<IdempotencyRecord> IdempotencyRecords { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

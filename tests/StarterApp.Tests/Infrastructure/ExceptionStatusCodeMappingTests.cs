@@ -46,6 +46,16 @@ public class ExceptionStatusCodeMappingTests
     }
 
     [Fact]
+    public void ResolveExceptionStatusCode_WithReusedIdempotencyKey_ShouldReturnUnprocessableEntity()
+    {
+        var exception = new StarterApp.Api.Infrastructure.Idempotency.IdempotencyKeyReusedException("key reused for a different request");
+
+        var statusCode = WebApplicationExtensions.ResolveExceptionStatusCode(exception);
+
+        Assert.Equal(StatusCodes.Status422UnprocessableEntity, statusCode);
+    }
+
+    [Fact]
     public void ResolveExceptionStatusCode_WithBareInvalidOperationException_ShouldReturnInternalServerError()
     {
         // Regression: a stray BCL InvalidOperationException (LINQ .Single(), misused API) is a
