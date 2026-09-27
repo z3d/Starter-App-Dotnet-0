@@ -14,7 +14,7 @@ Entity mappings are per-entity `IEntityTypeConfiguration<T>` classes under `Data
 - **Aggregate collections use backing-field access** (`Navigation(...).UsePropertyAccessMode(PropertyAccessMode.Field)`), so the aggregate owns `_items` privately and EF populates via `.Include()`. No public setters on navigation collections.
 - **Every aggregate root (`Customer`, `Order`, `Product`) carries an `xmin` row-version token** (`uint RowVersion`, `.IsRowVersion()`). The resulting `DbUpdateConcurrencyException` → 409 mapping is load-bearing — the k6 write-contention scenario exercises it under load.
 - **Enums persist as strings** via `HasConversion<string>()`.
-- **Migrations run only through `StarterApp.DbMigrator`** (DbUp, embedded SQL, sequential `0001_...` naming). A script on disk that isn't embedded **silently never runs** — convention-tested.
+- **Migrations run only through `StarterApp.DbMigrator`** (DbUp, embedded SQL, sequential `0001_...` naming). A script on disk that isn't embedded **silently never runs** — convention-tested. Every run holds a session advisory lock (`DatabaseMigrationEngine.MigrationLockKey`) around the upgrade, so overlapping runs serialize instead of applying the same script twice.
 - **Every constraint is explicitly named** — `pk_`, `fk_`, `df_`, `ck_`, `ix_` — *including defaults*. Anonymous constraints get server-generated names a later migration can't drop deterministically. → [reference/migrations.md](reference/migrations.md)
 - **Connection resolution differs by design:** the API resolves only `database` and throws if absent (a misconfigured deployment fails loudly); DbMigrator falls back `database` → `postgres` → `DefaultConnection` for standalone runs.
 
