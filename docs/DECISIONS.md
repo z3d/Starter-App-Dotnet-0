@@ -104,6 +104,14 @@ On the consuming side, Azure Functions subscribe through topic subscriptions wit
 
 **The emulator caveat is load-bearing:** the Service Bus emulator crash-loops on any TTL above 1 hour (exit 139), so run mode clamps every TTL through `ServiceBusTopology.ClampForEmulator` while publish mode keeps the 24h posture. Never assign the 24h constants to emulator topology directly. Further emulator gotchas are in `.claude/skills/development-workflow/SKILL.md`.
 
+## Order creation takes an `Idempotency-Key` (2026-09-27)
+
+The handler already survives its own retries (one stable order Id across execution-strategy attempts), but a client that retries `POST /api/v1/orders` after a timeout used to create a second order and reserve stock twice. The optional `Idempotency-Key` header closes that: `idempotency_records` keeps one row per (tenant, subject, operation, key) with a SHA-256 of the canonical request and the order Id, written in the same `SaveChanges` as the order. A repeat with a matching hash replays the stored order; a different request under the same key is a 422 (`IdempotencyKeyReusedException`); two concurrent requests collide on `pk_idempotency_records`, the loser's transaction rolls back its stock reservation, and it answers with the winner's order.
+
+A separate table rather than a column on `orders`, so the next keyed create (Product create's open retry gap) reuses it without touching its aggregate. Rows are never purged: there is at most one per keyed order, so the table grows no faster than `orders` does. The key is optional so existing clients are unchanged.
+
+**Re-add trigger for expiry:** keys become per-request rather than per-order (a keyed endpoint that does not create a durable resource), which would make the table outgrow what it indexes.
+
 ## OIDC/JWT identity (replaced the gateway-assertion model, 2026-08-01)
 
 The API validates OIDC/JWT bearer tokens itself via `AddJwtBearer` against the configured authority (`Identity:Authority` / `Identity:Audience`). This **replaced** the previous trusted-gateway model, in which APIM verified callers and forwarded a custom HMAC-signed assertion (`X-Gateway-Assertion` + projected `X-Authenticated-*` headers). The old model is preserved in full at the `pre-idp-conversion` tag.

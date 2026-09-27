@@ -92,9 +92,14 @@ Base path: `/api/v1/orders`
 | `GET` | `/api/v1/orders/{id}` | `orders:read` | No | `200 OK` or `404 Not Found` |
 | `GET` | `/api/v1/orders/customer/{customerId}?page=1&pageSize=50` | `orders:read` | No | `200 OK` with `PagedResponse<OrderReadModel>` |
 | `GET` | `/api/v1/orders/status/{status}?page=1&pageSize=50` | `orders:read` | No | `200 OK` with `PagedResponse<OrderReadModel>` |
-| `POST` | `/api/v1/orders` | `orders:write` | Yes | `201 Created` |
+| `POST` | `/api/v1/orders` | `orders:write` | Yes | `201 Created`, `400`, `404`, `409`, or `422` |
 | `PUT` | `/api/v1/orders/{id}/status` | `orders:write` | Yes | `200 OK`, `400`, `404`, or `409` |
 | `POST` | `/api/v1/orders/{id}/cancel` | `orders:write` | Yes | `200 OK`, `404`, or `409` |
+
+Send an `Idempotency-Key` header (1–255 visible ASCII characters, e.g. a UUID) to make a retry safe.
+A repeat with the same key and the same body returns the first order with `201` and reserves no more
+stock; the same key with a different body is refused with `422`. Keys are scoped to the caller, and
+without the header every request creates an order.
 
 Create order body:
 

@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc;
+
 namespace StarterApp.Api.Endpoints;
 
 public class OrderEndpoints : IEndpointDefinition
@@ -38,6 +40,7 @@ public class OrderEndpoints : IEndpointDefinition
             .Accepts<CreateOrderCommand>("application/json")
             .Produces<OrderDto>(201, "application/json")
             .ProducesProblem(400)
+            .ProducesProblem(422)
             .ProducesProblem(500);
 
         orders.MapPut("/{id:guid}/status", UpdateOrderStatus)
@@ -98,8 +101,13 @@ public class OrderEndpoints : IEndpointDefinition
         return await mediator.PagedAsync(query, pageSize, cancellationToken);
     }
 
-    private static async Task<IResult> CreateOrder(CreateOrderCommand command, IMediator mediator, CancellationToken cancellationToken)
+    private static async Task<IResult> CreateOrder(
+        CreateOrderCommand command,
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+        IMediator mediator,
+        CancellationToken cancellationToken)
     {
+        command.IdempotencyKey = idempotencyKey;
         var result = await mediator.SendAsync(command, cancellationToken);
         return Results.Created($"/api/v1/orders/{result.Id}", result);
     }

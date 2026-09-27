@@ -1,3 +1,5 @@
+using StarterApp.Api.Infrastructure.Idempotency;
+
 namespace StarterApp.Api.Application.Validators;
 
 public class CreateOrderCommandValidator : IValidator<CreateOrderCommand>
@@ -7,6 +9,9 @@ public class CreateOrderCommandValidator : IValidator<CreateOrderCommand>
     {
         if (request.CustomerId <= 0)
             yield return new ValidationError(nameof(request.CustomerId), "CustomerId must be a positive integer");
+
+        if (request.IdempotencyKey is { } key && (key.Length is 0 or > IdempotencyRecord.MaxKeyLength || key.Any(c => c is < '!' or > '~')))
+            yield return new ValidationError("Idempotency-Key", $"Idempotency-Key must be 1 to {IdempotencyRecord.MaxKeyLength} visible ASCII characters");
 
         if (request.Items == null || request.Items.Count == 0)
         {

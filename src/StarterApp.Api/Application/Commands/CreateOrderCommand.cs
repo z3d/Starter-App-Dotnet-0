@@ -1,4 +1,9 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore.Storage;
+using StarterApp.Api.Data.Configurations;
+using StarterApp.Api.Infrastructure.Idempotency;
 
 namespace StarterApp.Api.Application.Commands;
 
@@ -7,6 +12,10 @@ public class CreateOrderCommand : ICommand, IRequest<OrderDto>, IOwnerAuthorized
 {
     public int CustomerId { get; set; }
     public List<CreateOrderItemCommand> Items { get; set; } = [];
+
+    // From the Idempotency-Key header, never the body.
+    [JsonIgnore]
+    public string? IdempotencyKey { get; set; }
 }
 
 public class CreateOrderItemCommand
@@ -17,6 +26,8 @@ public class CreateOrderItemCommand
 
 public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, OrderDto>
 {
+    private const string IdempotencyOperation = "orders.create";
+
     private readonly ApplicationDbContext _dbContext;
     private readonly ICacheInvalidator _cacheInvalidator;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
@@ -49,55 +60,88 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         // The stock update and the insert share one transaction, which must run inside the execution strategy; skipped on the non-relational test provider.
         var orderId = Guid.CreateVersion7();
+        var requestHash = command.IdempotencyKey is null ? null : HashRequest(command);
         var strategy = _dbContext.Database.CreateExecutionStrategy();
         Order? savedOrder = null;
+        var replayed = false;
 
-        await strategy.ExecuteAsync(cancellationToken, async ct =>
+        try
         {
-            // A prior failed attempt's tracked entities would be inserted again on this pass.
-            _dbContext.ChangeTracker.Clear();
-
-            var committedOrder = await _dbContext.Orders
-                .Include(o => o.Items)
-                .FirstOrDefaultAsync(o => o.Id == orderId, ct);
-            if (committedOrder != null)
+            await strategy.ExecuteAsync(cancellationToken, async ct =>
             {
-                savedOrder = committedOrder;
-                return;
-            }
+                // A prior failed attempt's tracked entities would be inserted again on this pass.
+                _dbContext.ChangeTracker.Clear();
 
-            IDbContextTransaction? transaction = null;
-            if (_dbContext.Database.IsRelational())
-                transaction = await _dbContext.Database.BeginTransactionAsync(ct);
-
-            try
-            {
-                var order = new Order(orderId, command.CustomerId, ownerScope.OwnerSubject, ownerScope.TenantId, _timeProvider.GetUtcNow());
-                foreach (var itemCommand in command.Items)
+                var committedOrder = await _dbContext.Orders
+                    .Include(o => o.Items)
+                    .FirstOrDefaultAsync(o => o.Id == orderId, ct);
+                if (committedOrder != null)
                 {
-                    var product = await ReserveStockAsync(itemCommand, ownerScope, ct);
-                    order.AddItem(
-                        itemCommand.ProductId,
-                        product.Name,
-                        itemCommand.Quantity,
-                        product.Price,
-                        OrderItem.DefaultGstRate);
+                    savedOrder = committedOrder;
+                    return;
                 }
 
-                _dbContext.Orders.Add(order);
-                await _dbContext.SaveChangesAsync(ct);
+                var keyedOrder = await FindKeyedOrderAsync(command.IdempotencyKey, requestHash, ownerScope, ct);
+                if (keyedOrder != null)
+                {
+                    savedOrder = keyedOrder;
+                    replayed = true;
+                    return;
+                }
 
-                if (transaction != null)
-                    await transaction.CommitAsync(ct);
+                IDbContextTransaction? transaction = null;
+                if (_dbContext.Database.IsRelational())
+                    transaction = await _dbContext.Database.BeginTransactionAsync(ct);
 
-                savedOrder = order;
-            }
-            finally
-            {
-                if (transaction != null)
-                    await transaction.DisposeAsync();
-            }
-        });
+                try
+                {
+                    var order = new Order(orderId, command.CustomerId, ownerScope.OwnerSubject, ownerScope.TenantId, _timeProvider.GetUtcNow());
+                    foreach (var itemCommand in command.Items)
+                    {
+                        var product = await ReserveStockAsync(itemCommand, ownerScope, ct);
+                        order.AddItem(
+                            itemCommand.ProductId,
+                            product.Name,
+                            itemCommand.Quantity,
+                            product.Price,
+                            OrderItem.DefaultGstRate);
+                    }
+
+                    _dbContext.Orders.Add(order);
+                    if (command.IdempotencyKey != null)
+                        _dbContext.IdempotencyRecords.Add(new IdempotencyRecord(ownerScope, IdempotencyOperation, command.IdempotencyKey, requestHash!, orderId.ToString()));
+
+                    await _dbContext.SaveChangesAsync(ct);
+
+                    if (transaction != null)
+                        await transaction.CommitAsync(ct);
+
+                    savedOrder = order;
+                }
+                finally
+                {
+                    if (transaction != null)
+                        await transaction.DisposeAsync();
+                }
+            });
+        }
+        catch (DbUpdateException ex) when (command.IdempotencyKey != null && ex.IsUniqueConstraintViolation(IdempotencyRecordConfiguration.PrimaryKeyName))
+        {
+            // A concurrent request with the same key committed first and this one rolled back; answer with its order.
+            _dbContext.ChangeTracker.Clear();
+            var keyedOrder = await FindKeyedOrderAsync(command.IdempotencyKey, requestHash, ownerScope, cancellationToken);
+            if (keyedOrder is null)
+                throw;
+
+            savedOrder = keyedOrder;
+            replayed = true;
+        }
+
+        if (replayed)
+        {
+            _logger.LogInformation("Replayed order {OrderId} for a repeated idempotency key", savedOrder!.Id);
+            return OrderMapper.ToDto(savedOrder);
+        }
 
         _logger.LogInformation("Created order with ID: {OrderId}", savedOrder!.Id);
 
@@ -106,6 +150,41 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             await _cacheInvalidator.InvalidateProductAsync(productId, cancellationToken);
 
         return OrderMapper.ToDto(savedOrder);
+    }
+
+    private async Task<Order?> FindKeyedOrderAsync(string? idempotencyKey, string? requestHash, OwnerScope ownerScope, CancellationToken cancellationToken)
+    {
+        if (idempotencyKey is null)
+            return null;
+
+        var record = await _dbContext.IdempotencyRecords
+            .AsNoTracking()
+            .SingleOrDefaultAsync(r =>
+                r.TenantId == ownerScope.TenantId &&
+                r.OwnerSubject == ownerScope.OwnerSubject &&
+                r.Operation == IdempotencyOperation &&
+                r.Key == idempotencyKey,
+                cancellationToken);
+        if (record is null)
+            return null;
+
+        if (record.RequestHash != requestHash)
+            throw new IdempotencyKeyReusedException("This Idempotency-Key was already used for a different order request.");
+
+        var orderId = Guid.Parse(record.ResourceId);
+        return await _dbContext.Orders
+            .Include(o => o.Items)
+            .SingleAsync(o => o.Id == orderId, cancellationToken);
+    }
+
+    // Canonical form, so the order of items in the body does not change the hash.
+    private static string HashRequest(CreateOrderCommand command)
+    {
+        var items = command.Items
+            .OrderBy(item => item.ProductId)
+            .Select(item => string.Create(CultureInfo.InvariantCulture, $"{item.ProductId}:{item.Quantity}"));
+        var canonical = string.Create(CultureInfo.InvariantCulture, $"{command.CustomerId}|{string.Join(',', items)}");
+        return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
     // Relational: atomic UPDATE ... WHERE Stock >= qty. InMemory (tests) cannot ExecuteUpdate, so it falls back to read-modify-write.
