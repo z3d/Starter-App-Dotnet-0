@@ -69,4 +69,44 @@ public class PayloadCaptureIntegrationTests : IAsyncLifetime
         _output.WriteLine($"Audit blob: {auditEntry.Key}");
         _output.WriteLine($"Entity index blob: {entityIndexEntry.Key}");
     }
+
+    [Fact]
+    public async Task AnonymousRequest_IsArchivedButNeverWritesTheEntityIndex()
+    {
+        var correlationId = $"anonymous-{Guid.NewGuid():N}";
+        using var client = _fixture.CreateUnauthenticatedClient();
+
+        var response = await PostOrderReferencingCustomerAsync(client, correlationId, customerId: 424242);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Contains(_fixture.PayloadArchiveStore.Lines, pair =>
+            pair.Key.StartsWith("archive/", StringComparison.Ordinal) &&
+            pair.Key.EndsWith($"/{correlationId}.jsonl", StringComparison.Ordinal));
+        Assert.DoesNotContain(_fixture.PayloadArchiveStore.Lines, pair =>
+            pair.Key.StartsWith("entity-index/customer/424242/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AuthenticatedRequest_WritesTheEntityIndexForItsRequestBody()
+    {
+        var correlationId = $"authenticated-{Guid.NewGuid():N}";
+
+        var response = await PostOrderReferencingCustomerAsync(_fixture.Client, correlationId, customerId: 434343);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Contains(_fixture.PayloadArchiveStore.Lines, pair =>
+            pair.Key.StartsWith("entity-index/customer/434343/", StringComparison.Ordinal) &&
+            pair.Key.EndsWith($"/{correlationId}.jsonl", StringComparison.Ordinal));
+    }
+
+    private static async Task<HttpResponseMessage> PostOrderReferencingCustomerAsync(HttpClient client, string correlationId, int customerId)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/orders");
+        request.Headers.Add("X-Correlation-ID", correlationId);
+        request.Content = new StringContent(
+            $$"""{"customerId":{{customerId}},"items":[{"productId":1,"quantity":1}]}""",
+            Encoding.UTF8,
+            "application/json");
+        return await client.SendAsync(request);
+    }
 }

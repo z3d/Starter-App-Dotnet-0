@@ -63,7 +63,7 @@ public sealed class PayloadCaptureMiddleware
         using var correlationScope = CorrelationContext.Push(correlationId);
         using var logScope = LogContext.PushProperty("CorrelationId", correlationId);
 
-        await CaptureRequestAsync(context, correlationId);
+        var requestRecord = await CaptureRequestAsync(context, correlationId);
 
         var originalResponseBody = context.Response.Body;
         await using var responseBody = new BoundedCaptureStream(originalResponseBody, _options.MaxPayloadBytes);
@@ -73,12 +73,14 @@ public sealed class PayloadCaptureMiddleware
         {
             await _next(context);
             await CaptureResponseAsync(context, correlationId, responseBody);
+            await IndexRequestEntitiesIfAuthenticatedAsync(context, requestRecord);
         }
         catch (OperationCanceledException)
         {
             // A client abort must not suppress the audit record, so capture the buffered bytes with an unlinked token.
             _logger.LogWarning("HTTP request was canceled for correlation {CorrelationId}; capturing the partial response for audit", correlationId);
             await CaptureResponseAsync(context, correlationId, responseBody);
+            await IndexRequestEntitiesIfAuthenticatedAsync(context, requestRecord);
             throw;
         }
         catch (Exception ex)
@@ -92,7 +94,18 @@ public sealed class PayloadCaptureMiddleware
         }
     }
 
-    private async Task CaptureRequestAsync(HttpContext context, string correlationId)
+    // Capture runs before authentication, so an anonymous body's ids would sit in the entity index beside real ones; the
+    // archive still records the request, and its index lines are written only once the caller has proved who they are.
+    private async Task IndexRequestEntitiesIfAuthenticatedAsync(HttpContext context, PayloadCaptureRecord? requestRecord)
+    {
+        if (requestRecord is null || requestRecord.EntityReferences.Count == 0)
+            return;
+
+        if (context.RequestServices?.GetService<ICurrentUser>() is { IsAuthenticated: true })
+            await _payloadCaptureSink.IndexEntitiesAsync(requestRecord, CancellationToken.None);
+    }
+
+    private async Task<PayloadCaptureRecord?> CaptureRequestAsync(HttpContext context, string correlationId)
     {
         var metadata = new Dictionary<string, string>
         {
@@ -114,7 +127,7 @@ public sealed class PayloadCaptureMiddleware
                 PayloadSizeBytes = context.Request.ContentLength,
                 Metadata = metadata
             }, context.RequestAborted);
-            return;
+            return null;
         }
 
         context.Request.EnableBuffering();
@@ -122,13 +135,14 @@ public sealed class PayloadCaptureMiddleware
         var payload = await ReadStreamAsync(context.Request.Body, _options.MaxPayloadBytes, context.Request.ContentLength, context.RequestAborted);
         context.Request.Body.Position = 0;
 
-        await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
+        return await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
         {
             CorrelationId = correlationId,
             Direction = "inbound",
             Channel = PayloadCaptureChannels.Http,
             Operation = $"{context.Request.Method} {context.Request.Path}",
             ContentType = context.Request.ContentType,
+            DeferEntityIndex = true,
             Payload = payload.Value,
             PayloadTruncated = payload.Truncated,
             PayloadSizeBytes = payload.PayloadSizeBytes,

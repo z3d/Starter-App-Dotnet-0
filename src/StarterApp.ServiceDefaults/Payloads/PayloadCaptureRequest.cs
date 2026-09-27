@@ -15,4 +15,7 @@ public sealed class PayloadCaptureRequest
     public int? StatusCode { get; init; }
     public Dictionary<string, string> Metadata { get; init; } = [];
     public List<PayloadEntityReference> EntityReferences { get; init; } = [];
+
+    // The record still lists its entity references; the entity-index lines wait for IndexEntitiesAsync, once the caller is known.
+    public bool DeferEntityIndex { get; init; }
 }
