@@ -1,12 +1,31 @@
+using Npgsql;
+
 namespace StarterApp.DbMigrator;
 
 public static class DatabaseMigrationEngine
 {
+    // Any constant works as long as every migrator run for this database uses the same one.
+    public const long MigrationLockKey = 0x5374_6172_7465_724D;
+
     public static bool MigrateDatabase(string connectionString, Assembly scriptsAssembly)
     {
         var upgradeLog = new SerilogUpgradeLog(Log.Logger);
 
         EnsureDatabase.For.PostgresqlDatabase(connectionString, upgradeLog);
+
+        // Overlapping runs (a retried deploy job) would both see the same scripts pending; the second waits here, then finds none.
+        // The lock is session-scoped, so disposing the connection releases it even if the upgrade throws.
+        using var dataSource = NpgsqlDataSource.Create(connectionString);
+        using var lockConnection = dataSource.OpenConnection();
+        Log.Information("Waiting for the migration lock");
+        using (var acquire = lockConnection.CreateCommand())
+        {
+            acquire.CommandText = "SELECT pg_advisory_lock(@key)";
+            acquire.Parameters.AddWithValue("key", MigrationLockKey);
+            acquire.ExecuteNonQuery();
+        }
+
+        Log.Information("Migration lock acquired");
 
         var upgrader = DeployChanges.To
             .PostgresqlDatabase(connectionString)

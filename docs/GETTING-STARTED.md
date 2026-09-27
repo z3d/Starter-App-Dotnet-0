@@ -74,7 +74,8 @@ dotnet run --project src/StarterApp.DbMigrator -- --ConnectionStrings:database "
 ```
 
 Real deployments run the migrator to completion (a job, init container, or release step) before
-starting API replicas. To add a migration, add the next numbered `.sql` file under
+starting API replicas. Two runs at once are safe: each takes a PostgreSQL advisory lock before
+reading `schemaversions`, so the second waits and then finds nothing pending. To add a migration, add the next numbered `.sql` file under
 `src/StarterApp.DbMigrator/Scripts/` with explicit deterministic names for every constraint and
 index, then run the tests; the migration conventions check embedding and naming. Details in
 `.claude/skills/data-access/SKILL.md`.
