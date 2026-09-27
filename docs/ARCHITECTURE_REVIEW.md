@@ -15,7 +15,7 @@ that produced it. Before dismissing or re-raising anything, check the record, no
 | [2026-09-06 fix review](reviews/ARCHITECTURE_REVIEW-2026-09-06.md) | Independent review of the 2026-09-06 fix commit; fourteen residuals, twelve fixed the same day, two recorded with triggers |
 | [2026-09-08 consistency and simplification](reviews/REVIEW-2026-09-08-consistency-and-simplification.md) | Consistency-suite assessment against its design post (three drifts, fixed the same day) and the template-weighed simplification backlog |
 | [2026-09-12 identity security review](reviews/SECURITY-REVIEW-2026-09-12-identity.md) | Manual read plus the security-auditor subagent over the JWT path; five findings fixed the same day (owner check now gates the write, fallback authorization policy, wider claims scan, two-tenant tests, pinned algorithms), five noted |
-| [2026-09-27 fresh-eyes review](reviews/REVIEW-2026-09-27-fresh-eyes.md) | Whole solution, reviewers kept blind to prior records; four fixed the same day (outbox drain, one-round-trip blob appends, Customer `xmin`, publish ack for the dev realm), one tried and reverted (limiter order), eleven open |
+| [2026-09-27 fresh-eyes review](reviews/REVIEW-2026-09-27-fresh-eyes.md) | Whole solution, reviewers kept blind to prior records; four fixed the same day, one tried and reverted (limiter order); the follow-up fixed six more, accepted the probes as gateway-protected, and found one finding half false; two open |
 
 ## Overview
 
@@ -56,12 +56,9 @@ Dependabot, CodeQL). The full analysis is in the archive.
 The eight findings from the [2026-09-05 review](reviews/ARCHITECTURE_REVIEW-2026-09-05.md#resolution--2026-09-06)
 are resolved, with failing-before/passing-after regressions and final validation in the record.
 
-Open from the [2026-09-27 review](reviews/REVIEW-2026-09-27-fresh-eyes.md#open), one line each (evidence, triggers and fixes in the record):
+Open from the [2026-09-27 review](reviews/REVIEW-2026-09-27-fresh-eyes.md#follow-up-2026-09-27) (the rest were fixed or accepted the same day; see the follow-up table):
 
-- **OPEN (Medium) — a capture failure that never clears stops outbox publishing indefinitely** under FailClosed (#6).
-- **OPEN (Medium) — no `Idempotency-Key` exemplar on `POST /orders`**; a client retry double-orders (#7).
-- **OPEN (Medium) — no consumer dedup exemplar** for at-least-once, unordered delivery (#8).
-- **OPEN (Low)** — anonymous inbound capture writes the entity index (#9); deep probes anonymous and unthrottled (#10); `text/plain` logged with only email masking (#11); Functions image runs as root (#12); no migrator advisory lock (#13); `InternalsVisibleTo` exposes `Reconstitute` (#14); stale gitleaks allowlist and README tree (#15).
+- **OPEN (Low)** — `text/plain` logged with only email masking (#11); `InternalsVisibleTo` exposes `Reconstitute` (#14).
 
 - **OPEN — bearer tokens are not sender-constrained.** The retired gateway assertion was bound to
   method and path with a ~150s lifetime; an IdP bearer token is valid for any endpoint in its

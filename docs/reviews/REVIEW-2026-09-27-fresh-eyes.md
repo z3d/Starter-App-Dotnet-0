@@ -78,3 +78,21 @@ guard; deep OFFSET cost is its accepted consequence).
   - Cache keys hash tenant and subject.
 - **CI and images.** SHA-pinned actions, least-privilege default permissions, checksum-verified
   binaries, and digest-pinned base images.
+
+## Follow-up, 2026-09-27
+
+Worked the open list the same day, in the order the maintainer asked. Numbers are this record's.
+
+| # | Outcome |
+|---|---|
+| 6 | **Fixed differently from the proposal**, `cd66b49`. Routing non-transient capture failures through the retry budget would have reversed the recorded pause-never-poison rule (#79). Instead a store failure (any `RequestFailedException`, or a transient one) still pauses the batch, now at Error when not transient; any other failure holds only that message until its lock expires and the rest of the batch publishes. |
+| 12 | **Fixed**, `955ecf8`. The base image already gives `$APP_UID` `/home` and a writable `Secrets`; the only blocker was port 80. The Functions image runs as uid 1654 on 8080 (booted and served the host page as that user), and a convention requires `USER` in every shipping Dockerfile's final stage. |
+| 13 | **Fixed**, `e10e1a6`. The migrator holds a session `pg_advisory_lock` around the DbUp upgrade; `MigrationLockTests` shows a second run waits, then succeeds. |
+| 15 | **Half false**, `b12577d`. The README tree and Quick Start path are fixed. The Gateway gitleaks entry is not stale: the key is in history (`b1bf37f..7ffe7ed`) and the secret scan covers full history, so it stays with a comment saying why. |
+| 7 | **Fixed**, `e97988b`. Optional `Idempotency-Key` on `POST /api/v1/orders`, backed by `idempotency_records`; replay, 422 on a changed body, and a concurrent same-key race are integration-tested. |
+| 8 | **Fixed**, `32e7362`. `IMessageInbox` claims `(consumer, MessageId)` and runs the work in one transaction; both subscribers use it and a convention requires it of every `[ServiceBusTrigger]` function. |
+| 9 | **Fixed**, `31f8f8a`. Capture stays first; the inbound entity-index lines are deferred and written only for an authenticated caller. |
+| 10 | **Accepted by design.** The deep probes are meant to sit behind the upstream gateway, which keeps them off the public surface; recorded in `DECISIONS.md` beside the anonymous-probe rule. |
+| 11, 14, 16 | Still open. |
+
+Also back-ported from agentdesk, `a861d0a`: the xmin convention discovers every mutable domain entity instead of keeping a hand list.
