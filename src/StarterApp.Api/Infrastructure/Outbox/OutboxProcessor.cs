@@ -44,9 +44,10 @@ public class OutboxProcessor : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            var backlogRemains = false;
             try
             {
-                await ProcessBatchAsync(stoppingToken);
+                backlogRemains = await ProcessBatchAsync(stoppingToken);
 
                 if (_timeProvider.GetUtcNow() - _lastCleanupUtc >= TimeSpan.FromMinutes(_options.CleanupIntervalMinutes))
                 {
@@ -72,7 +73,8 @@ public class OutboxProcessor : BackgroundService
                 _logger.LogError(ex, "Unexpected error in outbox processing loop");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(_options.PollingIntervalSeconds), stoppingToken);
+            if (!backlogRemains)
+                await Task.Delay(TimeSpan.FromSeconds(_options.PollingIntervalSeconds), stoppingToken);
         }
     }
 
@@ -109,7 +111,8 @@ public class OutboxProcessor : BackgroundService
         return deleted;
     }
 
-    private async Task ProcessBatchAsync(CancellationToken cancellationToken)
+    // True only when a full batch published cleanly: a backlog drains without sleeping, while retries and pauses still wait.
+    private async Task<bool> ProcessBatchAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -127,9 +130,11 @@ public class OutboxProcessor : BackgroundService
         });
 
         if (messages.Count == 0)
-            return;
+            return false;
 
         _logger.LogInformation("Processing {Count} outbox messages with processing id {ProcessingId}", messages.Count, processingId);
+
+        var published = 0;
 
         foreach (var message in messages)
         {
@@ -164,6 +169,7 @@ public class OutboxProcessor : BackgroundService
 
                 message.MarkAsProcessed(_timeProvider.GetUtcNow());
                 _runAggregator.AddPublished();
+                published++;
                 _logger.LogInformation("Published outbox message {MessageId} ({Type})", message.Id, message.Type);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -196,6 +202,7 @@ public class OutboxProcessor : BackgroundService
         }
 
         await SaveOutcomesAsync(dbContext, cancellationToken);
+        return published == _options.BatchSize;
     }
 
     // A row another replica reclaimed mid-batch would fail the whole save and republish everything; detach it and save the rest.
