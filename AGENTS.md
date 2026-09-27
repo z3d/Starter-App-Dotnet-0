@@ -53,7 +53,7 @@ Push from the worktree and fast-forward `main` from it. Never revert or overwrit
   the one named, or — the shape Aspire emits for an Entra-only server — the principal the token was issued to.
   Take connections from the process `NpgsqlDataSource` (`AddDatabaseDataSource`); a raw `new NpgsqlConnection`
   or `UseNpgsql(string)` is a build error. The migrator resolves the token once via `DatabaseAuthentication.ResolveForDirectUseAsync`.
-- **Never put `Version=` on a `PackageReference`.** Versions are centralized in `Directory.Packages.props`, and `--force-evaluate` is the only sanctioned way to move a lock file.
+- **Never put `Version=` or `VersionOverride=` on a `PackageReference`.** Versions are centralized in `Directory.Packages.props` and restore refuses either attribute (NU1008, NU1013); `--force-evaluate` is the only sanctioned way to move a lock file.
 - **Build Azure clients through `AzureClientAuthentication`, never `new BlobServiceClient(string)` / `new ServiceBusClient(string)` directly.** The shape of the configured value picks the credential (keyed connection string locally, endpoint + managed identity when deployed), the same rule as `DatabaseAuthentication`.
 - **Never commit a real secret to the tracked tree.** `appsettings.Development.json` is git-ignored with a tracked `.example` template; the `secret-scan` workflow scans full history with a checksum-verified pinned `gitleaks`, and intentional placeholders belong in `.gitleaks.toml` rather than being worked around.
 - **Prefer an `.editorconfig` severity entry with a stated reason over a scattered `#pragma`.** Don't mass-apply public-to-internal churn, `ConfigureAwait(false)`, or XML doc comments to satisfy a broad analyzer rule.
@@ -117,6 +117,6 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Read-only support SQL | `scripts/reporting/` |
 | Reviewer subagents and the branch-review workflow | `.claude/agents/`, `.claude/workflows/architect-review.js` |
 
-Two `PreToolUse` hooks enforce what an instruction can only ask for: `.claude/hooks/protect-commands.sh` denies catastrophic wipes and prompts on recoverable-but-destructive commands, and `.claude/hooks/guard-edits.sh` refuses a `Version=` on a `PackageReference`, a hand-edited lock file and any write to a secrets file; `permissions.deny` in `.claude/settings.json` blocks reading `.env*`, `appsettings.Development.json`, `secrets/**`, and key material. All fail open, so none is a substitute for care.
+A `PreToolUse` hook, `.claude/hooks/protect-commands.sh`, denies catastrophic wipes and prompts on recoverable-but-destructive commands, and fails open. `permissions.deny` in `.claude/settings.json` refuses reading or editing `.env*`, `appsettings.Development.json`, `secrets/**` and key material, and editing a lock file; the harness enforces it for its file tools, not for a shell command that writes the file. Neither is a substitute for care.
 
 This file is the one set of instructions for every agent harness. `CLAUDE.md` is a one-line `@AGENTS.md` import, kept for Claude sessions that cannot read `AGENTS.md` directly (older versions, some Bedrock sessions); the import never loads it twice. There is no mirror to keep in step; edit this file and `.claude/skills/` only.

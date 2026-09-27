@@ -11,7 +11,25 @@
       "Read(**/*.Local.json)",
       "Read(**/secrets/**)",
       "Read(**/*.pfx)",
-      "Read(**/*.pem)"
+      "Read(**/*.pem)",
+      "Read(**/*.p12)",
+      "Read(**/*.key)",
+      "Read(**/*.snk)",
+      "Edit(./.env)",
+      "Edit(./.env.*)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)",
+      "Edit(**/appsettings.Development.json)",
+      "Edit(**/appsettings.*.local.json)",
+      "Edit(**/appsettings.Local.json)",
+      "Edit(**/*.Local.json)",
+      "Edit(**/secrets/**)",
+      "Edit(**/*.pfx)",
+      "Edit(**/*.pem)",
+      "Edit(**/*.p12)",
+      "Edit(**/*.key)",
+      "Edit(**/*.snk)",
+      "Edit(**/packages.lock.json)"
     ]
   },
   "hooks": {
@@ -33,18 +51,6 @@
             "timeout": 900,
             "statusMessage": "Pre-commit: format, build, test",
             "command": "if grep -q 'git commit'; then dotnet --version >/dev/null 2>&1 || { export DOTNET_ROOT=\"$HOME/.dotnet\" PATH=\"$HOME/.dotnet:$PATH\"; }; dotnet format --verify-no-changes --verbosity minimal --no-restore && dotnet build --no-restore && dotnet test tests/StarterApp.Tests/StarterApp.Tests.csproj --no-build || exit 2; fi"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "shell": "bash",
-            "statusMessage": "Guarding secrets, package references and lock files",
-            "timeout": 10,
-            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-edits.sh\""
           }
         ]
       }
