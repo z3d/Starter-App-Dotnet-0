@@ -181,7 +181,7 @@ public class PersistenceConventionTests : ConventionTestBase
     }
 
     [Fact]
-    public void ConcurrencyCriticalEntities_MustUseRowVersionTokens()
+    public void MutableDomainEntities_MustUseXminRowVersionTokens()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase($"concurrency-conventions-{Guid.NewGuid()}")
@@ -189,40 +189,31 @@ public class PersistenceConventionTests : ConventionTestBase
 
         using var dbContext = new ApplicationDbContext(options);
 
-        var requiredTokens = new Dictionary<Type, string[]>
-        {
-            [typeof(Customer)] = [nameof(Customer.RowVersion)],
-            [typeof(Order)] = [nameof(Order.RowVersion)],
-            [typeof(Product)] = [nameof(Product.RowVersion)]
-        };
-
         var failures = new List<string>();
-        foreach (var (entityType, propertyNames) in requiredTokens)
+        var checkedAny = false;
+        foreach (var modelEntity in dbContext.Model.GetEntityTypes().Where(e => !e.IsOwned()))
         {
-            var modelEntity = dbContext.Model.FindEntityType(entityType);
-            if (modelEntity == null)
-            {
-                failures.Add($"{entityType.Name} is not mapped by EF Core.");
+            var clrType = modelEntity.ClrType;
+            if (clrType.Assembly != typeof(Order).Assembly || !HasPublicMutator(clrType))
                 continue;
-            }
 
-            foreach (var propertyName in propertyNames)
-            {
-                var property = modelEntity.FindProperty(propertyName);
-                if (property == null)
-                {
-                    failures.Add($"{entityType.Name}.{propertyName} is missing from the EF model.");
-                    continue;
-                }
-
-                if (!property.IsConcurrencyToken || property.ValueGenerated != ValueGenerated.OnAddOrUpdate)
-                    failures.Add($"{entityType.Name}.{propertyName} must be configured with IsRowVersion() for optimistic concurrency.");
-            }
+            checkedAny = true;
+            var property = modelEntity.FindProperty("RowVersion");
+            if (property == null)
+                failures.Add($"{clrType.Name} is updated after creation but maps no RowVersion.");
+            else if (!property.IsConcurrencyToken || property.ValueGenerated != ValueGenerated.OnAddOrUpdate || property.GetColumnName() != "xmin")
+                failures.Add($"{clrType.Name}.RowVersion must map to xmin with IsRowVersion().");
         }
 
+        Assert.True(checkedAny, "No mutable domain entities found in the model; the concurrency convention is checking nothing.");
         Assert.True(failures.Count == 0,
-            "Concurrency-critical entities must use PostgreSQL xmin row version tokens:\n" + string.Join("\n", failures));
+            "Every domain entity updated after creation must carry a PostgreSQL xmin row version token, or concurrent writes are last-writer-wins:\n" +
+            string.Join("\n", failures));
     }
+
+    private static bool HasPublicMutator(Type type) =>
+        type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Any(m => !m.IsSpecialName && m.ReturnType == typeof(void));
 
     [Fact]
     public void OwnerScopedEntities_MustPersistOwnerSubjectAndTenantId()
