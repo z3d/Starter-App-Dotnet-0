@@ -21,7 +21,7 @@ Endpoints live in `src/StarterApp.Api/Endpoints/`, one `IEndpointDefinition` per
 - Declare `Produces`/`ProducesProblem` — the OpenAPI doc feeds the DAST scan, so its accuracy is load-bearing.
 - **Don't catch exceptions in an endpoint to shape a status.** One closed mapping table in `ExceptionHandlingMiddleware` owns all of it; add to the table instead. Bare BCL exceptions map to 500 on purpose (`docs/DECISIONS.md`).
 - **Middleware for global concerns, endpoint filters for route-specific ones.** Middleware runs once per request before routing; filters run after routing and parameter binding, only for matched endpoints.
-- **Pagination:** `page`/`pageSize`, fetch `pageSize + 1`, trim, return `PagedResponse<T>` (`{ data, hasMore }`). No COUNT per list call — if a frontend needs a total, add a count endpoint.
+- **Pagination:** `page`/`pageSize`, `LIMIT @FetchSize OFFSET @Offset` on an order made total with the id, fetch `pageSize + 1`, trim in `PagedAsync`, return `PagedResponse<T>` (`{ data, hasMore }`). No COUNT per list call — if a frontend needs a total, add a count endpoint. Never cut a list with a fixed `LIMIT n`: it drops the rest unseen. A list bounded by what it reads (one order's lines, a date range) is named in `PagingConventionTests` with its bound, which enforces all of this.
 
 ## Depth
 
