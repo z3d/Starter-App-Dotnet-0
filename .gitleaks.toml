@@ -12,8 +12,8 @@ description = "Intentional non-secret placeholders for local dev bootstrap"
 # The sample local-dev connection string password shipped in the appsettings example.
 regexes = [
   '''Your_password123''',
-  # Dev-only placeholder gateway signing key in StarterApp.Gateway launchSettings; the real
-  # per-run key is minted by AppHost and overrides this for orchestrated runs.
+  # Dev-only placeholder signing key from the deleted StarterApp.Gateway (b1bf37f..7ffe7ed). The
+  # project is gone but the string stays in history, and the secret-scan workflow scans full history.
   '''local-dev-gateway-signing-key-not-a-secret''',
 ]
 # Example/template config files only ever contain placeholder values.

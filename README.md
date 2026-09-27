@@ -14,7 +14,7 @@ A production-grade starter template and reference architecture for modern .NET d
 ### Running with .NET Aspire (Recommended for Development)
 ```powershell
 # Navigate to the AppHost project
-cd src\StarterApp.AppHost
+cd dev\StarterApp.AppHost
 
 # Run the Aspire orchestration
 dotnet run
@@ -71,17 +71,20 @@ With the stack running, open **`/demo.html`** on the API origin (Development onl
 
 ```
 starterapp/
-├── src/
-│   ├── StarterApp.AppHost/          # .NET Aspire orchestration
-│   ├── StarterApp.AppHost.Tests/    # Aspire integration tests (DistributedApplicationTestingBuilder)
+├── src/                             # Only what ships
 │   ├── StarterApp.Api/              # Main Web API (+ outbox processor)
 │   ├── StarterApp.Domain/           # Domain models and interfaces
 │   ├── StarterApp.Functions/        # Azure Functions (Service Bus subscribers)
 │   ├── StarterApp.DbMigrator/       # Database migration console app
-│   ├── StarterApp.ServiceDefaults/  # Shared Aspire configuration
-│   └── StarterApp.Tests/            # Unit, convention, integration, fuzzing tests
-├── docs/                           # Getting started, API reference, decisions, review records
-└── scripts/                       # Smoke test script
+│   └── StarterApp.ServiceDefaults/  # Shared Aspire configuration
+├── dev/
+│   └── StarterApp.AppHost/          # .NET Aspire orchestration (+ the dev Keycloak realm)
+├── tests/
+│   ├── StarterApp.Tests/            # Unit, convention, integration, fuzzing tests
+│   ├── StarterApp.AppHost.Tests/    # Aspire integration tests (DistributedApplicationTestingBuilder)
+│   └── k6/                          # Performance gate
+├── docs/                            # Getting started, API reference, decisions, review records
+└── scripts/                         # Smoke test, dev and reporting scripts
 ```
 
 ## Getting Started
