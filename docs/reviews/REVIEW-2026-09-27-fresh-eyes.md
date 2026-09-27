@@ -95,6 +95,6 @@ Worked the open list the same day, in the order the maintainer asked. Numbers ar
 | 10 | **Accepted by design.** The deep probes are meant to sit behind the upstream gateway, which keeps them off the public surface; recorded in `DECISIONS.md` beside the anonymous-probe rule. |
 | 14 | **Fixed.** `ProductionCode_MustNotCallReconstitute` scans every production assembly's IL for a call to a Domain `Reconstitute`, and proves it is not vacuous by finding the test assembly's calls. The grant stays: the API legitimately uses the Order constructor, `RecordCreation` and the event-stamping internals. |
 | 16 | **Fixed.** The README says the sample domain is owner-scoped end to end, with no shared catalogue, by design. |
-| 11 | Still open. |
+| 11 | **Fixed.** Free text (anything the redactor cannot parse as JSON) is logged only as its media type, byte count and SHA-256; the archive still holds the body. Pinned by `CaptureAsync_WithFreeText_LogsOnlySizeAndHashButArchivesTheBody`. Every finding in this record is now fixed, accepted, or dismissed. |
 
 Also back-ported from agentdesk, `a861d0a`: the xmin convention discovers every mutable domain entity instead of keeping a hand list.
