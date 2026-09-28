@@ -110,6 +110,7 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Architecture audits | `.claude/skills/architecture-review/SKILL.md`, `docs/ARCHITECTURE_REVIEW.md` (open state), dated records in `docs/reviews/` |
 | Outbox / eventing / OIDC identity / payload capture internals | `docs/DECISIONS.md` |
 | Replaying a stuck or dead-lettered event | `docs/runbooks/event-replay.md` |
+| A scheduled job failed or didn't run; the alert queries | `docs/runbooks/scheduled-jobs.md` |
 | Recurring async-failure patterns and known defects | `docs/investigations/README.md` |
 | Perf gate, security scan | `tests/k6/README.md`, `dast/README.md` |
 | Running the stack for the first time (human onboarding) | `docs/GETTING-STARTED.md` |
