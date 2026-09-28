@@ -1246,6 +1246,7 @@
       "starterapp.functions": {
         "type": "Project",
         "dependencies": {
+          "Cronos": "[0.13.0, )",
           "Microsoft.Azure.Functions.Worker": "[2.1.0, )",
           "Microsoft.Azure.Functions.Worker.Extensions.ServiceBus": "[5.22.0, )",
           "Microsoft.Azure.Functions.Worker.Extensions.Timer": "[4.3.1, )",
@@ -1322,6 +1323,12 @@
           "Azure.Core": "1.50.0",
           "Azure.Storage.Common": "12.26.0"
         }
+      },
+      "Cronos": {
+        "type": "CentralTransitive",
+        "requested": "[0.13.0, )",
+        "resolved": "0.13.0",
+        "contentHash": "Nkve+Yi0+ol3ntSBRHeW0ka9cJQ8vndSUvvkXqF9LVqwpoqWueyxu/HS275r98RDOmF7/mzRnZW5XXUBXob+TA=="
       },
       "Dapper": {
         "type": "CentralTransitive",

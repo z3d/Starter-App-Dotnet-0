@@ -262,6 +262,7 @@ var functions = builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Fun
        .WithEnvironment("PayloadCapture__RequireArchiveStore", "true")
        .WithEnvironment("PayloadCapture__ServiceBusFailureMode", "FailClosed")
        .WithEnvironment("PayloadCapture__CleanupCron", "0 0 * * * *")
+       .WithEnvironment("JobWatch__Cron", "0 */15 * * * *")
        .WaitFor(serviceBus)
        .WaitFor(payloadArchive);
 

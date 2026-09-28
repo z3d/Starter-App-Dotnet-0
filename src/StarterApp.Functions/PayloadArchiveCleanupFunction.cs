@@ -9,6 +9,8 @@ namespace StarterApp.Functions;
 
 public sealed class PayloadArchiveCleanupFunction
 {
+    public const string JobName = "payload-archive-cleanup";
+
     private readonly IPayloadArchiveStore _payloadArchiveStore;
     private readonly TimeProvider _timeProvider;
     private readonly PayloadCaptureOptions _options;
@@ -31,10 +33,11 @@ public sealed class PayloadArchiveCleanupFunction
 
     // %setting% must use the ':' key form; a '__' lookup resolves to null and the failed timer takes down the subscribers in this worker.
     [Function(nameof(PayloadArchiveCleanupFunction))]
+    [WatchedJob(JobName)]
     public async Task RunAsync([TimerTrigger("%PayloadCapture:CleanupCron%")] TimerInfo timerInfo, CancellationToken cancellationToken)
     {
         var startedOnUtc = _timeProvider.GetUtcNow();
-        var runId = await _jobRunRecorder.StartRunAsync("payload-archive-cleanup", startedOnUtc, cancellationToken);
+        var runId = await _jobRunRecorder.StartRunAsync(JobName, startedOnUtc, cancellationToken);
 
         try
         {
@@ -59,7 +62,9 @@ public sealed class PayloadArchiveCleanupFunction
             var summary = string.Create(
                 CultureInfo.InvariantCulture,
                 $"{{\"archiveDeleted\":{result.ArchiveDeleted},\"auditDeleted\":{result.AuditDeleted},\"entityIndexDeleted\":{result.EntityIndexDeleted},\"totalDeleted\":{result.TotalDeleted},\"budgetExhausted\":{(result.BudgetExhausted ? "true" : "false")}}}");
-            await _jobRunRecorder.CompleteRunAsync(runId, _timeProvider.GetUtcNow(), result.BudgetExhausted ? "Degraded" : "Succeeded", summary, cancellationToken);
+            var outcome = result.BudgetExhausted ? "Degraded" : "Succeeded";
+            await _jobRunRecorder.CompleteRunAsync(runId, _timeProvider.GetUtcNow(), outcome, summary, cancellationToken);
+            JobRunMetrics.Record(JobName, outcome);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -69,6 +74,7 @@ public sealed class PayloadArchiveCleanupFunction
                 "Failed",
                 $"{{\"error\":{System.Text.Json.JsonSerializer.Serialize(ex.Message)}}}",
                 cancellationToken);
+            JobRunMetrics.Record(JobName, "Failed");
             throw;
         }
     }
