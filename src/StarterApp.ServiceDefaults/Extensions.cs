@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using StarterApp.ServiceDefaults.Jobs;
 using StarterApp.ServiceDefaults.Payloads;
 
 namespace Microsoft.Extensions.Hosting;
@@ -45,7 +46,8 @@ public static class Extensions
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddRuntimeInstrumentation()
-                    .AddMeter(PayloadCaptureBackgroundQueue.MeterName);
+                    .AddMeter(PayloadCaptureBackgroundQueue.MeterName)
+                    .AddMeter(JobRunMetrics.MeterName);
             })
             .WithTracing(tracing =>
             {

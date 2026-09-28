@@ -8,6 +8,7 @@
     "PayloadCapture:ContainerName": "payload-observability",
     "PayloadCapture:EntityIndexPrefix": "entity-index",
     "PayloadCapture:RetentionDays": "30",
-    "PayloadCapture__CleanupCron": "0 0 * * * *"
+    "PayloadCapture__CleanupCron": "0 0 * * * *",
+    "JobWatch__Cron": "0 */15 * * * *"
   }
 }

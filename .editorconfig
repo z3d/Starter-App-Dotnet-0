@@ -91,8 +91,8 @@ dotnet_diagnostic.CA2227.severity = none
 # BoundedCaptureStream forwards to the ASP.NET response body but does not own it.
 dotnet_diagnostic.CA2213.severity = none
 
-[src/StarterApp.Functions/PayloadArchiveCleanupFunction.cs]
-# The TimerTrigger binding requires the TimerInfo parameter even when the body has no use for it.
+[src/StarterApp.Functions/{PayloadArchiveCleanupFunction,JobWatchFunction}.cs]
+# A TimerTrigger binding requires the TimerInfo parameter even when the body has no use for it.
 dotnet_diagnostic.IDE0060.severity = none
 
 [tests/StarterApp.Tests/*.cs]

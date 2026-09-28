@@ -17,6 +17,7 @@ public static class JobRunRecordingExtensions
         if (string.IsNullOrEmpty(connectionString))
         {
             builder.Services.AddSingleton<IJobRunRecorder, NullJobRunRecorder>();
+            builder.Services.AddSingleton<IJobRunHistory, NoJobRunHistory>();
             return builder;
         }
 
@@ -27,6 +28,7 @@ public static class JobRunRecordingExtensions
             retentionDays,
             provider.GetRequiredService<ILogger<NpgsqlJobRunRecorder>>(),
             provider.GetRequiredService<TimeProvider>()));
+        builder.Services.AddSingleton<IJobRunHistory>(provider => new NpgsqlJobRunHistory(provider.GetRequiredService<NpgsqlDataSource>()));
         return builder;
     }
 }

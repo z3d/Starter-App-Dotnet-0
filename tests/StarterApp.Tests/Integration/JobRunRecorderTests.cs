@@ -91,6 +91,27 @@ public class JobRunRecorderTests : IAsyncLifetime
         Assert.Equal(1, freshCount);
     }
 
+    [Fact]
+    public async Task TheJobWatch_ReadsEachJobsLatestStart_AndTheOutcomeOfItsLatestFinishedRun()
+    {
+        var recorder = CreateRecorder();
+        var now = DateTimeOffset.UtcNow;
+        var at = now.AddTicks(-(now.Ticks % TimeSpan.TicksPerSecond)).AddHours(-1);
+        await recorder.RecordRunAsync("payload-archive-cleanup", at, at.AddSeconds(2), "Succeeded", "{}", CancellationToken.None);
+        await recorder.RecordRunAsync("payload-archive-cleanup", at.AddMinutes(5), at.AddMinutes(5).AddSeconds(50), "Failed", "{}", CancellationToken.None);
+        await recorder.StartRunAsync("payload-archive-cleanup", at.AddMinutes(10), CancellationToken.None);
+        await recorder.RecordRunAsync("nightly-report", at, at.AddMinutes(1), "Degraded", "{}", CancellationToken.None);
+        await recorder.RecordRunAsync("outbox-processor", at, at, "Succeeded", "{}", CancellationToken.None);
+        var history = new NpgsqlJobRunHistory(NpgsqlDataSource.Create(_fixture.ConnectionString));
+
+        var runs = await history.LastRunsAsync(["payload-archive-cleanup", "nightly-report", "never-run"], CancellationToken.None);
+
+        Assert.NotNull(runs);
+        Assert.Equal(["nightly-report", "payload-archive-cleanup"], runs.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(new LastRun(at.AddMinutes(10), "Failed"), runs["payload-archive-cleanup"]);
+        Assert.Equal(new LastRun(at, "Degraded"), runs["nightly-report"]);
+    }
+
     private async Task<(string JobName, string? Outcome, string? Summary, DateTimeOffset? CompletedOnUtc)> LoadRunAsync(Guid runId)
     {
         await using var connection = new NpgsqlConnection(_fixture.ConnectionString);

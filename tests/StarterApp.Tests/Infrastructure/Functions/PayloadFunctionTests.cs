@@ -128,4 +128,33 @@ public class PayloadFunctionTests
         Assert.DoesNotContain("entity-index/customer/42/2026-05-01/00/00/case-old.jsonl", store.Lines.Keys);
         Assert.Contains("archive/2026-05-09/00/00/case-new.jsonl", store.Lines.Keys);
     }
+
+    [Fact]
+    public async Task CleanupFunction_CountsEachRunOnTheScheduledJobMeter()
+    {
+        var counted = new List<(string Job, string Outcome)>();
+        using var listener = new System.Diagnostics.Metrics.MeterListener();
+        listener.InstrumentPublished = (instrument, l) =>
+        {
+            if (instrument.Meter.Name == JobRunMetrics.MeterName && instrument.Name == JobRunMetrics.RunsInstrument)
+                l.EnableMeasurementEvents(instrument);
+        };
+        listener.SetMeasurementEventCallback<long>((_, _, tags, _) =>
+        {
+            var tagged = tags.ToArray().ToDictionary(tag => tag.Key, tag => (string)tag.Value!);
+            lock (counted)
+                counted.Add((tagged["job"], tagged["outcome"]));
+        });
+        listener.Start();
+        var function = new PayloadArchiveCleanupFunction(
+            new InMemoryPayloadArchiveStore(),
+            new PayloadCaptureTests.FixedTimeProvider(new DateTimeOffset(2026, 5, 10, 0, 0, 0, TimeSpan.Zero)),
+            Options.Create(new PayloadCaptureOptions()),
+            new NullJobRunRecorder(),
+            new LoggerFactory().CreateLogger<PayloadArchiveCleanupFunction>());
+
+        await function.RunAsync(null!, CancellationToken.None);
+
+        Assert.Contains((PayloadArchiveCleanupFunction.JobName, "Succeeded"), counted);
+    }
 }
