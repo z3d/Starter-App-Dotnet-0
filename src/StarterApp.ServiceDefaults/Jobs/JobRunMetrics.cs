@@ -2,6 +2,14 @@ using System.Diagnostics.Metrics;
 
 namespace StarterApp.ServiceDefaults.Jobs;
 
+public static class JobOutcomes
+{
+    public const string Succeeded = "Succeeded";
+    public const string Degraded = "Degraded";
+    public const string Failed = "Failed";
+    public const string Cancelled = "Cancelled";
+}
+
 public static class JobRunMetrics
 {
     public const string MeterName = "StarterApp.Jobs";

@@ -157,4 +157,48 @@ public class PayloadFunctionTests
 
         Assert.Contains((PayloadArchiveCleanupFunction.JobName, "Succeeded"), counted);
     }
+
+    [Fact]
+    public async Task CleanupFunction_RecordsACancelledRunAsCancelled()
+    {
+        var recorder = new ListRecorder();
+        using var cancelled = new CancellationTokenSource();
+        var function = new PayloadArchiveCleanupFunction(
+            new CancellingArchiveStore(cancelled),
+            new PayloadCaptureTests.FixedTimeProvider(new DateTimeOffset(2026, 5, 10, 0, 0, 0, TimeSpan.Zero)),
+            Options.Create(new PayloadCaptureOptions()),
+            recorder,
+            new LoggerFactory().CreateLogger<PayloadArchiveCleanupFunction>());
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => function.RunAsync(null!, cancelled.Token));
+
+        Assert.Equal([(JobOutcomes.Cancelled, false)], recorder.Completed);
+    }
+
+    private sealed class CancellingArchiveStore(CancellationTokenSource source) : IPayloadArchiveStore
+    {
+        public Task AppendLineAsync(string blobName, string line, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public async Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
+        {
+            await source.CancelAsync();
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new InvalidOperationException("unreachable");
+        }
+    }
+
+    private sealed class ListRecorder : IJobRunRecorder
+    {
+        public List<(string Outcome, bool TokenCancelled)> Completed { get; } = [];
+
+        public Task<Guid> StartRunAsync(string jobName, DateTimeOffset startedOnUtc, CancellationToken cancellationToken) => Task.FromResult(Guid.CreateVersion7());
+
+        public Task CompleteRunAsync(Guid runId, DateTimeOffset completedOnUtc, string outcome, string summary, CancellationToken cancellationToken)
+        {
+            Completed.Add((outcome, cancellationToken.IsCancellationRequested));
+            return Task.CompletedTask;
+        }
+
+        public Task RecordRunAsync(string jobName, DateTimeOffset startedOnUtc, DateTimeOffset completedOnUtc, string outcome, string summary, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
 }

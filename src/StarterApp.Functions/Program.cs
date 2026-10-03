@@ -10,6 +10,5 @@ builder.AddPayloadCapture();
 builder.AddJobRunRecording();
 builder.AddMessageInbox();
 builder.Services.AddOptions<JobWatchOptions>().BindConfiguration(JobWatchOptions.SectionName);
-builder.Services.AddSingleton<JobWatchStart>();
 
 builder.Build().Run();

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace StarterApp.ServiceDefaults.Payloads;
 
@@ -10,10 +11,12 @@ public sealed class PayloadCaptureBackgroundWriter : IHostedLifecycleService, ID
     private readonly IPayloadArchiveStore _store;
     private readonly ILogger<PayloadCaptureBackgroundWriter> _logger;
     private readonly CancellationTokenSource _abandon = new();
+    private readonly TimeSpan _writeTimeout;
     private Task? _drain;
 
-    public PayloadCaptureBackgroundWriter(PayloadCaptureBackgroundQueue queue, IPayloadArchiveStore store, ILogger<PayloadCaptureBackgroundWriter> logger)
+    public PayloadCaptureBackgroundWriter(PayloadCaptureBackgroundQueue queue, IPayloadArchiveStore store, IOptions<PayloadCaptureOptions> options, ILogger<PayloadCaptureBackgroundWriter> logger)
     {
+        _writeTimeout = TimeSpan.FromSeconds(options.Value.BackgroundWriteTimeoutSeconds);
         _queue = queue;
         _store = store;
         _logger = logger;
@@ -54,13 +57,20 @@ public sealed class PayloadCaptureBackgroundWriter : IHostedLifecycleService, ID
                 continue;
             }
 
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_abandon.Token);
+            timeout.CancelAfter(_writeTimeout);
             try
             {
-                await _store.AppendLineAsync(append.BlobName, append.Line, _abandon.Token);
+                // WaitAsync as well: a store that ignores its token must not hold the one reader.
+                await _store.AppendLineAsync(append.BlobName, append.Line, timeout.Token).WaitAsync(timeout.Token);
             }
             catch (OperationCanceledException) when (_abandon.IsCancellationRequested)
             {
                 _queue.RecordDrop(append.BlobName, "the host's shutdown timeout ran out");
+            }
+            catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+            {
+                _queue.RecordDrop(append.BlobName, "the write timed out");
             }
             catch (Exception ex)
             {

@@ -28,7 +28,7 @@ public class PayloadCaptureBackgroundTests
         Assert.Equal(2, store.Calls);
         Assert.Equal(2, store.Inner.Lines.Single().Value.Count);
 
-        using var writer = new PayloadCaptureBackgroundWriter(queue, store, NullLogger<PayloadCaptureBackgroundWriter>.Instance);
+        using var writer = CreateWriter(queue, store);
         await writer.StartAsync(CancellationToken.None);
         await writer.StoppedAsync(CancellationToken.None);
 
@@ -63,7 +63,7 @@ public class PayloadCaptureBackgroundTests
 
         var record = await sink.CaptureAsync(Request("inbound", PayloadCaptureChannels.Http), CancellationToken.None);
 
-        using var writer = new PayloadCaptureBackgroundWriter(queue, store, NullLogger<PayloadCaptureBackgroundWriter>.Instance);
+        using var writer = CreateWriter(queue, store);
         await writer.StartAsync(CancellationToken.None);
         await writer.StoppedAsync(CancellationToken.None);
 
@@ -95,13 +95,51 @@ public class PayloadCaptureBackgroundTests
     {
         var store = new CountingStore();
         var queue = CreateQueue();
-        using var writer = new PayloadCaptureBackgroundWriter(queue, store, NullLogger<PayloadCaptureBackgroundWriter>.Instance);
+        using var writer = CreateWriter(queue, store);
         await writer.StartAsync(CancellationToken.None);
         await writer.StoppedAsync(CancellationToken.None);
 
         Assert.False(queue.TryEnqueue("audit/2026-05-03/04/07/payload-audit.jsonl", "{}"));
         Assert.Equal(1, queue.DroppedCount);
         Assert.Equal(0, store.Calls);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AWriteThatHangs_TimesOutAndIsCounted_AndTheLinesBehindItStillLand(bool storeHonoursItsToken)
+    {
+        var store = new HangingStore(hangOn: "audit/hung.jsonl", storeHonoursItsToken);
+        var queue = CreateQueue();
+        queue.TryEnqueue("audit/hung.jsonl", "{}");
+        queue.TryEnqueue("audit/after.jsonl", "{}");
+
+        using var writer = CreateWriter(queue, store, new PayloadCaptureOptions { BackgroundWriteTimeoutSeconds = 1 });
+        await writer.StartAsync(CancellationToken.None);
+        await writer.StoppedAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(20));
+
+        Assert.Equal(["audit/after.jsonl"], store.Inner.Lines.Keys);
+        Assert.Equal(1, queue.DroppedCount);
+        Assert.Equal(0, queue.QueuedBytes);
+    }
+
+    private static PayloadCaptureBackgroundWriter CreateWriter(PayloadCaptureBackgroundQueue queue, IPayloadArchiveStore store, PayloadCaptureOptions? options = null) =>
+        new(queue, store, Options.Create(options ?? new PayloadCaptureOptions()), NullLogger<PayloadCaptureBackgroundWriter>.Instance);
+
+    private sealed class HangingStore(string hangOn, bool honoursItsToken) : IPayloadArchiveStore
+    {
+        public InMemoryPayloadArchiveStore Inner { get; } = new();
+
+        public Task AppendLineAsync(string blobName, string line, CancellationToken cancellationToken)
+        {
+            if (blobName != hangOn)
+                return Inner.AppendLineAsync(blobName, line, cancellationToken);
+
+            return honoursItsToken ? Task.Delay(Timeout.Infinite, cancellationToken) : new TaskCompletionSource().Task;
+        }
+
+        public Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken) =>
+            Inner.DeleteOlderThanAsync(cutoffUtc, cancellationToken);
     }
 
     private static PayloadCaptureRequest Request(string direction, string channel, string payload = TwelveIds) => new()

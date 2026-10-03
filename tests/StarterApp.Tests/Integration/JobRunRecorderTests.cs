@@ -108,8 +108,45 @@ public class JobRunRecorderTests : IAsyncLifetime
 
         Assert.NotNull(runs);
         Assert.Equal(["nightly-report", "payload-archive-cleanup"], runs.Keys.Order(StringComparer.Ordinal));
-        Assert.Equal(new LastRun(at.AddMinutes(10), "Failed"), runs["payload-archive-cleanup"]);
+        Assert.Equal(new LastRun(at.AddMinutes(10), "Failed", at.AddMinutes(10)), runs["payload-archive-cleanup"]);
         Assert.Equal(new LastRun(at, "Degraded"), runs["nightly-report"]);
+    }
+
+    [Fact]
+    public async Task TheJobWatch_ReadsTheFirstRunLeftUnfinishedSinceAJobLastFinished()
+    {
+        var recorder = CreateRecorder();
+        var now = DateTimeOffset.UtcNow;
+        var at = now.AddTicks(-(now.Ticks % TimeSpan.TicksPerSecond)).AddHours(-6);
+        await recorder.StartRunAsync("killed-then-fine", at, CancellationToken.None);
+        await recorder.RecordRunAsync("killed-then-fine", at.AddHours(1), at.AddHours(1).AddSeconds(2), "Succeeded", "{}", CancellationToken.None);
+        await recorder.RecordRunAsync("fine-then-killed", at, at.AddSeconds(2), "Succeeded", "{}", CancellationToken.None);
+        await recorder.StartRunAsync("fine-then-killed", at.AddHours(1), CancellationToken.None);
+        await recorder.StartRunAsync("fine-then-killed", at.AddHours(2), CancellationToken.None);
+        await recorder.StartRunAsync("always-killed", at.AddHours(1), CancellationToken.None);
+        await recorder.StartRunAsync("always-killed", at.AddHours(2), CancellationToken.None);
+        var history = new NpgsqlJobRunHistory(NpgsqlDataSource.Create(_fixture.ConnectionString));
+
+        var runs = await history.LastRunsAsync(["killed-then-fine", "fine-then-killed", "always-killed"], CancellationToken.None);
+
+        Assert.NotNull(runs);
+        Assert.Equal(new LastRun(at.AddHours(1), "Succeeded"), runs["killed-then-fine"]);
+        Assert.Equal(new LastRun(at.AddHours(2), "Succeeded", at.AddHours(1)), runs["fine-then-killed"]);
+        Assert.Equal(new LastRun(at.AddHours(2), null, at.AddHours(1)), runs["always-killed"]);
+    }
+
+    [Fact]
+    public async Task TheJobWatch_RemembersWhenItFirstWatchedAJob_AcrossWorkers()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var first = now.AddTicks(-(now.Ticks % TimeSpan.TicksPerSecond)).AddHours(-3);
+
+        var seen = await new NpgsqlJobRunHistory(NpgsqlDataSource.Create(_fixture.ConnectionString)).WatchedSinceAsync(["nightly-report"], first, CancellationToken.None);
+        var afterARestart = await new NpgsqlJobRunHistory(NpgsqlDataSource.Create(_fixture.ConnectionString)).WatchedSinceAsync(["nightly-report", "added-later"], first.AddHours(2), CancellationToken.None);
+
+        Assert.Equal(first, seen["nightly-report"]);
+        Assert.Equal(first, afterARestart["nightly-report"]);
+        Assert.Equal(first.AddHours(2), afterARestart["added-later"]);
     }
 
     private async Task<(string JobName, string? Outcome, string? Summary, DateTimeOffset? CompletedOnUtc)> LoadRunAsync(Guid runId)

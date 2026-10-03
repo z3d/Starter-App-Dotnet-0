@@ -72,15 +72,13 @@ public sealed class PayloadCaptureMiddleware
         try
         {
             await _next(context);
-            await CaptureResponseAsync(context, correlationId, responseBody);
-            await IndexRequestEntitiesIfAuthenticatedAsync(context, requestRecord);
+            await IndexEntitiesIfAuthenticatedAsync(context, requestRecord, await CaptureResponseAsync(context, correlationId, responseBody));
         }
         catch (OperationCanceledException)
         {
             // A client abort must not suppress the audit record, so capture the buffered bytes with an unlinked token.
             _logger.LogWarning("HTTP request was canceled for correlation {CorrelationId}; capturing the partial response for audit", correlationId);
-            await CaptureResponseAsync(context, correlationId, responseBody);
-            await IndexRequestEntitiesIfAuthenticatedAsync(context, requestRecord);
+            await IndexEntitiesIfAuthenticatedAsync(context, requestRecord, await CaptureResponseAsync(context, correlationId, responseBody));
             throw;
         }
         catch (Exception ex)
@@ -94,15 +92,17 @@ public sealed class PayloadCaptureMiddleware
         }
     }
 
-    // Capture runs before authentication, so an anonymous body's ids would sit in the entity index beside real ones; the
-    // archive still records the request, and its index lines are written only once the caller has proved who they are.
-    private async Task IndexRequestEntitiesIfAuthenticatedAsync(HttpContext context, PayloadCaptureRecord? requestRecord)
+    // Capture runs ahead of authentication, so every HTTP capture defers its index lines to here: an anonymous caller's ids never reach the entity index.
+    private async Task IndexEntitiesIfAuthenticatedAsync(HttpContext context, params PayloadCaptureRecord?[] records)
     {
-        if (requestRecord is null || requestRecord.EntityReferences.Count == 0)
+        if (context.RequestServices?.GetService<ICurrentUser>() is not { IsAuthenticated: true })
             return;
 
-        if (context.RequestServices?.GetService<ICurrentUser>() is { IsAuthenticated: true })
-            await _payloadCaptureSink.IndexEntitiesAsync(requestRecord, CancellationToken.None);
+        foreach (var record in records)
+        {
+            if (record is { EntityReferences.Count: > 0 })
+                await _payloadCaptureSink.IndexEntitiesAsync(record, CancellationToken.None);
+        }
     }
 
     private async Task<PayloadCaptureRecord?> CaptureRequestAsync(HttpContext context, string correlationId)
@@ -116,18 +116,18 @@ public sealed class PayloadCaptureMiddleware
 
         if (!ShouldCaptureContentType(context.Request.ContentType))
         {
-            await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
+            return await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
             {
                 CorrelationId = correlationId,
                 Direction = "inbound",
                 Channel = PayloadCaptureChannels.Http,
                 Operation = $"{context.Request.Method} {context.Request.Path}",
                 ContentType = context.Request.ContentType,
+                DeferEntityIndex = true,
                 PayloadSkipReason = BuildUnsupportedContentTypeReason(context.Request.ContentType),
                 PayloadSizeBytes = context.Request.ContentLength,
                 Metadata = metadata
             }, context.RequestAborted);
-            return null;
         }
 
         context.Request.EnableBuffering();
@@ -152,7 +152,7 @@ public sealed class PayloadCaptureMiddleware
         }, context.RequestAborted);
     }
 
-    private async Task CaptureResponseAsync(HttpContext context, string correlationId, BoundedCaptureStream responseBody)
+    private async Task<PayloadCaptureRecord?> CaptureResponseAsync(HttpContext context, string correlationId, BoundedCaptureStream responseBody)
     {
         var metadata = new Dictionary<string, string>
         {
@@ -172,7 +172,7 @@ public sealed class PayloadCaptureMiddleware
         // CancellationToken.None: a client abort must not suppress the audit record after the response was produced.
         if (!ShouldCaptureContentType(context.Response.ContentType))
         {
-            await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
+            return await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
             {
                 CorrelationId = correlationId,
                 Direction = "outbound",
@@ -180,14 +180,14 @@ public sealed class PayloadCaptureMiddleware
                 Operation = $"{context.Request.Method} {context.Request.Path}",
                 ContentType = context.Response.ContentType,
                 StatusCode = context.Response.StatusCode,
+                DeferEntityIndex = true,
                 PayloadSkipReason = BuildUnsupportedContentTypeReason(context.Response.ContentType),
                 PayloadSizeBytes = responseBody.TotalBytesWritten,
                 Metadata = metadata
             }, CancellationToken.None);
-            return;
         }
 
-        await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
+        return await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
         {
             CorrelationId = correlationId,
             Direction = "outbound",
@@ -195,6 +195,7 @@ public sealed class PayloadCaptureMiddleware
             Operation = $"{context.Request.Method} {context.Request.Path}",
             ContentType = context.Response.ContentType,
             StatusCode = context.Response.StatusCode,
+            DeferEntityIndex = true,
             Payload = responseBody.GetCapturedPayload(),
             PayloadTruncated = responseBody.Truncated,
             PayloadSizeBytes = responseBody.TotalBytesWritten,

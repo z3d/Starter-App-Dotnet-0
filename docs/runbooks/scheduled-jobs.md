@@ -4,17 +4,21 @@ The Functions worker runs the timer jobs (here, the payload archive cleanup on `
 each writes its runs to `job_runs`. Every 15 minutes (`JobWatch:Cron`) the job watch, `JobWatchFunction`, compares
 each watched job's last run with its schedule and logs what it finds. A job is watched by carrying
 `[WatchedJob("<name it records under>")]` on its timer function (`FunctionsHostConfigConventionTests` fails a timer
-without one); its schedule is read from the setting its own `TimerTrigger("%Section:Key%")` names, so a derived
-project's new timer job is watched as soon as it is declared and its schedule is configured. A job whose schedule
-setting is empty is not watched. The outbox processor writes `job_runs` too, but only for windows with activity
+without one, static or not); its schedule is the one its own `TimerTrigger` carries, read from the setting a
+`"%Section:Key%"` names or taken as written, as a six-field or five-field cron or an `hh:mm:ss` interval, so a
+derived project's new timer job is watched as soon as it is declared and its schedule is configured. A job whose
+schedule setting is empty is not watched. The outbox processor writes `job_runs` too, but only for windows with activity
 and on no schedule, so it is not watched here; its `Degraded` rows are read with `scripts/reporting/job-run-history.sql`.
 
-The watch writes three kinds of line, in fixed words (`JobWatchTests` pins them):
+The watch writes these lines, in fixed words (`JobWatchTests` pins them):
 
 | Line | Level | What it means |
 |---|---|---|
 | `Scheduled job <name> is failing: its last run, started <time>, failed (the error is in job_runs)` | Error | The job's last finished run is `Failed`. Clears once a run succeeds. A `Degraded` run is not failing; the job logs its own Warning. |
-| `Scheduled job <name> is overdue: it last started <time> and should have run again by <time>` | Error | The job's next scheduled start is more than `JobWatch:OverdueGraceMinutes` (15) past with no new start. A job that has never run is judged from when the watch started. |
+| `Scheduled job <name> is failing: its last run, started <time>, was cancelled before it finished` | Error | The job's last finished run is `Cancelled`: the host stopped it or its time ran out. Clears once a run succeeds. |
+| `Scheduled job <name> is failing: a run started <time> never finished and none has finished since (it was killed or it hung)` | Error | A run has had no outcome for `JobWatch:UnfinishedAfterMinutes` (120) and no later run finished. Raise the setting for a job that honestly runs longer. |
+| `Scheduled job <name> is overdue: it last started <time> and should have run again by <time>` | Error | The job's next scheduled start is more than `JobWatch:OverdueGraceMinutes` (15) past with no new start. A job that has never run is judged from when the watch first saw it (`watched_jobs`), which a restart does not move. |
+| `Scheduled job <name> cannot be watched: its schedule '<schedule>' is not a five- or six-field cron expression or an hh:mm:ss interval` | Error | The watch cannot read this job's schedule. The other jobs are still judged. |
 | `Job watch: <n> scheduled jobs watched, <m> need attention` | Information | Every pass ends with it. Its absence means the worker, or its timers, or its logs are down. |
 
 `host.json` excludes traces from sampling, so an Error line is never dropped before it reaches Application Insights.
@@ -29,7 +33,7 @@ above; these are the three to declare (Application Insights `traces`, or `AppTra
 ```kusto
 // A scheduled job failed: fire per job, every 15 minutes over the last 15 minutes
 traces
-| where message startswith "Scheduled job " and message contains " is failing: "
+| where message startswith "Scheduled job " and (message contains " is failing: " or message contains " cannot be watched: ")
 | extend Job = tostring(customDimensions.prop__Job)
 | summarize count() by Job
 
@@ -71,6 +75,8 @@ traces
 
 - **Failing**: the error in the summary says what threw (for the cleanup, usually the archive store). The next
   scheduled run tries again; the watch reports the job until a run succeeds.
+- **Cancelled, or never finished**: the run was stopped before its work was done. Look for a host restart or a
+  function timeout at that time; a job stopped on every run needs a longer timeout or less work per run.
 - **Overdue**: check the schedule setting the worker actually has, and look for a run with no `completed_on_utc`
   long after it started: one that hung or whose process was killed.
 - **The watch is silent**: is the Functions app running, and did the host index its functions (its console shows
