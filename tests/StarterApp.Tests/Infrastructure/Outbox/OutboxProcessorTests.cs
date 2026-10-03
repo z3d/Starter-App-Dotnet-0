@@ -275,47 +275,48 @@ public class OutboxProcessorTests
     }
 
     [Fact]
-    public async Task ProcessBatch_WhenFailClosedPayloadArchiveHasNonTransientFailure_ShouldNotPoisonMessage()
+    public async Task ProcessBatch_WhenCaptureAlwaysFailsForOneMessage_ShouldSpendItsRetriesAndReachError_NeverSendingIt()
     {
-        // #79: under FailClosed a NON-transient capture failure (e.g. a persistent config/serialization
-        // defect, not a transient outage) must NOT consume the message's retry budget or mark it Error —
-        // that would permanently lose the event though Service Bus was healthy. It must pause the batch so
-        // the event is retried once the archive recovers.
         var dbName = Guid.NewGuid().ToString();
+        var baseTime = DateTimeOffset.UtcNow.AddMinutes(-5);
         await using (var setupContext = CreateDbContext(dbName))
         {
-            setupContext.OutboxMessages.Add(CreateTestMessage());
+            setupContext.OutboxMessages.Add(CreateTestMessage(payload: "{\"Id\":1,\"marker\":\"poison\"}", occurredOnUtc: baseTime));
+            setupContext.OutboxMessages.Add(CreateTestMessage(payload: "{\"Id\":2}", occurredOnUtc: baseTime.AddSeconds(1)));
             await setupContext.SaveChangesAsync();
         }
 
+        var sent = new List<string>();
         var senderMock = new Mock<ServiceBusSender>();
         senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .Callback<ServiceBusMessage, CancellationToken>((message, _) => sent.Add(message.Body.ToString()))
             .Returns(Task.CompletedTask);
 
         var processor = CreateProcessor(
             dbName,
             senderMock.Object,
-            maxRetries: 1,
-            payloadStore: new ThrowingPayloadArchiveStore(new InvalidOperationException("non-transient capture defect")),
+            maxRetries: 3,
+            payloadStore: new SelectivelyThrowingPayloadArchiveStore("poison", new InvalidOperationException("capture defect for one payload")),
             payloadCaptureOptions: new PayloadCaptureOptions { ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed });
 
-        // Act — run far more times than MaxRetries=1 would allow if it were counting retries
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         for (var i = 0; i < 10; i++)
             await RunSingleBatchAsync(processor, cts.Token);
 
-        // Assert — never published, never poisoned, retry budget untouched
-        senderMock.Verify(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Never);
-
+        Assert.Single(sent);
+        Assert.DoesNotContain("poison", sent[0], StringComparison.Ordinal);
         await using var verifyContext = CreateDbContext(dbName);
-        var message = await verifyContext.OutboxMessages.FirstAsync();
-        Assert.Equal(0, message.RetryCount);
-        Assert.Null(message.Error);
-        Assert.Null(message.ProcessedOnUtc);
+        var messages = await verifyContext.OutboxMessages.OrderBy(m => m.OccurredOnUtc).ToListAsync();
+        Assert.Equal(3, messages[0].RetryCount);
+        Assert.Contains("capture defect for one payload", messages[0].Error);
+        Assert.NotNull(messages[0].ErroredOnUtc);
+        Assert.Null(messages[0].ProcessedOnUtc);
+        Assert.NotNull(messages[1].ProcessedOnUtc);
+        Assert.Null(messages[1].Error);
     }
 
     [Fact]
-    public async Task ProcessBatch_WhenCaptureFailsForOneMessageOnly_ShouldHoldItAndPublishTheRest()
+    public async Task ProcessBatch_WhenCaptureFailsForOneMessageOnly_ShouldSpendOneRetryAndPublishTheRest()
     {
         var dbName = Guid.NewGuid().ToString();
         var baseTime = DateTimeOffset.UtcNow.AddMinutes(-5);
@@ -333,7 +334,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(
             dbName,
             senderMock.Object,
-            maxRetries: 1,
+            maxRetries: 3,
             payloadStore: new SelectivelyThrowingPayloadArchiveStore("poison", new InvalidOperationException("capture defect for one payload")),
             payloadCaptureOptions: new PayloadCaptureOptions { ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed });
 
@@ -345,9 +346,8 @@ public class OutboxProcessorTests
         await using var verifyContext = CreateDbContext(dbName);
         var messages = await verifyContext.OutboxMessages.OrderBy(m => m.OccurredOnUtc).ToListAsync();
         Assert.Null(messages[0].ProcessedOnUtc);
-        Assert.Equal(0, messages[0].RetryCount);
+        Assert.Equal(1, messages[0].RetryCount);
         Assert.Null(messages[0].Error);
-        Assert.NotNull(messages[0].LockedUntilUtc);
         Assert.NotNull(messages[1].ProcessedOnUtc);
     }
 

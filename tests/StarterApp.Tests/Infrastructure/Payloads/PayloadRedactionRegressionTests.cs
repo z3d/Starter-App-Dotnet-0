@@ -82,6 +82,21 @@ public class PayloadRedactionRegressionTests
         Assert.Equal("[invalid JSON payload suppressed]", redacted);
     }
 
+    [Theory]
+    [InlineData("""{"tags":["a",":"],"password":"8642-MARKER","note":"cut he""")]
+    [InlineData("""{"tags":["a"," :"],"more":["b"],"accessToken":"8642-MARKER","note":"cut he""")]
+    [InlineData("""{"a":["x",":"],"b":{"c":["y",":"],"password":"8642-MARKER"},"note":"cut he""")]
+    [InlineData("""{"password":"1111-MARKER","password":"2222-MARKER"}""")]
+    [InlineData("""{"child":{"password":"1111-MARKER"},"child":{"password":"2222-MARKER"}}""")]
+    [InlineData("""[{"password":"1111-MARKER","PASSWORD":"2222-MARKER","password":"3333-MARKER"}]""")]
+    public void Redact_WhenTheCaptureIsCutShortOrNamesAPropertyTwice_LetsNoSecretThrough(string payload)
+    {
+        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions()));
+
+        Assert.DoesNotContain("MARKER", redactor.Redact(payload, "application/json"), StringComparison.Ordinal);
+        Assert.DoesNotContain("MARKER", redactor.Redact(payload, "text/plain"), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task InvokeAsync_WhenJsonCaptureIsTruncated_SuppressesSensitiveLogValues()
     {
