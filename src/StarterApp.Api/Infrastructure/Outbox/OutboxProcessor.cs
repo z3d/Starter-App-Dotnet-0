@@ -158,11 +158,10 @@ public class OutboxProcessor : BackgroundService
                 }
                 catch (Exception captureEx) when (captureEx is not OperationCanceledException)
                 {
-                    // FailClosed: nothing was sent and the retry budget stays untouched (#79). A store failure pauses the batch;
-                    // a failure specific to this message leaves it claimed until its lock expires and lets the rest publish.
-                    _runAggregator.AddPaused();
+                    // A store failure pauses the batch and never spends the retry budget (#79); a failure of this message alone spends it, so it reaches Error and the replay surface.
                     if (IsStoreWideCaptureFailure(captureEx))
                     {
+                        _runAggregator.AddPaused();
                         if (PayloadCaptureFailureClassifier.IsTransientDependencyFailure(captureEx))
                             _logger.LogWarning(captureEx,
                                 "Payload capture failed for outbox message {MessageId} ({Type}) before publish; pausing batch until the archive store recovers (retry budget untouched)",
@@ -175,8 +174,9 @@ public class OutboxProcessor : BackgroundService
                     }
 
                     _logger.LogError(captureEx,
-                        "Payload capture failed for outbox message {MessageId} ({Type}) alone; holding it until its claim lock expires and publishing the rest of the batch (retry budget untouched)",
+                        "Payload capture failed for outbox message {MessageId} ({Type}) alone; it is not sent, and the rest of the batch publishes",
                         message.Id, message.Type);
+                    SpendRetry(message, captureEx);
                     continue;
                 }
 
@@ -198,26 +198,31 @@ public class OutboxProcessor : BackgroundService
                     break;
                 }
 
-                message.IncrementRetry();
-
-                if (message.RetryCount >= _options.MaxRetries)
-                {
-                    message.MarkAsError(ex.Message, _timeProvider.GetUtcNow());
-                    _runAggregator.AddErrored();
-                    _logger.LogError(ex, "Outbox message {MessageId} ({Type}) permanently failed after {RetryCount} attempts",
-                        message.Id, message.Type, message.RetryCount);
-                }
-                else
-                {
-                    _runAggregator.AddRetried();
-                    _logger.LogWarning(ex, "Outbox message {MessageId} ({Type}) failed, will retry (attempt {RetryCount}/{MaxRetries})",
-                        message.Id, message.Type, message.RetryCount, _options.MaxRetries);
-                }
+                SpendRetry(message, ex);
             }
         }
 
         await SaveOutcomesAsync(dbContext, cancellationToken);
         return published == _options.BatchSize;
+    }
+
+    private void SpendRetry(OutboxMessage message, Exception ex)
+    {
+        message.IncrementRetry();
+
+        if (message.RetryCount >= _options.MaxRetries)
+        {
+            message.MarkAsError(ex.Message, _timeProvider.GetUtcNow());
+            _runAggregator.AddErrored();
+            _logger.LogError(ex, "Outbox message {MessageId} ({Type}) permanently failed after {RetryCount} attempts",
+                message.Id, message.Type, message.RetryCount);
+        }
+        else
+        {
+            _runAggregator.AddRetried();
+            _logger.LogWarning(ex, "Outbox message {MessageId} ({Type}) failed, will retry (attempt {RetryCount}/{MaxRetries})",
+                message.Id, message.Type, message.RetryCount, _options.MaxRetries);
+        }
     }
 
     // A row another replica reclaimed mid-batch would fail the whole save and republish everything; detach it and save the rest.
