@@ -90,10 +90,8 @@ public partial class FunctionsHostConfigConventionTests
     [Fact]
     public void EveryTimerJob_IsWatched()
     {
-        var unwatched = typeof(StarterApp.Functions.JobWatchFunction).Assembly.GetTypes()
-            .Where(type => type != typeof(StarterApp.Functions.JobWatchFunction))
-            .SelectMany(type => type.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public))
-            .Where(method => method.GetParameters().Any(parameter => parameter.GetCustomAttributes(inherit: false).Any(attribute => attribute.GetType().Name == "TimerTriggerAttribute")))
+        var unwatched = StarterApp.Functions.JobWatchFunction.TimerMethods(typeof(StarterApp.Functions.JobWatchFunction).Assembly)
+            .Where(method => method.DeclaringType != typeof(StarterApp.Functions.JobWatchFunction))
             .Where(method => method.GetCustomAttributes(typeof(StarterApp.Functions.WatchedJobAttribute), inherit: false).Length == 0)
             .Select(method => $"{method.DeclaringType?.Name}.{method.Name} has no [WatchedJob(name it records under)], so nothing would say it failed or stopped running")
             .ToList();

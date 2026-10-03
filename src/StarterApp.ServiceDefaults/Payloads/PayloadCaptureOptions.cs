@@ -62,6 +62,9 @@ public class PayloadCaptureOptions
     [Range(1_048_576, 1_073_741_824)]
     public int BackgroundQueueMaxBytes { get; set; } = 32 * 1024 * 1024;
 
+    [Range(1, 600)]
+    public int BackgroundWriteTimeoutSeconds { get; set; } = 30;
+
     public string[] CapturedContentTypes { get; set; } =
     [
         "application/json",

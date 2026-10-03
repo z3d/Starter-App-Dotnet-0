@@ -18,7 +18,11 @@ public class PayloadCaptureMiddlewareTests
             await context.Response.WriteAsync("""{"id":42,"email":"response@example.com"}""");
         }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
 
-        var context = new DefaultHttpContext();
+        var services = new ServiceCollection();
+        services.AddSingleton<ICurrentUser>(new CurrentUser("subject-7", AuthenticatedPrincipalType.User, "tenant-7", ["customers:write"]));
+        await using var provider = services.BuildServiceProvider();
+
+        var context = new DefaultHttpContext { RequestServices = provider };
         context.Request.Method = HttpMethods.Post;
         context.Request.Path = "/api/v1/customers";
         context.Request.ContentType = "application/json";
@@ -39,6 +43,34 @@ public class PayloadCaptureMiddlewareTests
         Assert.Contains("\"archiveBlobName\":\"archive/2026-05-03/04/07/case-456.jsonl\"", entityIndexEntry.Value.Single());
         Assert.DoesNotContain("response@example.com", entityIndexEntry.Value.Single());
         Assert.Equal("case-456", context.Response.Headers[CorrelationContext.HeaderName]);
+    }
+
+    [Theory]
+    [InlineData("GET", null, "application/problem+json")]
+    [InlineData("PUT", "application/octet-stream", "application/octet-stream")]
+    public async Task InvokeAsync_ForAnAnonymousCaller_ArchivesBothPayloadsButWritesNoEntityIndex(string method, string? requestContentType, string responseContentType)
+    {
+        var store = new InMemoryPayloadArchiveStore();
+        var sink = PayloadCaptureTests.CreateSink(store, new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero));
+        var middleware = new PayloadCaptureMiddleware(async context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = responseContentType;
+            await context.Response.WriteAsync("""{"status":401,"customerId":434343}""");
+        }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = method;
+        context.Request.Path = "/api/v1/customers/424242";
+        context.Request.ContentType = requestContentType;
+        context.Request.Headers[CorrelationContext.HeaderName] = "case-anon";
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(requestContentType is null ? "" : "bytes"));
+        context.Response.Body = new MemoryStream();
+
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(2, store.Lines["archive/2026-05-03/04/07/case-anon.jsonl"].Count);
+        Assert.DoesNotContain(store.Lines.Keys, key => key.StartsWith("entity-index/", StringComparison.Ordinal));
     }
 
     [Fact]

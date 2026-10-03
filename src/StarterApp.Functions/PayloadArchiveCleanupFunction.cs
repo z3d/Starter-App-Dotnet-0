@@ -62,19 +62,27 @@ public sealed class PayloadArchiveCleanupFunction
             var summary = string.Create(
                 CultureInfo.InvariantCulture,
                 $"{{\"archiveDeleted\":{result.ArchiveDeleted},\"auditDeleted\":{result.AuditDeleted},\"entityIndexDeleted\":{result.EntityIndexDeleted},\"totalDeleted\":{result.TotalDeleted},\"budgetExhausted\":{(result.BudgetExhausted ? "true" : "false")}}}");
-            var outcome = result.BudgetExhausted ? "Degraded" : "Succeeded";
+            var outcome = result.BudgetExhausted ? JobOutcomes.Degraded : JobOutcomes.Succeeded;
             await _jobRunRecorder.CompleteRunAsync(runId, _timeProvider.GetUtcNow(), outcome, summary, cancellationToken);
             JobRunMetrics.Record(JobName, outcome);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+            // The run's own token is the cancelled one, so the outcome is written on a fresh, short one.
+            using var recording = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await _jobRunRecorder.CompleteRunAsync(runId, _timeProvider.GetUtcNow(), JobOutcomes.Cancelled, "{\"error\":\"The run was cancelled before it finished\"}", recording.Token);
+            JobRunMetrics.Record(JobName, JobOutcomes.Cancelled);
+            throw;
+        }
+        catch (Exception ex)
         {
             await _jobRunRecorder.CompleteRunAsync(
                 runId,
                 _timeProvider.GetUtcNow(),
-                "Failed",
+                JobOutcomes.Failed,
                 $"{{\"error\":{System.Text.Json.JsonSerializer.Serialize(ex.Message)}}}",
                 cancellationToken);
-            JobRunMetrics.Record(JobName, "Failed");
+            JobRunMetrics.Record(JobName, JobOutcomes.Failed);
             throw;
         }
     }

@@ -20,17 +20,24 @@ public class DerivationConventionTests : ConventionTestBase
 
     private static bool HasModules() => ApiAssembly.GetTypes().Any(IsModuleType);
 
+    internal static List<string> SampleLeftovers(IEnumerable<Type> productionTypes) => productionTypes
+        .Where(t => !IsCompilerGenerated(t) && !IsModuleType(t) && SampleDomainTypeNames.Contains(t.Name))
+        .Select(t => t.FullName!)
+        .Order(StringComparer.Ordinal)
+        .ToList();
+
+    internal static List<string> SupportNoModuleUses(IReadOnlyCollection<Type> apiTypes) => SupportMarkerNames
+        .Where(name => apiTypes.Any(t => t.IsInterface && t.Name == name))
+        .Where(name => !apiTypes.Any(t => IsModuleType(t) && t.GetInterfaces().Any(i => i.Name == name)))
+        .ToList();
+
     [Fact]
     public void DerivedProject_WithAModule_MustNotKeepTheSampleDomain()
     {
         if (!HasModules())
             return;
 
-        var leftovers = CoreProductionAssemblies
-            .SelectMany(a => a.GetTypes())
-            .Where(t => !IsCompilerGenerated(t) && !IsModuleType(t) && SampleDomainTypeNames.Contains(t.Name))
-            .Select(t => t.FullName)
-            .ToList();
+        var leftovers = SampleLeftovers(CoreProductionAssemblies.SelectMany(a => a.GetTypes()));
 
         Assert.True(leftovers.Count == 0,
             "The first module has landed, so the starter's Customer/Product/Order sample is vestigial and must be " +
@@ -43,15 +50,23 @@ public class DerivationConventionTests : ConventionTestBase
         if (!HasModules())
             return;
 
-        var apiTypes = ApiAssembly.GetTypes();
-        var unused = SupportMarkerNames
-            .Where(name => apiTypes.Any(t => t.IsInterface && t.Name == name))
-            .Where(name => !apiTypes.Any(t => IsModuleType(t) && t.GetInterfaces().Any(i => i.Name == name)))
-            .ToList();
+        var unused = SupportNoModuleUses(ApiAssembly.GetTypes());
 
         Assert.True(unused.Count == 0,
             "These support capabilities have no module consumer. Use them from a module, or remove the capability " +
             "with its behaviour, conventions and docs and record a re-add trigger (docs/DERIVATION-PRUNING.md):\n" +
             string.Join("\n", unused));
+    }
+
+    [Fact]
+    public void BothRules_BiteOnASyntheticDerivedProject()
+    {
+        var derived = typeof(SyntheticDerivation.Modules.Billing.Invoice).Assembly.GetTypes()
+            .Where(t => t.Namespace?.StartsWith(typeof(SyntheticDerivation.Customer).Namespace!, StringComparison.Ordinal) == true)
+            .ToList();
+
+        Assert.Contains(derived, IsModuleType);
+        Assert.Equal([typeof(SyntheticDerivation.Customer).FullName!, typeof(SyntheticDerivation.OrderCreatedDomainEvent).FullName!], SampleLeftovers(derived));
+        Assert.Equal(["IOwnerScopedRequest"], SupportNoModuleUses(derived));
     }
 }
