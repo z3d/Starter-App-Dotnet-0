@@ -21,8 +21,8 @@ the project: they copy its shapes, keep its rules, and route new work through it
   In a derived project a seam stays only when it is a real boundary (a module's `Contracts/`
   interface) or a module uses it.
 
-`DerivationConventionTests` enforces the first two mechanically: in the template it passes (no
-modules), and in a derived project it fails from the first module until the sample types and any
+`DerivationConventionTests` enforces the first two mechanically: in the template its two rules are skipped as not
+applicable (no modules), and in a derived project it fails from the first module until the sample types and any
 unused `ICacheable` / owner-scoping markers are gone.
 
 ## The discipline

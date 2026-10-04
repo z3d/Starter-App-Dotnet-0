@@ -82,18 +82,21 @@ export const options = {
     [`http_req_duration{endpoint:${ENDPOINTS.ORDERS_BY_STATUS}}`]: ['p(95)<500'],
     [`http_req_duration{endpoint:${ENDPOINTS.CREATE_ORDER}}`]: ['p(95)<800'],
     [`http_req_duration{endpoint:${ENDPOINTS.GET_ORDER}}`]: ['p(95)<300'],
+    [`http_req_duration{endpoint:${ENDPOINTS.GET_CUSTOMER}}`]: ['p(95)<300'],
+    [`http_req_duration{endpoint:${ENDPOINTS.GET_PRODUCT}}`]: ['p(95)<300'],
+    [`http_req_duration{endpoint:${ENDPOINTS.ORDERS_BY_CUSTOMER}}`]: ['p(95)<500'],
+    [`http_req_duration{endpoint:${ENDPOINTS.UPDATE_ORDER_STATUS}}`]: ['p(95)<800'],
+    [`http_req_duration{endpoint:${ENDPOINTS.SETUP}}`]: ['max>=0'],
   },
 };
 
-// Page through the bulk-seeded owner-scoped catalog and collect ids. The seed
-// rows are owned by the SAME k6 identity (perf-seed.sql / lib/config.js), so the
-// standard list endpoints already return them — no special access needed.
+// Tagged setup, so these 100-row pages against a cold API stay out of the per-endpoint budgets.
 function collectSeededIds(listFn, maxRows) {
   const ids = [];
   const pageSize = 100;
   const maxPages = Math.ceil(maxRows / pageSize);
   for (let page = 1; page <= maxPages; page++) {
-    const res = listFn(page, pageSize);
+    const res = listFn(page, pageSize, ENDPOINTS.SETUP);
     const rows = res.status === 200 ? res.json('data') || [] : [];
     for (const row of rows) {
       if (row && row.id) ids.push(row.id);
@@ -109,7 +112,7 @@ export function setup() {
 
   for (let i = 0; i < 10; i++) {
     const suffix = `setup-${i}-${Date.now()}`;
-    const customer = createCustomer(`Load Customer ${suffix}`, `load-${suffix}@test.com`);
+    const customer = createCustomer(`Load Customer ${suffix}`, `load-${suffix}@test.com`, ENDPOINTS.SETUP);
     if (customer) customerIds.push(customer.id);
 
     const product = createProduct(
@@ -118,6 +121,7 @@ export function setup() {
       10.0 + i * 5,
       'USD',
       100000,
+      ENDPOINTS.SETUP,
     );
     if (product) productIds.push(product.id);
   }

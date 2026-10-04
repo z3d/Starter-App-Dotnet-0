@@ -4,11 +4,11 @@ import { BASE_URL, ENDPOINTS, MIN_LIST_ROWS, jsonParams, tagParams } from './con
 
 const PRODUCTS_URL = `${BASE_URL}/api/v1/products`;
 
-export function createProduct(name, description, price, currency, stock) {
+export function createProduct(name, description, price, currency, stock, tag = ENDPOINTS.CREATE_PRODUCT) {
   const res = http.post(
     PRODUCTS_URL,
     JSON.stringify({ name, description, price, currency, stock }),
-    jsonParams(ENDPOINTS.CREATE_PRODUCT),
+    jsonParams(tag),
   );
   check(res, { 'create product: status 201': (r) => r.status === 201 });
   return res.status === 201 ? res.json() : null;
