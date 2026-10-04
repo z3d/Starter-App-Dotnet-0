@@ -1,9 +1,6 @@
 namespace StarterApp.Tests.Conventions;
 
-// The template carries no modules, so both facts pass here and bite only in a derived project: the
-// moment its first module lands under Api/Modules, the sample domain and any support capability no
-// module uses are vestigial (docs/DERIVATION-PRUNING.md). Types are matched by simple name so the
-// rule survives the derivation's namespace rename.
+// Types are matched by simple name so the rule survives the derivation's namespace rename.
 public class DerivationConventionTests : ConventionTestBase
 {
     private static readonly string[] SampleDomainTypeNames =
@@ -18,8 +15,6 @@ public class DerivationConventionTests : ConventionTestBase
     private static bool IsModuleType(Type type) =>
         type.Namespace?.Split('.').Contains("Modules") == true;
 
-    private static bool HasModules() => ApiAssembly.GetTypes().Any(IsModuleType);
-
     internal static List<string> SampleLeftovers(IEnumerable<Type> productionTypes) => productionTypes
         .Where(t => !IsCompilerGenerated(t) && !IsModuleType(t) && SampleDomainTypeNames.Contains(t.Name))
         .Select(t => t.FullName!)
@@ -31,12 +26,9 @@ public class DerivationConventionTests : ConventionTestBase
         .Where(name => !apiTypes.Any(t => IsModuleType(t) && t.GetInterfaces().Any(i => i.Name == name)))
         .ToList();
 
-    [Fact]
+    [DerivedProjectFact]
     public void DerivedProject_WithAModule_MustNotKeepTheSampleDomain()
     {
-        if (!HasModules())
-            return;
-
         var leftovers = SampleLeftovers(CoreProductionAssemblies.SelectMany(a => a.GetTypes()));
 
         Assert.True(leftovers.Count == 0,
@@ -44,12 +36,9 @@ public class DerivationConventionTests : ConventionTestBase
             "removed end to end (docs/DERIVATION-PRUNING.md):\n" + string.Join("\n", leftovers));
     }
 
-    [Fact]
+    [DerivedProjectFact]
     public void DerivedProject_WithAModule_MustNotKeepSupportNoModuleUses()
     {
-        if (!HasModules())
-            return;
-
         var unused = SupportNoModuleUses(ApiAssembly.GetTypes());
 
         Assert.True(unused.Count == 0,
@@ -68,5 +57,21 @@ public class DerivationConventionTests : ConventionTestBase
         Assert.Contains(derived, IsModuleType);
         Assert.Equal([typeof(SyntheticDerivation.Customer).FullName!, typeof(SyntheticDerivation.OrderCreatedDomainEvent).FullName!], SampleLeftovers(derived));
         Assert.Equal(["IOwnerScopedRequest"], SupportNoModuleUses(derived));
+    }
+}
+
+[AttributeUsage(AttributeTargets.Method)]
+public sealed class DerivedProjectFactAttribute : FactAttribute
+{
+    public const string NotApplicable =
+        "Not applicable in the template: no module under Api/Modules yet, so there is nothing to prune (docs/DERIVATION-PRUNING.md).";
+
+    public static bool HasModules { get; } =
+        typeof(IApiMarker).Assembly.GetTypes().Any(type => type.Namespace?.Split('.').Contains("Modules") == true);
+
+    public DerivedProjectFactAttribute()
+    {
+        if (!HasModules)
+            Skip = NotApplicable;
     }
 }
