@@ -39,6 +39,15 @@ git fetch origin && git worktree add -b <your-branch> ../<dir> origin/main
 
 Push from the worktree and fast-forward `main` from it. Never revert or overwrite changes you didn't make. A doc-only commit in a fresh worktree can't run the build/test pre-commit hook (no build artifacts), so `--no-verify` is acceptable there.
 
+## Running a task
+
+- **Know what done is, and keep going until it is.** A task, and any brief handed to a subagent, says where it finishes (the tests that pass, what is merged) and when to stop. When a step doesn't need the person's input, keep going, and put status notes in the same message as the next action.
+- **Stop and ask only when you can't continue without the person, or before anything destructive:** deleting data, force-pushing, deploying, or changing anything outside this repository.
+- **A long run keeps its task list in a file**, ticked as it goes: a scratch file, or the repo's status document when the items should outlive the run. A list that lives only in the conversation is lost when the context is summarised.
+- **A subagent's finding is checked against the code before it is accepted or passed on.**
+- **Say what you couldn't confirm, and where you looked.** A regulatory fact, a root cause or a test you didn't run is marked as unconfirmed, never stated as known.
+- **End a run with what is waiting on the person first,** then what changed, then what was found.
+
 ## Rules the compiler and convention tests can't catch
 
 - **Aggregates that override `RecordCreation()` must mint a client-side `Guid.CreateVersion7()` Id in the constructor.** Creation events are captured into the outbox *before* `SaveChanges`, so a database-generated Id doesn't exist yet. Aggregates without creation events may keep int Ids.

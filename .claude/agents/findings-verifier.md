@@ -27,3 +27,5 @@ a verdict.
 
 Return: `real` (bool), `confidence` (high|medium|low), `evidence` (the exact file:line proof you
 read), and `reason`. Be concise and concrete.
+
+If you could not reach a decision from the source (a file you couldn't open, a path you couldn't trace), say so and say where you looked, rather than guessing either way.
