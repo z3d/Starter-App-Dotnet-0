@@ -46,6 +46,7 @@ Push from the worktree and fast-forward `main` from it. Never revert or overwrit
 - **A long run keeps its task list in a file**, ticked as it goes: a scratch file, or the repo's status document when the items should outlive the run. A list that lives only in the conversation is lost when the context is summarised.
 - **A subagent's finding is checked against the code before it is accepted or passed on.**
 - **Say what you couldn't confirm, and where you looked.** A regulatory fact, a root cause or a test you didn't run is marked as unconfirmed, never stated as known.
+- **Never weigh scope on human-team effort.** Agents build this repository, so "an N-month build" or "two sprints" is no reason to cut or defer a feature. Weigh it on what code can't solve: outside dependencies (regulators, banks, auditors, partner APIs and their access terms), evidence of demand, the cost of being wrong, and what it depends on. A research or spec doc that argues from human effort is flagged and discounted.
 - **End a run with what is waiting on the person first,** then what changed, then what was found.
 
 ## Rules the compiler and convention tests can't catch
