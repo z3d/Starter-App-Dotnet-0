@@ -37,6 +37,7 @@ export const ENDPOINTS = {
   ORDERS_BY_STATUS: 'orders_by_status',
   UPDATE_ORDER_STATUS: 'update_order_status',
   CANCEL_ORDER: 'cancel_order',
+  SETUP: 'setup',
 };
 
 export function jsonParams(tag) {

@@ -67,6 +67,9 @@ PostgreSQL): schema drift breaks that test at PR time instead of the nightly run
   registered as a non-failure via `http.setResponseCallback`. Correctness is unit-tested; this
   only confirms the 409 mapping surfaces under concurrency.
 
+Setup traffic (the ten created rows and the 100-row pages that collect seeded ids against a cold
+API) is tagged `setup`, so it counts in the global figures and in none of the per-endpoint budgets.
+
 ### Baseline / trend tracking
 
 After k6 exits, the runner diffs `http_req_duration` p95/p99 against a committed baseline
@@ -106,6 +109,9 @@ See `tests/k6/baseline/README.md`.
 
 - Smoke test: all checks pass, zero HTTP errors, p95 response time under 2 seconds
 - Load test: p95 under 500ms globally, p99 under 1500ms, HTTP error rate under 1%, check pass rate above 99%
+- Load test, per endpoint (p95): list customers and list products 300ms, their deep pages 800ms,
+  get customer, get product and get order 300ms, orders by customer and orders by status 500ms,
+  create order and update order status 800ms
 
 ## Notes
 

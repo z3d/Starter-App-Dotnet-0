@@ -4,11 +4,11 @@ import { BASE_URL, ENDPOINTS, MIN_LIST_ROWS, jsonParams, tagParams } from './con
 
 const CUSTOMERS_URL = `${BASE_URL}/api/v1/customers`;
 
-export function createCustomer(name, email) {
+export function createCustomer(name, email, tag = ENDPOINTS.CREATE_CUSTOMER) {
   const res = http.post(
     CUSTOMERS_URL,
     JSON.stringify({ name, email }),
-    jsonParams(ENDPOINTS.CREATE_CUSTOMER),
+    jsonParams(tag),
   );
   check(res, { 'create customer: status 201': (r) => r.status === 201 });
   return res.status === 201 ? res.json() : null;
