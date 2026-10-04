@@ -1,14 +1,23 @@
+using StarterApp.Api.Application.Validators;
+
 namespace StarterApp.Tests.Application.Commands;
 
 public class DeleteProductCommandTests
 {
-    [Fact]
-    public void DeleteProductCommand_PropertiesTest()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void DeleteProductCommandValidator_WithNonPositiveId_ShouldReturnValidationError(int id)
     {
-        // Arrange & Act
-        var command = new DeleteProductCommand(42);
+        var errors = new DeleteProductCommandValidator().Validate(new DeleteProductCommand(id)).ToList();
 
-        // Assert
-        Assert.Equal(42, command.Id);
+        var error = Assert.Single(errors);
+        Assert.Equal(nameof(DeleteProductCommand.Id), error.PropertyName);
+    }
+
+    [Fact]
+    public void DeleteProductCommandValidator_WithPositiveId_ShouldPassValidation()
+    {
+        Assert.Empty(new DeleteProductCommandValidator().Validate(new DeleteProductCommand(1)));
     }
 }

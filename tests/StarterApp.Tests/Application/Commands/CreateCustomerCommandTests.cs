@@ -37,18 +37,28 @@ public class CreateCustomerCommandTests
         Assert.Contains(errors, error => error.PropertyName == nameof(command.Email));
     }
 
-    [Fact]
-    public void CreateCustomerCommand_PropertiesTest()
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void CreateCustomerCommandValidator_WithBlankName_ShouldReturnValidationError(string name)
     {
-        // Arrange
-        var command = new CreateCustomerCommand
-        {
-            Name = "John Doe",
-            Email = "john@example.com"
-        };
+        var command = new CreateCustomerCommand { Name = name, Email = "john@example.com" };
 
-        // Act & Assert - Verify all properties are set correctly
-        Assert.Equal("John Doe", command.Name);
-        Assert.Equal("john@example.com", command.Email);
+        var errors = new CreateCustomerCommandValidator().Validate(command).ToList();
+
+        var error = Assert.Single(errors);
+        Assert.Equal(nameof(command.Name), error.PropertyName);
+    }
+
+    [Fact]
+    public void CreateCustomerCommandValidator_HoldsNameToTheDomainLimit()
+    {
+        var validator = new CreateCustomerCommandValidator();
+        var atLimit = new CreateCustomerCommand { Name = new string('a', Customer.MaxNameLength), Email = "john@example.com" };
+        var overLimit = new CreateCustomerCommand { Name = new string('a', Customer.MaxNameLength + 1), Email = "john@example.com" };
+
+        Assert.Empty(validator.Validate(atLimit));
+        var error = Assert.Single(validator.Validate(overLimit));
+        Assert.Equal(nameof(overLimit.Name), error.PropertyName);
     }
 }

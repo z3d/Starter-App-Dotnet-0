@@ -39,20 +39,16 @@ public class UpdateCustomerCommandTests
         Assert.Contains(errors, error => error.PropertyName == nameof(command.Email));
     }
 
-    [Fact]
-    public void UpdateCustomerCommand_PropertiesTest()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void UpdateCustomerCommandValidator_WithNonPositiveId_ShouldReturnValidationError(int id)
     {
-        // Arrange
-        var command = new UpdateCustomerCommand
-        {
-            Id = 123,
-            Name = "Updated Name",
-            Email = "updated@example.com"
-        };
+        var command = new UpdateCustomerCommand { Id = id, Name = "Updated Name", Email = "updated@example.com" };
 
-        // Act & Assert
-        Assert.Equal(123, command.Id);
-        Assert.Equal("Updated Name", command.Name);
-        Assert.Equal("updated@example.com", command.Email);
+        var errors = new UpdateCustomerCommandValidator().Validate(command).ToList();
+
+        var error = Assert.Single(errors);
+        Assert.Equal(nameof(command.Id), error.PropertyName);
     }
 }
