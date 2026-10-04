@@ -64,3 +64,5 @@ mis-ordered awaits, resource leaks, incorrect Result/error→HTTP status mapping
 For each finding give: **file + symbol (+ line as a lead)**, **severity** (critical/high/medium),
 **`kind`** (rule | bug), and WHY. Be specific and **verifiable** — each finding is adversarially
 checked line-by-line afterward, so do not pad with speculation. Return the structured findings list.
+
+For each finding also say **how to show it fails**: the input, state or test that makes it go wrong. List only what you would block the merge for at critical or high; put the rest under medium. End with what you **couldn't confirm and where you looked**, and what you didn't read.

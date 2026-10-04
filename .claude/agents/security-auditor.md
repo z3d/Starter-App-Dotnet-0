@@ -50,3 +50,5 @@ speculation; findings are adversarially verified afterward.
 Per finding: **file + symbol (+ line as a lead)** · **severity** · **OWASP category** · the
 concrete violation · the **fix** · a reference. Be specific and verifiable. Return the structured
 findings list.
+
+For each finding also say **how to show it fails**: the input, state or test that makes it go wrong. List only what you would block the merge for at critical or high; put the rest under medium. End with what you **couldn't confirm and where you looked**, and what you didn't read.
