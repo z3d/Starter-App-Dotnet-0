@@ -52,27 +52,42 @@ public class CreateOrderCommandTests
         Assert.Contains("more than 50 items", error.ErrorMessage);
     }
 
-    [Fact]
-    public void CreateOrderCommand_PropertiesTest()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void CreateOrderCommandValidator_WithNonPositiveCustomerId_ShouldReturnValidationError(int customerId)
     {
-        // Arrange
+        var command = new CreateOrderCommand { CustomerId = customerId, Items = [new() { ProductId = 1, Quantity = 1 }] };
+
+        var error = Assert.Single(new CreateOrderCommandValidator().Validate(command));
+
+        Assert.Equal(nameof(command.CustomerId), error.PropertyName);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("has space")]
+    [InlineData("caf\u00e9")]
+    [InlineData(256)]
+    public void CreateOrderCommandValidator_WithUnusableIdempotencyKey_ShouldReturnValidationError(object key)
+    {
         var command = new CreateOrderCommand
         {
-            CustomerId = 123,
-            Items = new List<CreateOrderItemCommand>
-            {
-                new()
-                {
-                    ProductId = 456,
-                    Quantity = 3
-                }
-            }
+            CustomerId = 1,
+            IdempotencyKey = key is int length ? new string('k', length) : (string)key,
+            Items = [new() { ProductId = 1, Quantity = 1 }]
         };
 
-        // Act & Assert - Verify all properties are set correctly
-        Assert.Equal(123, command.CustomerId);
-        Assert.Single(command.Items);
-        Assert.Equal(456, command.Items[0].ProductId);
-        Assert.Equal(3, command.Items[0].Quantity);
+        var error = Assert.Single(new CreateOrderCommandValidator().Validate(command));
+
+        Assert.Equal("Idempotency-Key", error.PropertyName);
+    }
+
+    [Fact]
+    public void CreateOrderCommandValidator_WithLongestVisibleAsciiIdempotencyKey_ShouldPassValidation()
+    {
+        var command = new CreateOrderCommand { CustomerId = 1, IdempotencyKey = new string('~', 255), Items = [new() { ProductId = 1, Quantity = 1 }] };
+
+        Assert.Empty(new CreateOrderCommandValidator().Validate(command));
     }
 }

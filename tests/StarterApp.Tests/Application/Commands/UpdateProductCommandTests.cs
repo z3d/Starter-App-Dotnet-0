@@ -69,25 +69,22 @@ public class UpdateProductCommandTests
     }
 
     [Fact]
-    public void UpdateProductCommand_PropertiesTest()
+    public void UpdateProductCommandValidator_WithNonPositiveId_ShouldReturnValidationError()
     {
-        // Arrange
-        var command = new UpdateProductCommand
-        {
-            Id = 123,
-            Name = "Updated Product",
-            Description = "Updated Description",
-            Price = 25.99m,
-            Currency = "EUR",
-            Stock = 75
-        };
+        var command = new UpdateProductCommand { Id = 0, Name = "Updated Product", Description = "Updated Description", Price = 15.99m, Currency = "USD", Stock = 50 };
 
-        // Act & Assert - Verify all properties are set correctly
-        Assert.Equal(123, command.Id);
-        Assert.Equal("Updated Product", command.Name);
-        Assert.Equal("Updated Description", command.Description);
-        Assert.Equal(25.99m, command.Price!.Value);
-        Assert.Equal("EUR", command.Currency);
-        Assert.Equal(75, command.Stock!.Value);
+        var error = Assert.Single(new UpdateProductCommandValidator().Validate(command));
+
+        Assert.Equal(nameof(command.Id), error.PropertyName);
+    }
+
+    [Fact]
+    public void UpdateProductCommandValidator_WithAbsentDescription_ShouldReturnValidationError()
+    {
+        var command = new UpdateProductCommand { Id = 1, Name = "Updated Product", Description = null!, Price = 15.99m, Currency = "USD", Stock = 50 };
+
+        var error = Assert.Single(new UpdateProductCommandValidator().Validate(command));
+
+        Assert.Equal(nameof(command.Description), error.PropertyName);
     }
 }
