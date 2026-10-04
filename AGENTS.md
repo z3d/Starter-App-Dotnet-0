@@ -107,7 +107,8 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Domain models, value objects | `.claude/skills/ddd-implementation/SKILL.md` |
 | EF Core config, migrations, Aspire wiring | `.claude/skills/data-access/SKILL.md` |
 | Minimal API endpoints | `.claude/skills/api-design/SKILL.md` |
-| Tests, FsCheck, convention authoring | `.claude/skills/testing-strategy/SKILL.md` |
+| Tests, FsCheck, convention authoring, whether a test is worth having | `.claude/skills/testing-strategy/SKILL.md` |
+| Adding a skill, or turning a finding or a correction into a test, rule or skill | `.claude/skills/skill-authoring/SKILL.md` |
 | Service Bus emulator, dev tunnels, local CI | `.claude/skills/development-workflow/SKILL.md` |
 | Dependencies, custom mediator | `.claude/skills/technology-stack/SKILL.md` |
 | Architecture audits | `.claude/skills/architecture-review/SKILL.md`, `docs/ARCHITECTURE_REVIEW.md` (open state), dated records in `docs/reviews/` |
