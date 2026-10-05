@@ -77,6 +77,10 @@ A failed refresh-ahead recompute logs a warning and serves the still-within-TTL 
 
 **Re-add trigger for list caching:** if list queries ever need caching, use a versioned-namespace approach rather than relaxing the by-id rule — `IDistributedCache` still has no pattern deletion.
 
+## Feature toggles fail closed (2026-10-05)
+
+A `[FeatureToggle]` is on only when `FeatureToggles:{name}` says `true`; a missing entry is off, and the API refuses to start when configuration under `FeatureToggles` names a key no `[FeatureToggle]` declares (compared case-insensitively, as configuration keys are), naming the stray key and the known ones (`DeclaredFeatureToggles`, validated on start). Before, a missing entry meant on, so a misspelt override in an app setting or environment variable was a stray key nobody read and the feature it meant to switch off stayed on. Rejected: keeping on-by-default and relying on the convention test, which checks `appsettings.json` but cannot see the deployed configuration. **Re-add trigger:** a toggle whose feature must keep running when its configuration is lost, at which point that toggle carries its own default rather than the rule changing for all.
+
 ---
 
 ## Outbox and eventing
