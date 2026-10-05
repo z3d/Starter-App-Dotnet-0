@@ -272,12 +272,20 @@ public static class PayloadEntityReferenceExtractor
         HashSet<string> sensitiveTokens,
         Dictionary<string, PayloadEntityReference> references)
     {
+        // Checked on the raw value: NormalizeIdentifier strips '@', so an email would pass afterwards.
+        if (JsonPayloadRedactor.ContainsRedactableValue(entityId))
+            return;
+
         var normalizedEntityType = NormalizeEntityType(entityType);
         var normalizedEntityId = NormalizeIdentifier(entityId);
         if (string.IsNullOrWhiteSpace(normalizedEntityType) || string.IsNullOrWhiteSpace(normalizedEntityId))
             return;
 
         if (IsSensitivePropertyName(normalizedEntityType, sensitiveTokens))
+            return;
+
+        // A dot-only segment is a path-traversal token if the index is ever mirrored to a filesystem.
+        if (normalizedEntityId.All(character => character == '.'))
             return;
 
         var key = $"{normalizedEntityType}:{normalizedEntityId}";
