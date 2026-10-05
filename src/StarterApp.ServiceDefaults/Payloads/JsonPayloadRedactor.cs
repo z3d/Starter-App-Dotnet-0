@@ -99,6 +99,11 @@ public sealed partial class JsonPayloadRedactor : IPayloadRedactor
         return EmailRegex().Replace(value, Mask);
     }
 
+    internal static bool ContainsRedactableValue(string value)
+    {
+        return !string.IsNullOrEmpty(value) && EmailRegex().IsMatch(value);
+    }
+
     private static string NormalizeName(string name)
     {
         return new string(name.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();

@@ -86,6 +86,41 @@ public class PayloadCaptureTests
     }
 
     [Fact]
+    public void Extract_WithBenignNamedIdCarryingAnEmail_ShouldNotEmitItAsEntityReference()
+    {
+        var request = new PayloadCaptureRequest
+        {
+            Operation = "POST /api/v1/customers",
+            Channel = "http",
+            ContentType = "application/json",
+            Payload = """{"externalId":"john.doe@acme.com","customerId":42}"""
+        };
+
+        var references = PayloadEntityReferenceExtractor.Extract(request, 64, out _);
+
+        Assert.DoesNotContain(references, reference => reference.EntityId.Contains("acme", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(references, reference => reference.EntityId.Contains("john", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(references, reference => reference.EntityType == "customer" && reference.EntityId == "42");
+    }
+
+    [Fact]
+    public void Extract_WithDotOnlyIdValue_ShouldNotEmitPathTraversalReference()
+    {
+        var request = new PayloadCaptureRequest
+        {
+            Operation = "POST /api/v1/products",
+            Channel = "http",
+            ContentType = "application/json",
+            Payload = """{"productId":"..","customerId":42}"""
+        };
+
+        var references = PayloadEntityReferenceExtractor.Extract(request, 64, out _);
+
+        Assert.DoesNotContain(references, reference => reference.EntityId.All(character => character == '.'));
+        Assert.Contains(references, reference => reference.EntityType == "customer" && reference.EntityId == "42");
+    }
+
+    [Fact]
     public void Extract_WithLowercaseIdSuffixWords_ShouldNotEmitJunkReferences()
     {
         // "paid"/"valid" end in lowercase "id" — an OrdinalIgnoreCase suffix match would mint
