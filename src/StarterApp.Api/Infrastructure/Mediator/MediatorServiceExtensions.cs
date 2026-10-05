@@ -6,6 +6,11 @@ public static class MediatorServiceExtensions
     {
         services.AddScoped<IMediator, Mediator>();
         services.AddSingleton<FeatureToggles.IFeatureToggles, FeatureToggles.ConfigurationFeatureToggles>();
+        services.AddOptions<FeatureToggles.FeatureToggleOptions>()
+            .Configure<IConfiguration>((options, configuration) => options.ConfiguredKeys =
+                configuration.GetSection(FeatureToggles.FeatureToggleOptions.SectionName).GetChildren().Select(entry => entry.Key).ToList())
+            .ValidateOnStart();
+        services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<FeatureToggles.FeatureToggleOptions>>(FeatureToggles.DeclaredFeatureToggles.In(assemblies));
         // Toggles are gated in the mediator before all of these. First registered runs outermost.
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(Identity.OwnerAuthorizationBehavior<,>));
