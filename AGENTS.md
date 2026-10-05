@@ -37,6 +37,8 @@ Several agents may hold this checkout at once, so the primary working tree can b
 git fetch origin && git worktree add -b <your-branch> ../<dir> origin/main
 ```
 
+**A worktree ends merged or abandoned, never parked.** When the work is done, fast-forward main and remove the worktree and its branch; when it is dropped, remove them. A branch left for days goes stale against main until nobody can merge it, and a merged worktree left behind hides the parked ones. The `worktree-lifecycle.sh` hook names anything parked, anything merged but not removed and any old stash when a session starts, and at the end blocks once on a worktree this session created and left behind.
+
 Push from the worktree and fast-forward `main` from it. Never revert or overwrite changes you didn't make. A doc-only commit in a fresh worktree can't run the build/test pre-commit hook (no build artifacts), so `--no-verify` is acceptable there.
 
 ## Running a task
@@ -123,6 +125,6 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Read-only support SQL | `scripts/reporting/` |
 | Reviewer subagents and the branch-review workflow | `.claude/agents/`, `.claude/workflows/architect-review.js` |
 
-A `PreToolUse` hook, `.claude/hooks/protect-commands.sh`, denies catastrophic wipes and prompts on recoverable-but-destructive commands, and fails open. `permissions.deny` in `.claude/settings.json` refuses reading or editing `.env*`, `appsettings.Development.json`, `secrets/**` and key material, and editing a lock file; the harness enforces it for its file tools, not for a shell command that writes the file. Neither is a substitute for care.
+A `PreToolUse` hook, `.claude/hooks/protect-commands.sh`, denies catastrophic wipes and prompts on recoverable-but-destructive commands, and fails open. `.claude/hooks/pre-commit.sh` formats, builds and tests before any command that runs `git commit` (also after `cd <dir> &&` or as `git -C <dir> commit`), in the tree the commit lands in. `permissions.deny` in `.claude/settings.json` refuses reading or editing `.env*`, `appsettings.Development.json`, `secrets/**` and key material, and editing a lock file; the harness enforces it for its file tools, not for a shell command that writes the file. Neither is a substitute for care.
 
 This file is the one set of instructions for every agent harness. `CLAUDE.md` is a one-line `@AGENTS.md` import, kept for Claude sessions that cannot read `AGENTS.md` directly (older versions, some Bedrock sessions); the import never loads it twice. There is no mirror to keep in step; edit this file and `.claude/skills/` only.

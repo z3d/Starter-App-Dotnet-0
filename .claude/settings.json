@@ -47,10 +47,34 @@
           {
             "type": "command",
             "shell": "bash",
-            "if": "Bash(git commit*)",
             "timeout": 900,
             "statusMessage": "Pre-commit: format, build, test",
-            "command": "if grep -q 'git commit'; then dotnet --version >/dev/null 2>&1 || { export DOTNET_ROOT=\"$HOME/.dotnet\" PATH=\"$HOME/.dotnet:$PATH\"; }; dotnet format --verify-no-changes --verbosity minimal --no-restore && dotnet build --no-restore && dotnet test tests/StarterApp.Tests/StarterApp.Tests.csproj --no-build || exit 2; fi"
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/pre-commit.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "timeout": 20,
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/worktree-lifecycle.sh\" start"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "statusMessage": "Checking every worktree ends merged or abandoned",
+            "timeout": 20,
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/worktree-lifecycle.sh\""
           }
         ]
       }
