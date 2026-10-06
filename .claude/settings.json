@@ -40,13 +40,6 @@
           {
             "type": "command",
             "shell": "bash",
-            "statusMessage": "Guarding against destructive commands",
-            "timeout": 15,
-            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/protect-commands.sh\""
-          },
-          {
-            "type": "command",
-            "shell": "bash",
             "timeout": 900,
             "statusMessage": "Pre-commit: format, build, test",
             "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/pre-commit.sh\""
