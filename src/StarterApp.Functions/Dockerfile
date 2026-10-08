@@ -23,7 +23,7 @@ COPY src/StarterApp.ServiceDefaults/ src/StarterApp.ServiceDefaults/
 # same tree passes locally), so a Windows clone cannot build the image the E2E suite boots.
 RUN dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Release -o /app/publish -p:EnforceCodeStyleInBuild=false
 
-FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0@sha256:cbbde885fd2a90280af0acea53ef6c830a27497aeadd39b717451b3a33ce3d48
+FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0@sha256:6fc6608c7a882e89d973478adfff2b133f470be0effea41f691c4ebd87932f14
 WORKDIR /home/site/wwwroot
 # Baked-in default for the cleanup timer schedule (hourly). The TimerTrigger's
 # %PayloadCapture:CleanupCron% lookup fails function indexing when the setting is absent,
