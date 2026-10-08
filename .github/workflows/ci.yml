@@ -88,10 +88,34 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Build migrator image
-      run: docker build -f src/StarterApp.DbMigrator/Dockerfile .
+      run: docker build -t starterapp/dbmigrator:ci -f src/StarterApp.DbMigrator/Dockerfile .
+
+    - name: Scan migrator image
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        image-ref: starterapp/dbmigrator:ci
+        severity: CRITICAL,HIGH
+        ignore-unfixed: true
+        exit-code: 1
 
     - name: Build api image
-      run: docker build -f src/StarterApp.Api/Dockerfile .
+      run: docker build -t starterapp/api:ci -f src/StarterApp.Api/Dockerfile .
+
+    - name: Scan api image
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        image-ref: starterapp/api:ci
+        severity: CRITICAL,HIGH
+        ignore-unfixed: true
+        exit-code: 1
 
     - name: Build functions image
-      run: docker build -f src/StarterApp.Functions/Dockerfile .
+      run: docker build -t starterapp/functions:ci -f src/StarterApp.Functions/Dockerfile .
+
+    - name: Scan functions image
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        image-ref: starterapp/functions:ci
+        severity: CRITICAL,HIGH
+        ignore-unfixed: true
+        exit-code: 1
