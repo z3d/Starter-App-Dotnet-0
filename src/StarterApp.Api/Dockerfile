@@ -28,9 +28,12 @@ RUN dotnet restore "src/StarterApp.Api/StarterApp.Api.csproj" --locked-mode
 # Copy the rest of the source code
 COPY src/ src/
 
-# Publish the application
+# Publish the application. Style is enforced by the format gate and the CI build on the
+# canonical checkout; the image build only packages. Re-running IDE style analysis here makes
+# the build depend on the checkout's line endings (a CRLF working tree fails IDE0055), so a
+# Windows clone could not build the image. Same workaround as the Functions Dockerfile.
 WORKDIR "/src/src/StarterApp.Api"
-RUN dotnet publish "StarterApp.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "StarterApp.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false -p:EnforceCodeStyleInBuild=false
 
 # Runtime image: chiseled (no shell, no apt, globalization-invariant), nothing but the runtime.
 # The API uses the Npgsql managed driver; database inspection should happen from the PostgreSQL container or psql-capable tooling.
