@@ -4,7 +4,7 @@
 
 The three Dockerfiles (`src/StarterApp.Api`, `src/StarterApp.DbMigrator`, `src/StarterApp.Functions`) pull the SDK and runtime from **digest-pinned `mcr.microsoft.com` images** — `dotnet/sdk:10.0@sha256:…` for build, `dotnet/aspnet:10.0@sha256:…` or `azure-functions/dotnet-isolated:…@sha256:…` for the final stage.
 
-There is **no** Microsoft apt repo, GPG key import (`gpg --dearmor` / `signed-by=`), or `prod.list` to maintain. The only apt step in the final stage installs `curl` for the healthcheck via plain `apt-get install -y --no-install-recommends curl`, then clears `/var/lib/apt/lists/*`. Do not introduce a package-repo block — the runtime comes from the base image.
+There is **no** Microsoft apt repo, GPG key import (`gpg --dearmor` / `signed-by=`), or `prod.list` to maintain, and no apt step at all in the final stage: there is no Dockerfile `HEALTHCHECK` (Azure Container Apps ignores it and runs its own probes against `/health/ready` and `/health/live`), so `curl` is not installed. Do not introduce a package-repo block — the runtime comes from the base image.
 
 Resolve a new digest with:
 
