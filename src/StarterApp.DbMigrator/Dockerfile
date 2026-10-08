@@ -17,8 +17,10 @@ RUN dotnet restore "src/StarterApp.DbMigrator/StarterApp.DbMigrator.csproj" --lo
 
 COPY src/ src/
 
+# Style analysis is skipped here for the same reason as the Api and Functions Dockerfiles: a
+# CRLF working tree fails IDE0055 inside the image build, and the CI build already enforces it.
 WORKDIR "/src/src/StarterApp.DbMigrator"
-RUN dotnet publish "StarterApp.DbMigrator.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "StarterApp.DbMigrator.csproj" -c Release -o /app/publish /p:UseAppHost=false -p:EnforceCodeStyleInBuild=false
 
 # Runtime stage: console app, so the plain runtime (not aspnet), chiseled (no shell, no apt).
 FROM mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled@sha256:cef1854a63da04795952a34c970591693d1f31c8e8f42ec14892d6198a49774b AS final
