@@ -28,11 +28,8 @@ RUN dotnet restore "src/StarterApp.Api/StarterApp.Api.csproj" --locked-mode
 # Copy the rest of the source code
 COPY src/ src/
 
-# Build the project
-WORKDIR "/src/src/StarterApp.Api"
-RUN dotnet build "StarterApp.Api.csproj" -c Release -o /app/build
-
 # Publish the application
+WORKDIR "/src/src/StarterApp.Api"
 RUN dotnet publish "StarterApp.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime image — lightweight, no ODBC tools needed
