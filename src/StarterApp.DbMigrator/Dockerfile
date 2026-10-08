@@ -20,14 +20,13 @@ COPY src/ src/
 WORKDIR "/src/src/StarterApp.DbMigrator"
 RUN dotnet publish "StarterApp.DbMigrator.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Runtime stage — lightweight, no ODBC tools needed
-FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:f1126d438ccc359f51cc6d4701a8deae513856cf10f5fe645d29ea6403dcac6b AS final
+# Runtime stage: console app, so the plain runtime (not aspnet), chiseled (no shell, no apt).
+FROM mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled@sha256:cef1854a63da04795952a34c970591693d1f31c8e8f42ec14892d6198a49774b AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 
-# Drop root: run the migration job as the aspnet base image's predefined non-root user
-# (UID 1654, via $APP_UID). DbUp only reads embedded scripts and connects to PostgreSQL,
-# so it needs no write access or elevated privileges.
+# The chiseled base already runs as UID 1654 ($APP_UID); kept explicit for the
+# ShippingDockerfiles_MustRunTheFinalStageAsNonRoot convention test.
 USER $APP_UID
 
 ENTRYPOINT ["dotnet", "StarterApp.DbMigrator.dll"]
