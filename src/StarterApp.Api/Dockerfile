@@ -32,9 +32,9 @@ COPY src/ src/
 WORKDIR "/src/src/StarterApp.Api"
 RUN dotnet publish "StarterApp.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Runtime image — lightweight, no ODBC tools needed
+# Runtime image: chiseled (no shell, no apt, globalization-invariant), nothing but the runtime.
 # The API uses the Npgsql managed driver; database inspection should happen from the PostgreSQL container or psql-capable tooling.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:f1126d438ccc359f51cc6d4701a8deae513856cf10f5fe645d29ea6403dcac6b AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled@sha256:48e51f2f6798897be7ac4e775c049ed8fe60d3190f637e1f9c9dc7513efa659c AS final
 
 WORKDIR /app
 
@@ -46,10 +46,8 @@ ENV ASPNETCORE_URLS=http://+:8080
 
 EXPOSE 8080
 
-# Drop root: the aspnet base image ships a predefined non-root user (UID 1654) exposed
-# via $APP_UID. Listening on 8080 (>1024) needs no privileged bind, and the published
-# files are world-readable, so the app runs unchanged with least privilege. Hardened
-# orchestrators (Kubernetes runAsNonRoot, OpenShift, CIS benchmarks) require this.
+# The chiseled base already runs as UID 1654 ($APP_UID); kept explicit for the
+# ShippingDockerfiles_MustRunTheFinalStageAsNonRoot convention test.
 USER $APP_UID
 
 # Start the application — migrations handled by the dedicated migrator service
