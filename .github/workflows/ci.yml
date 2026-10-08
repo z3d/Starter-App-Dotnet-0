@@ -41,7 +41,14 @@ jobs:
     - name: Unit tests
       # Aspire facts are [AspireFact] and skip themselves unless STARTERAPP_ASPIRE_TESTS is set,
       # so no filter is needed to keep the distributed rig out of this job.
-      run: dotnet test --no-build --configuration Release --verbosity normal --filter "FullyQualifiedName!~Integration"
+      run: dotnet test --no-build --configuration Release --verbosity normal --filter "FullyQualifiedName!~Integration" --collect:"XPlat Code Coverage" --results-directory TestResults
+
+    - name: Upload coverage
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: coverage
+        path: TestResults/**/coverage.cobertura.xml
 
   integration:
     runs-on: ubuntu-latest
