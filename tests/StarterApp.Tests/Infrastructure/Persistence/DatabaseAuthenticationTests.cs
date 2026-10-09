@@ -31,15 +31,36 @@ public class DatabaseAuthenticationTests
     }
 
     [Fact]
-    public async Task ResolveForDirectUse_WithAPassword_ReturnsTheStringUntouched_AndNeverAsksForAToken()
+    public async Task ResolveForDirectUse_WithAPassword_KeepsItsCredentials_AndNeverAsksForAToken()
     {
         var credential = new CountingCredential();
-        const string connectionString = "Host=db;Database=app;Username=svc;Password=plainzz1";
 
-        var resolved = await DatabaseAuthentication.ResolveForDirectUseAsync(connectionString, credential);
+        var resolved = await DatabaseAuthentication.ResolveForDirectUseAsync("Host=db;Database=app;Username=svc;Password=plainzz1", credential);
 
-        Assert.Equal(connectionString, resolved);
+        var builder = new NpgsqlConnectionStringBuilder(resolved);
+        Assert.Equal("svc", builder.Username);
+        Assert.Equal("plainzz1", builder.Password);
+        Assert.Equal(SslMode.Prefer, builder.SslMode);
+        Assert.Equal(GssEncryptionMode.Disable, builder.GssEncryptionMode);
         Assert.Equal(0, credential.Requests);
+    }
+
+    [Theory]
+    [InlineData("Host=db;Database=app;Username=svc;Password=plainzz1")]
+    [InlineData("Host=db;Database=app;Username=svc")]
+    public void CreateDataSource_NeverAttemptsGssEncryption(string connectionString)
+    {
+        using var dataSource = DatabaseAuthentication.CreateDataSource(connectionString, new CountingCredential());
+
+        Assert.Equal(GssEncryptionMode.Disable, new NpgsqlConnectionStringBuilder(dataSource.ConnectionString).GssEncryptionMode);
+    }
+
+    [Fact]
+    public void WithoutGssEncryption_KeepsAnExplicitRequire()
+    {
+        var kept = DatabaseAuthentication.WithoutGssEncryption("Host=db;Database=app;GSS Encryption Mode=Require");
+
+        Assert.Equal(GssEncryptionMode.Require, new NpgsqlConnectionStringBuilder(kept).GssEncryptionMode);
     }
 
     [Fact]
