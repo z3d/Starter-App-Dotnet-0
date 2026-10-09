@@ -43,10 +43,10 @@ public static class DatabaseAuthentication
     public static NpgsqlDataSource CreateDataSource(string connectionString, TokenCredential? credential = null)
     {
         if (!UsesManagedIdentity(connectionString))
-            return new NpgsqlDataSourceBuilder(connectionString).Build();
+            return new NpgsqlDataSourceBuilder(WithoutGssEncryption(connectionString)).Build();
 
         var tokenCredential = credential ?? new DefaultAzureCredential();
-        var settings = new NpgsqlConnectionStringBuilder(connectionString);
+        var settings = new NpgsqlConnectionStringBuilder(WithoutGssEncryption(connectionString));
         if (string.IsNullOrEmpty(settings.Username))
         {
             // The user is fixed for the life of the data source, so one token here rather than in the password provider.
@@ -72,14 +72,23 @@ public static class DatabaseAuthentication
         CancellationToken cancellationToken = default)
     {
         if (!UsesManagedIdentity(connectionString))
-            return connectionString;
+            return WithoutGssEncryption(connectionString);
 
         var tokenCredential = credential ?? new DefaultAzureCredential();
         var token = await tokenCredential.GetTokenAsync(new TokenRequestContext([TokenScope]), cancellationToken);
-        var settings = new NpgsqlConnectionStringBuilder(connectionString) { Password = token.Token };
+        var settings = new NpgsqlConnectionStringBuilder(WithoutGssEncryption(connectionString)) { Password = token.Token };
         if (string.IsNullOrEmpty(settings.Username))
             settings.Username = UsernameFromToken(token.Token);
         RequireEncryption(settings);
+        return settings.ConnectionString;
+    }
+
+    // Npgsql's default (Prefer) loads libgssapi, which the chiseled images lack, and says so on every new connection.
+    internal static string WithoutGssEncryption(string connectionString)
+    {
+        var settings = new NpgsqlConnectionStringBuilder(connectionString);
+        if (settings.GssEncryptionMode == GssEncryptionMode.Prefer)
+            settings.GssEncryptionMode = GssEncryptionMode.Disable;
         return settings.ConnectionString;
     }
 
