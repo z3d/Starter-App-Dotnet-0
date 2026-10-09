@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 # Format, build and test before an agent's `git commit`, in the tree the commit lands in.
-# A permission-rule `if: Bash(git commit*)` only matches a command that starts with `git commit`, so
-# `cd ../wt && git commit` and `git -C ../wt commit` used to skip the check; and the hook's own
-# directory is the session's, not the worktree being committed, so the check has to move there.
 set -uo pipefail
 
 payload=$(cat 2>/dev/null || true)
@@ -22,22 +19,36 @@ cwd=$(read_field cwd)
 
 commit_re='(^|[^[:alnum:]_-])git([[:space:]]+-[cC][[:space:]]+[^[:space:]]+)*[[:space:]]+commit([^[:alnum:]-]|$)'
 printf '%s' "$command" | grep -qE "$commit_re" || exit 0
+printf '%s' "$command" | grep -qE -- '(^|[[:space:]])(-n|--no-verify)([[:space:]]|$)' && exit 0
 
-# The tree is the last `cd <dir>` before the commit, then any `git -C <dir>` on the commit itself.
+# The tree is every `cd <dir>` before the commit, in order, then any `git -C <dir>` on the commit
+# itself. A path the shell would expand (a variable, a glob) cannot be followed from here; the
+# check then runs in the session's tree and says so.
 target=$cwd
+enter() {
+  local dir=$1
+  dir=${dir//\"/}; dir=${dir//\'/}
+  case "$dir" in *'$'*|*'`'*|*'*'*|*'?'*|''|-) return 1 ;; esac
+  case "$dir" in /*) ;; "~"*) dir="$HOME${dir#\~}" ;; *) dir="$target/$dir" ;; esac
+  [ -d "$dir" ] || return 1
+  target=$(cd "$dir" && pwd)
+}
 before_commit=$(printf '%s' "$command" | sed -E 's/(^|[^[:alnum:]_-])git([[:space:]]+-[cC][[:space:]]+[^[:space:]]+)*[[:space:]]+commit.*//')
-cd_dir=$(printf '%s' "$before_commit" | grep -oE '(^|[;&|(][[:space:]]*)cd[[:space:]]+[^;&|[:space:]]+' | tail -1 | sed -E 's/.*cd[[:space:]]+//')
-if [ -n "$cd_dir" ]; then
-  case "$cd_dir" in /*) target=$cd_dir ;; "~"*) target="$HOME${cd_dir#\~}" ;; *) target="$target/$cd_dir" ;; esac
-fi
+resolved=1
+while IFS= read -r dir; do
+  [ -n "$dir" ] || continue
+  enter "$dir" || { resolved=0; break; }
+done < <(printf '%s' "$before_commit" | grep -oE '(^|[;&|(][[:space:]]*)(cd|pushd)[[:space:]]+("[^"]*"|'"'"'[^'"'"']*'"'"'|[^;&|[:space:]]+)' | sed -E 's/^[;&|(]*[[:space:]]*(cd|pushd)[[:space:]]+//')
 c_dir=$(printf '%s' "$command" | grep -oE 'git([[:space:]]+-[cC][[:space:]]+[^[:space:]]+)+[[:space:]]+commit' | tail -1 | grep -oE -- '-C[[:space:]]+[^[:space:]]+' | tail -1 | sed -E 's/-C[[:space:]]+//')
 if [ -n "$c_dir" ]; then
-  case "$c_dir" in /*) target=$c_dir ;; "~"*) target="$HOME${c_dir#\~}" ;; *) target="$target/$c_dir" ;; esac
+  enter "$c_dir" || resolved=0
+fi
+if [ "$resolved" = 0 ]; then
+  echo "pre-commit: could not follow the command's directory; checking $cwd instead" >&2
+  target=$cwd
 fi
 
-target=${target//\"/}
-target=${target//\'/}
-cd "$target" 2>/dev/null || { echo "pre-commit: cannot enter $target" >&2; exit 2; }
+cd "$target" 2>/dev/null || exit 0
 root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 cd "$root" || exit 2
 [ -f tests/StarterApp.Tests/StarterApp.Tests.csproj ] || exit 0

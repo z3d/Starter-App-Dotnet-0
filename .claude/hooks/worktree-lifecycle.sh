@@ -42,7 +42,7 @@ common=$(cd "$(git rev-parse --git-common-dir)" && pwd)
 primary=$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')
 now=$(date +%s)
 
-mtime() { stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0; }
+mtime() { local t; t=$(stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null); case $t in ''|*[!0-9]*) echo 0 ;; *) echo "$t" ;; esac; }
 
 # tree, branch (empty when detached) and sha for every worktree but the primary checkout, separated
 # by the unit separator: a tab is whitespace to `read`, which would collapse the empty branch field.

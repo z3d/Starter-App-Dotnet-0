@@ -23,14 +23,16 @@ now=$(date +%s)
 cutoff=$(( now - IDLE_HOURS * 3600 ))
 common=$(cd "$(git rev-parse --git-common-dir)" && pwd)
 primary=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
+here=$(git rev-parse --show-toplevel 2>/dev/null)
 
-mtime() { stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo "$now"; }
-newest() { local m=0 f t; for f in "$@"; do [ -e "$f" ] || continue; t=$(mtime "$f"); [ "$t" -gt "$m" ] && m=$t; done; echo "$m"; }
+# GNU `stat -f` is the file-system form and prints a block to stdout on any argument, so it goes last.
+mtime() { local t; t=$(stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null); case $t in ''|*[!0-9]*) echo "$now" ;; *) echo "$t" ;; esac; }
+newest() { local m=0 f t seen=0; for f in "$@"; do [ -e "$f" ] || continue; seen=1; t=$(mtime "$f"); [ "$t" -gt "$m" ] && m=$t; done; [ "$seen" = 1 ] && echo "$m" || echo "$now"; }
 merged() { git merge-base --is-ancestor "$1" origin/main 2>/dev/null; }
 
 removed=()
 while IFS='|' read -r path head ref locked; do
-  [ -n "$path" ] && [ "$path" != "$primary" ] || continue
+  [ -n "$path" ] && [ "$path" != "$primary" ] && [ "$path" != "$here" ] || continue
   [ -z "$locked" ] || continue
   [ -d "$path" ] || continue
   merged "$head" || continue
