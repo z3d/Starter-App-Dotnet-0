@@ -2,7 +2,7 @@
 
 ## Dockerfiles
 
-The three Dockerfiles (`src/StarterApp.Api`, `src/StarterApp.DbMigrator`, `src/StarterApp.Functions`) pull the SDK and runtime from **digest-pinned `mcr.microsoft.com` images** — `dotnet/sdk:10.0@sha256:…` for build, `dotnet/aspnet:10.0-noble-chiseled@sha256:…` (API), `dotnet/runtime:10.0-noble-chiseled@sha256:…` (DbMigrator) or `azure-functions/dotnet-isolated:…@sha256:…` (Functions) for the final stage. The chiseled images have no shell or package manager and already run as UID 1654.
+The three Dockerfiles (`src/StarterApp.Api`, `src/StarterApp.DbMigrator`, `src/StarterApp.Functions`) pull the SDK and runtime from **digest-pinned `mcr.microsoft.com` images** — `dotnet/sdk:10.0@sha256:…` for build, `dotnet/aspnet:10.0-noble-chiseled@sha256:…` (API), `dotnet/runtime:10.0-noble-chiseled@sha256:…` (DbMigrator) or `azure-functions/dotnet-isolated:…@sha256:…` (Functions) for the final stage. The chiseled images have no shell or package manager and already run as UID 1654. They also have no tzdata and no ICU (`DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true`): a derived app that calls `TimeZoneInfo.FindSystemTimeZoneById` or formats for a culture must use the `-extra` variant (`10.0-noble-chiseled-extra`) or it throws `TimeZoneNotFoundException` at runtime.
 
 There is **no** Microsoft apt repo, GPG key import (`gpg --dearmor` / `signed-by=`), or `prod.list` to maintain, and no apt step at all in the final stage: there is no Dockerfile `HEALTHCHECK` (Azure Container Apps ignores it and runs its own probes against `/health/ready` and `/health/live`), so `curl` is not installed. Do not introduce a package-repo block — the runtime comes from the base image.
 

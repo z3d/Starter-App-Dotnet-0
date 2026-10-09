@@ -27,7 +27,7 @@ public sealed class FeatureToggleOptions
 {
     public const string SectionName = "FeatureToggles";
 
-    public IReadOnlyList<string> ConfiguredKeys { get; set; } = [];
+    public IReadOnlyDictionary<string, string?> Entries { get; set; } = new Dictionary<string, string?>();
 }
 
 public sealed class DeclaredFeatureToggles : IValidateOptions<FeatureToggleOptions>
@@ -49,13 +49,20 @@ public sealed class DeclaredFeatureToggles : IValidateOptions<FeatureToggleOptio
 
     public ValidateOptionsResult Validate(string? name, FeatureToggleOptions options)
     {
-        var stray = options.ConfiguredKeys.Where(key => !_declared.Contains(key, StringComparer.OrdinalIgnoreCase)).ToList();
-        if (stray.Count == 0)
-            return ValidateOptionsResult.Success;
+        var stray = options.Entries.Keys.Where(key => !_declared.Contains(key, StringComparer.OrdinalIgnoreCase)).ToList();
+        if (stray.Count > 0)
+        {
+            var known = _declared.Count == 0 ? "none" : string.Join(", ", _declared);
+            return ValidateOptionsResult.Fail(
+                $"{FeatureToggleOptions.SectionName} names {string.Join(", ", stray)}, which no [FeatureToggle] declares. Known toggles: {known}.");
+        }
 
-        var known = _declared.Count == 0 ? "none" : string.Join(", ", _declared);
-        return ValidateOptionsResult.Fail(
-            $"{FeatureToggleOptions.SectionName} names {string.Join(", ", stray)}, which no [FeatureToggle] declares. Known toggles: {known}.");
+        var unreadable = options.Entries.Where(entry => !bool.TryParse(entry.Value, out _)).Select(entry => entry.Key).ToList();
+        if (unreadable.Count > 0)
+            return ValidateOptionsResult.Fail(
+                $"{FeatureToggleOptions.SectionName} gives {string.Join(", ", unreadable)} a value that is not true or false.");
+
+        return ValidateOptionsResult.Success;
     }
 }
 

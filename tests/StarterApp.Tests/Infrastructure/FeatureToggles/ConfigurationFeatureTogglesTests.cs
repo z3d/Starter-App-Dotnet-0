@@ -48,6 +48,18 @@ public class ConfigurationFeatureTogglesTests
     }
 
     [Theory]
+    [InlineData("off")]
+    [InlineData("1")]
+    [InlineData("")]
+    public async Task AnEntryThatIsNotTrueOrFalse_RefusesStartUp_AndNamesTheKey(string value)
+    {
+        var refusal = await Assert.ThrowsAsync<OptionsValidationException>(() => StartAsync(("FeatureToggles:order-search", value)));
+
+        Assert.Contains("order-search", refusal.Message);
+        Assert.Contains("not true or false", refusal.Message);
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData(" ")]
     public void ABlankName_IsRefused(string name)
