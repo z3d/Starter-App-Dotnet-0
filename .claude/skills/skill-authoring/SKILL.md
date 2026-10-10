@@ -6,17 +6,6 @@ user-invocable: true
 
 # Skill Authoring Conventions
 
-Skills here follow four tiers of progressive disclosure. Each tier has a budget, and content lives at the **deepest tier that still gets it read in time**:
-
-1. **`AGENTS.md`** — always loaded (Claude reads it through `CLAUDE.md`'s `@AGENTS.md` import). Commands, recorded decisions with re-add triggers, cross-cutting gotchas, non-inferable domain facts. Nothing that also lives in a skill.
-2. **Frontmatter `description`** — always loaded; it is the trigger. State *when to use the skill*, not just what it covers. A vague description means the skill loads at the wrong time or never.
-3. **`SKILL.md` body** — loaded when triggered. A **~40–60 line entry point that routes**: the rules an agent must not get wrong, each with its one-line why, plus a Depth table linking to references. Not the place for the depth itself.
-4. **`reference/*.md`** beside the skill — loaded only when followed. Full code shapes, failure-mode catalogues, subsystem narratives. Depth is *relocated* here, never deleted.
-
-What is deleted rather than relocated: generic engineering behaviour (reproduce-then-fix, run the tests, don't guess) — the model does this natively — and synthetic examples that shadow real code. Point at the real handler or `docs/exemplars/` instead.
-
-Shared context lives in `AGENTS.md`, referenced not restated — duplicated context drifts and then disagrees. End every skill with **Related skills**.
-
 ## Starting from a lesson
 
 A lesson kept only in a conversation is lost when the context is summarised. Say it in one sentence ("when X, do Y, because Z happened"); if you can't name what went wrong without it, or the code, the git history or a skill already says it, there is nothing to keep. Then put it in the strongest place that fits, taking the first row that does:
@@ -30,6 +19,19 @@ A lesson kept only in a conversation is lost when the context is summarised. Say
 | About the owner, or about the agent harness and not this repo | The harness's own memory (Claude Code keeps one per project outside the repo) |
 
 Most lessons end as a test or one line. This is Anthropic's guidance (`code.claude.com/docs/en/memory`, `features-overview`).
+
+## The four tiers
+
+Skills here follow four tiers of progressive disclosure. Each tier has a budget, and content lives at the **deepest tier that still gets it read in time**:
+
+1. **`AGENTS.md`** — always loaded (Claude reads it through `CLAUDE.md`'s `@AGENTS.md` import). Commands, recorded decisions with re-add triggers, cross-cutting gotchas, non-inferable domain facts. Nothing that also lives in a skill.
+2. **Frontmatter `description`** — always loaded; it is the trigger. State *when to use the skill*, not just what it covers. A vague description means the skill loads at the wrong time or never.
+3. **`SKILL.md` body** — loaded when triggered. A **~40–60 line entry point that routes**: the rules an agent must not get wrong, each with its one-line why, plus a Depth table linking to references. Not the place for the depth itself. The rules come first in the body: after a context compaction only the start of an invoked skill may survive.
+4. **`reference/*.md`** beside the skill — loaded only when followed. Full code shapes, failure-mode catalogues, subsystem narratives. Depth is *relocated* here, never deleted.
+
+What is deleted rather than relocated: generic engineering behaviour (reproduce-then-fix, run the tests, don't guess) — the model does this natively — and synthetic examples that shadow real code. Point at the real handler or `docs/exemplars/` instead.
+
+Shared context lives in `AGENTS.md`, referenced not restated — duplicated context drifts and then disagrees. End every skill with **Related skills**.
 
 ## Operational skills (anything that executes a workflow)
 
