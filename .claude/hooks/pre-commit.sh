@@ -55,6 +55,12 @@ cd "$root" || exit 2
 
 dotnet --version >/dev/null 2>&1 || { export DOTNET_ROOT="$HOME/.dotnet" PATH="$HOME/.dotnet:$PATH"; }
 echo "pre-commit: checking $root" >&2
+while IFS= read -r proj; do
+  [ -f "$(dirname "$proj")/obj/project.assets.json" ] && continue
+  echo "pre-commit: $proj has never been restored here; restoring first, or format sees every using as unnecessary" >&2
+  dotnet restore || exit 2
+  break
+done < <(git ls-files '*.csproj')
 dotnet format --verify-no-changes --verbosity minimal --no-restore \
   && dotnet build --no-restore \
   && dotnet test tests/StarterApp.Tests/StarterApp.Tests.csproj --no-build \
