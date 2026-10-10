@@ -103,6 +103,33 @@ public class PayloadCaptureTests
         Assert.Contains(references, reference => reference.EntityType == "customer" && reference.EntityId == "42");
     }
 
+    [Theory]
+    [InlineData("""{"externalId":"Priya Sharma 0412 345 678"}""")]
+    [InlineData("""{"externalId":"0412345678"}""")]
+    [InlineData("""{"externalId":"Priya Sharma"}""")]
+    [InlineData("""{"externalId":"priya.sharma@example.com"}""")]
+    public void Extract_WithAnIdThatReadsLikeAPersonOrAPhoneNumber_DoesNotIndexIt(string payload)
+    {
+        var request = new PayloadCaptureRequest { Operation = "POST /api/v1/customers", Channel = "http", ContentType = "application/json", Payload = payload };
+
+        var references = PayloadEntityReferenceExtractor.Extract(request, 64, out _);
+
+        Assert.DoesNotContain(references, reference => reference.EntityType == "external");
+    }
+
+    [Theory]
+    [InlineData("""{"externalId":"acme-portal-4471"}""", "external", "acme-portal-4471")]
+    [InlineData("""{"orderId":"12345678-1234-7000-8000-000000000000"}""", "order", "12345678-1234-7000-8000-000000000000")]
+    [InlineData("""{"orderId":"01ARZ3NDEKTSV4RRFFQ69G5FAV"}""", "order", "01ARZ3NDEKTSV4RRFFQ69G5FAV")]
+    public void Extract_WithAnOpaqueId_IndexesIt(string payload, string entityType, string entityId)
+    {
+        var request = new PayloadCaptureRequest { Operation = "POST /api/v1/customers", Channel = "http", ContentType = "application/json", Payload = payload };
+
+        var references = PayloadEntityReferenceExtractor.Extract(request, 64, out _);
+
+        Assert.Contains(references, reference => reference.EntityType == entityType && reference.EntityId == entityId);
+    }
+
     [Fact]
     public void Extract_WithDotOnlyIdValue_ShouldNotEmitPathTraversalReference()
     {
