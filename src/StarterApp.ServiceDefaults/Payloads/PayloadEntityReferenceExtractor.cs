@@ -1,8 +1,9 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace StarterApp.ServiceDefaults.Payloads;
 
-public static class PayloadEntityReferenceExtractor
+public static partial class PayloadEntityReferenceExtractor
 {
     private static readonly HashSet<string> IgnoredIdentifierNames = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -272,8 +273,8 @@ public static class PayloadEntityReferenceExtractor
         HashSet<string> sensitiveTokens,
         Dictionary<string, PayloadEntityReference> references)
     {
-        // Checked on the raw value: NormalizeIdentifier strips '@', so an email would pass afterwards.
-        if (JsonPayloadRedactor.ContainsRedactableValue(entityId))
+        // Screened on the raw value: NormalizeIdentifier strips the '@' and the spaces that give an email, a name or a phone number away.
+        if (!LooksLikeAnOpaqueId(entityId.Trim()))
             return;
 
         var normalizedEntityType = NormalizeEntityType(entityType);
@@ -291,6 +292,22 @@ public static class PayloadEntityReferenceExtractor
         var key = $"{normalizedEntityType}:{normalizedEntityId}";
         references.TryAdd(key, new PayloadEntityReference(normalizedEntityType, normalizedEntityId));
     }
+
+    private static bool LooksLikeAnOpaqueId(string value)
+    {
+        if (value.Length == 0 || value.Length > 128 || JsonPayloadRedactor.ContainsRedactableValue(value))
+            return false;
+        if (Guid.TryParse(value, out _) || UlidRegex().IsMatch(value))
+            return true;
+
+        return !value.Any(char.IsWhiteSpace) && !LongDigitRunRegex().IsMatch(value);
+    }
+
+    [GeneratedRegex("^[0-9A-HJKMNP-TV-Z]{26}$", RegexOptions.CultureInvariant)]
+    private static partial Regex UlidRegex();
+
+    [GeneratedRegex(@"\d{8,}", RegexOptions.CultureInvariant)]
+    private static partial Regex LongDigitRunRegex();
 
     private static string NormalizeEntityType(string value)
     {
