@@ -6,13 +6,6 @@ user-invocable: false
 
 # Testing Strategy
 
-Two test projects, split by cost:
-
-- **`StarterApp.Tests`** — unit, convention, fuzzing, and API integration. `WebApplicationFactory<IApiMarker>` + Testcontainers PostgreSQL + Respawn per-test reset. In-process: fast, debuggable, Service Bus is a no-op.
-- **`StarterApp.AppHost.Tests`** — full distributed app via `DistributedApplicationTestingBuilder`. Only for cross-service paths (API → outbox → Service Bus → Functions). Use `[AspireFact]` (skipped unless `STARTERAPP_ASPIRE_TESTS=true`); clients via `app.CreateHttpClient("api")`.
-
-Read `Conventions/` before adding a rule and `Fuzzing/` before adding a property — both establish the local idiom.
-
 ## The rules
 
 - **Convention tests assert presence *and* behaviour.** Proving a type injects a dependency doesn't prove any code calls it. Use the IL-scan helpers in `ConventionTestBase`; **never hand-roll a raw IL byte loop** — an operand byte read as an opcode silently produces a passing test. → [reference/convention-authoring.md](reference/convention-authoring.md)
@@ -22,6 +15,15 @@ Read `Conventions/` before adding a rule and `Fuzzing/` before adding a property
 - **Consistency reports are advisory.** They land in `docs/_local/consistency-*.txt` per test run; deterministic rules belong in convention tests, and builds never gate on a distance.
 - **A test must be able to fail, and be worth what it costs.** Show a new or strengthened test red once (break what it guards, restore). No silent skips, no loop over a set that can be empty, no name the body doesn't keep. Assert behaviour a person would notice, not that a setter sets. → [reference/test-worth.md](reference/test-worth.md)
 - **Strengthen, don't delete.** `Consistency/`, convention tests and tests that pin a decision stay; a weak one gets a wider matcher or a real assertion.
+
+## Where a test lives
+
+Two test projects, split by cost:
+
+- **`StarterApp.Tests`** — unit, convention, fuzzing, and API integration. `WebApplicationFactory<IApiMarker>` + Testcontainers PostgreSQL + Respawn per-test reset. In-process: fast, debuggable, Service Bus is a no-op.
+- **`StarterApp.AppHost.Tests`** — full distributed app via `DistributedApplicationTestingBuilder`. Only for cross-service paths (API → outbox → Service Bus → Functions). Use `[AspireFact]` (skipped unless `STARTERAPP_ASPIRE_TESTS=true`); clients via `app.CreateHttpClient("api")`.
+
+Read `Conventions/` before adding a rule and `Fuzzing/` before adding a property — both establish the local idiom.
 
 ## Depth
 
