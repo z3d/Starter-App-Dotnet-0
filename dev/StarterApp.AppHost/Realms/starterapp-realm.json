@@ -8,7 +8,7 @@
   "clients": [
     {
       "clientId": "starterapp-dev",
-      "name": "StarterApp local development client (well-known credentials — dev only, never deployable)",
+      "name": "StarterApp local development client (well-known credentials \u2014 dev only, never deployable)",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -16,8 +16,46 @@
       "serviceAccountsEnabled": true,
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
-      "redirectUris": ["*"],
-      "webOrigins": ["*"],
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "defaultClientScopes": [
+        "starterapp-api-audience",
+        "starterapp-claims",
+        "profile",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "customers:read",
+        "customers:write",
+        "orders:read",
+        "orders:write",
+        "products:read",
+        "products:write"
+      ]
+    },
+    {
+      "clientId": "starterapp-web",
+      "name": "StarterApp web app (public client, authorization code with PKCE; dev only)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
       "defaultClientScopes": [
         "starterapp-api-audience",
         "starterapp-claims",
@@ -39,7 +77,9 @@
       "name": "starterapp-api-audience",
       "description": "Stamps the API audience onto access tokens",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "false" },
+      "attributes": {
+        "include.in.token.scope": "false"
+      },
       "protocolMappers": [
         {
           "name": "starterapp-api-audience",
@@ -56,9 +96,11 @@
     },
     {
       "name": "starterapp-claims",
-      "description": "Deterministic dev claims: username-as-sub, tenant_id attribute -> tid, hardcoded amr incl. mfa. Real IdPs must emit genuine values; rationale and the 1h dev lifespan note live in docs/DECISIONS.md. Keycloak caps this description at 255 chars.",
+      "description": "Deterministic dev claims: username-as-sub, tenant_id attribute -> tid, amr attribute -> amr (every dev user carries mfa except password-only). Real IdPs must emit genuine values; rationale in docs/DECISIONS.md.",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "false" },
+      "attributes": {
+        "include.in.token.scope": "false"
+      },
       "protocolMappers": [
         {
           "name": "username-as-sub",
@@ -89,16 +131,18 @@
           }
         },
         {
-          "name": "dev-amr",
+          "name": "amr",
           "protocol": "openid-connect",
-          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
           "consentRequired": false,
           "config": {
+            "user.attribute": "amr",
             "claim.name": "amr",
-            "claim.value": "[\"pwd\",\"mfa\"]",
-            "jsonType.label": "JSON",
+            "jsonType.label": "String",
+            "multivalued": "true",
             "access.token.claim": "true",
-            "id.token.claim": "false"
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
           }
         }
       ]
@@ -106,32 +150,44 @@
     {
       "name": "customers:read",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true" }
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
     },
     {
       "name": "customers:write",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true" }
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
     },
     {
       "name": "orders:read",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true" }
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
     },
     {
       "name": "orders:write",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true" }
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
     },
     {
       "name": "products:read",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true" }
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
     },
     {
       "name": "products:write",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true" }
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
     }
   ],
   "users": [
@@ -142,9 +198,21 @@
       "emailVerified": true,
       "firstName": "Dev",
       "lastName": "User",
-      "attributes": { "tenant_id": ["local-dev-tenant"] },
+      "attributes": {
+        "tenant_id": [
+          "local-dev-tenant"
+        ],
+        "amr": [
+          "pwd",
+          "mfa"
+        ]
+      },
       "credentials": [
-        { "type": "password", "value": "dev-password", "temporary": false }
+        {
+          "type": "password",
+          "value": "dev-password",
+          "temporary": false
+        }
       ]
     },
     {
@@ -154,9 +222,21 @@
       "emailVerified": true,
       "firstName": "K6",
       "lastName": "Perf",
-      "attributes": { "tenant_id": ["k6-tenant"] },
+      "attributes": {
+        "tenant_id": [
+          "k6-tenant"
+        ],
+        "amr": [
+          "pwd",
+          "mfa"
+        ]
+      },
       "credentials": [
-        { "type": "password", "value": "k6-password", "temporary": false }
+        {
+          "type": "password",
+          "value": "k6-password",
+          "temporary": false
+        }
       ]
     },
     {
@@ -166,16 +246,59 @@
       "emailVerified": true,
       "firstName": "Dast",
       "lastName": "One",
-      "attributes": { "tenant_id": ["dast-tenant-01"] },
+      "attributes": {
+        "tenant_id": [
+          "dast-tenant-01"
+        ],
+        "amr": [
+          "pwd",
+          "mfa"
+        ]
+      },
       "credentials": [
-        { "type": "password", "value": "dast-password", "temporary": false }
+        {
+          "type": "password",
+          "value": "dast-password",
+          "temporary": false
+        }
       ]
     },
     {
       "username": "service-account-starterapp-dev",
       "enabled": true,
       "serviceAccountClientId": "starterapp-dev",
-      "attributes": { "tenant_id": ["local-dev-tenant"] }
+      "attributes": {
+        "tenant_id": [
+          "local-dev-tenant"
+        ],
+        "amr": [
+          "pwd",
+          "mfa"
+        ]
+      }
+    },
+    {
+      "username": "password-only",
+      "enabled": true,
+      "email": "password-only@example.test",
+      "emailVerified": true,
+      "firstName": "Password-only",
+      "lastName": "User",
+      "attributes": {
+        "tenant_id": [
+          "local-dev-tenant"
+        ],
+        "amr": [
+          "pwd"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev-password",
+          "temporary": false
+        }
+      ]
     }
   ]
 }

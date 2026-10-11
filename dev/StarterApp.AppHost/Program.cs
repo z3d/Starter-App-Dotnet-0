@@ -140,7 +140,7 @@ if (builder.ExecutionContext.IsRunMode)
         // curl -sI https://quay.io/v2/keycloak/keycloak/manifests/<tag> \
         //   -H "Accept: application/vnd.oci.image.index.v1+json"
         .WithImageSHA256("9409c59bdfb65dbffa20b11e6f18b8abb9281d480c7ca402f51ed3d5977e6007")
-        .WithHttpEndpoint(targetPort: 8080, name: "http")
+        .WithHttpEndpoint(port: 8090, targetPort: 8080, name: "http")
         .WithHttpEndpoint(targetPort: 9000, name: "management")
         .WithEnvironment("KC_BOOTSTRAP_ADMIN_USERNAME", "admin")
         .WithEnvironment("KC_BOOTSTRAP_ADMIN_PASSWORD", "admin")
@@ -152,11 +152,11 @@ if (builder.ExecutionContext.IsRunMode)
 }
 else
 {
-    // The published realm stamps amr=mfa on every token and ships well-known users, so a derived project must not deploy it as its real IdP by default.
+    // The published realm's users carry amr=mfa as a static attribute and well-known passwords, so a derived project must not deploy it as its real IdP by default.
     if (Environment.GetEnvironmentVariable("DEPLOY_ACK_DEV_IDP") != "true")
         throw new InvalidOperationException(
             "Refusing to publish: the deployed Keycloak is the dev realm, whose well-known users mint valid tokens and whose " +
-            "hardcoded amr claim satisfies every MFA requirement. Set DEPLOY_ACK_DEV_IDP=true to acknowledge this is a test " +
+            "static amr attribute satisfies every MFA requirement. Set DEPLOY_ACK_DEV_IDP=true to acknowledge this is a test " +
             "environment, or replace the keycloak resource with your real identity provider.");
 
     // The admin console password is generated once per environment (persisted in the deployer's

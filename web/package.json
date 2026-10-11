@@ -1,0 +1,24 @@
+{
+  "name": "starterapp-web",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "dev": "pnpm --filter @starterapp/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck && tsc --noEmit -p e2e/tsconfig.json",
+    "generate": "pnpm --filter @starterapp/api-client generate",
+    "export": "pnpm --filter @starterapp/api-client export",
+    "test": "pnpm -r --if-present test",
+    "e2e": "playwright test",
+    "e2e:stack": "e2e/run-e2e.sh"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.20.4",
+    "typescript": "^5.8.3"
+  }
+}

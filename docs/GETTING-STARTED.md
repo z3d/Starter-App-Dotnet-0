@@ -85,7 +85,20 @@ index, then run the tests; the migration conventions check embedding and naming.
 All `/api/v1` routes require an OIDC bearer token the API validates itself. Health and OpenAPI
 endpoints are public. Mint a token from the dev Keycloak realm with the command in
 [API-ENDPOINTS.md](API-ENDPOINTS.md); write routes additionally need the matching `*:write`
-scope and `mfa` in the `amr` claim, which the dev realm stamps.
+scope and `mfa` in the `amr` claim, which every dev user carries as an attribute except
+`password-only`.
+
+## Run the web app
+
+```bash
+cd web && pnpm install && pnpm dev      # http://localhost:5173
+```
+
+The web app signs you in through the dev Keycloak on `:8090` (the AppHost pins it there) and calls
+the API through the Vite proxy at `http://localhost:5164`, the API's own launch profile. Under the
+AppHost the API's port is the one the dashboard shows: pass it as `VITE_API_URL`. The page walks
+through a product, a customer and an order, and shows the token's claims and the API's refusals.
+[`web/README.md`](../web/README.md) covers the generated client, the tests and the image.
 
 ## Tests
 
@@ -132,7 +145,7 @@ The AppHost describes the Azure shape in publish mode and nothing else in this r
 Every deployed dependency is reached with the app's managed identity: there is no key, password or
 connection string anywhere in the environment (Postgres has password authentication disabled, Redis has
 access keys disabled). The one exception is the Keycloak *realm*, whose well-known dev users are the point.
-Because that realm also stamps `amr: ["pwd","mfa"]` on every token, publish mode refuses to run unless
+Because that realm's users carry `amr: ["pwd","mfa"]` as a static attribute, publish mode refuses to run unless
 `DEPLOY_ACK_DEV_IDP=true` acknowledges the deployment is a test environment; a derived project replaces
 the `keycloak` resource with its real identity provider instead.
 

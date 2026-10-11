@@ -39,3 +39,9 @@ scripts/
 tests/StarterApp.Tests/
 dev/StarterApp.AppHost/
 tests/StarterApp.AppHost.Tests/
+
+# The web workspace's installed packages, build output and test results
+**/node_modules/
+web/apps/web/dist/
+web/e2e/results/
+web/e2e/report/

@@ -27,7 +27,7 @@ dotnet run
 
 The AppHost boots a **dev Keycloak** container with the committed `starterapp` realm and points the API's `Identity:Authority` at it, so local dev exercises the exact production path: OIDC discovery → JWKS fetch → asymmetric (RS256) token verification inside the API. There is no unsigned or bypass mode in any environment. Mint a token with the `starterapp-dev` client (secret and dev users are well-known, committed dev credentials — see `dev/StarterApp.AppHost/Realms/`).
 
-With the stack running, open **`/demo.html`** on the API origin (Development only) for a self-contained interactive walkthrough: it signs in against Keycloak, then drives probe → token → product → customer → order with an animated pipeline. Untick `orders:write` in the sign-in step to watch the API refuse the order write with `403` decided from the token's scopes alone.
+With the stack running, start the web app (`cd web && pnpm install && pnpm dev`, http://localhost:5173; [web/README.md](web/README.md)). It signs you in through Keycloak with the authorization code flow and PKCE, shows the claims the API will verify, then drives product → customer → order through the generated client. Sign in again without `orders:write` to watch the API refuse the order with `403` decided from the token's scopes alone, or as `password-only` to watch a write answer the step-up challenge and send you back for the second factor.
 
 **The sample domain is owner-scoped end to end.** Products, customers and orders each belong to the tenant and subject that created them: every read filters by that owner and every write checks it. So a caller can order only products they created themselves; there is no shared catalogue. That is deliberate, because the sample exists to demonstrate owner scoping, not to model a store. A derived project with shared reference data decides owner scoping per entity when it prunes (`docs/DERIVATION-PRUNING.md`).
 
@@ -35,6 +35,7 @@ With the stack running, open **`/demo.html`** on the API origin (Development onl
 
 1. **Modern .NET Development**
    - .NET 10 Minimal APIs with clean architecture
+   - A React and TypeScript web app over a client generated from the API's OpenAPI document
    - Endpoint filters for cross-cutting concerns
    - Domain-driven design with value objects
    - CQRS pattern with mediator
@@ -81,6 +82,7 @@ starterapp/
 │   └── StarterApp.ServiceDefaults/  # Shared Aspire configuration
 ├── dev/
 │   └── StarterApp.AppHost/          # .NET Aspire orchestration (+ the dev Keycloak realm)
+├── web/                             # The web app, the generated API client and the browser tests (pnpm)
 ├── tests/
 │   ├── StarterApp.Tests/            # Unit, convention, integration, fuzzing tests
 │   ├── StarterApp.AppHost.Tests/    # Aspire integration tests (DistributedApplicationTestingBuilder)
@@ -131,7 +133,7 @@ act push -n
 act push -v
 ```
 
-> **Note**: The GitHub workflow has separate unit, Testcontainers integration, Aspire, and Docker image build jobs. When using `act`, run a targeted job if your local Docker setup cannot support the full workflow.
+> **Note**: The GitHub workflow has separate unit, Testcontainers integration, Aspire, web, browser-test and Docker image build jobs. When using `act`, run a targeted job if your local Docker setup cannot support the full workflow.
 
 ## Development Commands
 
@@ -156,6 +158,7 @@ dotnet test --filter "FullyQualifiedName!~Integration"
 - **Clean Architecture**: Separation of concerns with Domain, Application, and Infrastructure layers
 - **Modern .NET Patterns**: Uses C# 13/.NET 10 features like collection expressions, guard clauses, and using declarations
 - **Zero-Trust OIDC/JWT Authentication**: The API validates IdP-issued bearer tokens itself (issuer, audience, signature, expiry — asymmetric keys via cached JWKS, no shared secrets, no perimeter assumptions). Locally, Aspire runs a Keycloak container with a committed realm so dev exercises the same verification path as production
+- **The client half of that seam**: the web app signs in with the authorization code flow and PKCE, sends the token on every call, and answers the API's scope and step-up challenges; its image renders the identity provider from the environment at start-up
 - **Health Checks**: Built-in liveness/readiness probes plus durable dependency checks for the database, distributed cache, Service Bus, and payload archive store
 - **Distributed Caching**: Redis-backed by-id query caching via mediator pipeline behavior; list queries are intentionally not cached because `IDistributedCache` cannot invalidate by pattern
 - **Cache Safety Conventions**: Convention tests enforce non-empty deterministic cache keys, by-id-only caching, and invalidator injection for non-create mutations on cacheable entities

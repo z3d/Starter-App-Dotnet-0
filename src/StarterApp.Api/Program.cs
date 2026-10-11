@@ -48,10 +48,6 @@ try
     {
         app.MapOpenApi().AllowAnonymous();
         app.MapScalarApiReference().AllowAnonymous();
-
-        // Dev-gated, and Release builds exclude wwwroot: the page embeds well-known dev-realm credentials.
-        app.MapGet("/demo/config", (Microsoft.Extensions.Options.IOptions<StarterApp.Api.Infrastructure.Identity.JwtIdentityOptions> identity) =>
-            Results.Ok(new { authority = identity.Value.Authority })).AllowAnonymous();
     }
     else
     {
@@ -63,11 +59,6 @@ try
     app.UseExceptionHandling();
     app.UseSecurityHeaders();
     app.UseHttpsRedirection();
-
-    // Behind payload capture, the security headers and the https redirect on purpose.
-    if (app.Environment.IsDevelopment())
-        app.UseStaticFiles();
-
     app.UseCors();
     app.UseRouting();
     app.UseJwtIdentity();

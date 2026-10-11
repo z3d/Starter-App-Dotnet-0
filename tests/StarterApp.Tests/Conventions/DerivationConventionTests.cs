@@ -26,6 +26,11 @@ public class DerivationConventionTests : ConventionTestBase
         .Where(name => !apiTypes.Any(t => IsModuleType(t) && t.GetInterfaces().Any(i => i.Name == name)))
         .ToList();
 
+    private static readonly string SamplePage = Path.Combine("web", "apps", "web", "src", "sample");
+
+    internal static List<string> SamplePageLeftovers(string repoRoot) =>
+        Directory.Exists(Path.Combine(repoRoot, SamplePage)) ? [SamplePage] : [];
+
     [DerivedProjectFact]
     public void DerivedProject_WithAModule_MustNotKeepTheSampleDomain()
     {
@@ -45,6 +50,33 @@ public class DerivationConventionTests : ConventionTestBase
             "These support capabilities have no module consumer. Use them from a module, or remove the capability " +
             "with its behaviour, conventions and docs and record a re-add trigger (docs/DERIVATION-PRUNING.md):\n" +
             string.Join("\n", unused));
+    }
+
+    [DerivedProjectFact]
+    public void DerivedProject_WithAModule_MustNotKeepTheSamplePage()
+    {
+        var leftovers = SamplePageLeftovers(TestPaths.RepoRoot);
+
+        Assert.True(leftovers.Count == 0,
+            "The first module has landed, so the web app's sample page over the Customer/Product/Order sample is vestigial " +
+            "and goes with it; the shell, the identity helper, the API client and the browser-test fixtures stay " +
+            "(docs/DERIVATION-PRUNING.md):\n" + string.Join("\n", leftovers));
+    }
+
+    [Fact]
+    public void TheSamplePageRule_BitesOnASyntheticDerivedProject()
+    {
+        var root = Directory.CreateTempSubdirectory("derivation-").FullName;
+        try
+        {
+            Assert.Empty(SamplePageLeftovers(root));
+            Directory.CreateDirectory(Path.Combine(root, SamplePage));
+            Assert.Equal([SamplePage], SamplePageLeftovers(root));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     [Fact]

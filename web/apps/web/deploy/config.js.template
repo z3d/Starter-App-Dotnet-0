@@ -1,0 +1,8 @@
+// Rendered at container start; only non-secret values belong here.
+window.__STARTERAPP_CONFIG__ = {
+  oidcAuthority: "${OIDC_AUTHORITY}",
+  oidcClientId: "${OIDC_CLIENT_ID}",
+  oidcScope: "${OIDC_SCOPE}",
+  oidcAudience: "${OIDC_AUDIENCE}",
+  oidcOrganization: "${OIDC_ORGANIZATION}",
+};

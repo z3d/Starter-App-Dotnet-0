@@ -7,10 +7,9 @@ set -euo pipefail
 #
 # Identity: the API validates OIDC bearer tokens, so the script needs one.
 #   SMOKE_ACCESS_TOKEN=<jwt>          use a caller-supplied token as-is
-#   SMOKE_AUTHORITY=<issuer-url>      mint one via password grant (dev realm defaults)
-#   (neither set)                     discover the authority from the dev-only
-#                                     /demo/config endpoint — works against the
-#                                     local AppHost stack, not deployed targets
+#   SMOKE_AUTHORITY=<issuer-url>      mint one via password grant (dev realm defaults;
+#                                     http://localhost:8090/realms/starterapp for the
+#                                     local AppHost stack)
 
 BASE_URL="${1:-${SMOKE_BASE_URL:-}}"
 if [ -z "$BASE_URL" ]; then
@@ -70,12 +69,8 @@ SMOKE_ACCESS_TOKEN="${SMOKE_ACCESS_TOKEN:-}"
 if [ -z "$SMOKE_ACCESS_TOKEN" ]; then
     AUTHORITY="${SMOKE_AUTHORITY:-}"
     if [ -z "$AUTHORITY" ]; then
-        AUTHORITY=$(curl $TOKEN_CURL_OPTS "$BASE_URL/demo/config" 2>/dev/null \
-            | json_field authority 2>/dev/null || echo "")
-    fi
-    if [ -z "$AUTHORITY" ]; then
-        echo "No identity available: set SMOKE_ACCESS_TOKEN, or SMOKE_AUTHORITY for a password grant,"
-        echo "or run against the local AppHost stack (which exposes /demo/config in Development)."
+        echo "No identity available: set SMOKE_ACCESS_TOKEN, or SMOKE_AUTHORITY (the realm, e.g."
+        echo "http://localhost:8090/realms/starterapp for the local AppHost stack) for a password grant."
         exit 2
     fi
     # The IdP may sit on a different host than BASE_URL, so the loopback rule is evaluated
