@@ -36,7 +36,7 @@ curl -s "$KEYCLOAK/realms/starterapp/protocol/openid-connect/token" \
   -d 'scope=products:read products:write customers:read customers:write orders:read orders:write'
 ```
 
-Write routes require the matching `*:write` scope and an `amr` claim containing `mfa` (the dev realm stamps it; a real IdP earns it).
+Write routes require the matching `*:write` scope and an `amr` claim containing `mfa` (the dev realm's users carry it as an attribute, all but `password-only`; a real IdP earns it). A browser client that lacks it is told so with a step-up challenge; `web/apps/web/src/lib/auth.ts` answers it.
 
 ## Product Catalog
 

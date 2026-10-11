@@ -161,7 +161,7 @@ public sealed class AspireE2EFixture : IAsyncLifetime
                         ["grant_type"] = "client_credentials",
                         ["client_id"] = "starterapp-dev",
                         ["client_secret"] = "local-dev-client-secret-not-a-secret",
-                        // The resource scopes are optional client scopes so callers (and the demo
+                        // The resource scopes are optional client scopes so callers (and the web app's
                         // walkthrough) choose what a token carries; request the full set here.
                         ["scope"] = "customers:read customers:write orders:read orders:write products:read products:write"
                     }),

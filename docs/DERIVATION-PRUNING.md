@@ -21,9 +21,9 @@ the project: they copy its shapes, keep its rules, and route new work through it
   In a derived project a seam stays only when it is a real boundary (a module's `Contracts/`
   interface) or a module uses it.
 
-`DerivationConventionTests` enforces the first two mechanically: in the template its two rules are skipped as not
-applicable (no modules), and in a derived project it fails from the first module until the sample types and any
-unused `ICacheable` / owner-scoping markers are gone.
+`DerivationConventionTests` enforces the first two mechanically: in the template its rules are skipped as not
+applicable (no modules), and in a derived project it fails from the first module until the sample types, any
+unused `ICacheable` / owner-scoping markers and the web app's sample page (`web/apps/web/src/sample`) are gone.
 
 ## The discipline
 
@@ -52,6 +52,7 @@ unused `ICacheable` / owner-scoping markers are gone.
 | Candidate | Usually safe to prune when… | Named re-add trigger |
 |-----------|------------------------------|----------------------|
 | Sample domain (Customer/Product/Order) | required at the first module — it exists to be replaced | n/a (it never comes back) |
+| The web app's sample page (`web/apps/web/src/sample`) | with the sample domain it drives; the shell, `src/lib/auth.ts`, `src/lib/api.ts`, the generated client, the image and the browser-test fixtures stay | n/a (the project's own screens take its place) |
 | Owner/tenant scoping | no module scopes a row to the person who created it | a second tenant/brand, or external exposure of per-caller data |
 | Distributed caching | the slice has no cacheable reads | first read endpoint with measurable repeat traffic |
 | Feature toggles | the fork deploys continuously with instant rollback | first change that needs dark-launch or a kill switch |

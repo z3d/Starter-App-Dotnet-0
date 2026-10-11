@@ -15,6 +15,8 @@ STARTERAPP_ASPIRE_TESTS=true dotnet test tests/StarterApp.AppHost.Tests  # Aspir
 dotnet restore                                                            # locked mode is the default
 dotnet restore --force-evaluate                                           # only after an intentional dependency change
 dotnet run --project dev/StarterApp.AppHost
+cd web && pnpm install && pnpm typecheck && pnpm build && pnpm test      # the web workspace (pnpm); see web/README.md
+web/e2e/run-e2e.sh                                                        # the web app in a browser (Playwright) against a stack it boots itself
 act                                                                       # run CI locally (flags in .actrc)
 ```
 
@@ -60,6 +62,7 @@ Push from the worktree and fast-forward `main` from it. Never revert or overwrit
 - **Only by-id queries may be `ICacheable`.** `IDistributedCache` has no pattern-based deletion, so a cached list page is visibly stale after any write. Owner-scoped keys must carry the verified tenant/subject.
 - **Owner authorization is application-layer, not endpoint metadata.** Route metadata enforces identity, scope, and MFA before dispatch, but it cannot know a specific row's owner — those checks belong in query predicates and command handlers.
 - **Identity is OIDC/JWT, validated in the API itself (zero trust).** `AddJwtBearer` against the configured authority is the only authentication registration. Self-contained JWTs only — never add token-introspection calls to the request path; discovery and JWKS are cached by the bearer handler. Production code reads identity through `ICurrentUser` (populated in exactly one place from validated claims), never `HttpContext.User`, raw claims, or the `Authorization` header outside `Infrastructure/Identity`.
+- **The web app is the client half of that seam, and `web/apps/web/src/lib/auth.ts` is the only code that holds the token.** It signs the person in with the authorization code flow and PKCE as a public client, the API client's middleware (`src/lib/api.ts`) sends the token and answers a 401 and the step-up 403, and nothing else reads `sessionStorage` or the `Authorization` header. The API is called only through the client generated from `web/packages/api-client/openapi.json` (`pnpm export` refreshes it from a running API; CI fails when either file is stale), never through a hand-written fetch. A hosted instance learns its identity provider from `/config.js` rendered at start-up, never from a value baked into the bundle.
 - **Migrations run only through `StarterApp.DbMigrator`** — never at API startup, which races across replicas.
 - **A connection string with no password means the hosting identity's Entra token, everywhere.** The user is
   the one named, or — the shape Aspire emits for an Entra-only server — the principal the token was issued to.
@@ -123,6 +126,7 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Perf gate, security scan | `tests/k6/README.md`, `dast/README.md` |
 | Running the stack for the first time (human onboarding) | `docs/GETTING-STARTED.md` |
 | Pruning this template into a derived project | `docs/DERIVATION-PRUNING.md` |
+| The web app, the generated API client, the browser tests and the web image | `web/README.md` |
 | Read-only support SQL | `scripts/reporting/` |
 | Reviewer subagents and the branch-review workflow | `.claude/agents/`, `.claude/workflows/architect-review.js` |
 
