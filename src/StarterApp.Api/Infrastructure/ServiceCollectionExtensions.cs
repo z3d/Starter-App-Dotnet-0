@@ -112,6 +112,8 @@ public static class ServiceCollectionExtensions
                 "Identity:RequireHttpsMetadata=false is only allowed in Development or Testing environments.")
             .Validate(AuthorityIsWellFormed,
                 "Identity:Authority must be an absolute http(s) URI, and https unless Identity:RequireHttpsMetadata is false.")
+            .Validate(HasNoPlaceholder,
+                "An Identity setting still holds a REPLACE-ME placeholder; set it as an app setting before starting.")
             .ValidateOnStart();
 
         // Self-contained JWTs only; never add a token-introspection call to this path.
@@ -218,6 +220,15 @@ public static class ServiceCollectionExtensions
             return true;
 
         return authority.Scheme == Uri.UriSchemeHttp && !options.RequireHttpsMetadata;
+    }
+
+    // A placeholder passes the URI and Required checks and fails later, on the first token, looking like a bad client.
+    internal static bool HasNoPlaceholder(JwtIdentityOptions options)
+    {
+        return !IsPlaceholder(options.Authority) && !IsPlaceholder(options.MetadataAddress) && !IsPlaceholder(options.Audience);
+
+        static bool IsPlaceholder(string? value) =>
+            value is not null && value.Contains("REPLACE-ME", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsDevelopmentLike(IHostEnvironment environment)
