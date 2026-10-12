@@ -14,7 +14,7 @@ Architectural convention tests using [Best.Conventional](https://github.com/andr
 | `DerivationConventionTests.cs` | Passes in the template; in a derived project, fails from the first `Api/Modules` type until the sample domain and any `ICacheable`/owner-scoping marker no module implements are removed |
 | `DapperConventionTests.cs` | SQL literal inspection for `SELECT *` prevention and Dapper retry-policy usage |
 | `DomainConventionTests.cs` | Domain encapsulation, constructors, value-object equality, async safety, `DateTimeOffset` property types, aggregate creation-event rules |
-| `HousekeepingConventionTests.cs` | GlobalUsings reuse; no direct `bin`/`obj` project references; no regions/XML docs/historical workaround comments in production code |
+| `HousekeepingConventionTests.cs` | GlobalUsings reuse; no direct `bin`/`obj` project references; no regions/XML docs/historical workaround comments or commented-out code in production code; no `#pragma warning disable` or `SuppressMessage` in production code |
 | `NamingConventionTests.cs` | Naming suffixes plus namespace locality for commands, queries, validators, handlers, DTOs, and read models |
 | `PersistenceConventionTests.cs` | Entity registration, value-object mapping, enum string conversions, DbContext state, collection setters, migration script safety and embedding |
 | `TypeExtensions.cs` | Open-generic type discovery helper from the Conventional.Samples pattern |
