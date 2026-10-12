@@ -66,6 +66,17 @@ describe("the provider's settings", () => {
     }
   });
 
+  it("ignores a REPLACE-ME value an operator did not overwrite, like the API does", async () => {
+    vi.resetModules();
+    (window as unknown as { __STARTERAPP_CONFIG__?: unknown }).__STARTERAPP_CONFIG__ = { oidcAuthority: "https://REPLACE-ME/realms/starterapp" };
+    try {
+      await import("./auth");
+      expect(constructed.at(-1)).toMatchObject({ authority: "http://idp.test/realms/starterapp" });
+    } finally {
+      delete (window as unknown as { __STARTERAPP_CONFIG__?: unknown }).__STARTERAPP_CONFIG__;
+    }
+  });
+
   it("ignores a placeholder nginx did not render", async () => {
     vi.resetModules();
     (window as unknown as { __STARTERAPP_CONFIG__?: unknown }).__STARTERAPP_CONFIG__ = { oidcAuthority: "${OIDC_AUTHORITY}", oidcClientId: "${OIDC_CLIENT_ID}" };
