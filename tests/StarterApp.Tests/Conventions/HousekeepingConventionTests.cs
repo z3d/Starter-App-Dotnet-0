@@ -58,11 +58,40 @@ public class HousekeepingConventionTests : ConventionTestBase
 
                 if (Regex.IsMatch(trimmed, @"^//.*\b(HACK|TEMPORARY|WORKAROUND|LEGACY|REMOVE LATER)\b", RegexOptions.IgnoreCase))
                     failures.Add($"{FormatPath(file)}:{lineNumber} historical/workaround comments must be resolved or captured in issue/docs context.");
+
+                if (Regex.IsMatch(trimmed, @"^//(?!/).*[(=].*[;{}]\s*$"))
+                    failures.Add($"{FormatPath(file)}:{lineNumber} looks like commented-out code; delete it, git remembers.");
             }
         }
 
         Assert.True(failures.Count == 0,
             "Production code comment hygiene violations:\n" + string.Join("\n", failures));
+    }
+
+    [Fact]
+    public void ProductionCode_MustNotSuppressAnalyzers()
+    {
+        var failures = new List<string>();
+
+        foreach (var file in EnumerateProductionSourceFiles())
+        {
+            var lineNumber = 0;
+            foreach (var line in File.ReadLines(file))
+            {
+                lineNumber++;
+                var trimmed = line.TrimStart();
+
+                if (Regex.IsMatch(trimmed, @"^#\s*pragma\s+warning\s+disable\b"))
+                    failures.Add($"{FormatPath(file)}:{lineNumber} disables a diagnostic with a pragma.");
+
+                if (Regex.IsMatch(trimmed, @"\[\s*(System\.Diagnostics\.CodeAnalysis\.)?SuppressMessage\b"))
+                    failures.Add($"{FormatPath(file)}:{lineNumber} suppresses a diagnostic with an attribute.");
+            }
+        }
+
+        Assert.True(failures.Count == 0,
+            "Production code suppresses analyzers; if the rule is wrong, change its severity in .editorconfig with a stated reason:\n" +
+            string.Join("\n", failures));
     }
 
     [Fact]
