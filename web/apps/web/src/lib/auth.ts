@@ -3,7 +3,7 @@ import { User, UserManager, WebStorageStateStore } from "oidc-client-ts";
 // The audience and the organization are what an Auth0 tenant needs; a Keycloak realm needs neither.
 type RuntimeConfig = { oidcAuthority?: string; oidcClientId?: string; oidcScope?: string; oidcAudience?: string; oidcOrganization?: string };
 const runtime = ((window as unknown as { __STARTERAPP_CONFIG__?: RuntimeConfig }).__STARTERAPP_CONFIG__ ?? {});
-const present = (value: string | undefined): string | undefined => (value && !value.startsWith("${") ? value : undefined);
+const present = (value: string | undefined): string | undefined => (value && !value.startsWith("${") && !/replace-me/i.test(value) ? value : undefined);
 
 export const resourceScopes = ["products:read", "products:write", "customers:read", "customers:write", "orders:read", "orders:write"] as const;
 
