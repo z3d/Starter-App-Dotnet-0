@@ -52,6 +52,25 @@ public class JwtIdentityOptionsTests
         Assert.Contains("RequireHttpsMetadata=false is only allowed", exception.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("Identity:Authority", "https://REPLACE-ME/realms/starterapp")]
+    [InlineData("Identity:MetadataAddress", "https://replace-me.internal/.well-known/openid-configuration")]
+    [InlineData("Identity:Audience", "REPLACE-ME")]
+    public void PlaceholderValue_FailsValidation_Everywhere(string key, string value)
+    {
+        var settings = new Dictionary<string, string?>
+        {
+            ["Identity:Authority"] = "https://idp.example.com/realms/starterapp",
+            ["Identity:Audience"] = "starterapp-api",
+            [key] = value
+        };
+        var provider = BuildProvider("Development", settings);
+
+        var exception = Assert.Throws<OptionsValidationException>(
+            () => provider.GetRequiredService<IOptions<JwtIdentityOptions>>().Value);
+        Assert.Contains("REPLACE-ME placeholder", exception.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void MissingAudience_FailsValidation_Everywhere()
     {
