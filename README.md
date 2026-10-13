@@ -1,189 +1,92 @@
 # Starter App Project with .NET Aspire
 
-A production-grade starter template and reference architecture for modern .NET development with .NET Aspire orchestration, PostgreSQL, Docker-backed local dependencies, and deployable container images.
+A production-grade template for a .NET 10 service: Clean Architecture, CQRS and DDD over PostgreSQL, orchestrated locally by .NET Aspire, with domain events published through a transactional outbox to Azure Service Bus and consumed by Azure Functions, and a React web app that signs in with OIDC and calls the API through a generated client. MIT licensed.
 
-## Quick Start
+It is maintained by AI agents, so it favours mechanical rules over architectural taste. The convention tests under `tests/StarterApp.Tests/Conventions/` are the authority on structure; [AGENTS.md](AGENTS.md) holds the rules they cannot enforce; [docs/DECISIONS.md](docs/DECISIONS.md) records why each notable choice was made and what would justify revisiting it. A project derived from this template prunes the sample domain and every capability its first module does not use ([docs/DERIVATION-PRUNING.md](docs/DERIVATION-PRUNING.md)).
 
-### Prerequisites
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
-- A Docker-compatible container engine, running (**Required** - [Docker Desktop](https://www.docker.com/products/docker-desktop), [Podman](https://podman.io/), or similar). Aspire-managed dependencies, the Functions runtime container, Testcontainers, and image builds all talk to the engine's Docker-compatible socket; only `tests/k6/run-perf.sh` needs the `docker` CLI itself.
-- Visual Studio Code or Visual Studio 2026
+## Run it
 
-> **Important**: the container engine must be running before executing Aspire orchestration or integration tests. Aspire is the supported local run path; the engine provides the local infrastructure containers underneath it. With Podman, `podman machine start` is the whole fix for a `DockerUnavailable` test failure.
+Prerequisites: the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0), a running Docker-compatible container engine ([Docker Desktop](https://www.docker.com/products/docker-desktop) or [Podman](https://podman.io/); Aspire-managed dependencies, the Functions runtime container, Testcontainers and image builds all talk to its socket, and only `tests/k6/run-perf.sh` needs the `docker` CLI itself), and `pnpm` for the web app. With Podman, `podman machine start` is the whole fix for a `DockerUnavailable` test failure.
 
-### Running with .NET Aspire (Recommended for Development)
-```powershell
-# Navigate to the AppHost project
-cd dev\StarterApp.AppHost
-
-# Run the Aspire orchestration
-dotnet run
+```bash
+dotnet run --project dev/StarterApp.AppHost        # the full stack; the dashboard opens at https://localhost:17113
+cd web && pnpm install && pnpm dev                 # the web app at http://localhost:5173
+dotnet test                                        # everything; integration and Aspire tests need the container engine
+dotnet test --filter "FullyQualifiedName!~Integration"   # unit, convention and fuzz tests only
 ```
-- **Aspire Dashboard**: Opens automatically at https://localhost:17113
-- **API**: Available at dynamically assigned port (shown in dashboard)
-- **Scalar API Reference**: `https://localhost:<api-port>/scalar`
 
-#### Identity in the local rig
+The AppHost boots a dev Keycloak with the committed `starterapp` realm and points the API's `Identity:Authority` at it, so local development exercises the exact production path: OIDC discovery, a JWKS fetch and RS256 verification inside the API. There is no unsigned or bypass mode in any environment. The web app signs you in with the authorization code flow and PKCE, shows the claims the API will verify, then drives product, customer and order through the generated client. Sign in again without `orders:write` to watch the API refuse the order from the token's scopes alone, or as `password-only` to watch a write answer the step-up challenge and send you back for the second factor. The dev users and the `starterapp-dev` client are committed, well-known credentials under `dev/StarterApp.AppHost/Realms/`.
 
-The AppHost boots a **dev Keycloak** container with the committed `starterapp` realm and points the API's `Identity:Authority` at it, so local dev exercises the exact production path: OIDC discovery → JWKS fetch → asymmetric (RS256) token verification inside the API. There is no unsigned or bypass mode in any environment. Mint a token with the `starterapp-dev` client (secret and dev users are well-known, committed dev credentials — see `dev/StarterApp.AppHost/Realms/`).
+The sample domain is owner-scoped end to end: products, customers and orders belong to the tenant and subject that created them, every read filters by that owner and every write checks it, so there is no shared catalogue. That is deliberate; the sample exists to demonstrate owner scoping, not to model a store.
 
-With the stack running, start the web app (`cd web && pnpm install && pnpm dev`, http://localhost:5173; [web/README.md](web/README.md)). It signs you in through Keycloak with the authorization code flow and PKCE, shows the claims the API will verify, then drives product → customer → order through the generated client. Sign in again without `orders:write` to watch the API refuse the order with `403` decided from the token's scopes alone, or as `password-only` to watch a write answer the step-up challenge and send you back for the second factor.
+[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) covers running the API alone, migrations, minting a dev token, the image builds and publishing to Azure. [web/README.md](web/README.md) covers the web workspace.
 
-**The sample domain is owner-scoped end to end.** Products, customers and orders each belong to the tenant and subject that created them: every read filters by that owner and every write checks it. So a caller can order only products they created themselves; there is no shared catalogue. That is deliberate, because the sample exists to demonstrate owner scoping, not to model a store. A derived project with shared reference data decides owner scoping per entity when it prunes (`docs/DERIVATION-PRUNING.md`).
+## Where the rules live
 
-## What This Project Demonstrates
+| Question | Source of truth |
+|---|---|
+| Is this structure allowed? | `tests/StarterApp.Tests/Conventions/` (nineteen convention test files) |
+| What can the compiler and the tests not catch? | [AGENTS.md](AGENTS.md), with the traps that cost a session and the recorded decisions' re-add triggers |
+| Why was it done this way? | [docs/DECISIONS.md](docs/DECISIONS.md) |
+| How do I write a handler, an entity, an endpoint, a test? | `.claude/skills/`, with pinned exemplars under `docs/exemplars/` |
+| What is still open? | [docs/ARCHITECTURE_REVIEW.md](docs/ARCHITECTURE_REVIEW.md), with dated records under `docs/reviews/` |
 
-1. **Modern .NET Development**
-   - .NET 10 Minimal APIs with clean architecture
-   - A React and TypeScript web app over a client generated from the API's OpenAPI document
-   - Endpoint filters for cross-cutting concerns
-   - Domain-driven design with value objects
-   - CQRS pattern with mediator
-   - Entity Framework Core for commands, Dapper for queries
-   - Distributed caching with Redis for by-id queries (mediator pipeline behavior)
+## What it demonstrates
 
-2. **Database Management**
-   - PostgreSQL with Entity Framework Core and Npgsql
-   - Database migrations with DbUp
-   - Connection string management across environments
+**Identity.** Zero-trust OIDC/JWT: the API validates every bearer token itself against the configured authority, with cached discovery and JWKS and no introspection calls. Route metadata enforces identity, scope and MFA step-up (RFC 9470) before dispatch; owner scoping is checked in query predicates and command handlers. Rate limiting is partitioned by the verified tenant and subject. The web app is the client half of that seam: a public client with PKCE, the token on every call, a generated OpenAPI client that CI fails when it is stale, and an nginx image that renders the identity provider from the environment at start-up.
 
-3. **Container Images and Runtime Dependencies**
-   - Multi-stage Dockerfiles for deployable workloads
-   - Direct image build validation for API, DbMigrator, and Functions
-   - Readiness/liveness health checks for container platforms
-   - No separate Docker Compose local stack; Aspire owns local orchestration
+**Data.** EF Core for commands, Dapper for queries, `xmin` concurrency tokens, Redis caching of by-id queries only (a cached list page would be visibly stale). Migrations run only through `StarterApp.DbMigrator`, never at API start-up, and from script 0010 each is an Expand or a Contract so the previous build keeps serving through a rollout. A connection string with no password means the hosting identity's Entra token, everywhere; a raw `new NpgsqlConnection` is a build error. Order creation takes an `Idempotency-Key`. Nothing reads the clock except through `TimeProvider`.
 
-4. **Cloud-Native Development**
-   - .NET Aspire for local orchestration
-   - Service discovery and configuration
-   - Built-in observability and telemetry
+**Eventing.** Domain events are the wire contract: raised inside aggregates, captured into the outbox in the same save, published to Azure Service Bus by a background processor and consumed by Azure Functions through topic subscriptions, each delivery processed once through a database inbox. The migrator's `replay-outbox` verb and [docs/runbooks/event-replay.md](docs/runbooks/event-replay.md) handle a stuck or dead-lettered event. A job watch judges every timer-triggered function against its own schedule and logs what needs attention ([docs/runbooks/scheduled-jobs.md](docs/runbooks/scheduled-jobs.md)). The Service Bus emulator runs locally under Aspire.
 
-5. **Asynchronous Event Pipeline**
-   - Domain events raised inside aggregates, persisted to outbox atomically
-   - BackgroundService polls outbox and publishes to Azure Service Bus
-   - Azure Functions subscribe via topic subscriptions with correlation filters; the sample subscribers capture inbound payloads and process each delivery once through a database inbox
-   - Service Bus emulator for local development, started by Aspire through Docker
+**Payload archive and audit.** Bounded HTTP payload capture and full Service Bus payload archiving to Blob storage, as the first middleware so rejected traffic is still seen, with an explicit fail-open or fail-closed policy per channel and an entity index for breach scoping.
 
-6. **DevOps & CI**
-   - GitHub Actions CI pipeline with separate build/unit, Testcontainers integration, Aspire end-to-end, and Docker image build jobs
-   - Security & performance workflows: CodeQL static analysis, secret scanning (gitleaks), OWASP ZAP DAST, and nightly k6 performance gates
-   - Direct Docker image build validation
-   - Smoke test script for validating live deployments
+**Operations.** Liveness and readiness probes plus durable dependency checks for the database, cache, Service Bus and archive store; distributed tracing, metrics and structured logging through Aspire's service defaults; feature toggles that fail closed; a smoke test for a live deployment; read-only support SQL under `scripts/reporting/`; recurring async-failure patterns under `docs/investigations/`.
 
-## Project Structure
+**Security and supply chain.** Chiseled, digest-pinned, non-root container images for the API, migrator, Functions and web app, built and Trivy-scanned in CI and published to GHCR after a green run; CodeQL; full-history secret scanning with a pinned gitleaks; an OWASP ZAP DAST run with a cross-owner IDOR probe; a nightly k6 gate against a seeded volume; locked-mode restore with central package versions, a restricted feed and a pinned SDK; pinned GitHub Actions. When published, every dependency is reached with a managed identity and nothing is given a key.
+
+**Testing.** Unit, convention, property-based (FsCheck), fuzz and Testcontainers integration tests in one project; Aspire end-to-end tests opted into with `STARTERAPP_ASPIRE_TESTS=true`; Vitest for the web helpers and Playwright against a stack `web/e2e/run-e2e.sh` boots itself.
+
+## Project structure
 
 ```
 starterapp/
 ├── src/                             # Only what ships
-│   ├── StarterApp.Api/              # Main Web API (+ outbox processor)
-│   ├── StarterApp.Domain/           # Domain models and interfaces
-│   ├── StarterApp.Functions/        # Azure Functions (Service Bus subscribers)
-│   ├── StarterApp.DbMigrator/       # Database migration console app
-│   └── StarterApp.ServiceDefaults/  # Shared Aspire configuration
+│   ├── StarterApp.Api/              # Minimal API, mediator, outbox processor, payload capture
+│   ├── StarterApp.Domain/           # Aggregates, value objects, domain events
+│   ├── StarterApp.Functions/        # Service Bus subscribers, archive cleanup, job watch
+│   ├── StarterApp.DbMigrator/       # DbUp migrations and the replay-outbox verb
+│   └── StarterApp.ServiceDefaults/  # Shared Aspire wiring, database authentication, job-run recording
 ├── dev/
-│   └── StarterApp.AppHost/          # .NET Aspire orchestration (+ the dev Keycloak realm)
+│   └── StarterApp.AppHost/          # .NET Aspire orchestration, the dev Keycloak realm, the Azure publish shape
 ├── web/                             # The web app, the generated API client and the browser tests (pnpm)
 ├── tests/
-│   ├── StarterApp.Tests/            # Unit, convention, integration, fuzzing tests
-│   ├── StarterApp.AppHost.Tests/    # Aspire integration tests (DistributedApplicationTestingBuilder)
+│   ├── StarterApp.Tests/            # Unit, convention, integration, property and fuzz tests
+│   ├── StarterApp.AppHost.Tests/    # Aspire end-to-end tests
 │   └── k6/                          # Performance gate
-├── docs/                            # Getting started, API reference, decisions, review records
-└── scripts/                         # Smoke test, dev and reporting scripts
+├── dast/                            # OWASP ZAP scan and its seed
+├── docs/                            # Getting started, API reference, decisions, derivation pruning, runbooks, investigations, exemplars, review records
+├── scripts/                         # Smoke test, dev scripts, reporting SQL
+└── .claude/                         # Skills, rules, reviewer agents and hooks for the agents that maintain this repository
 ```
 
-## Getting Started
+## Deriving a project from this template
 
-[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) covers prerequisites, running the full stack
-with Aspire, running the API alone, migrations, calling the API with a dev token, tests, and
-container image builds.
+Copy the repository, rename the solution, then follow [docs/DERIVATION-PRUNING.md](docs/DERIVATION-PRUNING.md): at its first module a derived project removes the sample domain and every capability no module uses, and `DerivationConventionTests` fails while any of it remains. Every seam that survives there is a real boundary with a module consumer.
 
-## Running CI Locally with Act
+## Working on it
 
-[Act](https://github.com/nektos/act) lets you run GitHub Actions workflows locally using Docker.
+Every change is formatted, built and tested before it is committed, and every agent commit carries `Harness:` and `Model:` trailers, enforced by `.githooks/commit-msg`. Several agents may share one checkout, so work happens in a worktree that ends merged or abandoned; the hooks under `.claude/hooks/` say when one is parked. [AGENTS.md](AGENTS.md) has the commands and the rules.
 
-### Prerequisites
-- A running Docker-compatible engine (see [Prerequisites](#prerequisites))
-- [Act](https://github.com/nektos/act#installation):
-  ```powershell
-  # macOS
-  brew install act
-
-  # Windows (via Chocolatey)
-  choco install act-cli
-
-  # Windows (via winget)
-  winget install nektos.act
-  ```
-
-### Running the CI Workflow
-```powershell
-# Run the workflow (simulates a push event)
-act push
-
-# Run the workflow (simulates a pull request event)
-act pull_request
-
-# Use a larger runner image for better compatibility
-act push -P ubuntu-latest=catthehacker/ubuntu:full-latest
-
-# Dry run (shows what would execute without running)
-act push -n
-
-# Run with verbose output for debugging
-act push -v
-```
-
-> **Note**: The GitHub workflow has separate unit, Testcontainers integration, Aspire, web, browser-test and Docker image build jobs. When using `act`, run a targeted job if your local Docker setup cannot support the full workflow.
-
-## Development Commands
-
-```powershell
-# Run database migrations
-cd src\StarterApp.DbMigrator
-dotnet run
-
-# Run API directly
-cd src\StarterApp.Api
-dotnet run
-
-# Run all tests (integration and Aspire tests require the container engine to be running)
-dotnet test
-
-# Run only non-integration tests (no Docker required)
-dotnet test --filter "FullyQualifiedName!~Integration"
-```
-
-## Key Features
-
-- **Clean Architecture**: Separation of concerns with Domain, Application, and Infrastructure layers
-- **Modern .NET Patterns**: Uses C# 13/.NET 10 features like collection expressions, guard clauses, and using declarations
-- **Zero-Trust OIDC/JWT Authentication**: The API validates IdP-issued bearer tokens itself (issuer, audience, signature, expiry — asymmetric keys via cached JWKS, no shared secrets, no perimeter assumptions). Locally, Aspire runs a Keycloak container with a committed realm so dev exercises the same verification path as production
-- **The client half of that seam**: the web app signs in with the authorization code flow and PKCE, sends the token on every call, and answers the API's scope and step-up challenges; its image renders the identity provider from the environment at start-up
-- **Health Checks**: Built-in liveness/readiness probes plus durable dependency checks for the database, distributed cache, Service Bus, and payload archive store
-- **Distributed Caching**: Redis-backed by-id query caching via mediator pipeline behavior; list queries are intentionally not cached because `IDistributedCache` cannot invalidate by pattern
-- **Cache Safety Conventions**: Convention tests enforce non-empty deterministic cache keys, by-id-only caching, and invalidator injection for non-create mutations on cacheable entities
-- **Outbox Pattern**: Domain events are captured durably and published to Azure Service Bus via BackgroundService
-- **Azure Functions**: Service Bus subscriber samples for email notifications and inventory reservation; they archive inbound payloads and process each delivery once through a database inbox
-- **Payload Archive / PII Audit**: Bounded HTTP payload capture plus full Service Bus payload archiving to Blob storage with explicit fail-open/fail-closed policy
-- **Observability**: Distributed tracing, metrics, and structured logging
-- **Configuration Management**: Environment-specific settings with .NET configuration
-- **Database Migrations**: Automated schema updates with DbUp
-- **Local Orchestration**: .NET Aspire is the supported full-stack local run path
-- **Comprehensive Testing**: Unit, convention, integration, property-based (FsCheck), and Aspire end-to-end tests
+CI runs locally with [act](https://github.com/nektos/act): plain `act` uses the flags in `.actrc`; run a targeted job when the local engine cannot carry the whole workflow.
 
 ## Documentation
 
-- **[Getting Started](docs/GETTING-STARTED.md)**: Prerequisites, running the stack, migrations, tests, and image builds
-- **[API Endpoints](docs/API-ENDPOINTS.md)**: Every Minimal API endpoint with examples and how to mint a dev token
-- **[Rules of the codebase](AGENTS.md)**: The conventions agents and people must follow, and where each subsystem is documented
-- **[Recorded decisions](docs/DECISIONS.md)**: Why each notable choice was made and what would justify revisiting it
-- **[Architecture review](docs/ARCHITECTURE_REVIEW.md)**: Open findings and accepted limitations, with dated records under `docs/reviews/`
-
-## Reference Material
-
-This template also serves as a practical reference for:
-- Modern .NET development practices
-- Container image and deployment validation strategies
-- Database migration patterns
-- Cloud-native application development
-- CI/CD pipeline design with GitHub Actions
+- **[Getting started](docs/GETTING-STARTED.md)**: prerequisites, running the stack, migrations, tests, image builds and publishing to Azure
+- **[API endpoints](docs/API-ENDPOINTS.md)**: every Minimal API endpoint with examples and how to mint a dev token
+- **[Rules of the codebase](AGENTS.md)**: what agents and people must follow, and where each subsystem is documented
+- **[Recorded decisions](docs/DECISIONS.md)**: why each notable choice was made and what would justify revisiting it
+- **[Derivation pruning](docs/DERIVATION-PRUNING.md)**: turning this template into a project
+- **[Architecture review](docs/ARCHITECTURE_REVIEW.md)**: open findings and accepted limitations, with dated records under `docs/reviews/`
+- **[Runbooks](docs/runbooks/)**: replaying an event, a scheduled job that failed or did not run
+- **[The web app](web/README.md)**: the workspace, the generated client, the browser tests and the web image
