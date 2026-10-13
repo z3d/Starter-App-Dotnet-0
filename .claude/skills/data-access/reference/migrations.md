@@ -72,6 +72,13 @@ Migrations run exclusively through the DbMigrator console app — never in API s
 
 Scripts are embedded resources in the DbMigrator project with sequential names (`0001_CreateTables.sql`, `0002_AddIndexes.sql`). A convention test verifies every `Scripts/*.sql` file on disk is embedded in the built assembly — an unembedded script silently never runs.
 
+The migrator runs before the new build starts, so the previous build serves against the new schema until the rollout ends. From script 0010 a migration is therefore one phase of an expand/contract change, and its name says which (`MigrationCompatibilityConventionTests`):
+
+- `NNNN_Expand_Name.sql` adds. It may not `DROP` a table, column, view or schema, `RENAME`, change a column's type, `SET NOT NULL`, `TRUNCATE`, `DELETE`, add a `NOT NULL` column without a `DEFAULT`, or add a `UNIQUE`, `CHECK` or `PRIMARY KEY` constraint or unique index to a table that already exists. Backfills (`UPDATE`), nullable columns, defaulted columns, new tables and plain indexes are fine.
+- `NNNN_Contract_Name.sql` removes what an earlier Expand made redundant, in a later release, and names it in a header: `-- completes: 0010_Expand_Name.sql`. The test checks the named script exists with a lower number; that it shipped in an earlier release is the deploy pipeline's rule, not the test's.
+
+A rename is two releases: Expand adds the new column and the code writes both; Contract drops the old one once no deployed build reads it. Scripts 0001 to 0009 keep their names because renaming an embedded script re-runs it under DbUp.
+
 ## Connection-string resolution
 
 Two resolvers, deliberately different:

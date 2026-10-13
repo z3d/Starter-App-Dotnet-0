@@ -15,6 +15,7 @@ Architectural convention tests using [Best.Conventional](https://github.com/andr
 | `DapperConventionTests.cs` | SQL literal inspection for `SELECT *` prevention and Dapper retry-policy usage |
 | `DomainConventionTests.cs` | Domain encapsulation, constructors, value-object equality, async safety, `DateTimeOffset` property types, aggregate creation-event rules |
 | `HousekeepingConventionTests.cs` | GlobalUsings reuse; no direct `bin`/`obj` project references; no regions/XML docs/historical workaround comments or commented-out code in production code; no `#pragma warning disable` or `SuppressMessage` in production code |
+| `MigrationCompatibilityConventionTests.cs` | From script 0010, every migration is named `Expand` or `Contract`; an Expand script contains nothing the previous build cannot run against, and a Contract script names the earlier Expand script it completes |
 | `NamingConventionTests.cs` | Naming suffixes plus namespace locality for commands, queries, validators, handlers, DTOs, and read models |
 | `PersistenceConventionTests.cs` | Entity registration, value-object mapping, enum string conversions, DbContext state, collection setters, migration script safety and embedding |
 | `TypeExtensions.cs` | Open-generic type discovery helper from the Conventional.Samples pattern |
@@ -57,6 +58,7 @@ AppHost-specific conventions live in `tests/StarterApp.AppHost.Tests`:
 - Value objects are not registered as `DbSet`
 - Domain enum properties use EF string conversion
 - Migration scripts are numbered, embedded resources, and name constraints explicitly
+- From script 0010, a migration is one phase of an expand/contract change and says which in its name; an Expand script never drops, renames, retypes or constrains what the previous build still uses
 
 **Safety and housekeeping**
 - Async methods end with `Async`; no `async void`
