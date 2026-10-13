@@ -102,7 +102,7 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Dapper reads retry through the hand-rolled `PostgresRetryPolicy` with a total delay budget, not Polly | Polly gains a total-delay budget, or the read path needs a second resilience concern (breaker, hedging) |
 | The `Consistency/` test suite is advisory and human-read; builds never gate on a distance | Two consecutive dated reviews record that no report line informed a finding |
 | Managed identity everywhere when published: Seq is not published, Redis becomes Azure Managed Redis (keys disabled), Keycloak's admin password is a generated secret | None — a dependency that cannot take a managed identity is replaced or dropped, never given a key |
-| One OIDC issuer: `Identity:Authority`, plus `Identity:MetadataAddress` when discovery is fetched over another hostname | One API must accept tokens from a second issuer — take a derived project's `Authentication:Issuers[]` + policy-scheme shape whole, never a second `AddJwtBearer` |
+| One OIDC issuer: `Identity:Authority`, plus `Identity:MetadataAddress` when discovery is fetched over another hostname | One API must accept tokens from a second issuer — an `Authentication:Issuers[]` list and a policy scheme that forwards on the token's issuer, never a second `AddJwtBearer` |
 | The Entra token is the database credential in every process; a password-less connection string means the hosting identity (the named user, or the token's own principal when none is named), and raw `new NpgsqlConnection` / `UseNpgsql(string)` are banned | A PostgreSQL host with no Entra support (self-hosted) — already handled: a string with a password is used as given; never add a second credential mechanism |
 
 ## Where to look
