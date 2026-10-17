@@ -328,6 +328,10 @@ The dev realm changed with it: `amr` is a user attribute mapped onto the token r
 
 Rejected: running the web app from the AppHost (`Aspire.Hosting.NodeJs`), because the Vite dev server is one command beside it and publish mode has nothing to add (the image is built from its Dockerfile like the others, and the hosting environment places it); a framework with server rendering, because the app has no SEO need and a static bundle behind nginx deploys anywhere; a shared component library, because it is a product decision each derived project makes. **Re-add trigger** for AppHost orchestration of the web app: a deployed shape where the hosting environment reads the web image's placement from the AppHost's publish output.
 
+## A transitive pin moves here first, and its record names what removes it (2026-10-17)
+
+`Directory.Packages.props` pins MessagePack, which nothing here references: the Aspire host SDK pulls it into the AppHost and its tests, the two projects exempt from `packages.lock.json`, so the day an advisory lands a fresh restore of those two fails with NU1902 under warnings-as-errors while every other project restores clean and no lock file shows a change. GHSA-qhrr-8q5h-9q3h, published 15 October 2026, did that to every version below 2.5.303, and 852bc91 moved the pin there. `CentralPackageTransitivePinningEnabled` is what lets a `PackageVersion` reach a package nothing references. The next advisory on it does the same, so the order is fixed: the pin moves here first, a forced restore of the AppHost (`dotnet restore dev/StarterApp.AppHost --force`) fails before the change and passes after it, and a derived project takes the same line on its next sync. Rejected: turning the audit warning off for the AppHost, because the warning is the only signal a lock-exempt project gives. **Re-add trigger** for removing the pin: the Aspire packages reference a MessagePack at or past the advisory's floor on their own, at which point the line and its comment go.
+
 ## Taken from derived projects
 
 Improvements a derived project made to code the template also carries come back up here, translated onto the sample.
