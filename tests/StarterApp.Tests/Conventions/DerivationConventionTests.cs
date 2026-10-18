@@ -31,6 +31,14 @@ public class DerivationConventionTests : ConventionTestBase
     internal static List<string> SamplePageLeftovers(string repoRoot) =>
         Directory.Exists(Path.Combine(repoRoot, SamplePage)) ? [SamplePage] : [];
 
+    private static string AppPrefix => ApiAssembly.GetName().Name!.Split('.')[0];
+
+    internal static List<string> SampleDomainProjectLeftovers(string repoRoot, string appPrefix)
+    {
+        var project = Path.Combine("src", appPrefix + ".Domain");
+        return Directory.Exists(Path.Combine(repoRoot, project)) ? [project] : [];
+    }
+
     [DerivedProjectFact]
     public void DerivedProject_WithAModule_MustNotKeepTheSampleDomain()
     {
@@ -61,6 +69,34 @@ public class DerivationConventionTests : ConventionTestBase
             "The first module has landed, so the web app's sample page over the Customer/Product/Order sample is vestigial " +
             "and goes with it; the shell, the identity helper, the API client and the browser-test fixtures stay " +
             "(docs/DERIVATION-PRUNING.md):\n" + string.Join("\n", leftovers));
+    }
+
+    [DerivedProjectFact]
+    public void DerivedProject_WithAModule_MustNotKeepTheSampleDomainProject()
+    {
+        var leftovers = SampleDomainProjectLeftovers(TestPaths.RepoRoot, AppPrefix);
+
+        Assert.True(leftovers.Count == 0,
+            "The first module has landed, so the sample's Domain project is vestigial: the aggregates live in the modules " +
+            "and the base types in " + AppPrefix + ".SharedKernel. Delete the project whole; a project named Domain with no " +
+            "domain in it reads as anemic (docs/DERIVATION-PRUNING.md):\n" + string.Join("\n", leftovers));
+    }
+
+    [Fact]
+    public void TheSampleDomainProjectRule_BitesOnASyntheticDerivedProject()
+    {
+        var root = Directory.CreateTempSubdirectory("derivation-").FullName;
+        try
+        {
+            Assert.Empty(SampleDomainProjectLeftovers(root, "Derived"));
+            Directory.CreateDirectory(Path.Combine(root, "src", "Derived.Domain"));
+            Assert.Equal([Path.Combine("src", "Derived.Domain")], SampleDomainProjectLeftovers(root, "Derived"));
+            Assert.Empty(SampleDomainProjectLeftovers(root, "Other"));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     [Fact]

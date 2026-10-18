@@ -46,7 +46,7 @@ public class DomainConventionTests : ConventionTestBase
     [Fact]
     public void ValueObjects_ShouldBeImmutable()
     {
-        var valueObjectTypes = DomainAssembly.GetTypes()
+        var valueObjectTypes = SharedKernelAssembly.GetTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("ValueObjects") &&
                    t.IsClass && !t.IsAbstract);
         valueObjectTypes
@@ -82,7 +82,7 @@ public class DomainConventionTests : ConventionTestBase
     [Fact]
     public void ValueObjects_MustOverrideEqualsAndGetHashCode()
     {
-        var valueObjectTypes = DomainAssembly.GetTypes()
+        var valueObjectTypes = SharedKernelAssembly.GetTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("ValueObjects") &&
                    t.IsClass && !t.IsAbstract);
         valueObjectTypes
@@ -128,7 +128,8 @@ public class DomainConventionTests : ConventionTestBase
     [Fact]
     public void DomainTypes_MustUseDateTimeOffsetNotDateTime()
     {
-        var domainTypes = DomainAssembly.GetTypes()
+        var domainTypes = new[] { SharedKernelAssembly, DomainAssembly }
+            .SelectMany(assembly => assembly.GetTypes())
             .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
 
         domainTypes

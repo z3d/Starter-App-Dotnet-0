@@ -334,7 +334,8 @@ public class ApiConventionTests : ConventionTestBase
     [Fact]
     public void DomainTypes_MustNotDependOnApiAssembly()
     {
-        var domainTypes = DomainAssembly.GetTypes()
+        var domainTypes = new[] { SharedKernelAssembly, DomainAssembly }
+            .SelectMany(assembly => assembly.GetTypes())
             .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
 
         domainTypes
@@ -351,16 +352,18 @@ public class ApiConventionTests : ConventionTestBase
             "netstandard"
         };
 
-        var failures = DomainAssembly.GetReferencedAssemblies()
+        var failures = new[] { SharedKernelAssembly, DomainAssembly }
+            .SelectMany(assembly => assembly.GetReferencedAssemblies())
             .Select(assemblyName => assemblyName.Name ?? string.Empty)
             .Where(name => !allowedNames.Contains(name))
+            .Where(name => name != SharedKernelAssembly.GetName().Name)
             .Where(name => !name.StartsWith("System.", StringComparison.Ordinal))
             .Where(name => !name.StartsWith("Microsoft.", StringComparison.Ordinal))
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToList();
 
         Assert.True(failures.Count == 0,
-            "Domain assembly must stay free of third-party and application-layer dependencies:\n" +
+            "The shared kernel and the domain assembly must stay free of third-party and application-layer dependencies:\n" +
             string.Join("\n", failures));
     }
 

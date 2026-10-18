@@ -53,7 +53,8 @@ The sample domain is owner-scoped end to end: products, customers and orders bel
 starterapp/
 ├── src/                             # Only what ships
 │   ├── StarterApp.Api/              # Minimal API, mediator, outbox processor, payload capture
-│   ├── StarterApp.Domain/           # Aggregates, value objects, domain events
+│   ├── StarterApp.SharedKernel/     # AggregateRoot, IDomainEvent, domain exceptions, Email and Money
+│   ├── StarterApp.Domain/           # The Customer/Product/Order sample: aggregates and domain events
 │   ├── StarterApp.Functions/        # Service Bus subscribers, archive cleanup, job watch
 │   ├── StarterApp.DbMigrator/       # DbUp migrations and the replay-outbox verb
 │   └── StarterApp.ServiceDefaults/  # Shared Aspire wiring, database authentication, job-run recording

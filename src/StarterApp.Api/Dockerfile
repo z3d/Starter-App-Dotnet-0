@@ -15,6 +15,8 @@ COPY ["src/StarterApp.Api/StarterApp.Api.csproj", "src/StarterApp.Api/"]
 COPY ["src/StarterApp.Api/packages.lock.json", "src/StarterApp.Api/"]
 COPY ["src/StarterApp.Domain/StarterApp.Domain.csproj", "src/StarterApp.Domain/"]
 COPY ["src/StarterApp.Domain/packages.lock.json", "src/StarterApp.Domain/"]
+COPY ["src/StarterApp.SharedKernel/StarterApp.SharedKernel.csproj", "src/StarterApp.SharedKernel/"]
+COPY ["src/StarterApp.SharedKernel/packages.lock.json", "src/StarterApp.SharedKernel/"]
 COPY ["src/StarterApp.ServiceDefaults/StarterApp.ServiceDefaults.csproj", "src/StarterApp.ServiceDefaults/"]
 COPY ["src/StarterApp.ServiceDefaults/packages.lock.json", "src/StarterApp.ServiceDefaults/"]
 

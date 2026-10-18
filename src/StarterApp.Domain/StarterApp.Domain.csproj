@@ -1,6 +1,11 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <Description>The template's Customer/Product/Order sample domain. A derived project deletes this project whole at its first module (docs/DERIVATION-PRUNING.md); the base types it builds on are in StarterApp.SharedKernel.</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StarterApp.SharedKernel\StarterApp.SharedKernel.csproj" />
+  </ItemGroup>
 
 </Project>

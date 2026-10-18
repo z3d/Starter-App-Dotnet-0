@@ -1,4 +1,4 @@
-namespace StarterApp.Domain.ValueObjects;
+namespace StarterApp.SharedKernel.ValueObjects;
 
 public sealed record Email
 {

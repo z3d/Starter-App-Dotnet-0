@@ -46,14 +46,13 @@ global using StarterApp.Api.Infrastructure.Outbox;
 global using StarterApp.Api.Infrastructure.Payloads;
 global using StarterApp.Api.Infrastructure.Validation;
 global using StarterApp.DbMigrator;
-// Domain references
-global using StarterApp.Domain.Abstractions;
 global using StarterApp.Domain.Entities;
 global using StarterApp.Domain.Enums;
 global using StarterApp.Domain.Events;
-global using StarterApp.Domain.Exceptions;
-global using StarterApp.Domain.ValueObjects;
 global using StarterApp.ServiceDefaults.Jobs;
+global using StarterApp.SharedKernel.Abstractions;
+global using StarterApp.SharedKernel.Exceptions;
+global using StarterApp.SharedKernel.ValueObjects;
 global using StarterApp.Tests.Consistency;
 global using StarterApp.Tests.Integration;
 global using StarterApp.Tests.TestBuilders;

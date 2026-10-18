@@ -6,7 +6,7 @@ user-invocable: false
 
 # Domain Model Implementation
 
-Read `src/StarterApp.Domain/` before adding a type; `Product`, `Customer`, `Order`, `Money`, and `Email` establish the idiom.
+`src/StarterApp.SharedKernel/` holds what every domain builds on (`AggregateRoot`, `IDomainEvent`, the domain exceptions, `Email` and `Money`) and never an entity or a concrete event; `src/StarterApp.Domain/` holds the sample domain. Read both before adding a type; `Product`, `Customer`, `Order`, `Money`, and `Email` establish the idiom.
 
 ## The rules
 

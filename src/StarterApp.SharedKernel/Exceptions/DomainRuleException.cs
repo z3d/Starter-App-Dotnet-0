@@ -1,4 +1,4 @@
-namespace StarterApp.Domain.Exceptions;
+namespace StarterApp.SharedKernel.Exceptions;
 
 public sealed class DomainRuleException : Exception
 {

@@ -12,7 +12,10 @@ the project: they copy its shapes, keep its rules, and route new work through it
   change: entities, events, handlers, endpoints, EF configurations, Functions and their
   subscriptions, tests, k6 and DAST seeds, reporting SQL, a migration dropping its tables, and
   every rule, skill and doc that described only the sample. It is not "replaced module by
-  module" and it is not kept as a reference: the template is the reference.
+  module" and it is not kept as a reference: the template is the reference. The
+  `<App>.Domain` project goes with it, whole: the base types it built on are in
+  `<App>.SharedKernel`, and a project named Domain with no domain in it reads as anemic or
+  vestigial to the next reader.
 - **In the same change, every support capability is decided.** Owner scoping, the distributed
   cache and Redis, feature toggles and the rest either have a module consumer or are removed
   with a re-add trigger. None is left in place waiting for a use.
@@ -22,8 +25,9 @@ the project: they copy its shapes, keep its rules, and route new work through it
   interface) or a module uses it.
 
 `DerivationConventionTests` enforces the first two mechanically: in the template its rules are skipped as not
-applicable (no modules), and in a derived project it fails from the first module until the sample types, any
-unused `ICacheable` / owner-scoping markers and the web app's sample page (`web/apps/web/src/sample`) are gone.
+applicable (no modules), and in a derived project it fails from the first module until the sample types, the
+`<App>.Domain` project, any unused `ICacheable` / owner-scoping markers and the web app's sample page
+(`web/apps/web/src/sample`) are gone.
 
 ## The discipline
 
@@ -51,7 +55,7 @@ unused `ICacheable` / owner-scoping markers and the web app's sample page (`web/
 
 | Candidate | Usually safe to prune when… | Named re-add trigger |
 |-----------|------------------------------|----------------------|
-| Sample domain (Customer/Product/Order) | required at the first module — it exists to be replaced | n/a (it never comes back) |
+| Sample domain (Customer/Product/Order) and the `<App>.Domain` project that holds it | required at the first module — it exists to be replaced; `<App>.SharedKernel` stays | n/a (it never comes back) |
 | The web app's sample page (`web/apps/web/src/sample`) | with the sample domain it drives; the shell, `src/lib/auth.ts`, `src/lib/api.ts`, the generated client, the image and the browser-test fixtures stay | n/a (the project's own screens take its place) |
 | Owner/tenant scoping | no module scopes a row to the person who created it | a second tenant/brand, or external exposure of per-caller data |
 | Distributed caching | the slice has no cacheable reads | first read endpoint with measurable repeat traffic |

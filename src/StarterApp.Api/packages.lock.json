@@ -515,7 +515,10 @@
         "contentHash": "wLBKzFnDCxP12VL9ANydSYhk59fC4cvOr9ypYQLPnAj48NQIhqnjdD2yhP8yEKyBJEjERWS9DisKL7rX5eU25Q=="
       },
       "starterapp.domain": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "StarterApp.SharedKernel": "[1.0.0, )"
+        }
       },
       "starterapp.servicedefaults": {
         "type": "Project",
@@ -533,6 +536,9 @@
           "OpenTelemetry.Instrumentation.Http": "[1.15.1, )",
           "OpenTelemetry.Instrumentation.Runtime": "[1.15.1, )"
         }
+      },
+      "starterapp.sharedkernel": {
+        "type": "Project"
       },
       "Azure.Storage.Blobs": {
         "type": "CentralTransitive",

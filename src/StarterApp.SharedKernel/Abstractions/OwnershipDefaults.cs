@@ -1,4 +1,4 @@
-namespace StarterApp.Domain.Abstractions;
+namespace StarterApp.SharedKernel.Abstractions;
 
 public static class OwnershipDefaults
 {

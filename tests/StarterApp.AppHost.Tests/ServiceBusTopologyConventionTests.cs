@@ -1,6 +1,7 @@
 using System.Reflection;
-using StarterApp.Domain.Abstractions;
+using StarterApp.Domain.Events;
 using StarterApp.Functions;
+using StarterApp.SharedKernel.Abstractions;
 
 namespace StarterApp.AppHost.Tests;
 
@@ -71,7 +72,7 @@ public class ServiceBusTopologyConventionTests
     [Fact]
     public void AppHostSubscriptionFilters_MustReferenceDomainEventContracts()
     {
-        var domainEventContracts = typeof(IDomainEvent).Assembly.GetTypes()
+        var domainEventContracts = typeof(OrderCreatedDomainEvent).Assembly.GetTypes()
             .Where(type => type.IsClass && !type.IsAbstract && typeof(IDomainEvent).IsAssignableFrom(type))
             .Select(type => (System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type) as IDomainEvent)?.EventType)
             .Where(eventType => !string.IsNullOrWhiteSpace(eventType))
@@ -102,7 +103,7 @@ public class ServiceBusTopologyConventionTests
             .Select(filter => filter.EventType)
             .ToHashSet(StringComparer.Ordinal);
 
-        var uncovered = typeof(IDomainEvent).Assembly.GetTypes()
+        var uncovered = typeof(OrderCreatedDomainEvent).Assembly.GetTypes()
             .Where(type => type.IsClass && !type.IsAbstract && typeof(IDomainEvent).IsAssignableFrom(type))
             .Select(type => (System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type) as IDomainEvent)?.EventType)
             .Where(eventType => !string.IsNullOrWhiteSpace(eventType))

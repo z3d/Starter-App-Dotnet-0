@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\StarterApp.Domain\StarterApp.Domain.csproj" />
+    <ProjectReference Include="..\StarterApp.SharedKernel\StarterApp.SharedKernel.csproj" />
     <ProjectReference Include="..\StarterApp.ServiceDefaults\StarterApp.ServiceDefaults.csproj" />
   </ItemGroup>
 

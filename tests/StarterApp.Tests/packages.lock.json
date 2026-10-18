@@ -1222,7 +1222,8 @@
           "Serilog.Sinks.OpenTelemetry": "[4.1.0, )",
           "Serilog.Sinks.Seq": "[8.0.0, )",
           "StarterApp.Domain": "[1.0.0, )",
-          "StarterApp.ServiceDefaults": "[1.0.0, )"
+          "StarterApp.ServiceDefaults": "[1.0.0, )",
+          "StarterApp.SharedKernel": "[1.0.0, )"
         }
       },
       "starterapp.dbmigrator": {
@@ -1241,7 +1242,10 @@
         }
       },
       "starterapp.domain": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "StarterApp.SharedKernel": "[1.0.0, )"
+        }
       },
       "starterapp.functions": {
         "type": "Project",
@@ -1270,6 +1274,9 @@
           "OpenTelemetry.Instrumentation.Http": "[1.15.1, )",
           "OpenTelemetry.Instrumentation.Runtime": "[1.15.1, )"
         }
+      },
+      "starterapp.sharedkernel": {
+        "type": "Project"
       },
       "Aspire.StackExchange.Redis.DistributedCaching": {
         "type": "CentralTransitive",

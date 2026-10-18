@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>The shared kernel: the aggregate and domain-event base types, the domain exceptions and the generic value objects every domain in the solution builds on. It holds no entity, no concrete event and nothing a database maps.</Description>
+  </PropertyGroup>
+
+</Project>

@@ -2,6 +2,7 @@ namespace StarterApp.Tests.Conventions;
 
 public abstract class ConventionTestBase
 {
+    protected static readonly Assembly SharedKernelAssembly = typeof(AggregateRoot).Assembly;
     protected static readonly Assembly DomainAssembly = typeof(Product).Assembly;
     protected static readonly Assembly ApiAssembly = typeof(IApiMarker).Assembly;
     protected static readonly Assembly DbMigratorAssembly = typeof(DatabaseMigrationEngine).Assembly;
@@ -11,6 +12,7 @@ public abstract class ConventionTestBase
     protected static readonly Assembly[] CoreProductionAssemblies =
     [
         ApiAssembly,
+        SharedKernelAssembly,
         DomainAssembly,
         DbMigratorAssembly,
         FunctionsAssembly,

@@ -86,7 +86,7 @@ public class PersistenceConventionTests : ConventionTestBase
     [Fact]
     public void ValueObjects_MustNotBeRegisteredAsDbSets()
     {
-        var valueObjectTypes = DomainAssembly.GetTypes()
+        var valueObjectTypes = SharedKernelAssembly.GetTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("ValueObjects") &&
                    t.IsClass && !t.IsAbstract)
             .ToList();

@@ -19,7 +19,8 @@ public class ExceptionConventionTests : ConventionTestBase
     [Fact]
     public void DomainTypes_MustNotConstructBclControlFlowExceptions()
     {
-        var domainTypes = DomainAssembly.GetTypes()
+        var domainTypes = new[] { SharedKernelAssembly, DomainAssembly }
+            .SelectMany(assembly => assembly.GetTypes())
             .Where(t => t.IsClass && !IsCompilerGenerated(t))
             .ToList();
 
