@@ -50,6 +50,12 @@ applicable (no modules), and in a derived project it fails from the first module
 5. **Decide each read-path seam once, at the first module.** Caching and the read-model split
    look removable in a write-heavy slice. Decide deliberately (either a module uses it, or it is
    removed with its trigger) and record it. Don't let a seam rot half-removed.
+6. **Never keep a wrong name or shape to keep syncs clean.** A project named for what it no longer
+   holds, or a seam kept only because the template has it, costs every reader; a merge conflict
+   costs one agent one resolution. Fix the design. A fix that belongs to every derived project goes
+   to the template first and comes down on the next sync (the shared kernel split was one); a fix
+   that is the derived project's own is made there and its divergence recorded in the fork's
+   decisions, so the next sync knows it was deliberate.
 
 ## Common prune candidates, with their re-add triggers
 
