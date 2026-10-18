@@ -27,7 +27,7 @@ internal sealed class TwoFactorEndpointFilter : IEndpointFilter
         if (missingAuthenticationMethod == null)
             return await next(context);
 
-        // acr_values is advisory routing for the IdP; the access check stays amr-based.
+        // acr_values is a hint for the identity provider. The access check itself uses amr.
         var acrValues = context.HttpContext.RequestServices
             .GetRequiredService<IOptions<JwtIdentityOptions>>().Value.StepUpAcrValues;
         return BearerChallenges.Forbidden(context, "Forbidden", "Two-factor authentication is required for this operation.",

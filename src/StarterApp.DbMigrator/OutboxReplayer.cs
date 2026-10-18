@@ -4,7 +4,7 @@ namespace StarterApp.DbMigrator;
 
 public static class OutboxReplayer
 {
-    // Mirrors OutboxMessage.ResetForReplay; OutboxReplayTests keeps the SQL and the method in sync.
+    // This SQL does the same as OutboxMessage.ResetForReplay. OutboxReplayTests fails if the two drift apart.
     private const string ReplayAllErroredSql = """
         UPDATE outbox_messages
         SET error = NULL,
@@ -60,7 +60,7 @@ public static class OutboxReplayer
 
     private static int Execute(string connectionString, Guid? messageId)
     {
-        // The string arrives already resolved by DatabaseAuthentication.
+        // DatabaseAuthentication has already resolved the credential in this string.
         using var dataSource = NpgsqlDataSource.Create(connectionString);
         using var connection = dataSource.CreateConnection();
         connection.Open();

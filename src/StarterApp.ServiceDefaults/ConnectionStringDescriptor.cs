@@ -1,13 +1,13 @@
 using Npgsql;
 
-// Also compiled into StarterApp.DbMigrator under DBMIGRATOR; the test project must see one type per assembly.
+// This file is also compiled into StarterApp.DbMigrator under the DBMIGRATOR symbol. The tests need one copy of the type per assembly.
 #if DBMIGRATOR
 namespace StarterApp.DbMigrator;
 #else
 namespace StarterApp.ServiceDefaults;
 #endif
 
-// The only approved way to log a connection string; the previous regex mask leaked the rest of a quoted password.
+// The only approved way to log a connection string. The regex mask it replaced leaked part of a quoted password.
 public static class ConnectionStringDescriptor
 {
     public static string Describe(string? connectionString)
@@ -22,7 +22,7 @@ public static class ConnectionStringDescriptor
         }
         catch (Exception)
         {
-            // A parse failure is exactly when a secret sits somewhere unexpected; never echo the raw value.
+            // Never echo the raw value when parsing fails. That is exactly when a secret is sitting somewhere unexpected.
             return "<unparseable connection string>";
         }
     }

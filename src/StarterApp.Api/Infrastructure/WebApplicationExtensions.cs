@@ -8,7 +8,7 @@ public static class WebApplicationExtensions
 
         app.Use((context, next) =>
         {
-            // UseExceptionHandler clears response headers; an OnStarting callback survives that, and it assigns rather than appends.
+            // UseExceptionHandler clears the response headers. An OnStarting callback runs after that, and it sets the header rather than appending to it.
             context.Response.OnStarting(static state =>
             {
                 var (httpContext, development) = ((HttpContext, bool))state;
@@ -27,7 +27,7 @@ public static class WebApplicationExtensions
         var headers = context.Response.Headers;
         headers["X-Content-Type-Options"] = "nosniff";
         headers["X-Frame-Options"] = "DENY";
-        // "0" is the OWASP recommendation: the auditor is gone and enabling it created XS-Leak side channels.
+        // OWASP says to send "0". Browsers have removed the XSS auditor, and turning it on created cross-site leaks.
         headers["X-XSS-Protection"] = "0";
         headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
 
@@ -52,7 +52,7 @@ public static class WebApplicationExtensions
 
     public static WebApplication UseJwtIdentity(this WebApplication app)
     {
-        // After UseRouting (authorization metadata is per endpoint) and before UseRateLimiter (it partitions on ICurrentUser).
+        // Must come after UseRouting, because the authorization metadata is on the endpoint, and before UseRateLimiter, which partitions on ICurrentUser.
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseMiddleware<JwtIdentityMiddleware>();
@@ -81,7 +81,7 @@ public static class WebApplicationExtensions
             FeatureToggles.FeatureDisabledException => StatusCodes.Status503ServiceUnavailable,
             DomainRuleException => StatusCodes.Status409Conflict,
             Idempotency.IdempotencyKeyReusedException => StatusCodes.Status422UnprocessableEntity,
-            // Bare BCL exceptions are server bugs; they fall through to 500 so alerting sees them.
+            // A plain .NET exception is a server bug. It falls through to a 500 so alerting sees it.
             _ => StatusCodes.Status500InternalServerError
         };
     }

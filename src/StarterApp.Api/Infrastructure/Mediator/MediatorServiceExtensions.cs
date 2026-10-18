@@ -11,7 +11,7 @@ public static class MediatorServiceExtensions
                 configuration.GetSection(FeatureToggles.FeatureToggleOptions.SectionName).GetChildren().ToDictionary(entry => entry.Key, entry => entry.Value))
             .ValidateOnStart();
         services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<FeatureToggles.FeatureToggleOptions>>(FeatureToggles.DeclaredFeatureToggles.In(assemblies));
-        // Toggles are gated in the mediator before all of these. First registered runs outermost.
+        // Feature toggles are checked in the mediator before any of these. The first one registered runs outermost.
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(Identity.OwnerAuthorizationBehavior<,>));
         services.AddScoped<ICacheInvalidator, CacheInvalidator>();

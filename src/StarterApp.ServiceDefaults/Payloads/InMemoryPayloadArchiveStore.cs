@@ -46,7 +46,7 @@ public sealed class InMemoryPayloadArchiveStore : IPayloadArchiveStore
         return Task.CompletedTask;
     }
 
-    // Mirrors AzureBlobPayloadArchiveStore's contract; no wall clock, so the budget never runs out.
+    // Behaves like AzureBlobPayloadArchiveStore. There is no clock, so the budget never runs out.
     public Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
     {
         lock (_gate)

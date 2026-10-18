@@ -95,7 +95,7 @@ public static class Extensions
         builder.Services.AddHostedService<PayloadCaptureBackgroundWriter>();
         builder.Services.AddSingleton<IPayloadCaptureSink, PayloadCaptureSink>();
         builder.Services.AddSingleton<IArtifactCaptureSink, ArtifactCaptureSink>();
-        // One client per process; the health check reuses it and its token cache.
+        // One client per process. The health check reuses it, and its cached token.
         builder.Services.AddSingleton(provider => new PayloadArchiveClientProvider(
             PayloadArchiveConfiguration.CreateClient(
                 provider.GetRequiredService<IOptions<PayloadCaptureOptions>>().Value,

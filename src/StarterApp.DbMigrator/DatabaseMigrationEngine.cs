@@ -4,7 +4,7 @@ namespace StarterApp.DbMigrator;
 
 public static class DatabaseMigrationEngine
 {
-    // Any constant works as long as every migrator run for this database uses the same one.
+    // Any number works, as long as every migrator run against this database uses the same one.
     public const long MigrationLockKey = 0x5374_6172_7465_724D;
 
     public static bool MigrateDatabase(string connectionString, Assembly scriptsAssembly)
@@ -13,8 +13,8 @@ public static class DatabaseMigrationEngine
 
         EnsureDatabase.For.PostgresqlDatabase(connectionString, upgradeLog);
 
-        // Overlapping runs (a retried deploy job) would both see the same scripts pending; the second waits here, then finds none.
-        // The lock is session-scoped, so disposing the connection releases it even if the upgrade throws.
+        // Two runs at once (a retried deploy job) would both see the same scripts pending. The second waits here, then finds nothing to do.
+        // The lock belongs to the session, so closing the connection releases it even if the upgrade throws.
         using var dataSource = NpgsqlDataSource.Create(connectionString);
         using var lockConnection = dataSource.OpenConnection();
         Log.Information("Waiting for the migration lock");

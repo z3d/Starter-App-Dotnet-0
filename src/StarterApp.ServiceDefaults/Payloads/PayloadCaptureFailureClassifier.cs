@@ -23,7 +23,7 @@ public static class PayloadCaptureFailureClassifier
 
     private static bool IsTransientStatus(int status)
     {
-        // Status 0 is the SDK's marker for failures with no HTTP response (DNS, refused, TLS): the common transient shape.
+        // Status 0 is how the SDK marks a failure with no HTTP response (DNS, connection refused, TLS). That is the usual transient failure.
         return status is 0 or 408 or 429 || status >= 500;
     }
 }

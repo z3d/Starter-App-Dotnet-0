@@ -4,7 +4,7 @@ namespace StarterApp.Domain.Entities;
 
 public class Order : AggregateRoot
 {
-    // Mirrored by CreateOrderCommandValidator through this const so the two cannot drift.
+    // CreateOrderCommandValidator reads this constant too, so the two limits cannot drift apart.
     public const int MaxItems = 50;
 
     private readonly List<OrderItem> _items = [];
@@ -42,7 +42,7 @@ public class Order : AggregateRoot
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(customerId);
         OwnershipDefaults.Validate(ownerSubject, tenantId);
 
-        // Client-assigned so the creation event can be built before SaveChanges; v7 keeps insert locality.
+        // The Id is set here because the creation event is built before SaveChanges. Version 7 keeps inserts in order.
         Id = id;
         CustomerId = customerId;
         OwnerSubject = ownerSubject;
@@ -96,7 +96,7 @@ public class Order : AggregateRoot
         return item;
     }
 
-    // Checked before mutating so an over-limit total is a DomainRuleException here rather than an ArgumentOutOfRangeException during outbox capture.
+    // Checked before anything changes. Otherwise an over-limit total throws ArgumentOutOfRangeException later, during outbox capture, instead of a DomainRuleException here.
     private void EnsureOrderTotalWithinMaxAmount(OrderItem item)
     {
         var othersIncludingGst = _items
@@ -192,7 +192,7 @@ public class Order : AggregateRoot
 
     internal override void RecordCreation()
     {
-        // Fires during outbox capture, after the create handler's add-items loop, so an order can never be persisted empty.
+        // Runs during outbox capture, after the create handler has added the items, so an empty order is never saved.
         if (_items.Count == 0)
             throw new DomainRuleException("Cannot create an order with no items");
 

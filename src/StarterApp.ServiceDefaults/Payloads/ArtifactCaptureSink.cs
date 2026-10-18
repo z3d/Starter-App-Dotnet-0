@@ -1,6 +1,6 @@
 namespace StarterApp.ServiceDefaults.Payloads;
 
-// The slot for artifacts the system produced, as opposed to payloads that arrived; no producer exists yet.
+// For things the system produced, as opposed to payloads that arrived. Nothing produces one yet.
 public interface IArtifactCaptureSink
 {
     Task CaptureArtifactAsync(ArtifactCaptureRequest request, CancellationToken cancellationToken);
@@ -13,7 +13,7 @@ public sealed class ArtifactCaptureRequest
 {
     public string ArtifactName { get; init; } = string.Empty;
 
-    // "generated" for final artifacts, "intermediate" for mid-pipeline transformations.
+    // "generated" for a final artefact, "intermediate" for one made part way through.
     public string Stage { get; init; } = ArtifactCaptureSink.GeneratedStage;
     public string? ContentType { get; init; }
     public string Payload { get; init; } = string.Empty;
@@ -96,7 +96,7 @@ public sealed class ArtifactCaptureSink : IArtifactCaptureSink
         if (bytes.Length <= maxBytes)
             return payload;
 
-        // Walk back from the budget edge so a multi-byte character is never split.
+        // Walk back from the limit so a multi-byte character is never cut in half.
         var length = maxBytes;
         while (length > 0 && (bytes[length] & 0xC0) == 0x80)
             length--;

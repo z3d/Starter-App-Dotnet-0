@@ -7,7 +7,7 @@ namespace StarterApp.ServiceDefaults.Payloads;
 
 public sealed record PendingPayloadAppend(string BlobName, string Line);
 
-// Bounded in bytes, not items: an audit line carries the whole captured payload.
+// Limited in bytes, not items. An audit line carries the whole captured payload.
 public sealed class PayloadCaptureBackgroundQueue
 {
     public const string MeterName = "StarterApp.PayloadCapture";

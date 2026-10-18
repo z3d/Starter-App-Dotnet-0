@@ -51,7 +51,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
                 request.Operation,
                 CorrelationContext.Sanitize(request.CorrelationId ?? CorrelationContext.GetOrCreate()));
 
-            // A missing store must not silently fail open even though RequireArchiveStore also guards it at startup.
+            // A missing store must not quietly fail open. RequireArchiveStore checks this at start-up too, but the two settings can disagree.
             if (_options.FailureModeFor(request.Channel) == PayloadCaptureFailureMode.FailClosed)
                 throw new InvalidOperationException(
                     $"Payload capture is FailClosed for channel '{request.Channel}', but no payload archive store is configured; refusing to proceed without an audit record.");
@@ -97,11 +97,11 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
 
         try
         {
-            // The durable record; the only append governed by the channel's failure mode.
+            // The durable record. This is the one write the channel's fail-open or fail-closed setting applies to.
             var line = JsonSerializer.Serialize(record, SerializerOptions);
             await _store.AppendLineAsync(archiveBlobName, line, cancellationToken);
 
-            // Best-effort: the most contended write in the system must never fail traffic or pause the outbox, even FailClosed.
+            // Best effort. This is the busiest write in the system, and it must never fail a request or pause the outbox, even when the channel is FailClosed.
             if (_backgroundQueue is null)
                 await AppendAuditBestEffortAsync(auditBlobName, line, request, cancellationToken);
             else
@@ -162,7 +162,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
 
     private async Task<List<string>> WriteEntityIndexAsync(PayloadCaptureRecord record, CancellationToken cancellationToken)
     {
-        // A FailClosed channel promises the index with the record, so only FailOpen defers it.
+        // A FailClosed channel promises the index together with the record, so only FailOpen writes it in the background.
         var queue = _options.FailureModeFor(record.Channel) == PayloadCaptureFailureMode.FailOpen
             ? _backgroundQueue
             : null;
@@ -239,7 +239,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
     }
 
-    // The query string can carry bearer secrets, so sensitive parameter values are masked; the entity index drops it entirely.
+    // A query string can carry a bearer token. Sensitive parameter values are masked here, and the entity index drops the query string altogether.
     private Dictionary<string, string> BuildArchiveMetadata(Dictionary<string, string> metadata)
     {
         return metadata.ToDictionary(

@@ -6,7 +6,7 @@ using StackExchange.Redis;
 
 namespace StarterApp.ServiceDefaults;
 
-// The shape of the value picks the credential: a key or password is used as given, a bare endpoint means the hosting identity.
+// The shape of the setting picks the credential. A key or password is used as given. A bare endpoint means the hosting identity.
 public static class AzureClientAuthentication
 {
     public static bool UsesManagedIdentity(string? value)
@@ -43,7 +43,7 @@ public static class AzureClientAuthentication
             : new ServiceBusClient(value);
     }
 
-    // Entra token exchange for Azure Redis with keys disabled; called from a synchronous hook, hence the blocking wait at start-up.
+    // Gets an Entra token for Azure Redis, which has access keys turned off. The hook that calls this is synchronous, so it blocks once at start-up.
     public static void ConfigureRedis(ConfigurationOptions options, TokenCredential? credential = null)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -59,7 +59,7 @@ public static class AzureClientAuthentication
         (dns.Host.EndsWith(".redis.azure.net", StringComparison.OrdinalIgnoreCase) ||
          dns.Host.EndsWith(".redis.cache.windows.net", StringComparison.OrdinalIgnoreCase));
 
-    // Accepts a full URL, an Endpoint=sb://... string or a bare namespace.
+    // Accepts a full URL, an Endpoint=sb://... connection string, or a bare namespace name.
     internal static Uri Endpoint(string value)
     {
         var endpoint = value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

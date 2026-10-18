@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace StarterApp.Api.Infrastructure.Identity;
 
-// The single writer of ICurrentUser; nothing downstream reads HttpContext.User (convention-enforced).
+// The only place that sets ICurrentUser. Nothing after it reads HttpContext.User, and a convention test checks that.
 internal sealed class JwtIdentityMiddleware
 {
     private readonly RequestDelegate _next;
@@ -27,13 +27,13 @@ internal sealed class JwtIdentityMiddleware
 
     private static CurrentUser? Map(ClaimsPrincipal principal)
     {
-        // A token missing sub or tid maps to no identity rather than stamping rows with an empty owner scope.
+        // A token without sub or tid gives no identity at all, rather than rows stamped with an empty owner.
         var subject = principal.FindFirstValue("sub");
         var tenantId = principal.FindFirstValue("tid");
         if (string.IsNullOrWhiteSpace(subject) || string.IsNullOrWhiteSpace(tenantId))
             return null;
 
-        // pty is an optional deployer claim marking non-user callers; anything else, including absence, is User.
+        // pty is an optional claim the deployer can add to mark a service caller. Anything else, including no claim, means User.
         var principalType = string.Equals(principal.FindFirstValue("pty"), nameof(AuthenticatedPrincipalType.Service), StringComparison.Ordinal)
             ? AuthenticatedPrincipalType.Service
             : AuthenticatedPrincipalType.User;
@@ -46,7 +46,7 @@ internal sealed class JwtIdentityMiddleware
             ReadMultiValueClaim(principal, "amr"));
     }
 
-    // Entra emits space-delimited scp, Keycloak scope; array claims arrive repeated or as one serialized array.
+    // Entra sends scopes as a space-separated scp claim, Keycloak as scope. An array claim arrives either repeated or as one JSON array.
     private static IReadOnlyList<string> ReadMultiValueClaim(ClaimsPrincipal principal, params string[] claimTypes)
     {
         var values = new List<string>();

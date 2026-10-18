@@ -13,7 +13,7 @@ public class CreateOrderCommand : ICommand, IRequest<OrderDto>, IOwnerAuthorized
     public int CustomerId { get; set; }
     public List<CreateOrderItemCommand> Items { get; set; } = [];
 
-    // From the Idempotency-Key header, never the body.
+    // Comes from the Idempotency-Key header, never from the body.
     [JsonIgnore]
     public string? IdempotencyKey { get; set; }
 }
@@ -58,7 +58,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         _ownerOnlyPolicy.Authorize(customer.OwnerSubject, customer.TenantId);
 
-        // The stock update and the insert share one transaction, which must run inside the execution strategy; skipped on the non-relational test provider.
+        // The stock update and the insert share one transaction, and a transaction must run inside the execution strategy. The in-memory test provider has no transactions, so it is skipped there.
         var orderId = Guid.CreateVersion7();
         var requestHash = command.IdempotencyKey is null ? null : HashRequest(command);
         var strategy = _dbContext.Database.CreateExecutionStrategy();
@@ -69,7 +69,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         {
             await strategy.ExecuteAsync(cancellationToken, async ct =>
             {
-                // A prior failed attempt's tracked entities would be inserted again on this pass.
+                // Entities left tracked by a failed earlier attempt would be inserted again on this pass.
                 _dbContext.ChangeTracker.Clear();
 
                 var committedOrder = await _dbContext.Orders
@@ -127,7 +127,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         }
         catch (DbUpdateException ex) when (command.IdempotencyKey != null && ex.IsUniqueConstraintViolation(IdempotencyRecordConfiguration.PrimaryKeyName))
         {
-            // A concurrent request with the same key committed first and this one rolled back; answer with its order.
+            // Another request with the same key committed first and this one rolled back. Answer with that order.
             _dbContext.ChangeTracker.Clear();
             var keyedOrder = await FindKeyedOrderAsync(command.IdempotencyKey, requestHash, ownerScope, cancellationToken);
             if (keyedOrder is null)
@@ -145,7 +145,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
         _logger.LogInformation("Created order with ID: {OrderId}", savedOrder!.Id);
 
-        // Evict the cached product read model so it does not serve the pre-reservation stock.
+        // Drop the cached product so it does not keep serving the stock count from before the reservation.
         foreach (var productId in command.Items.Select(item => item.ProductId).Distinct())
             await _cacheInvalidator.InvalidateProductAsync(productId, cancellationToken);
 
@@ -177,7 +177,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
             .SingleAsync(o => o.Id == orderId, cancellationToken);
     }
 
-    // Canonical form, so the order of items in the body does not change the hash.
+    // Items are sorted first, so the same order with its items in a different sequence hashes the same.
     private static string HashRequest(CreateOrderCommand command)
     {
         var items = command.Items
@@ -187,7 +187,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
-    // Relational: atomic UPDATE ... WHERE Stock >= qty. InMemory (tests) cannot ExecuteUpdate, so it falls back to read-modify-write.
+    // On PostgreSQL this is one atomic UPDATE ... WHERE Stock >= qty. The in-memory test provider cannot run ExecuteUpdate, so it reads, changes and writes instead.
     private Task<Product> ReserveStockAsync(CreateOrderItemCommand itemCommand, OwnerScope ownerScope, CancellationToken cancellationToken)
     {
         return _dbContext.Database.IsRelational()
@@ -200,7 +200,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
         OwnerScope ownerScope,
         CancellationToken cancellationToken)
     {
-        // AsNoTracking: the ExecuteUpdate below bypasses the tracker, so a tracked entity would hold stale stock.
+        // AsNoTracking because the ExecuteUpdate below goes around the change tracker. A tracked entity would keep the old stock count.
         var product = await _dbContext.Products
             .AsNoTracking()
             .SingleOrDefaultAsync(p => p.Id == itemCommand.ProductId, cancellationToken);
@@ -249,7 +249,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Ord
 
     private static void EnsureNoDuplicateProducts(CreateOrderCommand command)
     {
-        // Mirrors the validator: a handler invoked directly must not dereference a null item.
+        // The validator checks this too. The handler checks again in case it is called directly with a null item.
         if (command.Items.Any(item => item is null))
             throw new ValidationException([new ValidationError(nameof(command.Items), "Order item must not be null")]);
 

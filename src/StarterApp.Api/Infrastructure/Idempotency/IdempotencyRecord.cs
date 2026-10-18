@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Infrastructure.Idempotency;
 
-// One row per keyed create, scoped to the caller: a retry with the same key and request replays ResourceId instead of creating again.
+// One row per keyed create, per caller. A retry with the same key and the same request gets ResourceId back instead of creating again.
 public class IdempotencyRecord
 {
     public const int MaxKeyLength = 255;

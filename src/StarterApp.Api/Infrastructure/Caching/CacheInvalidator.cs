@@ -33,7 +33,7 @@ public class CacheInvalidator : ICacheInvalidator
 
     private async Task RemoveAsync(string cacheKey, CancellationToken cancellationToken)
     {
-        // Only owner-scoped keys are ever written; this guard is for test harnesses that invalidate without an identity.
+        // Only owner-scoped keys are ever written. This guard is for tests that invalidate without a signed-in user.
         if (!_currentUser.IsAuthenticated)
             return;
 
@@ -42,10 +42,10 @@ public class CacheInvalidator : ICacheInvalidator
 
     private async Task InvalidateKeyAsync(string cacheKey, CancellationToken cancellationToken)
     {
-        // Fails open: a cache outage must not turn a committed write into a 500, and each step is an independent defence.
+        // Fails open. A cache outage must not turn a committed write into a 500. Each step below stands on its own.
         try
         {
-            // Generation first: readers validate it even when the removal below fails.
+            // Write the generation first. Readers check it even if the removal below fails.
             await _cache.SetStringAsync(
                 CacheTombstone.KeyFor(cacheKey),
                 Guid.NewGuid().ToString("N"),
@@ -59,7 +59,7 @@ public class CacheInvalidator : ICacheInvalidator
 
         try
         {
-            // Evict unconditionally: this is what stops a deleted row being served when the generation write did not land.
+            // Always remove the value. This is what stops a deleted row being served when the generation write failed.
             await _cache.RemoveAsync(cacheKey, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

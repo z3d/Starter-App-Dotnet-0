@@ -2,7 +2,7 @@ using Npgsql;
 
 namespace StarterApp.Api.Infrastructure.Persistence;
 
-// EF's retry covers only the DbContext; Dapper reads wrap here. The 10 s budget counts waits, not query time.
+// EF Core's retry only covers the DbContext, so Dapper reads use this. The 10 second budget counts the waits between attempts, not the queries.
 public static class PostgresRetryPolicy
 {
     private const int MaxRetries = 5;
@@ -34,7 +34,7 @@ public static class PostgresRetryPolicy
         return ExecuteAsync(operation, IsTransientException, MaxRetries, cancellationToken);
     }
 
-    // Predicate, count and budget are injected for tests.
+    // The predicate, count and budget are passed in so tests can control them.
     internal static async Task<T> ExecuteAsync<T>(
         Func<CancellationToken, Task<T>> operation,
         Func<Exception, bool> shouldRetry,
@@ -79,11 +79,11 @@ public static class PostgresRetryPolicy
         return TransientSqlStates.Contains(sqlState);
     }
 
-    // Randomized between half the ceiling and the ceiling so concurrent retries do not align.
+    // A random delay between half the ceiling and the ceiling, so retries running at the same time do not line up.
     internal static TimeSpan ComputeBackoff(int attempt)
     {
         var ceiling = ComputeBackoffCeiling(attempt);
-        // Not a security decision; RandomNumberGenerator is what the analyzer set admits.
+        // Not a security decision. RandomNumberGenerator is just the one the analysers allow.
         var factor = 0.5 + System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 1001) / 2000.0;
         return TimeSpan.FromMilliseconds(ceiling.TotalMilliseconds * factor);
     }

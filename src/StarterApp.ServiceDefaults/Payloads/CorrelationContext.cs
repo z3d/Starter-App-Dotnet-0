@@ -39,7 +39,7 @@ public static class CorrelationContext
         if (trimmed.Length == 0)
             return Create();
 
-        // Feeds blob names and the echoed response header, so only this exact set may pass.
+        // The id ends up in blob names and in the echoed response header, so only these characters may pass.
         var chars = trimmed
             .Where(c => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '-' or '_' or '.')
             .Take(MaxSanitizedLength)
@@ -49,7 +49,7 @@ public static class CorrelationContext
         if (sanitized.Length == trimmed.Length)
             return sanitized;
 
-        // The hash keeps two raw ids that sanitize alike in separate streams; it is not a security boundary.
+        // The hash keeps two different raw ids apart when they clean up to the same string. It is not a security boundary.
         var rawHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(trimmed)))[..HashSuffixLength].ToLowerInvariant();
         if (sanitized.Length == 0)
             return $"invalid.{rawHash}";

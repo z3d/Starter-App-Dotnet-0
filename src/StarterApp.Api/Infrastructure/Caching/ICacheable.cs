@@ -5,6 +5,6 @@ public interface ICacheable
     string CacheKey { get; }
     TimeSpan CacheDuration { get; }
 
-    // In this final window one request recomputes inline while the rest keep the cached value. Positive and smaller than CacheDuration.
+    // During this last part of the cache duration, one request recomputes the value while the others keep the cached one. Must be positive and shorter than CacheDuration.
     TimeSpan CacheRefreshWindow { get; }
 }

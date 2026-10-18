@@ -6,29 +6,28 @@ using StarterApp.AppHost;
 var builder = DistributedApplication.CreateBuilder(args);
 var repoRoot = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", ".."));
 
-// Seq for local log browsing. Run mode only: it has no identity story (unauthenticated), and a
-// deployed environment already gets every log and trace through OTLP to the Aspire dashboard and
-// the Container Apps environment's Log Analytics workspace.
+// Seq for browsing logs locally. Run mode only: it has no authentication, and a deployed
+// environment already sends every log and trace over OTLP to the Aspire dashboard and Log Analytics.
 IResourceBuilder<SeqResource>? seq = builder.ExecutionContext.IsRunMode
     ? builder.AddSeq("seq").WithLifetime(ContainerLifetime.Persistent)
     : null;
 
-// Publish mode targets Azure Container Apps; every project, container and Dockerfile resource
-// below becomes a container app in this one environment (the hosting environment runs the deploy).
+// Publish mode targets Azure Container Apps. Every project, container and Dockerfile below becomes
+// a container app in this one environment. The hosting repository runs the deploy.
 var aca = builder.AddAzureContainerAppEnvironment("aca");
 
-// Calls between the container apps use the environment's internal hostnames. The public
-// hostnames sit behind the operator allow-list below, which the ingress applies to every caller
-// including other apps in the environment; the internal names never cross it. Browsers keep the
-// public names (Keycloak pins its issuer to the public one so tokens validate either way).
+// Container apps call each other on the environment's internal hostnames. The public hostnames sit
+// behind the operator allow-list below, which applies to every caller, other apps included. Internal
+// names never cross it. Browsers use the public names, and Keycloak pins its issuer to the public
+// name so tokens validate either way.
 ReferenceExpression Internal(string app) => builder.ExecutionContext.IsPublishMode
     ? ReferenceExpression.Create($"https://{app}.internal.{aca.GetOutput("AZURE_CONTAINER_APPS_ENVIRONMENT_DEFAULT_DOMAIN")}")
     : throw new InvalidOperationException("Internal hostnames exist only in a published environment.");
 
-// A deployed instance is a TEST environment: its Keycloak ships well-known dev users, so every
-// public ingress is allow-listed to the operator's address (a CIDR the hosting environment
-// supplies; "0.0.0.0/0" would open it). Declared here, not applied afterwards by hand, because the
-// deployer rewrites the container apps' ingress on every run.
+// A deployed instance is a test environment. Its Keycloak ships well-known dev users, so every
+// public ingress is limited to the operator's address, a CIDR the hosting repository supplies
+// ("0.0.0.0/0" would open it to everyone). It is declared here rather than set by hand afterwards,
+// because the deployer rewrites the ingress on every run.
 var operatorCidr = builder.ExecutionContext.IsPublishMode
     ? builder.AddParameter("operator-cidr")                // must be supplied; no value means no deploy
     : builder.AddParameter("operator-cidr", "127.0.0.1/32"); // unused locally; keeps the rig free of prompts
@@ -41,34 +40,32 @@ void RestrictIngressToOperator(AzureResourceInfrastructure infra, ContainerApp a
         Description = "The operator's address; the dev realm's credentials are well known.",
     });
 
-// PostgreSQL: a container locally, Azure Database for PostgreSQL (flexible server) when
+// PostgreSQL is a container locally and Azure Database for PostgreSQL (flexible server) when
 // published. The Azure server is Entra-only, so the deployed connection string names each app's
-// managed identity and carries no password — the shape DatabaseAuthentication treats as "the
-// hosting identity's token". Locally the container's generated password takes the password path.
+// managed identity and has no password. DatabaseAuthentication reads that shape as "use the hosting
+// identity's token". Locally the container's generated password is used as given.
 var postgres = builder.AddAzurePostgresFlexibleServer("postgres")
                       .RunAsContainer(container => container.WithLifetime(ContainerLifetime.Persistent));
 
 var db = postgres.AddDatabase("database");
 
-// Redis for distributed caching: a container locally, Azure Managed Redis when published, with
-// Entra authentication (each referencing app's managed identity gets an access policy; no
-// access key exists). The Aspire client integration the API uses handles the token exchange.
+// Redis for the distributed cache: a container locally, Azure Managed Redis when published. The
+// Azure one uses Entra. Each app's managed identity gets an access policy and there is no access
+// key. The Aspire client integration in the API exchanges the token.
 var redis = builder.AddAzureManagedRedis("redis")
                    .RunAsContainer(container => container.WithLifetime(ContainerLifetime.Persistent));
 
-// Add Azure Blob Storage emulator for payload archive and audit artifacts
 var storage = builder.AddAzureStorage("storage");
 var payloadArchive = storage.AddBlobs("payloadarchive");
 
 storage.RunAsEmulator(emulator => emulator
     .WithLifetime(ContainerLifetime.Persistent));
 
-// Add Azure Service Bus emulator for domain event messaging
-// Topology defined via fluent API so Aspire serializes correlation filters correctly
+// The topology uses the fluent API because Aspire only writes correlation filters out correctly from that form.
 var serviceBus = builder.AddAzureServiceBus("servicebus");
 
-// Run mode targets the emulator, which crash-loops on any TTL above ServiceBusTopology's
-// 1-hour emulator maximum; publish mode keeps the deployed 24h no-event-silently-lost posture.
+// Run mode uses the emulator, which crash-loops on any TTL over one hour. Publish mode keeps the
+// full 24 hours so no event is lost without trace.
 var isEmulator = builder.ExecutionContext.IsRunMode;
 
 var domainEventsTopic = serviceBus.AddServiceBusTopic(ServiceBusTopology.DomainEventsTopic)
@@ -120,23 +117,22 @@ domainEventsTopic.AddServiceBusSubscription(ServiceBusTopology.InventoryReservat
 serviceBus.RunAsEmulator(emulator => emulator
     .WithLifetime(ContainerLifetime.Persistent));
 
-// Dev IdP: Keycloak with the committed starterapp realm (asymmetric RS256, JWKS published), so
-// every environment exercises the same discovery -> JWKS -> verify path. The realm and admin
-// bootstrap ship well-known development credentials by design, which is why a deployed instance
-// is only ever a TEST environment with its ingress restricted to the operator's addresses (the
-// hosting environment repo owns that restriction). Plain container rather than
-// Aspire.Hosting.Keycloak: that package has no stable release, and this repo does not take
-// preview dependencies.
+// The dev identity provider is Keycloak with the committed starterapp realm (RS256, JWKS
+// published), so every environment goes through the same discovery, JWKS and verify path. The realm
+// and admin bootstrap ship well-known dev credentials on purpose. That is why a deployed instance is
+// only ever a test environment, with its ingress limited to the operator's addresses by the hosting
+// repository. It is a plain container rather than Aspire.Hosting.Keycloak because that package has
+// no stable release and this repo takes no preview dependencies.
 //
-// Locally the realm is bind-mounted; a container app cannot mount a repo directory, so publish
-// mode builds a tiny image (Realms/Dockerfile) with the realm copied in. Both run
-// `--import-realm` against Keycloak's dev-mode in-memory store: nothing to migrate, nothing to
-// back up, and the realm is re-imported on every start.
+// Locally the realm is bind-mounted. A container app cannot mount a repo directory, so publish mode
+// builds a small image (Realms/Dockerfile) with the realm copied in. Both run --import-realm against
+// Keycloak's in-memory dev store: nothing to migrate or back up, and the realm is re-imported on
+// every start.
 IResourceBuilder<IResourceWithEndpoints> keycloak;
 if (builder.ExecutionContext.IsRunMode)
 {
     keycloak = builder.AddContainer("keycloak", "quay.io/keycloak/keycloak", "26.4")
-        // Digest-pinned like the Dockerfile base images. Resolve a new digest when bumping:
+        // Pinned by digest like the Dockerfile base images. To bump it, get the new digest with:
         // curl -sI https://quay.io/v2/keycloak/keycloak/manifests/<tag> \
         //   -H "Accept: application/vnd.oci.image.index.v1+json"
         .WithImageSHA256("9409c59bdfb65dbffa20b11e6f18b8abb9281d480c7ca402f51ed3d5977e6007")
@@ -152,16 +148,16 @@ if (builder.ExecutionContext.IsRunMode)
 }
 else
 {
-    // The published realm's users carry amr=mfa as a static attribute and well-known passwords, so a derived project must not deploy it as its real IdP by default.
+    // The realm's users have well-known passwords and a fixed amr=mfa attribute. A derived project must never deploy it as its real identity provider.
     if (Environment.GetEnvironmentVariable("DEPLOY_ACK_DEV_IDP") != "true")
         throw new InvalidOperationException(
             "Refusing to publish: the deployed Keycloak is the dev realm, whose well-known users mint valid tokens and whose " +
             "static amr attribute satisfies every MFA requirement. Set DEPLOY_ACK_DEV_IDP=true to acknowledge this is a test " +
             "environment, or replace the keycloak resource with your real identity provider.");
 
-    // The admin console password is generated once per environment (persisted in the deployer's
-    // state, never prompted for) and lives only as a container app secret — nothing about the
-    // deployed instance is a literal in this repository.
+    // The admin console password is generated once per environment, kept in the deployer's state and
+    // stored only as a container app secret. Nothing about the deployed instance is written down in
+    // this repository.
     var keycloakAdminPassword = builder.AddParameter("keycloak-admin-password",
         new GenerateParameterDefault { MinLength = 32 }, secret: true, persist: true);
     var keycloakContainer = builder.AddDockerfile("keycloak", "Realms")
@@ -171,10 +167,10 @@ else
         .WithEnvironment("KC_BOOTSTRAP_ADMIN_USERNAME", "admin")
         .WithEnvironment("KC_BOOTSTRAP_ADMIN_PASSWORD", keycloakAdminPassword)
         .WithEnvironment("KC_HEALTH_ENABLED", "true")
-        // TLS terminates at the container app ingress; Keycloak takes the https scheme from the
-        // forwarded headers. The issuer is pinned to the public name whatever hostname a caller
-        // used: the API reaches Keycloak over the internal name and must get metadata and tokens
-        // that carry the issuer it is configured to accept.
+        // TLS ends at the container app ingress, so Keycloak takes the https scheme from the forwarded
+        // headers. The issuer is pinned to the public name whatever hostname the caller used. The API
+        // reaches Keycloak on the internal name and still needs metadata and tokens that carry the issuer
+        // it accepts.
         .WithEnvironment("KC_HTTP_ENABLED", "true")
         .WithEnvironment("KC_PROXY_HEADERS", "xforwarded")
         .WithEnvironment("KC_HOSTNAME_BACKCHANNEL_DYNAMIC", "true")
@@ -183,19 +179,17 @@ else
     keycloak = keycloakContainer;
 }
 
-// Add the database migrator as a separate service (must complete before API starts)
 var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
-       // Published from the project's own Dockerfile (the one CI validates) rather than the SDK's
-       // container publish, which restores for linux-x64 and so cannot use the locked lock files.
+       // Published from the project's own Dockerfile, the one CI checks. The SDK's container publish
+       // restores for linux-x64 and cannot use the locked lock files.
        .PublishAsDockerFile(container => container.WithDockerfile(repoRoot, "src/StarterApp.DbMigrator/Dockerfile"))
-       // A run-to-completion process is a Container App *job*, not an app that would be restarted
-       // forever; the hosting environment starts it after each deploy (or runs the migrator
-       // locally against the server with the operator's own Entra identity).
+       // A process that runs to completion is a Container Apps job, not an app that would be restarted
+       // forever. The hosting repository starts it after each deploy, or runs the migrator locally with
+       // the operator's own Entra identity.
        .PublishAsAzureContainerAppJob((_, job) => job.Configuration.TriggerType = Azure.Provisioning.AppContainers.ContainerAppJobTriggerType.Manual)
        .WithReference(db)
        .WaitFor(db);
 
-// Add the API project with reference to the database and Service Bus
 var api = builder.AddProject<Projects.StarterApp_Api>("api")
        .PublishAsDockerFile(container => container.WithDockerfile(repoRoot, "src/StarterApp.Api/Dockerfile"))
        .WithReference(db)
@@ -204,8 +198,8 @@ var api = builder.AddProject<Projects.StarterApp_Api>("api")
        .WithReference(serviceBus)
        .WithEnvironment("PayloadCapture__RequireArchiveStore", "true")
        .WithEnvironment("PayloadCapture__ServiceBusFailureMode", "FailClosed")
-       // Behind the container app ingress TLS terminates upstream; this is ASP.NET Core's switch
-       // for honouring X-Forwarded-Proto/For, so UseHttpsRedirection does not loop.
+       // TLS ends at the container app ingress. This switch makes ASP.NET Core honour X-Forwarded-Proto
+       // and X-Forwarded-For, so UseHttpsRedirection does not loop.
        .WithEnvironment("ASPNETCORE_FORWARDEDHEADERS_ENABLED", "true")
        .WithExternalHttpEndpoints()
        .PublishAsAzureContainerApp(RestrictIngressToOperator)
@@ -221,12 +215,11 @@ if (seq is not null)
     api.WithEnvironment("SEQ_URL", seq.GetEndpoint("http")).WaitFor(seq);
 }
 
-// Point the API at the Keycloak realm. Locally the container speaks plain http, so
-// RequireHttpsMetadata=false (options validation rejects it outside Development/Testing); when
-// published the endpoint reference resolves to the container app's https ingress.
-// Identity:Authority is both the issuer the tokens must carry and where discovery is fetched.
-// Published, discovery would have to cross the allow-list at the public name, so the API is given
-// the public issuer to validate and the internal name to fetch metadata from.
+// Points the API at the Keycloak realm. Locally the container speaks plain http, so
+// RequireHttpsMetadata is false. Options validation rejects that outside Development and Testing.
+// Identity:Authority is both the issuer tokens must carry and where discovery is fetched. When
+// published, discovery at the public name would have to cross the allow-list, so the API gets the
+// public issuer to validate and the internal name to fetch metadata from.
 api.WaitFor(keycloak);
 if (builder.ExecutionContext.IsRunMode)
 {
@@ -239,17 +232,17 @@ else
        .WithEnvironment("Identity__MetadataAddress", ReferenceExpression.Create($"{Internal("keycloak")}/realms/starterapp/.well-known/openid-configuration"));
 }
 
-// Add Azure Functions container for Service Bus subscribers.
-// Running through the Functions base image keeps local behavior aligned with the deployed worker runtime.
+// The Service Bus subscribers run in the Functions base image locally too, so they behave the same
+// as the deployed worker.
 var functions = builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Functions/Dockerfile")
-       // The Functions host serves a landing page on 8080 (non-root) once the worker is up; exposing it
-       // lets the E2E fixture (and the dashboard) verify the slowest resource is actually ready —
-       // the API's readiness probe says nothing about the subscriber container.
+       // The Functions host serves a landing page on port 8080 once the worker is up. Exposing it lets the
+       // end-to-end tests and the dashboard see that the slowest resource is really ready. The API's
+       // readiness probe says nothing about this container.
        .WithHttpEndpoint(targetPort: 8080)
        .WithReference(payloadArchive)
        .WithEnvironment("FUNCTIONS_WORKER_RUNTIME", "dotnet-isolated")
-       // The Functions image logs the host's own lines (startup, trigger listeners, invocations)
-       // to the console only when asked; without this a deployed subscriber is a black box.
+       // The Functions image only writes the host's own lines (start-up, trigger listeners, invocations)
+       // to the console when asked. Without this a deployed subscriber is a black box.
        .WithEnvironment("AzureFunctionsJobHost__Logging__Console__IsEnabled", "true")
        .WithEnvironment(context =>
        {
@@ -257,7 +250,7 @@ var functions = builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Fun
            ((IResourceWithAzureFunctionsConfig)storage.Resource).ApplyAzureFunctionsConfiguration(context.EnvironmentVariables, "AzureWebJobsStorage");
        })
        .WithEnvironment("ConnectionStrings__payloadarchive", payloadArchive.Resource.ConnectionStringExpression)
-       // Job-run history (job_runs table): the cleanup function records its runs durably.
+       // The cleanup function records its runs in the job_runs table.
        .WithEnvironment("ConnectionStrings__database", db.Resource.ConnectionStringExpression)
        .WithEnvironment("PayloadCapture__RequireArchiveStore", "true")
        .WithEnvironment("PayloadCapture__ServiceBusFailureMode", "FailClosed")
@@ -266,10 +259,10 @@ var functions = builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Fun
        .WaitFor(serviceBus)
        .WaitFor(payloadArchive);
 
-// The emulator only speaks a keyed connection string, which the Functions host reads from the
-// bare `servicebus` setting; published, ApplyAzureFunctionsConfiguration above emits
-// servicebus__fullyQualifiedNamespace for the managed identity instead, and a bare
-// `servicebus` holding an endpoint would shadow it.
+// The emulator only accepts a keyed connection string, which the Functions host reads from the bare
+// servicebus setting. When published, ApplyAzureFunctionsConfiguration sets
+// servicebus__fullyQualifiedNamespace for the managed identity instead, and a bare servicebus
+// setting holding an endpoint would override it.
 if (builder.ExecutionContext.IsRunMode)
 {
     functions.WithReference(serviceBus)
@@ -277,25 +270,25 @@ if (builder.ExecutionContext.IsRunMode)
 }
 else
 {
-    // Deployed, the trigger connection must resolve to identity settings only. The Functions host
-    // looks at ConnectionStrings:servicebus *before* servicebus__fullyQualifiedNamespace, so a
-    // WithReference (which injects the endpoint URL there) makes it try to parse a URL as a
-    // connection string and the listeners never start. The reference's other job — the role
-    // assignment — is requested explicitly instead. And ApplyAzureFunctionsConfiguration fills
-    // servicebus__fullyQualifiedNamespace with the endpoint URL where the extension wants the
-    // bare host; the module already computes that host (serviceBusHostName).
+    // When deployed, the trigger connection must come from identity settings only. The Functions host
+    // reads ConnectionStrings:servicebus before servicebus__fullyQualifiedNamespace. WithReference would
+    // put the endpoint URL in the first one, the host would try to parse a URL as a connection string,
+    // and the listeners would never start. So the role assignment, the other thing WithReference does,
+    // is requested on its own. ApplyAzureFunctionsConfiguration also puts the full endpoint URL in
+    // servicebus__fullyQualifiedNamespace where the extension wants a bare hostname, so
+    // serviceBusHostName is set here by hand.
     functions.WithRoleAssignments(serviceBus, ServiceBusBuiltInRole.AzureServiceBusDataOwner)
              .WithEnvironment("servicebus__fullyQualifiedNamespace", serviceBus.GetOutput("serviceBusHostName"));
 }
 
-// Dev Tunnel: expose the API to the internet for webhook/mobile testing
-// Enable with: dotnet run -- --devtunnel  OR  set ENABLE_DEV_TUNNEL=true
+// A dev tunnel exposes the API to the internet for webhook and mobile testing. Turn it on with
+// dotnet run -- --devtunnel, or set ENABLE_DEV_TUNNEL=true.
 if (args.Contains("--devtunnel") || Environment.GetEnvironmentVariable("ENABLE_DEV_TUNNEL") == "true")
 {
-    // The tunneled API accepts tokens minted by the local dev Keycloak, whose realm ships
-    // well-known development credentials — anyone who can reach the tunnel can mint a valid
-    // token. Exposing that surface to the internet (even Microsoft-auth-gated dev tunnels) must
-    // be an explicit, acknowledged decision, not a side effect of a convenience flag.
+    // The tunnelled API accepts tokens from the local Keycloak, whose realm ships well-known dev
+    // credentials. Anyone who can reach the tunnel can mint a valid token. Putting that on the
+    // internet, even behind a Microsoft-authenticated dev tunnel, has to be a deliberate decision, not
+    // a side effect of a convenience flag.
     if (Environment.GetEnvironmentVariable("DEV_TUNNEL_ACK_DEV_IDP") != "true")
         throw new InvalidOperationException(
             "Refusing to start the dev tunnel: the API accepts tokens from the local dev Keycloak, " +
@@ -307,5 +300,4 @@ if (args.Contains("--devtunnel") || Environment.GetEnvironmentVariable("ENABLE_D
            .WithReference(api);
 }
 
-// After adding all resources, run the app...
 builder.Build().Run();

@@ -21,7 +21,7 @@ internal sealed class OutboxRunAggregator
     public void AddRetried() => _retried++;
     public void AddPurged(int count) => _purged += count;
 
-    // Counted so a stalled outbox is distinguishable from an idle one.
+    // Counted so a stalled outbox looks different from an idle one.
     public void AddPaused() => _paused++;
 
     public OutboxHealthWindow? TryFlush(DateTimeOffset nowUtc)
@@ -55,7 +55,7 @@ internal sealed record OutboxHealthWindow(
     int Purged,
     int Paused)
 {
-    // Throttling that still publishes stays Succeeded; a window that paused and published nothing is a stall.
+    // A window that paused but still published counts as Succeeded. One that paused and published nothing is a stall.
     public string Outcome => Errored > 0 || (Paused > 0 && Published == 0) ? "Degraded" : "Succeeded";
 
     public string ToSummaryJson() =>

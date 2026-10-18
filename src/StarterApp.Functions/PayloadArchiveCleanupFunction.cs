@@ -31,7 +31,7 @@ public sealed class PayloadArchiveCleanupFunction
         _logger = logger;
     }
 
-    // %setting% must use the ':' key form; a '__' lookup resolves to null and the failed timer takes down the subscribers in this worker.
+    // The %setting% key must use ':' not '__'. With '__' the lookup returns null, the timer fails to start, and it takes every subscriber in this worker down with it.
     [Function(nameof(PayloadArchiveCleanupFunction))]
     [WatchedJob(JobName)]
     public async Task RunAsync([TimerTrigger("%PayloadCapture:CleanupCron%")] TimerInfo timerInfo, CancellationToken cancellationToken)
@@ -68,7 +68,7 @@ public sealed class PayloadArchiveCleanupFunction
         }
         catch (OperationCanceledException)
         {
-            // The run's own token is the cancelled one, so the outcome is written on a fresh, short one.
+            // The run's own token is the one that was cancelled, so the outcome is written with a fresh, short-lived token.
             using var recording = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await _jobRunRecorder.CompleteRunAsync(runId, _timeProvider.GetUtcNow(), JobOutcomes.Cancelled, "{\"error\":\"The run was cancelled before it finished\"}", recording.Token);
             JobRunMetrics.Record(JobName, JobOutcomes.Cancelled);

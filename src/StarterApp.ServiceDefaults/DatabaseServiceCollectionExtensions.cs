@@ -6,7 +6,7 @@ namespace Microsoft.Extensions.Hosting;
 
 public static class DatabaseServiceCollectionExtensions
 {
-    // One data source per process, whoever asks first, so every connection carries the token.
+    // One data source per process, whichever caller registers it first, so every connection carries the token.
     public static IServiceCollection AddDatabaseDataSource(this IServiceCollection services, string connectionString)
     {
         ArgumentNullException.ThrowIfNull(services);

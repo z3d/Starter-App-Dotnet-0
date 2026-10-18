@@ -4,7 +4,7 @@ public class CreateProductCommand : ICommand, IRequest<ProductDto>
 {
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    // Nullable so a missing JSON field is not silently a free product in USD; the validator rejects null.
+    // Nullable so a missing JSON field does not quietly become a free product in USD. The validator rejects null.
     public decimal? Price { get; set; }
     public string? Currency { get; set; }
     public int? Stock { get; set; }

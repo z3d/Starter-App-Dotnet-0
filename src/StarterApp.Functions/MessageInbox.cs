@@ -6,16 +6,16 @@ using Npgsql;
 
 namespace StarterApp.Functions;
 
-// Handler writes that join the claim's transaction commit together with it, so they happen once per message.
+// Handler writes made on this transaction commit together with the inbox claim, so they happen once per message.
 public sealed record InboxTransaction(NpgsqlConnection Connection, NpgsqlTransaction Transaction);
 
 public interface IMessageInbox
 {
-    // False when this consumer already committed the message: Service Bus delivers at least once and out of order.
+    // Returns false when this consumer has already handled the message. Service Bus delivers at least once, and out of order.
     Task<bool> ProcessOnceAsync(string consumer, string messageId, Func<InboxTransaction?, CancellationToken, Task> work, CancellationToken cancellationToken);
 }
 
-// A redelivery after commit finds the row and skips; one racing an uncommitted claim waits on the key, then skips or takes over.
+// A redelivery after the commit finds the row and skips the work. One that races an uncommitted claim waits on the row lock, then skips or takes over.
 public sealed class PostgresMessageInbox : IMessageInbox
 {
     private readonly NpgsqlDataSource _dataSource;
@@ -59,7 +59,7 @@ public sealed class PostgresMessageInbox : IMessageInbox
         return true;
     }
 
-    // Redelivery stops at the subscription TTL, so rows older than the retention can never be matched again.
+    // Service Bus stops redelivering at the subscription's TTL, so a row older than that can never match a message again.
     private async Task PurgeIfDueAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
     {
         var nowUtc = _timeProvider.GetUtcNow();
@@ -75,7 +75,7 @@ public sealed class PostgresMessageInbox : IMessageInbox
     }
 }
 
-// Without a database the work simply runs; standalone runs and tests have no duplicates worth guarding.
+// With no database the work just runs. Standalone runs and tests have no duplicates worth guarding against.
 public sealed class NullMessageInbox : IMessageInbox
 {
     public async Task<bool> ProcessOnceAsync(string consumer, string messageId, Func<InboxTransaction?, CancellationToken, Task> work, CancellationToken cancellationToken)

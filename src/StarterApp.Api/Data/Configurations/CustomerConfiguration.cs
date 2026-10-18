@@ -47,8 +47,8 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
             .HasColumnName("xmin")
             .IsRowVersion();
 
-        // No (tenant_id, owner_subject) index: the unique index below serves that prefix.
+        // No index on (tenant_id, owner_subject). The unique index below starts with those columns and covers it.
 
-        // The unique (tenant_id, owner_subject, email) index lives only in the DbUp baseline: EF cannot index across the owned Email type.
+        // The unique index on (tenant_id, owner_subject, email) is only in the DbUp baseline script. EF Core cannot build an index that includes the owned Email type.
     }
 }

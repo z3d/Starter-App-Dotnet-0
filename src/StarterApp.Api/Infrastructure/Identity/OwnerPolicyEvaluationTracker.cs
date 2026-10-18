@@ -1,6 +1,6 @@
 namespace StarterApp.Api.Infrastructure.Identity;
 
-// Scoped per request: the behaviour marks that authorization is required, the policy marks that it ran, the guard reads both.
+// One per request. The behaviour marks that an owner check is required, the policy marks that it ran, and the write guard reads both.
 public sealed class OwnerPolicyEvaluationTracker
 {
     public bool RequiresEvaluation { get; private set; }

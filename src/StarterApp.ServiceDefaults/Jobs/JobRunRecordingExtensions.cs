@@ -8,7 +8,7 @@ namespace Microsoft.Extensions.Hosting;
 
 public static class JobRunRecordingExtensions
 {
-    // No connection string means a no-op recorder, not a startup failure.
+    // No connection string means a recorder that does nothing, not a start-up failure.
     public static IHostApplicationBuilder AddJobRunRecording(this IHostApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);

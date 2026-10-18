@@ -35,15 +35,15 @@ public sealed partial class JsonPayloadRedactor : IPayloadRedactor
                     return node.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
                 }
             }
-            // Duplicate property names surface as ArgumentException, not JsonException.
+            // Duplicate property names throw ArgumentException, not JsonException.
             catch (Exception ex) when (ex is JsonException or ArgumentException)
             {
-                // Unscreenable JSON is kept in the archive but never falls back to email-only masking in logs.
+                // JSON that cannot be screened is kept in the archive, but in logs it is never passed through with only the emails masked.
                 return "[invalid JSON payload suppressed]";
             }
         }
 
-        // Free text has no property names to screen, so a password or token in it would reach the log with only emails masked.
+        // Free text has no property names to screen, so a password or token in it would reach the log with only the emails masked.
         return SuppressUnscreenable(payload, contentType);
     }
 

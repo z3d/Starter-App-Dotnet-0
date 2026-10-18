@@ -2,7 +2,7 @@ using Microsoft.OpenApi;
 
 namespace StarterApp.Api.Infrastructure.Identity;
 
-// Without a declared scheme Scalar offers no token entry and every Test Request 401s.
+// Without this security scheme, Scalar shows no place to enter a token and every Test Request gets a 401.
 public static class JwtIdentityOpenApi
 {
     public static void ApplySecuritySchemes(OpenApiDocument document)

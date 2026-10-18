@@ -6,17 +6,17 @@ using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Functions;
 
-// Complete sits outside the retry loop so a failed Complete does not rerun the handler; settlement runs on the host token, so a late finish is still completed.
+// Complete is called outside the retry loop, so a failed Complete does not run the handler again. Settlement uses the host's token, so work that finishes late is still completed.
 public static class MessageSettlement
 {
     private const int MaxReasonDescriptionLength = 2048;
     internal const int MaxRetries = 5;
 
-    // Backoff alone is 120 s (5/10/20/40/45); MessageSettlementTests pins the remainder as per-attempt budget.
+    // The waits between attempts add up to 120 seconds (5, 10, 20, 40, 45). What is left is the time each attempt may take, and MessageSettlementTests pins it.
     internal static readonly TimeSpan ExecutionTimeout = TimeSpan.FromSeconds(210);
     internal static readonly TimeSpan MinimumHandlerBudgetPerAttempt = TimeSpan.FromSeconds(15);
 
-    // FunctionsHostConfigConventionTests keeps ExecutionTimeout + SettlementReserve inside maxAutoLockRenewalDuration.
+    // ExecutionTimeout plus SettlementReserve must fit inside maxAutoLockRenewalDuration in host.json. FunctionsHostConfigConventionTests checks that.
     internal static readonly TimeSpan SettlementReserve = TimeSpan.FromSeconds(30);
 
     public static Task SettleAsync(
@@ -35,7 +35,7 @@ public static class MessageSettlement
     internal static TimeSpan TotalBackoff =>
         Enumerable.Range(0, MaxRetries).Aggregate(TimeSpan.Zero, (sum, attempt) => sum + BackoffFor(attempt));
 
-    // Wait and deadline are injected for deterministic tests.
+    // The wait and the deadline are passed in so tests can run without real time.
     internal static async Task SettleAsync(
         ServiceBusReceivedMessage message,
         ServiceBusMessageActions messageActions,
@@ -55,7 +55,7 @@ public static class MessageSettlement
             try
             {
                 await handler(message, token);
-                // Finished work is completed even past the deadline; only a host shutdown leaves it.
+                // Work that finished is completed even after the deadline. Only a host shutdown leaves it unsettled.
                 cancellationToken.ThrowIfCancellationRequested();
                 break;
             }
@@ -65,7 +65,7 @@ public static class MessageSettlement
             }
             catch (Exception exception) when (IsNonRetryable(exception))
             {
-                // An expired deadline must not turn a dead-letter into a redelivery that spends MaxDeliveryCount.
+                // If the deadline has passed, the message must still be dead-lettered. Otherwise it is redelivered and uses up MaxDeliveryCount.
                 cancellationToken.ThrowIfCancellationRequested();
                 logger.LogError(
                     "Dead-lettering message {MessageId} ({Subject}, correlation {CorrelationId}): {FailureType} cannot succeed on redelivery",
@@ -78,7 +78,7 @@ public static class MessageSettlement
             catch (Exception exception)
             {
                 token.ThrowIfCancellationRequested();
-                // No exception objects: worker logs have no PII redaction stage.
+                // No exception objects go in the log. Worker logs are not redacted, and an exception message can hold personal information.
                 if (attempt == MaxRetries)
                 {
                     logger.LogError(
@@ -100,11 +100,11 @@ public static class MessageSettlement
         await messageActions.CompleteMessageAsync(message, cancellationToken);
     }
 
-    // Redelivering the same bytes cannot fix these.
+    // Redelivering the same message cannot fix these errors.
     public static bool IsNonRetryable(Exception exception) =>
         exception is JsonException or InvalidDataException;
 
-    // Broker metadata is never redacted and an exception message can quote the payload, so only the type and correlation id go here.
+    // The dead-letter reason is never redacted, and an exception message can quote the payload. Only the exception type and the correlation id go here.
     private static string DescribeFailure(Exception exception, ServiceBusReceivedMessage message) =>
         Truncate($"{exception.GetType().Name}; correlationId={message.CorrelationId}");
 
@@ -122,7 +122,7 @@ public static class MessageSettlement
         return CorrelationContext.Create();
     }
 
-    // For dead-letter resubmits this captured record is the only durable artifact of the redelivery.
+    // When an operator resubmits a dead-lettered message, this captured record is the only lasting trace of the redelivery.
     internal static Dictionary<string, string> BuildCaptureMetadata(ServiceBusReceivedMessage message, string subscription)
     {
         var metadata = new Dictionary<string, string>

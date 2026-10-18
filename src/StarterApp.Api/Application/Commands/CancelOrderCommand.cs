@@ -38,7 +38,7 @@ public class CancelOrderCommandHandler : IRequestHandler<CancelOrderCommand, Ord
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        // Cancellation restored stock; evict the cached product read model so it does not serve the pre-restore value.
+        // Cancelling restored the stock. Drop the cached product so it does not keep serving the old count.
         foreach (var productId in order.Items.Select(item => item.ProductId).Distinct())
             await _cacheInvalidator.InvalidateProductAsync(productId, cancellationToken);
 

@@ -39,7 +39,7 @@ try
 {
     Log.Information("Starting up application");
 
-    // The first question when the app cannot reach its database.
+    // Logged at start-up. It is the first thing to check when the app cannot reach its database.
     Log.Information("Database authentication: {DatabaseAuthentication}", StarterApp.ServiceDefaults.DatabaseAuthentication.Describe(connectionString));
     if (app.Environment.IsDevelopment())
         Log.Information("Database connection configured: {ConnectionString}", StarterApp.ServiceDefaults.ConnectionStringDescriptor.Describe(connectionString));
@@ -51,7 +51,7 @@ try
     }
     else
     {
-        // The HSTS header is lost on exception-mapped responses; accepted, since a browser already pinned stays pinned.
+        // Error responses lose the HSTS header. That is accepted: a browser that has already seen it stays pinned.
         app.UseHsts();
     }
 
@@ -73,7 +73,7 @@ try
 catch (Exception ex)
 {
     Log.Fatal(ex, "Application start-up failed: {ExMessage}", ex.Message);
-    // A returned exit code lets finally flush the sinks; Environment.Exit would lose the crash line.
+    // Return an exit code rather than calling Environment.Exit, so the finally block can flush the log sinks. Otherwise the line that explains the crash is lost.
     return 1;
 }
 finally

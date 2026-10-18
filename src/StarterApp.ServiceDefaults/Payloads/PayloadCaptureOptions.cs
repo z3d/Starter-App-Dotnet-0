@@ -14,7 +14,7 @@ public class PayloadCaptureOptions
 
     public bool RequireArchiveStore { get; set; }
 
-    // HTTP stays FailOpen; the AppHost sets the Service Bus channel FailClosed and the outbox pauses until capture succeeds.
+    // HTTP stays FailOpen. The AppHost sets the Service Bus channel to FailClosed, and the outbox pauses until capture succeeds.
     public PayloadCaptureFailureMode HttpFailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
 
     public PayloadCaptureFailureMode ServiceBusFailureMode { get; set; } = PayloadCaptureFailureMode.FailOpen;
@@ -48,14 +48,14 @@ public class PayloadCaptureOptions
     [Range(1, 3650)]
     public int RetentionDays { get; set; } = 30;
 
-    // Must fit inside the Consumption plan's 5-minute functionTimeout; raise the two together in host.json.
+    // Must fit inside the Consumption plan's 5 minute functionTimeout. Raise both together in host.json.
     [Range(1, 3600)]
     public int CleanupTimeBudgetSeconds { get; set; } = 300;
 
     [Range(1, 104_857_600)]
     public int MaxPayloadBytes { get; set; } = 1_048_576;
 
-    // A hostile body packed with distinct *Id properties would otherwise fan out without limit.
+    // Without a cap, a body stuffed with different *Id properties would fan out without limit.
     [Range(1, 4096)]
     public int MaxEntityReferences { get; set; } = PayloadEntityReferenceExtractor.DefaultMaxEntityReferences;
 
@@ -73,7 +73,7 @@ public class PayloadCaptureOptions
         "text/plain"
     ];
 
-    // Matched as normalized substrings, so "ssn" also covers "ssnId".
+    // Matched as substrings after normalising, so "ssn" also covers "ssnId".
     internal static readonly string[] DefaultSensitivePropertyNames =
     [
         "address",

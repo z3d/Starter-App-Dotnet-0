@@ -34,7 +34,7 @@ public static partial class PayloadEntityReferenceExtractor
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxReferences);
         ArgumentNullException.ThrowIfNull(sensitivePropertyNames);
 
-        // References become blob path segments and appear in logs, so sensitive names are screened out here too.
+        // References become blob path segments and show up in logs, so sensitive names are screened out here too.
         var sensitiveTokens = sensitivePropertyNames
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Select(NormalizePropertyName)
@@ -44,7 +44,7 @@ public static partial class PayloadEntityReferenceExtractor
         var references = new Dictionary<string, PayloadEntityReference>(StringComparer.OrdinalIgnoreCase);
         var contextEntityType = InferRootEntityType(request.Operation, request.Metadata);
 
-        // The route path is caller-controlled and captured before routing; without this screen it would publish a value the JSON path masks.
+        // The caller controls the route path, and it is captured before routing. Without this screen a value the JSON masking hides would be published anyway.
         foreach (var reference in request.EntityReferences)
             AddReference(reference.EntityType, reference.EntityId, sensitiveTokens, references);
 
@@ -60,7 +60,7 @@ public static partial class PayloadEntityReferenceExtractor
             .ThenBy(reference => reference.EntityId, StringComparer.Ordinal)
             .ToList();
 
-        // Cap the fan-out from a body packed with distinct *Id properties.
+        // Caps the fan-out from a body stuffed with different *Id properties.
         truncated = ordered.Count > maxReferences;
         return truncated ? ordered.Take(maxReferences).ToList() : ordered;
     }
@@ -138,7 +138,7 @@ public static partial class PayloadEntityReferenceExtractor
 
         string? entityType = null;
 
-        // Case-sensitive on purpose: an ignore-case "Id" suffix turns paid, valid and bid into entity references.
+        // Case-sensitive on purpose. Ignoring case would make paid, valid and bid look like Id properties.
         if (string.Equals(name, "id", StringComparison.OrdinalIgnoreCase))
         {
             entityType = contextEntityType;
@@ -266,14 +266,14 @@ public static partial class PayloadEntityReferenceExtractor
             segment.Any(char.IsDigit);
     }
 
-    // Every source funnels through here, so this is the one screen that cannot be bypassed.
+    // Every source passes through here, so this is the one screen nothing can skip.
     private static void AddReference(
         string entityType,
         string entityId,
         HashSet<string> sensitiveTokens,
         Dictionary<string, PayloadEntityReference> references)
     {
-        // Screened on the raw value: NormalizeIdentifier strips the '@' and the spaces that give an email, a name or a phone number away.
+        // Screened on the raw value. NormalizeIdentifier strips the '@' and the spaces that would give away an email, a name or a phone number.
         if (!LooksLikeAnOpaqueId(entityId.Trim()))
             return;
 
@@ -285,7 +285,7 @@ public static partial class PayloadEntityReferenceExtractor
         if (IsSensitivePropertyName(normalizedEntityType, sensitiveTokens))
             return;
 
-        // A dot-only segment is a path-traversal token if the index is ever mirrored to a filesystem.
+        // A segment of only dots is a path traversal if the index is ever copied to a filesystem.
         if (normalizedEntityId.All(character => character == '.'))
             return;
 

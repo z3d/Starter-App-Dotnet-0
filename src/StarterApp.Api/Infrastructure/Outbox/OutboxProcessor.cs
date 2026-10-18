@@ -56,7 +56,7 @@ public class OutboxProcessor : BackgroundService
                     _lastCleanupUtc = _timeProvider.GetUtcNow();
                 }
 
-                // One job_runs row per interval with activity, never per message.
+                // One job_runs row for each interval that did something, never one per message.
                 var healthWindow = _runAggregator.TryFlush(_timeProvider.GetUtcNow());
                 if (healthWindow is not null)
                 {
@@ -79,7 +79,7 @@ public class OutboxProcessor : BackgroundService
         }
     }
 
-    // Errored rows are purged RetentionDays after the failure, not the event time; unprocessed rows are never touched.
+    // An errored row is purged RetentionDays after it failed, not after the event happened. Unprocessed rows are never purged.
     internal async Task<int> CleanupExpiredMessagesAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -96,7 +96,7 @@ public class OutboxProcessor : BackgroundService
         }
         else
         {
-            // InMemory fallback (tests): ExecuteDeleteAsync is not supported on that provider.
+            // The in-memory test provider does not support ExecuteDeleteAsync, so tests take this path.
             var expired = await dbContext.OutboxMessages
                 .Where(m => (m.ProcessedOnUtc != null && m.ProcessedOnUtc < cutoffUtc) ||
                             (m.ErroredOnUtc != null && m.ErroredOnUtc < cutoffUtc))
@@ -112,7 +112,7 @@ public class OutboxProcessor : BackgroundService
         return deleted;
     }
 
-    // True only when a full batch published cleanly: a backlog drains without sleeping, while retries and pauses still wait.
+    // Returns true only when a full batch published with no errors. A backlog then drains without sleeping, while retries and pauses still wait.
     private async Task<bool> ProcessBatchAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -123,7 +123,7 @@ public class OutboxProcessor : BackgroundService
         var now = _timeProvider.GetUtcNow();
         var lockedUntilUtc = now.AddSeconds(_options.LockDurationSeconds);
 
-        // The transaction covers only the claim, so row locks are released before any network call.
+        // The transaction covers only the claim, so the row locks are released before any network call.
         var messages = await strategy.ExecuteAsync(cancellationToken, async ct =>
         {
             dbContext.ChangeTracker.Clear();
@@ -158,7 +158,7 @@ public class OutboxProcessor : BackgroundService
                 }
                 catch (Exception captureEx) when (captureEx is not OperationCanceledException)
                 {
-                    // A store failure pauses the batch and never spends the retry budget (#79); a failure of this message alone spends it, so it reaches Error and the replay surface.
+                    // If the archive store is down, the batch pauses and no message loses a retry (#79). If only this message fails to capture, it loses one, so it ends up in Error where it can be replayed.
                     if (IsStoreWideCaptureFailure(captureEx))
                     {
                         _runAggregator.AddPaused();
@@ -189,7 +189,7 @@ public class OutboxProcessor : BackgroundService
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // A broker outage must not spend each message's retry budget: pause the batch and keep the claims locked until LockedUntilUtc.
+                // A Service Bus outage must not cost every message a retry. The batch pauses and the claims stay locked until LockedUntilUtc.
                 if (IsTransientDependencyError(ex))
                 {
                     _logger.LogWarning(ex, "Transient dependency error publishing outbox message {MessageId} ({Type}); pausing batch until claim lock expires",
@@ -225,7 +225,7 @@ public class OutboxProcessor : BackgroundService
         }
     }
 
-    // A row another replica reclaimed mid-batch would fail the whole save and republish everything; detach it and save the rest.
+    // If another replica took over a row mid-batch, saving it would fail the whole save and republish every message. Detach that row and save the rest.
     internal async Task SaveOutcomesAsync(ApplicationDbContext dbContext, CancellationToken cancellationToken)
     {
         while (true)
@@ -250,7 +250,7 @@ public class OutboxProcessor : BackgroundService
         }
     }
 
-    // internal so integration tests can drive SKIP LOCKED against real PostgreSQL.
+    // Internal so the integration tests can run SKIP LOCKED against a real PostgreSQL.
     internal async Task<List<OutboxMessage>> ClaimBatchInTransactionAsync(
         ApplicationDbContext dbContext,
         Guid processingId,
@@ -297,7 +297,7 @@ public class OutboxProcessor : BackgroundService
             ServiceBusFailureReason.QuotaExceeded;
     }
 
-    // Any storage error means every message would fail the same way; anything else is specific to the one message.
+    // A storage error would fail every message the same way. Any other error belongs to this one message.
     internal static bool IsStoreWideCaptureFailure(Exception ex)
     {
         for (var current = ex; current is not null; current = current.InnerException)
@@ -347,7 +347,7 @@ public class OutboxProcessor : BackgroundService
             .ToListAsync(cancellationToken);
     }
 
-    // For dead-letter resubmits the captured record is the only durable artifact, so it carries the replay marker too.
+    // When a dead-lettered message is resubmitted, the captured record is the only lasting trace, so it carries the replay marker too.
     internal static Dictionary<string, string> BuildCaptureMetadata(OutboxMessage message, string topicName)
     {
         var metadata = new Dictionary<string, string>
@@ -380,7 +380,7 @@ public class OutboxProcessor : BackgroundService
         serviceBusMessage.ApplicationProperties["EventType"] = message.Type;
         serviceBusMessage.ApplicationProperties[CorrelationContext.ApplicationPropertyName] = message.CorrelationId;
 
-        // Lets audit and subscribers tell an operator republish from a first delivery (docs/runbooks/event-replay.md).
+        // Lets the audit trail and subscribers tell an operator's replay from a first delivery (docs/runbooks/event-replay.md).
         if (message.ReplayCount > 0)
         {
             serviceBusMessage.ApplicationProperties["Replay"] = true;

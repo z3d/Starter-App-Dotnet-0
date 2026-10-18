@@ -29,7 +29,7 @@ public sealed class OwnerOnlyPolicy : IOwnerOnlyPolicy
 
     public void Authorize(string ownerSubject, string tenantId)
     {
-        // Marked before the comparison: a Forbidden outcome still counts as consulted.
+        // Marked before the comparison. A Forbidden result still counts as having run the check.
         _tracker.MarkEvaluated();
 
         var scope = GetRequiredScope();

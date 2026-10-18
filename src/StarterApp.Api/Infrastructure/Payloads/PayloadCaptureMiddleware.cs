@@ -24,7 +24,7 @@ public sealed class PayloadCaptureMiddleware
         _logger = logger;
     }
 
-    // Hardcoded on purpose: only probe noise is skipped, and configuration would let business routes opt out.
+    // Hardcoded on purpose. Only the probes are skipped, and a setting would let a business route opt out of the audit trail.
     internal static readonly IReadOnlySet<string> ProbeSkipRoutes = new HashSet<string>(StringComparer.Ordinal)
     {
         "/health",
@@ -46,13 +46,13 @@ public sealed class PayloadCaptureMiddleware
         var correlationId = ResolveCorrelationId(context, out var hadInboundCorrelationId);
         context.TraceIdentifier = correlationId;
 
-        // The caller's request headers stay untouched; the sanitized id is used wherever it is reflected or persisted.
+        // The caller's request header is left as sent. The cleaned-up id is what gets echoed and stored.
         if (!hadInboundCorrelationId)
             context.Request.Headers[CorrelationContext.HeaderName] = correlationId;
 
         context.Response.Headers[CorrelationContext.HeaderName] = correlationId;
 
-        // UseExceptionHandler clears response headers; an OnStarting callback survives that, so the echo reaches error responses.
+        // UseExceptionHandler clears the response headers. An OnStarting callback runs after that, so error responses still get the echo.
         context.Response.OnStarting(static state =>
         {
             var (response, id) = ((HttpResponse, string))state;
@@ -76,7 +76,7 @@ public sealed class PayloadCaptureMiddleware
         }
         catch (OperationCanceledException)
         {
-            // A client abort must not suppress the audit record, so capture the buffered bytes with an unlinked token.
+            // A client hanging up must not stop the audit record, so the buffered bytes are captured with a token the client cannot cancel.
             _logger.LogWarning("HTTP request was canceled for correlation {CorrelationId}; capturing the partial response for audit", correlationId);
             await IndexEntitiesIfAuthenticatedAsync(context, requestRecord, await CaptureResponseAsync(context, correlationId, responseBody));
             throw;
@@ -92,7 +92,7 @@ public sealed class PayloadCaptureMiddleware
         }
     }
 
-    // Capture runs ahead of authentication, so every HTTP capture defers its index lines to here: an anonymous caller's ids never reach the entity index.
+    // Capture runs before authentication, so the entity index lines are written here instead. An anonymous caller's ids never reach the index.
     private async Task IndexEntitiesIfAuthenticatedAsync(HttpContext context, params PayloadCaptureRecord?[] records)
     {
         if (context.RequestServices?.GetService<ICurrentUser>() is not { IsAuthenticated: true })
@@ -162,14 +162,14 @@ public sealed class PayloadCaptureMiddleware
             ["action"] = AuditAction.Resolve(context)
         };
 
-        // Audit blobs may carry PII by policy; logs stay redacted.
+        // Audit blobs may hold personal information, by policy. Logs stay redacted.
         if (context.RequestServices?.GetService<ICurrentUser>() is { IsAuthenticated: true } currentUser)
         {
             metadata["subject"] = currentUser.Subject;
             metadata["tenantId"] = currentUser.TenantId;
         }
 
-        // CancellationToken.None: a client abort must not suppress the audit record after the response was produced.
+        // CancellationToken.None on purpose. A client hanging up must not stop the audit record once the response exists.
         if (!ShouldCaptureContentType(context.Response.ContentType))
         {
             return await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest

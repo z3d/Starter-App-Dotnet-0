@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace StarterApp.ServiceDefaults.Payloads;
 
-// Bound options are the truth at resolution time; the raw probe is for registration-time decisions only.
+// The bound options are the truth once services resolve. This raw check of configuration is only for decisions made while registering services.
 public static class PayloadArchiveConfiguration
 {
     public static bool IsConfigured(IConfiguration configuration)
@@ -49,7 +49,7 @@ public static class PayloadArchiveConfiguration
     }
 }
 
-// A wrapper so an unrelated BlobServiceClient in DI can never be picked up by the archive store.
+// A wrapper, so the archive store can never pick up an unrelated BlobServiceClient from DI.
 public sealed class PayloadArchiveClientProvider
 {
     public PayloadArchiveClientProvider(BlobServiceClient? client)

@@ -1,6 +1,6 @@
 namespace StarterApp.Domain.Abstractions;
 
-// OccurredOnUtc is unset until DomainEventsInterceptor stamps it at save.
+// OccurredOnUtc stays unset until DomainEventsInterceptor fills it in when the row is saved.
 public abstract class DomainEvent : IDomainEvent
 {
     public abstract string EventType { get; }

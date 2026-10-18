@@ -2,7 +2,7 @@ namespace StarterApp.Api.Infrastructure.Payloads;
 
 public sealed record AuditActionMetadata(string Action);
 
-// Derived from the HTTP method; endpoints whose verb misrepresents the action override via WithAuditAction.
+// Worked out from the HTTP method. An endpoint whose method does not say what it does overrides this with WithAuditAction.
 public static class AuditAction
 {
     public const string Create = "Create";
@@ -24,7 +24,7 @@ public static class AuditAction
         _ => Other
     };
 
-    // Request rows are captured before routing, so only response rows can see the endpoint override.
+    // Request rows are captured before routing, so only response rows can see the endpoint's override.
     public static string Resolve(HttpContext context)
     {
         var endpointOverride = context.GetEndpoint()?.Metadata.GetMetadata<AuditActionMetadata>();

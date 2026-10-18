@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace StarterApp.ServiceDefaults.Payloads;
 
-// Drains in StoppedAsync, after the web server and outbox processor have made their last capture.
+// Drains the queue in StoppedAsync, after the web server and the outbox processor have written their last capture.
 public sealed class PayloadCaptureBackgroundWriter : IHostedLifecycleService, IDisposable
 {
     private readonly PayloadCaptureBackgroundQueue _queue;
@@ -61,7 +61,7 @@ public sealed class PayloadCaptureBackgroundWriter : IHostedLifecycleService, ID
             timeout.CancelAfter(_writeTimeout);
             try
             {
-                // WaitAsync as well: a store that ignores its token must not hold the one reader.
+                // WaitAsync too. A store that ignores its cancellation token must not hold up the only reader.
                 await _store.AppendLineAsync(append.BlobName, append.Line, timeout.Token).WaitAsync(timeout.Token);
             }
             catch (OperationCanceledException) when (_abandon.IsCancellationRequested)

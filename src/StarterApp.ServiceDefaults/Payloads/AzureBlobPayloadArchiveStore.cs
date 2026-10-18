@@ -21,7 +21,7 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
         _containerClient = blobServiceClient.GetBlobContainerClient(_options.ContainerName);
     }
 
-    // Azure rejects a single AppendBlock over 4 MiB; MaxPayloadBytes can be far larger.
+    // Azure rejects an AppendBlock over 4 MiB. MaxPayloadBytes can be much larger than that.
     internal const int MaxAppendBlockBytes = 4 * 1024 * 1024;
 
     public async Task AppendLineAsync(string blobName, string line, CancellationToken cancellationToken)
@@ -29,12 +29,12 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
         var bytes = Encoding.UTF8.GetBytes(line + Environment.NewLine);
         if (bytes.Length <= MaxAppendBlockBytes)
         {
-            // A single AppendBlock is atomic, so concurrent writers never interleave inside one record.
+            // One AppendBlock is atomic, so two writers can never interleave inside one record.
             await AppendBlocksAsync(blobName, bytes, cancellationToken);
             return;
         }
 
-        // Multi-block appends are not atomic: write the record to a single-writer sidecar first, then an atomic pointer line here.
+        // Several AppendBlocks are not atomic. The record goes to its own sidecar blob first, then one atomic pointer line goes here.
         var sidecarBlobName = BuildOversizeSidecarBlobName(blobName);
         await AppendBlocksAsync(sidecarBlobName, bytes, cancellationToken);
 
@@ -49,7 +49,7 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
             await AppendBlockCreatingOnDemandAsync(appendBlobClient, block, cancellationToken);
     }
 
-    // Appending first keeps the common case to one round trip; the container and blob are created only when Azure reports them missing.
+    // Append first, so the common case is one round trip. The container and blob are created only when Azure says they are missing.
     private async Task AppendBlockCreatingOnDemandAsync(AppendBlobClient appendBlobClient, ArraySegment<byte> block, CancellationToken cancellationToken)
     {
         try
@@ -73,7 +73,7 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
         await appendBlobClient.AppendBlockAsync(stream, cancellationToken: cancellationToken);
     }
 
-    // Keeps the parent's date/hour/minute segments so retention cleanup covers it.
+    // Keeps the parent's date, hour and minute path segments, so retention cleanup finds it.
     internal static string BuildOversizeSidecarBlobName(string blobName)
     {
         return string.Create(CultureInfo.InvariantCulture, $"{blobName}.oversize-{Guid.CreateVersion7():N}.jsonl");
@@ -100,7 +100,7 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
         }
     }
 
-    // Deleting already-listed blobs mid-enumeration is safe; the budget is split across the three prefixes so archive/ cannot starve entity-index/.
+    // Deleting blobs that have already been listed is safe while listing continues. The budget is split across the three prefixes so a backlog in archive/ cannot starve entity-index/.
     public async Task<PayloadArchiveDeleteResult> DeleteOlderThanAsync(DateTimeOffset cutoffUtc, CancellationToken cancellationToken)
     {
         await _containerClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
@@ -136,7 +136,7 @@ public sealed class AzureBlobPayloadArchiveStore : IPayloadArchiveStore
             }
             catch (RequestFailedException ex) when (ex.ErrorCode == "BlobNotFound")
             {
-                // A concurrent cleanup already removed it.
+                // Another cleanup run has already removed it.
             }
         }
 

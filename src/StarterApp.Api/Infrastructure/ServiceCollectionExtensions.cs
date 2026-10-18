@@ -57,12 +57,12 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddPersistence(this IServiceCollection services, string connectionString)
     {
-        // A handler that opens its own transaction must run it inside CreateExecutionStrategy().ExecuteAsync or the first transient fault throws.
+        // A handler that opens its own transaction must run it inside CreateExecutionStrategy().ExecuteAsync. Otherwise the first transient fault throws.
         services.TryAddScoped<OwnerPolicyEvaluationTracker>();
         services.AddScoped<OwnerAuthorizationWriteGuard>();
         services.TryAddSingleton(TimeProvider.System);
 
-        // One data source per process so the managed-identity password provider is configured once.
+        // One data source per process, so the managed identity password provider is set up once.
         services.AddDatabaseDataSource(connectionString);
         services.AddDbContext<ApplicationDbContext>((provider, options) =>
             options.UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>(), postgres =>
@@ -70,7 +70,7 @@ public static class ServiceCollectionExtensions
                    .EnableSensitiveDataLogging(false)
                    .AddInterceptors(new DomainEventsInterceptor(provider.GetRequiredService<TimeProvider>()), provider.GetRequiredService<OwnerAuthorizationWriteGuard>()));
 
-        // Transient, not scoped: Npgsql cannot run two queries on one connection at once.
+        // Transient, not scoped. Npgsql cannot run two queries on one connection at the same time.
         services.AddTransient<System.Data.IDbConnection>(provider =>
             provider.GetRequiredService<NpgsqlDataSource>().CreateConnection());
 
@@ -90,10 +90,10 @@ public static class ServiceCollectionExtensions
                 else
                     policy.WithOrigins(configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
                           .WithMethods("GET", "POST", "PUT", "DELETE")
-                          // Omitting X-Correlation-ID here blocks browser callers from supplying their own.
+                          // Without X-Correlation-ID in this list, a browser cannot send its own correlation id.
                           .WithHeaders("Authorization", "Content-Type", "X-Correlation-ID");
 
-                // Browsers hide non-safelisted response headers from cross-origin scripts unless exposed.
+                // A browser hides custom response headers from cross-origin scripts unless they are listed here.
                 policy.WithExposedHeaders(ExposedResponseHeaders);
             });
         });
@@ -116,7 +116,7 @@ public static class ServiceCollectionExtensions
                 "An Identity setting still holds a REPLACE-ME placeholder; set it as an app setting before starting.")
             .ValidateOnStart();
 
-        // Self-contained JWTs only; never add a token-introspection call to this path.
+        // Tokens are validated locally. Never add a token introspection call here.
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer();
 
@@ -129,13 +129,13 @@ public static class ServiceCollectionExtensions
                 if (!string.IsNullOrWhiteSpace(identity.MetadataAddress))
                 {
                     bearer.MetadataAddress = identity.MetadataAddress;
-                    // The document fetched from the internal name still states the public issuer.
+                    // The discovery document fetched from the internal hostname still names the public issuer.
                     bearer.TokenValidationParameters.ValidIssuer = identity.Authority;
                 }
                 bearer.RequireHttpsMetadata = identity.RequireHttpsMetadata;
-                // Inbound claim remapping would rename sub/tid/scope/amr out from under JwtIdentityMiddleware.
+                // Without this, the handler renames sub, tid, scope and amr, and JwtIdentityMiddleware cannot find them.
                 bearer.MapInboundClaims = false;
-                // Keeps GetTokenAsync("access_token") from handing the raw token back to app code.
+                // Not saving the token stops GetTokenAsync("access_token") from handing it back to application code.
                 bearer.SaveToken = false;
                 bearer.TokenValidationParameters.ValidAlgorithms = JwtIdentityOptions.AllowedSigningAlgorithms;
                 bearer.TokenValidationParameters.ValidateAudience = true;
@@ -145,7 +145,7 @@ public static class ServiceCollectionExtensions
                 bearer.TokenValidationParameters.NameClaimType = "sub";
             });
 
-        // Catches a route mapped outside /api/v1, which the convention tests do not see.
+        // Catches a route mapped outside /api/v1, which the convention tests cannot see.
         services.AddAuthorizationBuilder()
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
@@ -198,7 +198,7 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    // Partitioned by verified identity so one tenant cannot starve another; client IP only when anonymous.
+    // Partitioned by the verified identity so one tenant cannot starve another. Anonymous callers are partitioned by client IP.
     internal static string ResolveRateLimitPartitionKey(HttpContext httpContext)
     {
         var currentUser = httpContext.RequestServices.GetService<ICurrentUser>();
@@ -207,7 +207,7 @@ public static class ServiceCollectionExtensions
             : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
     }
 
-    // A malformed authority otherwise surfaces only when the bearer handler builds its metadata address.
+    // Checked at start-up. Otherwise a malformed authority only shows up when the bearer handler builds its metadata address.
     internal static bool AuthorityIsWellFormed(JwtIdentityOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.Authority))
@@ -222,7 +222,7 @@ public static class ServiceCollectionExtensions
         return authority.Scheme == Uri.UriSchemeHttp && !options.RequireHttpsMetadata;
     }
 
-    // A placeholder passes the URI and Required checks and fails later, on the first token, looking like a bad client.
+    // A placeholder value passes the URI and Required checks, then fails on the first token and looks like a client error.
     internal static bool HasNoPlaceholder(JwtIdentityOptions options)
     {
         return !IsPlaceholder(options.Authority) && !IsPlaceholder(options.MetadataAddress) && !IsPlaceholder(options.Audience);
@@ -237,13 +237,13 @@ public static class ServiceCollectionExtensions
             environment.EnvironmentName == "Testing";
     }
 
-    // "durable" is the set /healthiness runs; Service Bus and the archive register only when configured.
+    // The /healthiness probe runs the checks tagged "durable". Service Bus and the archive are added only when they are configured.
     public static IServiceCollection AddApiHealthChecks(this IServiceCollection services, IConfiguration configuration)
     {
         var healthChecks = services.AddHealthChecks()
             .AddCheck<DatabaseReadinessHealthCheck>("database", tags: ["ready", "durable"]);
 
-        // The in-memory fallback is per-process, so tagging it durable would mask a missing Redis.
+        // The in-memory cache is per process. Tagging it durable would hide a missing Redis.
         if (!string.IsNullOrEmpty(configuration.GetConnectionString("redis")))
             healthChecks.AddCheck<DistributedCacheHealthCheck>("distributed-cache", tags: ["durable"]);
 
@@ -252,7 +252,7 @@ public static class ServiceCollectionExtensions
 
         if (StarterApp.ServiceDefaults.Payloads.PayloadArchiveConfiguration.IsConfigured(configuration))
         {
-            // AddCheck<T> alone activates a fresh instance per run; registering it makes HealthCheckService reuse one.
+            // AddCheck<T> on its own creates a new instance on every run. Registering the type makes HealthCheckService reuse one.
             services.AddSingleton<PayloadArchiveHealthCheck>();
             healthChecks.AddCheck<PayloadArchiveHealthCheck>("payload-archive", tags: ["durable"]);
         }
@@ -265,7 +265,7 @@ public static class ServiceCollectionExtensions
         var connectionString = configuration.GetConnectionString("servicebus");
         if (string.IsNullOrEmpty(connectionString))
         {
-            // Outside dev a missing connection string would boot green and accumulate outbox rows forever.
+            // Outside development, a missing connection string would start up healthy and pile up outbox rows forever.
             if (!IsDevelopmentLike(environment))
                 throw new InvalidOperationException(
                     "ConnectionStrings:servicebus is required outside Development/Testing environments. " +

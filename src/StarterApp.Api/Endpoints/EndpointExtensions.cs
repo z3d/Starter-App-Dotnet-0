@@ -20,7 +20,7 @@ public static class EndpointExtensions
         return app;
     }
 
-    // List queries fetch pageSize + 1 rows; the extra row is the "another page exists" probe.
+    // List queries fetch one row more than the page size. If the extra row comes back, there is another page.
     public static async Task<IResult> PagedAsync<T>(this IMediator mediator, IRequest<IEnumerable<T>> query, int pageSize, CancellationToken cancellationToken)
     {
         var items = (await mediator.SendAsync(query, cancellationToken)).ToList();

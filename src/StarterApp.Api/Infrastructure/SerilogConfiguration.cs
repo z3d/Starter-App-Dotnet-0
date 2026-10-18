@@ -2,7 +2,7 @@ using Serilog.Enrichers.Sensitive;
 
 namespace StarterApp.Api.Infrastructure;
 
-// The host and SensitiveLogMaskingTests both call Apply, so the tested pipeline is the one that runs.
+// Both the host and SensitiveLogMaskingTests call Apply, so the tests run the same logging pipeline as production.
 public static class SerilogConfiguration
 {
     public static void Apply(LoggerConfiguration loggerConfiguration, IConfiguration configuration, IServiceProvider? services = null)

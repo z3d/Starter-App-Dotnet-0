@@ -3,7 +3,7 @@ using StarterApp.Api.Infrastructure.Outbox;
 
 namespace StarterApp.Api.Data;
 
-// Without this interceptor a context writes no outbox rows and no audit stamps; EF calls it outside the retry strategy, so a retry cannot duplicate rows.
+// A context without this interceptor writes no outbox rows and no audit stamps. EF Core calls it outside the retry strategy, so a retry cannot write the rows twice.
 public sealed class DomainEventsInterceptor(TimeProvider timeProvider) : SaveChangesInterceptor
 {
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
@@ -53,7 +53,7 @@ public sealed class DomainEventsInterceptor(TimeProvider timeProvider) : SaveCha
         if (outboxMessages.Count > 0)
             context.Set<OutboxMessage>().AddRange(outboxMessages);
 
-        // Cleared before the save: a retry at the use-case layer would otherwise duplicate the outbox rows.
+        // Cleared before the save. Otherwise a retry from the handler would write the outbox rows twice.
         foreach (var aggregate in aggregatesWithEvents)
             aggregate.ClearDomainEvents();
     }

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace StarterApp.Api.Infrastructure.Identity;
 
-// Runs before SaveChanges and before ExecuteUpdate/ExecuteDelete, which the behaviour alone cannot see; reads are never blocked.
+// Runs before SaveChanges and before ExecuteUpdate and ExecuteDelete, which the behaviour cannot see on its own. Reads are never blocked.
 internal sealed class OwnerAuthorizationWriteGuard : DbCommandInterceptor, ISaveChangesInterceptor
 {
     private readonly OwnerPolicyEvaluationTracker _tracker;

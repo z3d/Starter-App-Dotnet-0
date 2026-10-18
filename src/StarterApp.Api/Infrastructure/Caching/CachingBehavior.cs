@@ -7,7 +7,7 @@ namespace StarterApp.Api.Infrastructure.Caching;
 public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
 {
-    // Per-replica single-flight for early recomputes; entries are removed in finally.
+    // Makes sure only one early recompute runs per key on this replica. Entries are removed in the finally block.
     private static readonly ConcurrentDictionary<string, byte> RefreshesInFlight = new();
 
     private readonly IDistributedCache _cache;
@@ -28,11 +28,11 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         if (request is not ICacheable cacheable)
             return await next();
 
-        // Pin expiry before any I/O so a slow publisher cannot extend a value past the generation's retention.
+        // Fix the expiry before any I/O, so a slow write cannot push a value past the generation's lifetime.
         if (cacheable.CacheDuration > CacheTombstone.Ttl)
             return await next();
 
-        // No authenticated subject means no owner scope, so serve uncached rather than share a global key.
+        // No signed-in user means no owner scope. Skip the cache rather than share one global key.
         if (cacheable is IOwnerScopedRequest && !_currentUser.IsAuthenticated)
             return await next();
 
@@ -40,7 +40,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         var cacheKey = ResolveCacheKey(cacheable);
         var cached = (await TryGetAsync(cacheKey, cancellationToken)).Value;
         var (generationKnown, generation) = await TryGetAsync(CacheTombstone.KeyFor(cacheKey), cancellationToken);
-        // Old replicas wrote a constant tombstone. It cannot distinguish successive invalidations.
+        // Older replicas wrote "1" as the tombstone. That cannot tell one invalidation from the next, so treat it as unknown.
         generationKnown &= generation != "1";
         if (cached is not null)
         {
@@ -54,7 +54,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
                     return envelope.Value!;
                 }
 
-                // One caller recomputes inline, keeping its own identity; the rest keep the still-valid cached value.
+                // One caller recomputes the value under its own identity. The rest keep the cached value, which is still valid.
                 if (!RefreshesInFlight.TryAdd(cacheKey, 0))
                 {
                     _logger.LogDebug("Refresh already in flight for {CacheKey}; serving cached value", cacheKey);
@@ -71,7 +71,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException && _timeProvider.GetUtcNow() < envelope.ExpiresAtUtc)
                 {
-                    // The cached value is still inside its TTL; only the early refresh gets this fallback.
+                    // The cached value has not expired yet. Only the early refresh gets this fallback.
                     _logger.LogWarning(ex, "Refresh-ahead recompute failed for {CacheKey}; serving the cached value until the next attempt", cacheKey);
                     return envelope.Value!;
                 }
@@ -81,7 +81,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
                 }
             }
 
-            // A superseded generation is a routine miss; unreadable content is not. Log them apart.
+            // An out-of-date generation is a normal miss. Content that cannot be read is not. Log them differently.
             if (envelope is null)
                 _logger.LogDebug("Cache entry for {CacheKey} is not a valid envelope; treating as miss", cacheKey);
             else
@@ -96,7 +96,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         return result;
     }
 
-    // Fails open: a Redis outage degrades to database reads, never a 500. Cancellation still propagates.
+    // Fails open. If Redis is down the query reads the database instead of returning a 500. Cancellation still goes through.
     private async Task<(bool Success, string? Value)> TryGetAsync(string cacheKey, CancellationToken cancellationToken)
     {
         try
@@ -117,7 +117,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         if (!known || currentGeneration != generation || _timeProvider.GetUtcNow() >= expiresAtUtc)
             return;
 
-        // Correctness comes from storing the generation observed before the handler; this check only avoids needless writes.
+        // Correctness comes from storing the generation read before the handler ran. This check only saves pointless writes.
         var refreshAfterUtc = expiresAtUtc - cacheable.CacheRefreshWindow;
         var serialized = JsonSerializer.Serialize(new CacheEnvelope(result, refreshAfterUtc, expiresAtUtc, generation));
         var options = new DistributedCacheEntryOptions { AbsoluteExpiration = expiresAtUtc };

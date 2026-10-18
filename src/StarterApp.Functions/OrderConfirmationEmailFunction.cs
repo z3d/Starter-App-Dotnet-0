@@ -36,7 +36,7 @@ public class OrderConfirmationEmailFunction
 
     private async Task ProcessAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken)
     {
-        // Resolving again would mint a second id for a message that carries none.
+        // Resolved once. Calling it again would make up a second correlation id for a message that has none.
         var correlationId = CorrelationContext.GetOrCreate();
         var body = message.Body.ToString();
 
@@ -56,8 +56,8 @@ public class OrderConfirmationEmailFunction
             _logger.LogInformation("Order confirmation email triggered. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
                 message.MessageId, message.Subject, correlationId);
 
-            // TODO: send the confirmation email. Delivery is unordered (16 concurrent calls, no sessions), so a status change can arrive before order-created.
-            // An email cannot join the inbox transaction: a send that succeeds before a failed commit is sent again on redelivery.
+            // TODO: send the confirmation email. Messages arrive out of order (16 at a time, no sessions), so a status change can land before the order-created event.
+            // An email cannot be part of the inbox transaction. If the send succeeds and the commit then fails, the redelivery sends it again.
             return Task.CompletedTask;
         }, cancellationToken);
     }

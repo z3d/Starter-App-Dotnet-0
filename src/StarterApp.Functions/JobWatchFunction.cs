@@ -65,7 +65,7 @@ public sealed class JobWatchFunction
     public Task<IReadOnlyDictionary<string, JobHealth>> WatchAsync(CancellationToken cancellationToken)
         => WatchAsync(Jobs, cancellationToken);
 
-    // The alert rules in the hosting repository match these log lines word for word (docs/runbooks/scheduled-jobs.md).
+    // The alert rules in the hosting repository match these log lines word for word. Do not reword them (docs/runbooks/scheduled-jobs.md).
     public async Task<IReadOnlyDictionary<string, JobHealth>> WatchAsync(IReadOnlyList<WatchedJob> jobs, CancellationToken cancellationToken)
     {
         var now = _timeProvider.GetUtcNow();

@@ -9,7 +9,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.ToTable("orders");
         builder.HasKey(o => o.Id);
 
-        // Id is assigned in the aggregate constructor; EF must not generate it.
+        // The Id is set in the aggregate's constructor. EF Core must not generate it.
         builder.Property(o => o.Id)
             .HasColumnName("id")
             .ValueGeneratedNever();
@@ -45,7 +45,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasColumnName("xmin")
             .IsRowVersion();
 
-        // No (tenant_id, owner_subject) index: the wider indexes below serve that prefix.
+        // No index on (tenant_id, owner_subject). The wider indexes below start with those columns and cover it.
 
         builder.HasIndex(o => new { o.TenantId, o.OwnerSubject, o.CustomerId })
             .HasDatabaseName("ix_orders_tenant_id_owner_subject_customer_id");

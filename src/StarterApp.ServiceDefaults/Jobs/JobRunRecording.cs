@@ -3,7 +3,7 @@ using Npgsql;
 
 namespace StarterApp.ServiceDefaults.Jobs;
 
-// Recording failures are logged and swallowed: a history write must never take down the job it describes.
+// A failure to record is logged and swallowed. Writing the history must never take down the job it describes.
 public interface IJobRunRecorder
 {
     Task<Guid> StartRunAsync(string jobName, DateTimeOffset startedOnUtc, CancellationToken cancellationToken);
@@ -48,7 +48,7 @@ public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
             command.Parameters.AddWithValue("startedOnUtc", startedOnUtc);
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-            // A failed purge in the same try discarded runId and made job-run-history.sql report the run as a crash.
+            // The purge has its own try block. When it shared this one, a failed purge threw away runId and job-run-history.sql reported the run as a crash.
             try
             {
                 await PurgeIfDueAsync(connection, cancellationToken).ConfigureAwait(false);
@@ -113,7 +113,7 @@ public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // The row above is committed; a purge failure must not be reported as a lost record.
+                // The row above is already committed. A failed purge must not be reported as a lost record.
                 _logger.LogWarning(ex, "Job-run retention purge failed; it will be retried on a later run");
             }
         }
@@ -133,7 +133,7 @@ public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
             "DELETE FROM job_runs WHERE started_on_utc < @cutoffUtc", connection);
         command.Parameters.AddWithValue("cutoffUtc", nowUtc.AddDays(-_retentionDays));
         var purged = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        // Stamped only after success so a failed purge is retried on the next run, not in 24 hours.
+        // Set only after success, so a failed purge is tried again on the next run, not in 24 hours.
         _lastPurgeUtc = nowUtc;
         if (purged > 0)
             _logger.LogInformation("Job-run retention purge deleted {Count} rows older than {RetentionDays} days", purged, _retentionDays);

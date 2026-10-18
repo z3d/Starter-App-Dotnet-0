@@ -15,7 +15,7 @@ public sealed record Email
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
 
-        // ToLowerInvariant, not ToLower: culture-sensitive casing (Turkish dotless i) would make hosts disagree about collisions.
+        // ToLowerInvariant, not ToLower. Under a Turkish culture the dotless i lowercases differently, and two hosts would disagree about which emails match.
         var normalized = value.ToLowerInvariant();
 
         if (normalized.Length > MaxEmailLength)

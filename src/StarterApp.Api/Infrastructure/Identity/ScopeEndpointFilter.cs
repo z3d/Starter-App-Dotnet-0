@@ -21,7 +21,7 @@ internal sealed class ScopeEndpointFilter : IEndpointFilter
             .ToList();
         var missingScope = scopes.FirstOrDefault(scope => !currentUser.HasScope(scope));
 
-        // The challenge lists the full scope set so a client re-authorizes once, not one 403 at a time.
+        // The challenge lists every required scope, so a client can re-authorise once instead of one 403 at a time.
         return missingScope == null
             ? await next(context)
             : BearerChallenges.Forbidden(context, "Forbidden", $"Required scope '{missingScope}' is missing.",

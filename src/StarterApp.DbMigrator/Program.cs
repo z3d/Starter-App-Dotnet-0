@@ -1,6 +1,6 @@
 using StarterApp.DbMigrator;
 
-// The bare verb token is not key=value shaped and would fail AddCommandLine parsing.
+// The verb is a bare word, not key=value, and AddCommandLine would reject it.
 var isReplayVerb = args.Length > 0 && string.Equals(args[0], "replay-outbox", StringComparison.OrdinalIgnoreCase);
 var configurationArgs = isReplayVerb ? Array.Empty<string>() : args;
 
@@ -22,7 +22,7 @@ if (!string.IsNullOrEmpty(seqUrl))
 
 Log.Logger = loggerConfig.CreateLogger();
 
-// Returned exit codes let finally flush the Seq sink. A failure at about fifteen seconds is Npgsql's connect timeout; sub-second is login or SQL.
+// Return an exit code rather than calling Environment.Exit, so the finally block can flush the Seq sink. A failure after about fifteen seconds is Npgsql's connect timeout. One under a second is the login or the SQL.
 var elapsed = System.Diagnostics.Stopwatch.StartNew();
 
 try
@@ -44,7 +44,7 @@ try
     Log.Information("Using database connection: {ConnectionString} ({DatabaseAuthentication})",
         ConnectionStringDescriptor.Describe(connectionString), DatabaseAuthentication.Describe(connectionString));
 
-    // DbUp takes a plain string, so the token is resolved once here; never log the result.
+    // DbUp only takes a connection string, so the token is fetched once here. Never log the result.
     connectionString = await DatabaseAuthentication.ResolveForDirectUseAsync(connectionString);
 
     if (isReplayVerb)

@@ -2,7 +2,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace StarterApp.Api.Infrastructure;
 
-// Every anonymous endpoint, in one place. Probes also skip the rate limiter: kubelet probes from the node IP, and a 429 could restart a healthy pod.
+// Every anonymous endpoint lives here. Probes also skip the rate limiter: kubelet probes come from the node IP, and a 429 could restart a healthy pod.
 public static class ProbeEndpoints
 {
     public static IEndpointRouteBuilder MapProbeEndpoints(this IEndpointRouteBuilder app)

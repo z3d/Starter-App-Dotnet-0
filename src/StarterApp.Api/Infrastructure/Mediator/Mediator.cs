@@ -4,7 +4,7 @@ namespace StarterApp.Api.Infrastructure.Mediator;
 
 public class Mediator : IMediator
 {
-    // One wrapper per request type, built on first dispatch; every later SendAsync is a lookup plus a typed call.
+    // One wrapper per request type, built the first time it is sent. Every later SendAsync is a dictionary lookup and a call.
     private static readonly ConcurrentDictionary<Type, object> RequestHandlerWrappers = new();
     private static readonly ConcurrentDictionary<Type, ValidatorInvoker> ValidatorInvokers = new();
 

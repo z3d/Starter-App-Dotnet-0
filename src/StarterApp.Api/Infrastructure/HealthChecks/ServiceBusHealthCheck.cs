@@ -5,7 +5,7 @@ using StarterApp.Api.Infrastructure.Outbox;
 
 namespace StarterApp.Api.Infrastructure.HealthChecks;
 
-// Asking for a batch round-trips the AMQP link without sending anything.
+// Asking for a batch of messages round-trips the AMQP link without sending anything.
 public sealed class ServiceBusHealthCheck : IHealthCheck
 {
     private readonly ServiceBusClient _client;

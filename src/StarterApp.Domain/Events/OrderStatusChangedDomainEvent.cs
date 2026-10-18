@@ -22,6 +22,6 @@ public sealed class OrderStatusChangedDomainEvent : DomainEvent
     public string PreviousStatus { get; }
     public string NewStatus { get; }
 
-    // Same instant as the row's LastUpdated: both come from one clock read at save.
+    // The same instant as the row's LastUpdated. Both come from one clock read at save time.
     public DateTimeOffset LastUpdated => OccurredOnUtc;
 }

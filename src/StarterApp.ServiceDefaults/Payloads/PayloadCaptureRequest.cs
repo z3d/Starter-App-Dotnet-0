@@ -16,6 +16,6 @@ public sealed class PayloadCaptureRequest
     public Dictionary<string, string> Metadata { get; init; } = [];
     public List<PayloadEntityReference> EntityReferences { get; init; } = [];
 
-    // The record still lists its entity references; the entity-index lines wait for IndexEntitiesAsync, once the caller is known.
+    // The record still lists its entity references. The index lines are written later, by IndexEntitiesAsync, once the caller is known.
     public bool DeferEntityIndex { get; init; }
 }

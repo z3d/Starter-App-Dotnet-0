@@ -36,7 +36,7 @@ public class InventoryReservationFunction
 
     private async Task ProcessAsync(ServiceBusReceivedMessage message, CancellationToken cancellationToken)
     {
-        // Resolving again would mint a second id for a message that carries none.
+        // Resolved once. Calling it again would make up a second correlation id for a message that has none.
         var correlationId = CorrelationContext.GetOrCreate();
         var body = message.Body.ToString();
 
@@ -56,8 +56,8 @@ public class InventoryReservationFunction
             _logger.LogInformation("Inventory reservation event received. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
                 message.MessageId, message.Subject, correlationId);
 
-            // TODO: build the downstream projection through inbox.Connection/inbox.Transaction so it commits once with the claim.
-            // Stock is already reserved by CreateOrderCommandHandler; do not reserve it again.
+            // TODO: write the downstream projection on inbox.Connection and inbox.Transaction so it commits once, with the claim.
+            // CreateOrderCommandHandler has already reserved the stock. Do not reserve it again.
             return Task.CompletedTask;
         }, cancellationToken);
     }

@@ -43,7 +43,7 @@ public class UpdateOrderStatusCommandHandler : IRequestHandler<UpdateOrderStatus
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        // Only cancellation touches stock; evict the cached product read model so it does not serve the pre-restore value.
+        // Only a cancellation changes stock. Drop the cached product so it does not keep serving the old count.
         if (status == OrderStatus.Cancelled)
         {
             foreach (var productId in order.Items.Select(item => item.ProductId).Distinct())

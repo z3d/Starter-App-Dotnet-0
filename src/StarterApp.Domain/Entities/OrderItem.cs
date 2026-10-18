@@ -25,7 +25,7 @@ public class OrderItem
         OrderId = orderId;
     }
 
-    // Used before the parent order is saved; EF Core fills OrderId through the FK relationship.
+    // Called before the order is saved. EF Core sets OrderId later through the foreign key.
     internal OrderItem(int productId, string productName, int quantity, Money unitPriceExcludingGst, decimal gstRate = DefaultGstRate)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(productId);
@@ -65,7 +65,7 @@ public class OrderItem
         return Money.Create(GetUnitGstAmount() * Quantity, UnitPriceExcludingGst.Currency);
     }
 
-    // GST rounds per unit, then multiplies, so unit and line figures stay consistent. Raw decimal so Order can check MaxAmount before Money.Create throws.
+    // GST is rounded per unit and then multiplied, so the unit and line figures agree. Returns a plain decimal so Order can check MaxAmount before Money.Create throws.
     internal decimal GetLineTotalIncludingGstAmount()
     {
         return (UnitPriceExcludingGst.Amount + GetUnitGstAmount()) * Quantity;

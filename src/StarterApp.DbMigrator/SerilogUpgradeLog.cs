@@ -2,7 +2,7 @@ using DbUp.Engine.Output;
 
 namespace StarterApp.DbMigrator;
 
-// DbUp logs script and database names, never the connection string.
+// DbUp logs script names and database names, never the connection string.
 public sealed class SerilogUpgradeLog(ILogger logger) : IUpgradeLog
 {
     public void LogTrace(string format, params object[] args) => logger.Verbose(format, args);

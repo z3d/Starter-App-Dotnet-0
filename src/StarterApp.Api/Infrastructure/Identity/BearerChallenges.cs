@@ -1,9 +1,9 @@
 namespace StarterApp.Api.Infrastructure.Identity;
 
-// RFC 6750 §3 and RFC 9470 §3 challenge formats; inputs are constants and deployer config, so quoting suffices.
+// Challenge formats from RFC 6750 §3 and RFC 9470 §3. The values are constants and deployer settings, so plain quoting is enough.
 internal static class BearerChallenges
 {
-    // Unauthenticated here means the token validated but the identity mapping rejected it: invalid_token, not a missing header.
+    // Unauthenticated here means the token was valid but the identity mapping rejected it. That is invalid_token, not a missing header.
     public static IResult Unauthenticated(EndpointFilterInvocationContext context) =>
         Problem(context, StatusCodes.Status401Unauthorized, "Unauthorized", "Authentication is required.",
             InvalidToken("The token does not satisfy the identity claim contract."));

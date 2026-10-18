@@ -19,7 +19,7 @@ public class OutboxMessage
     public DateTimeOffset? ProcessedOnUtc { get; private set; }
     public int RetryCount { get; private set; }
     public string? Error { get; private set; }
-    // Errored-row retention counts from here, not OccurredOnUtc, so an old event keeps a full replay window.
+    // Retention for an errored row counts from here, not from OccurredOnUtc, so an old event still gets the full replay window.
     public DateTimeOffset? ErroredOnUtc { get; private set; }
     public Guid? ProcessingId { get; private set; }
     public DateTimeOffset? LockedUntilUtc { get; private set; }
@@ -52,7 +52,7 @@ public class OutboxMessage
 
     public void ResetForReplay(DateTimeOffset replayedOnUtc)
     {
-        // The migrator's replay-outbox verb mirrors this in SQL; OutboxReplayTests keeps them in sync.
+        // The migrator's replay-outbox verb does the same in SQL. OutboxReplayTests fails if the two drift apart.
         if (ProcessedOnUtc is not null)
             throw new InvalidOperationException("A processed outbox message cannot be replayed.");
 
