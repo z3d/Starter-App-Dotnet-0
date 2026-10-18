@@ -48,7 +48,7 @@ public class DomainConventionTests : ConventionTestBase
     {
         var valueObjectTypes = SharedKernelAssembly.GetTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("ValueObjects") &&
-                   t.IsClass && !t.IsAbstract);
+                   t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
         valueObjectTypes
             .MustConformTo(Convention.PropertiesMustHavePrivateSetters)
             .WithFailureAssertion(Assert.Fail);
@@ -84,7 +84,7 @@ public class DomainConventionTests : ConventionTestBase
     {
         var valueObjectTypes = SharedKernelAssembly.GetTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("ValueObjects") &&
-                   t.IsClass && !t.IsAbstract);
+                   t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
         valueObjectTypes
             .MustConformTo(new MustOverrideEqualsAndGetHashCodeConvention())
             .WithFailureAssertion(Assert.Fail);

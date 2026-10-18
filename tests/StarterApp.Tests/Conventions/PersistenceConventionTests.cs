@@ -88,7 +88,7 @@ public class PersistenceConventionTests : ConventionTestBase
     {
         var valueObjectTypes = SharedKernelAssembly.GetTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("ValueObjects") &&
-                   t.IsClass && !t.IsAbstract)
+                   t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t))
             .ToList();
 
         var dbSetTypes = typeof(ApplicationDbContext)
