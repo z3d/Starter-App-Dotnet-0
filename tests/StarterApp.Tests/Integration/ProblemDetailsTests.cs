@@ -137,6 +137,48 @@ public class ProblemDetailsTests : IAsyncLifetime
         Assert.NotNull(problemDetails);
         Assert.Equal(409, problemDetails.Status);
         Assert.Equal("Conflict", problemDetails.Title);
+        Assert.Equal("A customer with that email already exists", problemDetails.Detail);
+    }
+
+    [Fact]
+    public async Task CancelOrder_Twice_ShouldSayWhyInTheConflict()
+    {
+        var customerResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/customers",
+            new CreateCustomerCommand { Name = "Rule Tester", Email = "rule.tester@example.com" });
+        customerResponse.EnsureSuccessStatusCode();
+        var customer = await customerResponse.Content.ReadFromJsonAsync<CustomerDto>();
+        Assert.NotNull(customer);
+        var productResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/products",
+            new CreateProductCommand { Name = "Rule Product", Description = "For the conflict detail", Price = 10m, Currency = "AUD", Stock = 5 });
+        productResponse.EnsureSuccessStatusCode();
+        var product = await productResponse.Content.ReadFromJsonAsync<ProductDto>();
+        Assert.NotNull(product);
+        var orderResponse = await _fixture.Client.PostAsJsonAsync("/api/v1/orders", OrderCommands.SimpleOrder(customer.Id, product.Id));
+        orderResponse.EnsureSuccessStatusCode();
+        var order = await orderResponse.Content.ReadFromJsonAsync<OrderDto>();
+        Assert.NotNull(order);
+        (await _fixture.Client.PostAsync($"/api/v1/orders/{order.Id}/cancel", null)).EnsureSuccessStatusCode();
+
+        var response = await _fixture.Client.PostAsync($"/api/v1/orders/{order.Id}/cancel", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problemDetails);
+        Assert.Equal("Conflict", problemDetails.Title);
+        Assert.Equal("Cannot transition from Cancelled to Cancelled", problemDetails.Detail);
+    }
+
+    [Fact]
+    public async Task UpdateCustomer_ThatDoesNotExist_ShouldSayWhichInTheNotFound()
+    {
+        var response = await _fixture.Client.PutAsJsonAsync("/api/v1/customers/999999",
+            new UpdateCustomerCommand { Id = 999999, Name = "Nobody", Email = "nobody@example.com" });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problemDetails);
+        Assert.Equal("Not Found", problemDetails.Title);
+        Assert.Equal("Customer with ID 999999 not found", problemDetails.Detail);
     }
 
     [Fact]

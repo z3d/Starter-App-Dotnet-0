@@ -21,15 +21,21 @@ public static class ServiceCollectionExtensions
                     .Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()
                     ?.Error;
 
-                if (exception is not ValidationException validationException)
-                    return;
-
-                context.ProblemDetails.Extensions["errors"] = validationException.Errors
-                    .GroupBy(error => error.PropertyName)
-                    .ToDictionary(
-                        group => group.Key,
-                        group => group.Select(error => error.ErrorMessage).ToArray(),
-                        StringComparer.Ordinal);
+                switch (exception)
+                {
+                    case ValidationException validationException:
+                        context.ProblemDetails.Extensions["errors"] = validationException.Errors
+                            .GroupBy(error => error.PropertyName)
+                            .ToDictionary(
+                                group => group.Key,
+                                group => group.Select(error => error.ErrorMessage).ToArray(),
+                                StringComparer.Ordinal);
+                        break;
+                    // Only these two are written for the caller; any other message may name a table or a bug.
+                    case DomainRuleException or EntityNotFoundException:
+                        context.ProblemDetails.Detail = exception.Message;
+                        break;
+                }
             };
         });
 

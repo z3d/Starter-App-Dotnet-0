@@ -6,7 +6,7 @@ Each recorded decision states what was chosen, what was rejected, and the **re-a
 
 ## Exceptions are the app-wide error model
 
-Intentional failure signals use dedicated types keyed in `ResolveExceptionStatusCode`: `DomainRuleException` → 409, `EntityNotFoundException` → 404, `ForbiddenAccessException` → 403. Bare BCL `InvalidOperationException`/`KeyNotFoundException` are bugs and fall through to 500 — the BCL throws those itself (LINQ `.Single()`, dictionary misses), so mapping them to client-fault codes would disguise server bugs as 409/404 and hide them from 5xx alerting. `ExceptionConventionTests` blocks them from Domain and Application code via IL `newobj` inspection. Queries still signal not-found by returning null; endpoints map null to 404.
+Intentional failure signals use dedicated types keyed in `ResolveExceptionStatusCode`: `DomainRuleException` → 409, `EntityNotFoundException` → 404, `ForbiddenAccessException` → 403. Bare BCL `InvalidOperationException`/`KeyNotFoundException` are bugs and fall through to 500 — the BCL throws those itself (LINQ `.Single()`, dictionary misses), so mapping them to client-fault codes would disguise server bugs as 409/404 and hide them from 5xx alerting. `ExceptionConventionTests` blocks them from Domain and Application code via IL `newobj` inspection. Queries still signal not-found by returning null; endpoints map null to 404. A `DomainRuleException` or `EntityNotFoundException` message is written for the caller and travels as the problem's `detail`, so a client can tell "already cancelled" from "not yet confirmed"; every other exception's message stays out of the body, because it may name a table or describe a bug.
 
 **Why not `Result<T>`/ErrorOr:**
 
