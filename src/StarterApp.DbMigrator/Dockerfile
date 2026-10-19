@@ -23,7 +23,7 @@ WORKDIR "/src/src/StarterApp.DbMigrator"
 RUN dotnet publish "StarterApp.DbMigrator.csproj" -c Release -o /app/publish /p:UseAppHost=false -p:EnforceCodeStyleInBuild=false
 
 # Runtime stage: console app, so the plain runtime (not aspnet), chiseled (no shell, no apt).
-FROM mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled@sha256:cef1854a63da04795952a34c970591693d1f31c8e8f42ec14892d6198a49774b AS final
+FROM mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled@sha256:75e4232c875a07e46e447ca0a56a61f7cd72d9fb361639018a19e9fc605c6827 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 
