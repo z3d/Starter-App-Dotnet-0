@@ -11,7 +11,7 @@ import { clearStale, cueing, finish, synthesise } from './lib/narration.mjs'
 
 const narration = {
   'sign-in':
-    'This is the starter app. A person signs in through the identity provider with the authorization code flow; the API verifies every token itself, and this page shows the claims it reads.',
+    'This is the starter app. A person signs in through the identity provider with the authorisation code flow; the API verifies every token itself, and this page shows the claims it reads.',
   writes:
     'A product and a customer are two synchronous writes. Each needs its scope and a second factor; the API answers with the record it created.',
   order:

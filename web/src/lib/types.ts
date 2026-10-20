@@ -4,5 +4,13 @@ import type { components } from '@/lib/api.generated'
 export type Schemas = components['schemas']
 
 // A DTO's properties are all present on the wire; the document marks them optional only because
-// the C# types have no `required`. `Full` says what the API actually sends.
-export type Full<T> = { [K in keyof T]-?: T[K] }
+// the C# types have no `required`, and types a number as `number | string` only because the API
+// also reads one from a string (JsonSerializerDefaults.Web). `Full` says what the API actually
+// sends, nested lists and objects included.
+export type Full<T> = [T] extends [(infer U)[]]
+  ? Full<U>[]
+  : [T] extends [object]
+    ? { [K in keyof T]-?: Full<Exclude<T[K], undefined>> }
+    : [number] extends [Extract<T, number>]
+      ? Exclude<T, string>
+      : T
