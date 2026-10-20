@@ -51,6 +51,7 @@ Push from the worktree and fast-forward `main` from it. Never revert or overwrit
 - **A long run keeps its task list in a file**, ticked as it goes: a scratch file, or the repo's status document when the items should outlive the run. A list that lives only in the conversation is lost when the context is summarised.
 - **A subagent's finding is checked against the code before it is accepted or passed on.**
 - **Say what you couldn't confirm, and where you looked.** A regulatory fact, a root cause or a test you didn't run is marked as unconfirmed, never stated as known.
+- **A defect you notice goes in the repo's tracker before the run ends, whether or not you fix it.** The tracker is the document this repo keeps its features and open work in (named under "Where to look"); a defect fixed in the run is recorded there as done, with what was wrong. One left unfixed says what was seen, on which screen or endpoint, and that the cause is unconfirmed. A finding that lives only in the conversation, a screenshot or a PR is lost when the context is summarised.
 - **Never weigh scope on human-team effort.** Agents build this repository, so "an N-month build" or "two sprints" is no reason to cut or defer a feature. Weigh it on what code can't solve: outside dependencies (regulators, banks, auditors, partner APIs and their access terms), evidence of demand, the cost of being wrong, and what it depends on. A research or spec doc that argues from human effort is flagged and discounted.
 - **End a run with what is waiting on the person first,** then what changed, then what was found.
 
@@ -120,6 +121,7 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Service Bus emulator, dev tunnels, local CI | `.claude/skills/development-workflow/SKILL.md` |
 | Dependencies, custom mediator | `.claude/skills/technology-stack/SKILL.md` |
 | Architecture audits | `.claude/skills/architecture-review/SKILL.md`, `docs/ARCHITECTURE_REVIEW.md` (open state), dated records in `docs/reviews/` |
+| The tracker: features, open work and defects found | `docs/ARCHITECTURE_REVIEW.md` (open state) |
 | Outbox / eventing / OIDC identity / payload capture internals | `docs/DECISIONS.md` |
 | Replaying a stuck or dead-lettered event | `docs/runbooks/event-replay.md` |
 | A scheduled job failed or didn't run; the alert queries | `docs/runbooks/scheduled-jobs.md` |
