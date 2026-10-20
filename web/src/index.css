@@ -1,0 +1,272 @@
+@import 'tailwindcss';
+
+/* StarterApp UI — the product's own design system.
+   Direction: an instrument, not a brochure. Ink-on-paper neutrals with a single cool "accent"
+   accent for the thing that matters right now; hairline borders instead of shadows; generous
+   type with an editorial serif for titles and a humanist sans for everything else; tabular,
+   slashed-zero numerals everywhere money or counts appear. Light and dark are both first-class.
+
+   Semantic tokens only — components never reach for raw values. */
+:root {
+  color-scheme: light;
+  --canvas: oklch(0.975 0.004 80); /* app background, warm paper */
+  --surface: oklch(0.995 0.002 80); /* cards, tables, inputs */
+  --surface-raised: oklch(1 0 0); /* popovers, dialogs */
+  --surface-sunken: oklch(0.955 0.005 80); /* table heads, code, wells */
+  --ink: oklch(0.2 0.01 60); /* primary text */
+  --ink-secondary: oklch(0.45 0.012 60);
+  --ink-tertiary: oklch(0.62 0.01 60);
+  --line: oklch(0.9 0.006 80); /* hairlines */
+  --line-strong: oklch(0.8 0.008 80);
+  --accent: oklch(0.52 0.1 200); /* accent: focus, active nav, primary CTA */
+  --accent-ink: oklch(0.99 0.005 200);
+  --accent-soft: oklch(0.94 0.03 200);
+  --rail: oklch(0.21 0.012 60); /* sidebar */
+  --rail-ink: oklch(0.86 0.008 80);
+  --rail-ink-muted: oklch(0.6 0.01 60);
+  --rail-line: oklch(0.29 0.012 60);
+  --rail-active: oklch(0.3 0.02 45);
+  --positive: oklch(0.55 0.13 150);
+  --positive-soft: oklch(0.94 0.04 150);
+  --caution: oklch(0.7 0.15 75);
+  --caution-soft: oklch(0.96 0.05 85);
+  --negative: oklch(0.56 0.19 25);
+  --negative-soft: oklch(0.95 0.035 25);
+  --info: oklch(0.55 0.11 240);
+  --info-soft: oklch(0.94 0.03 240);
+  --band-strong: oklch(0.5 0.14 150);
+  --band-good: oklch(0.52 0.12 240);
+  --band-possible: oklch(0.66 0.14 75);
+  --band-below: oklch(0.6 0.01 60);
+  --ai: oklch(0.55 0.13 300);
+  --ai-soft: oklch(0.95 0.03 300);
+  --focus: oklch(0.6 0.17 35 / 0.45);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --canvas: oklch(0.17 0.008 60);
+    --surface: oklch(0.21 0.008 60);
+    --surface-raised: oklch(0.25 0.01 60);
+    --surface-sunken: oklch(0.19 0.008 60);
+    --ink: oklch(0.93 0.006 80);
+    --ink-secondary: oklch(0.72 0.008 70);
+    --ink-tertiary: oklch(0.55 0.008 70);
+    --line: oklch(0.29 0.008 60);
+    --line-strong: oklch(0.38 0.01 60);
+    --accent: oklch(0.74 0.1 200);
+    --accent-ink: oklch(0.18 0.03 200);
+    --accent-soft: oklch(0.3 0.05 200);
+    --rail: oklch(0.13 0.008 60);
+    --rail-ink: oklch(0.84 0.008 80);
+    --rail-ink-muted: oklch(0.55 0.01 60);
+    --rail-line: oklch(0.24 0.01 60);
+    --rail-active: oklch(0.27 0.025 45);
+    --positive: oklch(0.72 0.13 150);
+    --positive-soft: oklch(0.27 0.05 150);
+    --caution: oklch(0.8 0.14 80);
+    --caution-soft: oklch(0.3 0.06 80);
+    --negative: oklch(0.7 0.17 25);
+    --negative-soft: oklch(0.3 0.06 25);
+    --info: oklch(0.72 0.11 240);
+    --info-soft: oklch(0.28 0.05 240);
+    --band-strong: oklch(0.72 0.14 150);
+    --band-good: oklch(0.72 0.12 240);
+    --band-possible: oklch(0.8 0.14 80);
+    --band-below: oklch(0.6 0.01 60);
+    --ai: oklch(0.74 0.12 300);
+    --ai-soft: oklch(0.3 0.06 300);
+    --focus: oklch(0.72 0.15 40 / 0.5);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --canvas: oklch(0.17 0.008 60);
+  --surface: oklch(0.21 0.008 60);
+  --surface-raised: oklch(0.25 0.01 60);
+  --surface-sunken: oklch(0.19 0.008 60);
+  --ink: oklch(0.93 0.006 80);
+  --ink-secondary: oklch(0.72 0.008 70);
+  --ink-tertiary: oklch(0.55 0.008 70);
+  --line: oklch(0.29 0.008 60);
+  --line-strong: oklch(0.38 0.01 60);
+  --accent: oklch(0.74 0.1 200);
+  --accent-ink: oklch(0.18 0.03 200);
+  --accent-soft: oklch(0.3 0.05 200);
+  --rail: oklch(0.13 0.008 60);
+  --rail-ink: oklch(0.84 0.008 80);
+  --rail-ink-muted: oklch(0.55 0.01 60);
+  --rail-line: oklch(0.24 0.01 60);
+  --rail-active: oklch(0.27 0.025 45);
+  --positive: oklch(0.72 0.13 150);
+  --positive-soft: oklch(0.27 0.05 150);
+  --caution: oklch(0.8 0.14 80);
+  --caution-soft: oklch(0.3 0.06 80);
+  --negative: oklch(0.7 0.17 25);
+  --negative-soft: oklch(0.3 0.06 25);
+  --info: oklch(0.72 0.11 240);
+  --info-soft: oklch(0.28 0.05 240);
+  --band-strong: oklch(0.72 0.14 150);
+  --band-good: oklch(0.72 0.12 240);
+  --band-possible: oklch(0.8 0.14 80);
+  --band-below: oklch(0.6 0.01 60);
+  --ai: oklch(0.74 0.12 300);
+  --ai-soft: oklch(0.3 0.06 300);
+  --focus: oklch(0.72 0.15 40 / 0.5);
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-tertiary: var(--ink-tertiary);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-rail: var(--rail);
+  --color-rail-ink: var(--rail-ink);
+  --color-rail-ink-muted: var(--rail-ink-muted);
+  --color-rail-line: var(--rail-line);
+  --color-rail-active: var(--rail-active);
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-caution: var(--caution);
+  --color-caution-soft: var(--caution-soft);
+  --color-negative: var(--negative);
+  --color-negative-soft: var(--negative-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-band-strong: var(--band-strong);
+  --color-band-good: var(--band-good);
+  --color-band-possible: var(--band-possible);
+  --color-band-below: var(--band-below);
+  --color-ai: var(--ai);
+  --color-ai-soft: var(--ai-soft);
+  --color-focus: var(--focus);
+
+  /* Legacy shadcn-style aliases so third-party snippets still resolve. */
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
+  --color-muted: var(--surface-sunken);
+  --color-muted-foreground: var(--ink-secondary);
+  --color-popover: var(--surface-raised);
+  --color-popover-foreground: var(--ink);
+  --color-border: var(--line);
+  --color-primary: var(--ink);
+  --color-primary-foreground: var(--surface);
+  --color-accent: var(--surface-sunken);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--negative);
+  --color-ring: var(--focus);
+
+  --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Instrument Serif', ui-serif, Georgia, serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  --shadow-hairline: 0 0 0 1px var(--line);
+  --shadow-lift: 0 1px 2px oklch(0 0 0 / 0.04), 0 8px 24px -12px oklch(0 0 0 / 0.18);
+  --shadow-pop: 0 1px 2px oklch(0 0 0 / 0.06), 0 16px 40px -16px oklch(0 0 0 / 0.28);
+
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --default-transition-duration: 160ms;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+  html {
+    background: var(--color-canvas);
+  }
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--color-accent-soft);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 1ms !important;
+      animation-duration: 1ms !important;
+    }
+  }
+}
+
+@utility font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+@utility tnum {
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+@utility hairline {
+  box-shadow: var(--shadow-hairline);
+}
+
+/* AI provenance: violet used nowhere else; always paired with an icon and label. */
+@utility ai-box {
+  border-left: 3px solid var(--color-ai);
+  background: var(--color-ai-soft);
+  animation: rise 360ms var(--ease-out);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@utility skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-sunken) 25%,
+    var(--color-line) 50%,
+    var(--color-surface-sunken) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}

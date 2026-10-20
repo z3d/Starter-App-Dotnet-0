@@ -6,11 +6,11 @@ It is maintained by AI agents, so it favours mechanical rules over architectural
 
 ## Run it
 
-Prerequisites: the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0), a running Docker-compatible container engine ([Docker Desktop](https://www.docker.com/products/docker-desktop) or [Podman](https://podman.io/); Aspire-managed dependencies, the Functions runtime container, Testcontainers and image builds all talk to its socket, and only `tests/k6/run-perf.sh` needs the `docker` CLI itself), and `pnpm` for the web app. With Podman, `podman machine start` is the whole fix for a `DockerUnavailable` test failure.
+Prerequisites: the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0), a running Docker-compatible container engine ([Docker Desktop](https://www.docker.com/products/docker-desktop) or [Podman](https://podman.io/); Aspire-managed dependencies, the Functions runtime container, Testcontainers and image builds all talk to its socket, and only `tests/k6/run-perf.sh` needs the `docker` CLI itself), and Node 24 with npm for the web app. With Podman, `podman machine start` is the whole fix for a `DockerUnavailable` test failure.
 
 ```bash
 dotnet run --project dev/StarterApp.AppHost        # the full stack; the dashboard opens at https://localhost:17113
-cd web && pnpm install && pnpm dev                 # the web app at http://localhost:5173
+cd web && npm install && npm run dev               # the web app alone at http://localhost:5173 (the AppHost starts it too)
 dotnet test                                        # everything; integration and Aspire tests need the container engine
 dotnet test --filter "FullyQualifiedName!~Integration"   # unit, convention and fuzz tests only
 ```
@@ -60,7 +60,7 @@ starterapp/
 │   └── StarterApp.ServiceDefaults/  # Shared Aspire wiring, database authentication, job-run recording
 ├── dev/
 │   └── StarterApp.AppHost/          # .NET Aspire orchestration, the dev Keycloak realm, the Azure publish shape
-├── web/                             # The web app, the generated API client and the browser tests (pnpm)
+├── web/                             # The web app (Vite, React), its generated API client and the browser tests (npm)
 ├── tests/
 │   ├── StarterApp.Tests/            # Unit, convention, integration, property and fuzz tests
 │   ├── StarterApp.AppHost.Tests/    # Aspire end-to-end tests

@@ -1,82 +1,39 @@
-# StarterApp web
+# The StarterApp web app
 
-The TypeScript workspace for the template's client surface: the client half of the identity seam
-the API's bearer validation is the server half of, and one sample page over the sample domain.
+Vite and React, hosted by the AppHost (`dotnet run --project dev/StarterApp.AppHost`, then http://localhost:5173, `dev-user` / `dev-password`). The app signs the person in with OpenID Connect (authorization code with PKCE through `oidc-client-ts`, `src/lib/auth.ts`) against `VITE_OIDC_AUTHORITY`, the AppHost's dev Keycloak realm, and sends their access token on every request; the API validates it itself. A 401 on a signed-in session sends them to sign in again, and a 403 carrying the API's step-up challenge sends them to sign in again with the second factor, both back to the page they were on. A hosted instance takes the identity provider from `/config.js`, rendered at container start (`deploy/`), so the realm is a deploy-time value.
 
-| Package | What it is |
-|---|---|
-| `packages/api-client` | The API's OpenAPI document (`openapi.json`) and the typed client generated from it (`openapi-typescript`, `openapi-fetch`), with the correlation id and the problem-details error on every call. |
-| `apps/web` | The web app: a Vite single-page application in React and TypeScript. `src/lib/auth.ts` signs the person in, `src/lib/api.ts` sends their token and answers the API's challenges, `src/sample/` is the walkthrough page a derived project removes with the sample. |
+The API is called only through `src/lib/api.ts`, with the shapes in `src/lib/api.generated.ts`, which `npm run gen:api` writes from the running API's OpenAPI document (`src/lib/types.ts` exposes them as `Schemas`). The generated file is committed; `e2e/run-e2e.sh` regenerates it against the API it boots and, in CI, fails when the committed file differs, so a client that has drifted from the API is caught.
 
-## Running it
+`src/sample/` is the sample page over the Customer/Product/Order sample: it creates each through the API and shows what the API answers, so the identity seam can be seen end to end. A derived project removes it with the sample domain (`docs/DERIVATION-PRUNING.md`) and keeps the shell, the identity helper, the API client, the primitives and the fixtures.
 
 ```bash
-cd web
-pnpm install
-pnpm dev                            # http://localhost:5173, the API at http://localhost:5164
+npm run dev            # the dev server alone, proxying /api to VITE_API_URL (default https://localhost:7286)
+npm run typecheck && npm run lint && npm run format:check && npm run build
+npm run gen:api        # regenerate src/lib/api.generated.ts from the running API (OPENAPI_URL overrides the default)
 ```
-
-The app calls the API at relative `/api/...` paths. In development the Vite server proxies those
-to the API (`VITE_API_URL`, default `http://localhost:5164`, the API's own launch profile) and the
-app signs you in through the dev Keycloak's `starterapp` realm on `:8090` (`VITE_OIDC_AUTHORITY`
-overrides it), which the AppHost or `scripts/dev/keycloak.sh` serves there. The users are
-`dev-user` and `password-only`, both with `dev-password`; the second carries no second factor,
-so every write it makes answers the step-up challenge.
-
-The app signs the person in with OpenID Connect (authorization code with PKCE through
-`oidc-client-ts`, `src/lib/auth.ts`) as the realm's public `starterapp-web` client and sends their
-access token on every request. A 401 sends them back to sign in; a 403 carrying the API's step-up
-challenge (RFC 9470) sends them to sign in again with the second factor, at the `acr_values` the
-challenge names. Signing in again with fewer scopes shows the API refusing a write from the token
-alone.
-
-Deployed, the container renders `/config.js` from `OIDC_AUTHORITY`, `OIDC_CLIENT_ID` and
-`OIDC_SCOPE` (`apps/web/deploy`), which name the real identity provider; there is no other way the
-app knows who you are. An Auth0 tenant also takes `OIDC_AUDIENCE` (the API identifier, without
-which Auth0 issues an opaque token) and `OIDC_ORGANIZATION`; a Keycloak realm needs neither.
-`VITE_OIDC_AUDIENCE` and `VITE_OIDC_ORGANIZATION` are the build-time equivalents.
-
-## The generated client
-
-`packages/api-client/openapi.json` is what the API serves at `/openapi/v1.json` in Development,
-and `src/schema.d.ts` is generated from it. When an endpoint changes:
-
-```bash
-pnpm export                         # fetch the running API's document (OPENAPI_URL overrides the default) and regenerate
-pnpm generate                       # regenerate from the committed document alone
-```
-
-CI fails when `schema.d.ts` is not what `openapi.json` generates, and the browser-test job fails
-when `openapi.json` is not what the API serves, so a changed endpoint cannot land without its
-client.
 
 ## Testing
 
 ```bash
-pnpm test                                   # unit tests (Vitest, jsdom): the identity helper, the client's middleware, the deploy templates
-pnpm e2e                                    # browser tests (Playwright) against the rig on :5164 / :8090 (BASE_URL, API_URL, IDP_URL override)
-e2e/run-e2e.sh                              # the same tests against a stack the script boots: PostgreSQL, the dev Keycloak, the migrator, the API, the dev server
-e2e/run-e2e.sh --grep "step-up"             # arguments go to `playwright test`
-E2E_DEPLOYED=1 e2e/run-e2e.sh               # the deployed shape: the production image (apps/web/Dockerfile) behind its own nginx, the API at its normal rate limit
-pnpm exec playwright install chromium       # once, for the browser
+npm test                                   # unit and component tests (Vitest, jsdom): src/**/*.test.ts(x)
+npm run e2e                                # browser tests (Playwright) against the rig on :7286 / :8090 / :5183 (BASE_URL, API_URL, IDP_URL override)
+e2e/run-e2e.sh                             # the same tests against a stack the script boots: PostgreSQL, the dev Keycloak, the migrator, the API, the dev server
+e2e/run-e2e.sh --grep "sign"               # arguments go to `playwright test`
+E2E_DEPLOYED=1 e2e/run-e2e.sh              # the nginx image (Dockerfile) in front of the same stack, and the e2e/deployed project
+npx playwright install chromium            # once, for the browser
 ```
 
-The browser tests drive the app as a person does, against a live API and the dev Keycloak:
-signing in through the identity provider, the walkthrough (a product, a customer, an order, and
-the refusal when the person signs in again without `orders:write`), and the step-up challenge as
-`password-only`. The fixtures in `e2e/lib/fixtures.ts` sign a test in by putting the person's
-tokens where `oidc-client-ts` keeps them, so only the sign-in spec goes through Keycloak's own
-page. The step-up spec runs to the end with the second factor stood in for: the dev realm's `amr`
-is a user attribute, so the test raises it through Keycloak's admin API after the challenge and
-puts it back; Keycloak demanding and checking a real second factor is not covered.
+The unit tests cover the HTTP client and the identity helpers (`src/lib/api.ts`, `auth.ts`) with `fetch` and the OIDC library stood in for, the component vocabulary (`src/components/ui`), the command palette, the runtime config (`src/test/deploy.test.ts` checks every value `auth.ts` reads is rendered and exported), and two scans of the source: `spelling.test.ts` fails on American spellings in text a person reads, and `day-from-utc.test.ts` fails on a calendar day cut from a UTC timestamp. The browser tests (`e2e/tests`) drive the app against a live API and the dev Keycloak: signing in through the identity provider, the step-up challenge (as `password-only`, whose token carries no second factor; the realm's `amr` attribute stands in for the factor through the admin API), the rail, the palette, and the sample page's product, customer and order with a refusal decided by the token's scopes. The fixtures in `e2e/lib/fixtures.ts` sign a test in by putting the person's tokens where `oidc-client-ts` keeps them, so only the sign-in spec goes through Keycloak's own page. CI runs both (`web` and `web-e2e` in `.github/workflows/ci.yml`); the browser job boots its stack with `e2e/run-e2e.sh`, then again with `E2E_DEPLOYED=1` against the image.
 
-CI runs both (`web` and `web-e2e` in `.github/workflows/ci.yml`); the browser job boots its stack
-with `e2e/run-e2e.sh`, the way the DAST and k6 harnesses boot theirs, and builds the image for the
-deployed shape too.
+## Recording the walkthrough
 
-## The image
+`docs/media/starterapp-walkthrough.mp4` is a narrated recording of the sample: sign in, create a product and a customer, place and confirm an order. A derived project replaces the story with its own and re-records it after every milestone (`AGENTS.md`); the video is committed, so the repository always carries the current one.
 
-`apps/web/Dockerfile` builds the bundle and serves it from the unprivileged nginx image with SPA
-fallback, `/api` proxied to `API_UPSTREAM` on the same origin (so the browser needs no CORS), and
-`/config.js` rendered from the environment at start-up. CI builds and scans it with the three .NET
-images, and `publish-images.yml` pushes it to GHCR as `web`.
+The narration lines live at the top of `e2e/walkthrough.mjs`, one per scene, and are spoken by Microsoft's Australian neural voices through `edge-tts` (`pip install --upgrade edge-tts`, 7.3 or later: the service refuses an older version with a 403 and the recording comes out silent; it calls the Edge read-aloud service, so it needs the network). `e2e/lib/narration.mjs` synthesises each line before the browser opens, holds every scene at least as long as its line, and mixes the lines onto the video at the moment each scene began (ffmpeg on the path; without it the silent `.webm` stays). `NARRATOR` picks the voice (`en-AU-NatashaNeural` by default, `en-AU-WilliamMultilingualNeural` is the other Australian one); `NARRATOR=none` records silently. When a scene changes, change its line.
+
+```bash
+e2e/run-e2e.sh --walkthrough               # boots the stack on its own ports, records, tears down
+BASE_URL=http://localhost:5173 node e2e/walkthrough.mjs   # against the running AppHost rig
+```
+
+Each scene is a few lines of Playwright, paced with `pause()` so a viewer can follow; use the same `data-testid`s and names the browser tests use, and add a flow to `e2e/tests` first so the story never drives something untested. `e2e/screenshots.mjs` is the still-image companion (`BASE_URL=http://localhost:5173 node e2e/screenshots.mjs` writes every screen in light, dark and mobile to `e2e/shots/`).

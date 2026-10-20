@@ -1,0 +1,8 @@
+dist
+node_modules
+src/routeTree.gen.ts
+src/lib/api.generated.ts
+test-results
+playwright-report
+e2e/video
+e2e/shots

@@ -30,7 +30,7 @@ jobs:
           - image: dbmigrator
             dockerfile: src/StarterApp.DbMigrator/Dockerfile
           - image: web
-            dockerfile: web/apps/web/Dockerfile
+            dockerfile: web/Dockerfile
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

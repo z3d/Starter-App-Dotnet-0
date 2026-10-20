@@ -27,7 +27,7 @@ the project: they copy its shapes, keep its rules, and route new work through it
 `DerivationConventionTests` enforces the first two mechanically: in the template its rules are skipped as not
 applicable (no modules), and in a derived project it fails from the first module until the sample types, the
 `<App>.Domain` project, any unused `ICacheable` / owner-scoping markers and the web app's sample page
-(`web/apps/web/src/sample`) are gone.
+(`web/src/sample`) are gone.
 
 ## The discipline
 
@@ -62,7 +62,7 @@ applicable (no modules), and in a derived project it fails from the first module
 | Candidate | Usually safe to prune when… | Named re-add trigger |
 |-----------|------------------------------|----------------------|
 | Sample domain (Customer/Product/Order) and the `<App>.Domain` project that holds it | required at the first module — it exists to be replaced; `<App>.SharedKernel` stays | n/a (it never comes back) |
-| The web app's sample page (`web/apps/web/src/sample`) | with the sample domain it drives; the shell, `src/lib/auth.ts`, `src/lib/api.ts`, the generated client, the image and the browser-test fixtures stay | n/a (the project's own screens take its place) |
+| The web app's sample page (`web/src/sample`) and the `Sample` rail item | with the sample domain it drives; the shell, `src/lib/auth.ts`, `src/lib/api.ts`, the generated client, the primitives, the image and the browser-test fixtures stay | n/a (the project's own screens take its place) |
 | Owner/tenant scoping | no module scopes a row to the person who created it | a second tenant/brand, or external exposure of per-caller data |
 | Distributed caching | the slice has no cacheable reads | first read endpoint with measurable repeat traffic |
 | Feature toggles | the fork deploys continuously with instant rollback | first change that needs dark-launch or a kill switch |

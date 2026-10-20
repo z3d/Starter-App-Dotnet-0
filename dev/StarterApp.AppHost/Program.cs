@@ -232,6 +232,20 @@ else
        .WithEnvironment("Identity__MetadataAddress", ReferenceExpression.Create($"{Internal("keycloak")}/realms/starterapp/.well-known/openid-configuration"));
 }
 
+// The web app (web/) runs as the Vite dev server in run mode, with the API and identity provider
+// addresses passed in as VITE_* variables; vite.config.ts proxies /api to the API so the browser
+// stays on one origin. Publish mode builds web/Dockerfile instead (publish-images.yml). Keycloak
+// allows no port wildcard in a redirect URI, so the dev server's port is pinned to 5173.
+var web = builder.AddViteApp("web", "../../web")
+       .WithEndpoint("http", endpoint => endpoint.Port = 5173)
+       .WithNpm()
+       .WithReference(api)
+       .WithEnvironment("VITE_API_URL", api.GetEndpoint("https"))
+       .WithEnvironment("VITE_OIDC_CLIENT_ID", "starterapp-web")
+       .WaitFor(api);
+web.WithEnvironment("VITE_OIDC_AUTHORITY", ReferenceExpression.Create($"{keycloak.GetEndpoint("http")}/realms/starterapp"))
+   .WaitFor(keycloak);
+
 // The Service Bus subscribers run in the Functions base image locally too, so they behave the same
 // as the deployed worker.
 var functions = builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Functions/Dockerfile")

@@ -91,7 +91,7 @@ scope and `mfa` in the `amr` claim, which every dev user carries as an attribute
 ## Run the web app
 
 ```bash
-cd web && pnpm install && pnpm dev      # http://localhost:5173
+cd web && npm install && npm run dev    # http://localhost:5173
 ```
 
 The web app signs you in through the dev Keycloak on `:8090` (the AppHost pins it there) and calls

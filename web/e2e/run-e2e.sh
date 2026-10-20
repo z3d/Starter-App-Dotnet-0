@@ -3,22 +3,19 @@
 # Runs the web app's browser tests (web/e2e/tests, Playwright) against a stack of their own: a
 # throwaway PostgreSQL, the dev Keycloak with the committed realm, the migrator, the API and the
 # Vite dev server, each on a port no other rig uses. The suite is self-contained like the DAST and
-# k6 harnesses; nothing here depends on a hosted service.
+# k6 harnesses; nothing here depends on a hosted service. With the API up, the generated client
+# (src/lib/api.generated.ts) is regenerated from its OpenAPI document; in CI the run fails when the
+# committed file differs, locally it says so, so the client never drifts from the API.
 #
 #   web/e2e/run-e2e.sh                       # boot, test, tear down
-#   web/e2e/run-e2e.sh --grep "step-up"      # arguments after the script go to playwright test
-#   SKIP_BOOT=1 BASE_URL=http://localhost:5173 API_URL=http://localhost:5164 web/e2e/run-e2e.sh
-#                                            # against a rig already running
-#   E2E_DEPLOYED=1 web/e2e/run-e2e.sh        # the deployed shape instead (web/e2e/deployed): the
-#                                            # production image (web/apps/web/Dockerfile) behind its
-#                                            # own nginx, the API at its normal rate limit
+#   web/e2e/run-e2e.sh --grep "sign"         # arguments after the script go to playwright test
+#   E2E_DEPLOYED=1 web/e2e/run-e2e.sh        # the same stack, but the nginx image (web/Dockerfile) in front, and e2e/deployed
+#   web/e2e/run-e2e.sh --walkthrough         # boot the same stack and record web/e2e/walkthrough.mjs on it
+#   SKIP_BOOT=1 BASE_URL=http://localhost:5173 API_URL=https://localhost:7286 IDP_URL=http://localhost:8090 web/e2e/run-e2e.sh
+#                                            # against a rig already running (no client regeneration)
 #
-# While the API is up, the committed OpenAPI document (web/packages/api-client/openapi.json, with no servers entry) is
-# compared with the one the API serves, so a changed endpoint fails here until `pnpm export` has
-# refreshed the generated client. CHECK_OPENAPI=0 skips it.
-#
-# Requirements: Docker or Podman, .NET 10 SDK, Node 22 and pnpm, python3, curl. The Playwright
-# browser comes from `pnpm exec playwright install chromium` (once).
+# Requirements: Docker or Podman, .NET 10 SDK, Node 24 and npm, curl. The Playwright browser
+# comes from `npx playwright install chromium` (once).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,19 +28,21 @@ PG_PORT="${PG_PORT:-15435}"
 IDP_PORT="${IDP_PORT:-18083}"
 DEPLOYED_PORT="${DEPLOYED_PORT:-18381}"
 E2E_DEPLOYED="${E2E_DEPLOYED:-0}"
-CHECK_OPENAPI="${CHECK_OPENAPI:-1}"
 PG_IMAGE="${PG_IMAGE:-postgres:16-alpine}"
 PG_DB="starterapp_e2e"
 SKIP_BOOT="${SKIP_BOOT:-0}"
+# The level the API names in its step-up challenge; the step-up test checks the app asks for it.
+export STEP_UP_ACR="${STEP_UP_ACR:-urn:starterapp-dev:loa:mfa}"
 RUN_ID="e2e-$$"
 PG_CONTAINER="${RUN_ID}-pg"
 IDP_CONTAINER="${RUN_ID}-idp"
 WEB_CONTAINER="${RUN_ID}-web"
 WEB_IMAGE="starterapp-web:${RUN_ID}"
-# The level the API names in its step-up challenge; the step-up test checks the app asks for it.
-export STEP_UP_ACR="${STEP_UP_ACR:-urn:starterapp-dev:loa:mfa}"
 API_PID=""
-API_LOG="$SCRIPT_DIR/results/api.log"
+WEB_PID=""
+API_LOG="$WEB_DIR/test-results/api.log"
+MODE="tests"
+if [[ "${1:-}" == "--walkthrough" ]]; then MODE="walkthrough"; shift; fi
 source "$REPO_ROOT/scripts/lib/dev-idp.sh"
 
 CONTAINER_CLI="${CONTAINER_CLI:-}"
@@ -57,6 +56,10 @@ err()  { printf '\033[1;31m[e2e]\033[0m %s\n' "$*" >&2; }
 
 cleanup() {
   local code=$?
+  if [[ -n "$WEB_PID" ]] && kill -0 "$WEB_PID" 2>/dev/null; then
+    kill "$WEB_PID" 2>/dev/null || true
+    wait "$WEB_PID" 2>/dev/null || true
+  fi
   if [[ -n "$API_PID" ]] && kill -0 "$API_PID" 2>/dev/null; then
     log "Stopping API (pid $API_PID)"
     kill "$API_PID" 2>/dev/null || true
@@ -74,11 +77,37 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# The web image reaches the API on the host: Docker on Linux through the host gateway, so the API
+# listens beyond loopback; Podman's host.containers.internal arrives on loopback.
+start_api() {
+  local bind=127.0.0.1
+  [[ "$E2E_DEPLOYED" == "1" && "$CONTAINER_CLI" == "docker" ]] && bind=0.0.0.0
+  log "Starting API on port $API_PORT (Development, validating tokens from the dev Keycloak${1:+, $1})"
+  : > "$API_LOG"
+  ASPNETCORE_ENVIRONMENT=Development \
+  ASPNETCORE_URLS="http://${bind}:${API_PORT}" \
+  ConnectionStrings__database="$CONN" \
+  RateLimiting__PermitLimit="${PERMIT_LIMIT:-1000000}" \
+  Identity__Authority="${IDP_URL}/realms/starterapp" \
+  Identity__RequireHttpsMetadata=false \
+  Identity__StepUpAcrValues="$STEP_UP_ACR" \
+    dotnet run --project "$REPO_ROOT/src/StarterApp.Api" -c Release --no-launch-profile >"$API_LOG" 2>&1 &
+  API_PID=$!
+  local ready=0
+  for _ in $(seq 1 60); do
+    if curl -fsS "${API_URL}/health/ready" >/dev/null 2>&1 || curl -fsS "${API_URL}/alive" >/dev/null 2>&1; then ready=1; break; fi
+    if ! kill -0 "$API_PID" 2>/dev/null; then err "API process exited early. Tail of $API_LOG:"; tail -n 40 "$API_LOG" >&2; exit 1; fi
+    sleep 2
+  done
+  [[ "$ready" == "1" ]] || { err "API did not become ready. Tail of $API_LOG:"; tail -n 40 "$API_LOG" >&2; exit 1; }
+  log "API is ready."
+}
+
 if [[ "$SKIP_BOOT" != "1" ]]; then
-  for tool in "$CONTAINER_CLI" dotnet python3 curl pnpm; do
+  for tool in "$CONTAINER_CLI" dotnet curl npm; do
     command -v "$tool" >/dev/null 2>&1 || { err "Required tool '$tool' not found on PATH."; exit 2; }
   done
-  mkdir -p "$SCRIPT_DIR/results"
+  mkdir -p "$WEB_DIR/test-results"
   export API_URL="http://localhost:${API_PORT}"
   export IDP_URL="http://localhost:${IDP_PORT}"
   export WEB_PORT
@@ -98,60 +127,25 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
   log "Running database migrations (DbMigrator)"
   ConnectionStrings__database="$CONN" dotnet run --project "$REPO_ROOT/src/StarterApp.DbMigrator" -c Release
 
-  start_api() {
-  log "Starting API on port $API_PORT (Development, validating tokens from the dev Keycloak${1:+, $1})"
-  : > "$API_LOG"
-  ASPNETCORE_ENVIRONMENT=Development \
-  ASPNETCORE_URLS="http://${API_BIND}:${API_PORT}" \
-  ConnectionStrings__database="$CONN" \
-  env ${PERMIT_LIMIT:+RateLimiting__PermitLimit=$PERMIT_LIMIT} \
-  Identity__Authority="${IDP_URL}/realms/starterapp" \
-  Identity__RequireHttpsMetadata=false \
-  Identity__StepUpAcrValues="$STEP_UP_ACR" \
-    dotnet run --project "$REPO_ROOT/src/StarterApp.Api" -c Release --no-launch-profile >"$API_LOG" 2>&1 &
-  API_PID=$!
+  # The specs sign in and write a handful of times; the deployed shape keeps the normal limit.
+  if [[ "$E2E_DEPLOYED" == "1" ]]; then PERMIT_LIMIT="" start_api "the normal rate limit"; else start_api; fi
 
-  ready=0
-  for _ in $(seq 1 60); do
-    if curl -fsS "${API_URL}/health/ready" >/dev/null 2>&1 || curl -fsS "${API_URL}/alive" >/dev/null 2>&1; then ready=1; break; fi
-    if ! kill -0 "$API_PID" 2>/dev/null; then err "API process exited early. Tail of $API_LOG:"; tail -n 40 "$API_LOG" >&2; exit 1; fi
-    sleep 2
-  done
-  [[ "$ready" == "1" ]] || { err "API did not become ready. Tail of $API_LOG:"; tail -n 40 "$API_LOG" >&2; exit 1; }
-  log "API is ready."
-  }
-  # The web image reaches the API on the host: Docker on Linux through the host gateway, so the
-  # API listens beyond loopback; Podman's host.containers.internal arrives on loopback.
-  API_BIND=127.0.0.1
-  [[ "$E2E_DEPLOYED" == "1" && "$CONTAINER_CLI" == "docker" ]] && API_BIND=0.0.0.0
-  # The specs sign in and write a handful of times; the normal limit is kept for the deployed shape.
-  PERMIT_LIMIT=1000000 start_api
-
-  if [[ "$CHECK_OPENAPI" == "1" ]]; then
-    log "Checking the committed OpenAPI document against the API's"
-    curl -fsS "${API_URL}/openapi/v1.json" -o "$SCRIPT_DIR/results/openapi.json"
-    if ! python3 - "$WEB_DIR/packages/api-client/openapi.json" "$SCRIPT_DIR/results/openapi.json" <<'EOF'
-import json, sys
-committed, served = (json.load(open(p)) for p in sys.argv[1:3])
-served.pop("servers", None)
-if committed != served:
-    sys.exit(1)
-EOF
-    then
-      err "web/packages/api-client/openapi.json is not what the API serves. From web/, run \`pnpm export\` against a running"
-      err "API (OPENAPI_URL=${API_URL}/openapi/v1.json) and commit openapi.json and src/schema.d.ts."
-      exit 1
+  if [[ "$MODE" == "tests" ]]; then
+    log "Regenerating the API client from ${API_URL}/openapi/v1.json"
+    (cd "$WEB_DIR" && OPENAPI_URL="${API_URL}/openapi/v1.json" npm run --silent gen:api)
+    if ! git -C "$REPO_ROOT" diff --exit-code --quiet -- web/src/lib/api.generated.ts; then
+      git -C "$REPO_ROOT" --no-pager diff --stat -- web/src/lib/api.generated.ts >&2
+      if [[ "${CI:-}" == "true" ]]; then
+        err "web/src/lib/api.generated.ts is not what the API serves. Commit the regenerated file."
+        exit 1
+      fi
+      log "web/src/lib/api.generated.ts was regenerated from the API; commit it with this change."
     fi
   fi
 
   if [[ "$E2E_DEPLOYED" == "1" ]]; then
-    log "Restarting the API at its normal rate limit"
-    kill "$API_PID" 2>/dev/null || true
-    wait "$API_PID" 2>/dev/null || true
-    PERMIT_LIMIT="" start_api "the normal rate limit"
-
-    log "Building the web image (web/apps/web/Dockerfile)"
-    "$CONTAINER_CLI" build -q -f "$WEB_DIR/apps/web/Dockerfile" -t "$WEB_IMAGE" "$REPO_ROOT" >/dev/null
+    log "Building the web image (web/Dockerfile)"
+    "$CONTAINER_CLI" build -q -f "$WEB_DIR/Dockerfile" -t "$WEB_IMAGE" "$REPO_ROOT" >/dev/null
     if [[ "$CONTAINER_CLI" == "docker" ]]; then upstream_host=host.docker.internal; add_host=(--add-host=host.docker.internal:host-gateway); else upstream_host=host.containers.internal; add_host=(); fi
     log "Starting the web image on port $DEPLOYED_PORT (nginx, the API at http://${upstream_host}:${API_PORT})"
     "$CONTAINER_CLI" run -d --name "$WEB_CONTAINER" ${add_host[@]+"${add_host[@]}"} -p "${DEPLOYED_PORT}:8080" \
@@ -163,13 +157,28 @@ EOF
     export BASE_URL="http://localhost:${DEPLOYED_PORT}"
   fi
 else
-  log "SKIP_BOOT=1: testing the rig at ${BASE_URL:-http://localhost:5184} with the API at ${API_URL:-http://localhost:5164}"
+  log "SKIP_BOOT=1: testing the rig at ${BASE_URL:-http://localhost:5184} with the API at ${API_URL:-https://localhost:7286}"
 fi
 
-log "Running the browser tests"
 cd "$WEB_DIR"
-if [[ "$E2E_DEPLOYED" == "1" ]]; then
-  pnpm exec playwright test --project=deployed "$@"
+if [[ "$MODE" == "walkthrough" ]]; then
+  # The recording drives the dev server itself, so it is started here rather than by Playwright.
+  if [[ -z "${BASE_URL:-}" ]]; then
+    log "Starting the dev server on port $WEB_PORT"
+    VITE_API_URL="$API_URL" VITE_OIDC_AUTHORITY="${IDP_URL}/realms/starterapp" npx vite --port "$WEB_PORT" --strictPort >"$WEB_DIR/test-results/vite.log" 2>&1 &
+    WEB_PID=$!
+    for _ in $(seq 1 60); do
+      if curl -fsS "http://localhost:${WEB_PORT}" >/dev/null 2>&1; then break; fi
+      sleep 1
+    done
+    export BASE_URL="http://localhost:${WEB_PORT}"
+  fi
+  log "Recording the walkthrough against $BASE_URL"
+  node e2e/walkthrough.mjs "$@"
+elif [[ "$E2E_DEPLOYED" == "1" ]]; then
+  log "Running the browser tests against the web image"
+  npx playwright test --project=deployed "$@"
 else
-  pnpm exec playwright test --project=chromium "$@"
+  log "Running the browser tests"
+  npx playwright test --project=chromium "$@"
 fi

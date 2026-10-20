@@ -53,42 +53,42 @@ jobs:
   web:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Setup pnpm
-      uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      with:
-        version: 10.15.0
-
     - name: Setup Node
       uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
-        node-version: '22'
-        cache: pnpm
-        cache-dependency-path: web/pnpm-lock.yaml
+        node-version: '24'
+        cache: npm
+        cache-dependency-path: web/package-lock.json
 
-    - name: Install
-      working-directory: web
-      run: pnpm install --frozen-lockfile
+    - name: Install dependencies
+      run: npm ci --no-audit --no-fund
 
-    - name: Generated client is current
-      working-directory: web
-      run: pnpm generate && git diff --exit-code -- packages/api-client/src/schema.d.ts
+    - name: Verify formatting
+      run: npm run format:check
 
-    - name: Typecheck and build
-      working-directory: web
-      run: pnpm typecheck && pnpm build
+    - name: Lint
+      run: npm run lint
+
+    - name: Typecheck
+      run: npm run typecheck
 
     - name: Unit tests
-      working-directory: web
-      run: pnpm test
+      run: npm test
+
+    - name: Build
+      run: npm run build
 
   # The web app in a browser against a stack of its own: PostgreSQL, the dev Keycloak with the
   # committed realm, the migrator and the API (web/e2e/run-e2e.sh), the same way the DAST and k6
-  # harnesses boot theirs. The script also fails when the committed OpenAPI document is not what
-  # the API serves.
+  # harnesses boot theirs; then once more with the nginx image in front. The script also fails
+  # when the committed generated client is not what the API serves.
   web-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -97,36 +97,43 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-    - name: Setup pnpm
-      uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      with:
-        version: 10.15.0
+    - uses: ./.github/actions/dotnet-build
+
+    - uses: ./.github/actions/pull-postgres
 
     - name: Setup Node
       uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
-        node-version: '22'
-        cache: pnpm
-        cache-dependency-path: web/pnpm-lock.yaml
+        node-version: '24'
+        cache: npm
+        cache-dependency-path: web/package-lock.json
 
-    - name: Install
+    - name: Install dependencies
       working-directory: web
-      run: pnpm install --frozen-lockfile
+      run: npm ci --no-audit --no-fund
 
     - name: Install the browser
       working-directory: web
-      run: pnpm exec playwright install --with-deps chromium
+      run: npx playwright install --with-deps chromium
 
-    - uses: ./.github/actions/dotnet-build
-
-    - uses: ./.github/actions/pull-postgres
+    # The Keycloak image, with the same retry loop; keep it in step with scripts/lib/dev-idp.sh.
+    - name: Pre-pull the dev Keycloak image
+      run: |
+        source scripts/lib/dev-idp.sh
+        for attempt in 1 2 3 4 5; do
+          if docker pull "$DEV_IDP_IMAGE"; then exit 0; fi
+          echo "::warning::docker pull $DEV_IDP_IMAGE failed (attempt $attempt/5); retrying in $((attempt * 10))s"
+          sleep $((attempt * 10))
+        done
+        echo "::error::could not pull $DEV_IDP_IMAGE after 5 attempts"
+        exit 1
 
     - name: Browser tests against a booted stack
       env:
         CI: "true"
       run: web/e2e/run-e2e.sh
 
-    - name: Browser tests against the deployed shape
+    - name: Browser tests against the web image
       env:
         CI: "true"
         E2E_DEPLOYED: "1"
@@ -136,10 +143,11 @@ jobs:
       if: failure() && !env.ACT
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
-        name: web-e2e-report
+        name: playwright-report
         path: |
-          web/e2e/report
-          web/e2e/results
+          web/playwright-report
+          web/test-results
+        retention-days: 7
 
   integration:
     runs-on: ubuntu-latest

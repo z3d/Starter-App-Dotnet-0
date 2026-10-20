@@ -21,12 +21,33 @@ updates:
         patterns:
           - "github/codeql-action*"
 
-  # Base images in the three Dockerfiles (dotnet sdk/aspnet, azure-functions runtime).
+  # Base images in the four Dockerfiles (dotnet sdk/aspnet, azure-functions runtime, node and nginx for the web).
   - package-ecosystem: "docker"
     directories:
       - "/src/StarterApp.Api"
       - "/src/StarterApp.DbMigrator"
       - "/src/StarterApp.Functions"
+      - "/web"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+
+  # The web app. Minor and patch bumps come as one grouped PR a week.
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    ignore:
+      # @types/node follows the Node line CI runs (setup-node '24'); move both together by hand.
+      - dependency-name: "@types/node"
+        versions: [">=25"]
+      # TypeScript 7 ships no JavaScript compiler API, which openapi-typescript needs for gen:api.
+      # Re-add trigger: an openapi-typescript release that supports TypeScript 7.
+      - dependency-name: "typescript"
+        versions: [">=7"]
+    groups:
+      web-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"

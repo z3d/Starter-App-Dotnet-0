@@ -26,7 +26,7 @@ public class DerivationConventionTests : ConventionTestBase
         .Where(name => !apiTypes.Any(t => IsModuleType(t) && t.GetInterfaces().Any(i => i.Name == name)))
         .ToList();
 
-    private static readonly string SamplePage = Path.Combine("web", "apps", "web", "src", "sample");
+    private static readonly string SamplePage = Path.Combine("web", "src", "sample");
 
     internal static List<string> SamplePageLeftovers(string repoRoot) =>
         Directory.Exists(Path.Combine(repoRoot, SamplePage)) ? [SamplePage] : [];
