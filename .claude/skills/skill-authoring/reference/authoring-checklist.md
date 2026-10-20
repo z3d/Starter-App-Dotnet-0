@@ -7,9 +7,10 @@ From Anthropic's skill authoring guidance (`platform.claude.com/docs/en/agents-a
 - `name`: lower-case letters, numbers and hyphens; at most 64 characters; the same as the folder.
 - `description`: at most 1,024 characters; third person ("Turns...", not "I can..." or "You can..."); says what the skill does **and** when to use it; carries the words a person would use when they need it.
 - `user-invocable`: `true` only for a procedure a person calls by name.
-- `paths`: glob patterns (a comma-separated string or a YAML list, the format `.claude/rules/` uses) that make the skill load only when a matching file is touched; without it the skill loads from its description or by name.
+- `paths`: glob patterns (a comma-separated string or a YAML list, the format `.claude/rules/` uses) that make the skill load only when a matching file is touched; without it the skill loads from its description or by name. The rule skills here carry none, because "add a handler" must load `cqrs-patterns` before any file is open.
 - `when_to_use`: extra trigger phrases, appended to `description`; the listing cuts the two together at 1,536 characters.
-- Frontmatter must parse as YAML. A colon followed by a space inside an unquoted description breaks it, and a skill whose frontmatter fails to parse loads with every field dropped and nothing warning you.
+- Frontmatter must parse as YAML. A colon followed by a space inside an unquoted description breaks it, and a skill whose frontmatter fails to parse loads with every field dropped and nothing warning you; `claude plugin validate .claude/skills` reports it.
+- A key of your own (`maturity`, `supersedes`) goes under `metadata:`; an unknown top-level field is ignored without a warning.
 
 ## Body
 

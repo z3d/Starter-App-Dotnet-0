@@ -1,5 +1,13 @@
 # EF Mapping, Migrations, and Aspire Wiring
 
+## Contents
+
+- Mapping shapes
+- Constraint naming
+- Migration execution per environment
+- Connection-string resolution
+- Aspire wiring
+
 ## Mapping shapes
 
 Value-object embedding with `OwnsOne` and explicit column names:

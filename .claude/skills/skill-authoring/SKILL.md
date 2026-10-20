@@ -51,7 +51,7 @@ Shared context lives in `AGENTS.md`, referenced not restated — duplicated cont
 
 ## When skills multiply
 
-Once two skills overlap, add `maturity` (stable/experimental) and `supersedes` frontmatter, and fold the loser's unique content into the winner before retiring it.
+Once two skills overlap, record `maturity` (stable/experimental) and `supersedes` under `metadata:` in the frontmatter (Claude Code ignores an unknown top-level field without a warning, and `metadata` is where a key of your own goes), and fold the loser's unique content into the winner before retiring it.
 
 ## Related skills
 
