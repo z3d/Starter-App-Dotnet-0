@@ -16,10 +16,6 @@ export interface PagedList<T> {
   loadMore: () => void
 }
 
-export function withPage(path: string, page: number, pageSize: number) {
-  return `${path}${path.includes('?') ? '&' : '?'}page=${page}&pageSize=${pageSize}`
-}
-
 export function usePaged<T>(options: {
   queryKey: readonly unknown[]
   queryFn: (page: number) => Promise<PagedResponse<T>>

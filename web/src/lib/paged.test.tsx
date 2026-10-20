@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ShowMore } from '@/components/ui/primitives'
-import { countLoaded, usePaged, withPage } from './paged'
+import { countLoaded, usePaged } from './paged'
 
 const pages: Record<number, { data: string[]; hasMore: boolean }> = {
   1: { data: ['Ivy', 'Leo'], hasMore: true },
@@ -43,9 +43,7 @@ describe('a paged list', () => {
     expect(fetchPage.mock.calls.map(([page]) => page)).toEqual([1, 2])
   })
 
-  it('asks for the page after any filter already on the path, and marks a count that has more to load', () => {
-    expect(withPage('/api/v1/customers', 2, 100)).toBe('/api/v1/customers?page=2&pageSize=100')
-    expect(withPage('/api/v1/customers?search=ava', 1, 100)).toBe('/api/v1/customers?search=ava&page=1&pageSize=100')
+  it('marks a count that has more to load', () => {
     expect(countLoaded(100, true)).toBe('100+')
     expect(countLoaded(7, false)).toBe('7')
   })
