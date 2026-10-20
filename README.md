@@ -25,7 +25,7 @@ The sample domain is owner-scoped end to end: products, customers and orders bel
 
 | Question | Source of truth |
 |---|---|
-| Is this structure allowed? | `tests/StarterApp.Tests/Conventions/` (nineteen convention test files) |
+| Is this structure allowed? | `tests/StarterApp.Tests/Conventions/`, one test file per concern |
 | What can the compiler and the tests not catch? | [AGENTS.md](AGENTS.md), with the traps that cost a session and the recorded decisions' re-add triggers |
 | Why was it done this way? | [docs/DECISIONS.md](docs/DECISIONS.md) |
 | How do I write a handler, an entity, an endpoint, a test? | `.claude/skills/`, with pinned exemplars under `docs/exemplars/` |
@@ -68,7 +68,7 @@ starterapp/
 ├── dast/                            # OWASP ZAP scan and its seed
 ├── docs/                            # Getting started, API reference, decisions, derivation pruning, runbooks, investigations, exemplars, review records
 ├── scripts/                         # Smoke test, dev scripts, reporting SQL
-└── .claude/                         # Skills, rules, reviewer agents and hooks for the agents that maintain this repository
+└── .claude/                         # Skills, path-scoped rules, reviewer agents, hooks and the review workflow for the agents that maintain this repository
 ```
 
 ## Deriving a project from this template

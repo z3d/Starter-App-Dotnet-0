@@ -13,7 +13,7 @@ A lesson kept only in a conversation is lost when the context is summarised. Say
 | The lesson is | It becomes |
 |---|---|
 | Something a machine can check | A convention test or a `PreToolUse` hook in `.claude/hooks/`. An instruction is a request; a test or hook is enforcement |
-| True only inside one module or folder | A path-scoped file in `.claude/rules/` (YAML `paths:` frontmatter, loaded when a matching file is touched) |
+| True only inside one module or folder | A path-scoped file in `.claude/rules/` (YAML `paths:` frontmatter, loaded when a matching file is touched); a skill takes the same `paths:` when it is longer than a rule |
 | Needed by every session, in one line | A line in `AGENTS.md`, in the section it belongs to; the file stays under 200 lines and repeats nothing a skill says |
 | A procedure, a checklist or reference material needed sometimes | A skill. Read every skill's `description` first and add to the one that covers the job; a new skill is for a new job |
 | About the owner, or about the agent harness and not this repo | The harness's own memory (Claude Code keeps one per project outside the repo) |
@@ -24,7 +24,7 @@ Most lessons end as a test or one line. This is Anthropic's guidance (`code.clau
 
 Skills here follow four tiers of progressive disclosure. Each tier has a budget, and content lives at the **deepest tier that still gets it read in time**:
 
-1. **`AGENTS.md`** — always loaded (Claude reads it through `CLAUDE.md`'s `@AGENTS.md` import). Commands, recorded decisions with re-add triggers, cross-cutting gotchas, non-inferable domain facts. Nothing that also lives in a skill.
+1. **`AGENTS.md`** — always loaded (Claude Code reads it through the `@AGENTS.md` import in `CLAUDE.md`, or directly when no `CLAUDE.md` exists). Commands, recorded decisions with re-add triggers, cross-cutting gotchas, non-inferable domain facts. Nothing that also lives in a skill.
 2. **Frontmatter `description`** — always loaded; it is the trigger. State *when to use the skill*, not just what it covers. A vague description means the skill loads at the wrong time or never.
 3. **`SKILL.md` body** — loaded when triggered. A **~40–60 line entry point that routes**: the rules an agent must not get wrong, each with its one-line why, plus a Depth table linking to references. Not the place for the depth itself. The rules come first in the body: after a context compaction only the start of an invoked skill may survive.
 4. **`reference/*.md`** beside the skill — loaded only when followed. Full code shapes, failure-mode catalogues, subsystem narratives. Depth is *relocated* here, never deleted.
