@@ -1,4 +1,4 @@
-import { expect, heading, rail, test } from '../lib/fixtures'
+import { expect, heading, rail, test, users } from '../lib/fixtures'
 
 // The rail reaches every page, and the shell knows who is signed in and for which tenant.
 test('the rail reaches every page', async ({ page }) => {
@@ -20,8 +20,9 @@ test('the command palette jumps to a page and offers to sign out', async ({ page
   await expect(palette).toBeHidden()
 })
 
-test('the shell names the tenant and offers to sign out', async ({ page }) => {
+test('the shell names the person and the tenant, and offers to sign out', async ({ page }) => {
   await page.goto('/')
+  await expect(page.getByText(users.dev.displayName)).toBeVisible()
   await expect(page.getByTestId('tenant-id')).toHaveText('local-dev-tenant')
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
 })
