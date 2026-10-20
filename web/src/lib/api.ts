@@ -1,9 +1,14 @@
+import createClient, { type Middleware } from 'openapi-fetch'
 import { User } from 'oidc-client-ts'
+import type { paths } from './api.generated'
 import { oidcSettings, signInAgain, stepUp } from './auth'
+import type { Full } from './types'
 
-// Minimal typed fetch wrapper. Every request carries the current access token and a correlation id
-// (the API echoes X-Correlation-ID, which is the support handle when something goes wrong).
-// Non-2xx responses surface as ApiError carrying the RFC 9457 ProblemDetails body the API returns.
+// The API client. Every call is typed by its route, from the generated client: a route that does
+// not exist, a wrong parameter or a wrong body fails to compile, and the response type follows
+// from the route. Every request carries the current access token and a correlation id (the API
+// echoes X-Correlation-ID, the support handle when something goes wrong); a non-2xx response
+// surfaces as ApiError carrying the RFC 9457 ProblemDetails body the API returns.
 
 export interface ProblemDetails {
   type?: string
@@ -53,50 +58,40 @@ export function newCorrelationId(): string {
   return crypto.randomUUID()
 }
 
-export interface RequestOptions extends Omit<RequestInit, 'body'> {
-  body?: unknown
-  correlationId?: string
+// The identity seam on every request: the token in, a correlation id in, and the two answers the
+// provider sorts out (the session is gone, or the API wants the second factor).
+export const identity: Middleware = {
+  onRequest({ request }) {
+    const token = currentAccessToken()
+    if (token && !request.headers.has('Authorization')) request.headers.set('Authorization', `Bearer ${token}`)
+    if (!request.headers.has('X-Correlation-ID')) request.headers.set('X-Correlation-ID', newCorrelationId())
+    return request
+  },
+  onResponse({ request, response }) {
+    if (response.status === 401 && request.headers.has('Authorization')) signInAgain()
+    if (response.status === 403) stepUp(response.headers.get('WWW-Authenticate'))
+    return response
+  },
 }
 
-export async function api<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, correlationId = newCorrelationId(), headers, ...init } = options
-  const token = currentAccessToken()
+// Same origin: the dev server and the image both proxy /api to the API. fetch is looked up per call,
+// so a test's stand-in for it is the one used.
+export const client = createClient<paths>({
+  baseUrl: window.location.origin,
+  fetch: (request) => globalThis.fetch(request),
+})
+client.use(identity)
 
-  const response = await fetch(path.startsWith('/') ? path : `/${path}`, {
-    ...init,
-    headers: {
-      Accept: 'application/json',
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      'X-Correlation-ID': correlationId,
-      ...headers,
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
-
-  if (!response.ok) {
-    // The session is gone, or the API wants the second factor: the provider sorts both out.
-    if (response.status === 401 && token) signInAgain()
-    if (response.status === 403) stepUp(response.headers.get('WWW-Authenticate'))
-    let problem: ProblemDetails | undefined
-    try {
-      problem = (await response.json()) as ProblemDetails
-    } catch {
-      problem = undefined
-    }
+// The data on success, typed as what the API actually sends (Full); an ApiError otherwise.
+export async function call<T>(
+  promise: Promise<{ data?: T; error?: unknown; response: Response }>,
+): Promise<Full<NonNullable<T>>> {
+  const { data, error, response } = await promise
+  if (error !== undefined || !response.ok) {
+    const problem = error && typeof error === 'object' ? (error as ProblemDetails) : undefined
     throw new ApiError(response.status, problem, response.headers.get('X-Correlation-ID'))
   }
-
-  if (response.status === 204) return undefined as T
-  return (await response.json()) as T
-}
-
-export const http = {
-  get: <T>(path: string, options?: RequestOptions) => api<T>(path, { ...options, method: 'GET' }),
-  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
-    api<T>(path, { ...options, method: 'POST', body }),
-  put: <T>(path: string, body?: unknown, options?: RequestOptions) => api<T>(path, { ...options, method: 'PUT', body }),
-  delete: <T>(path: string, options?: RequestOptions) => api<T>(path, { ...options, method: 'DELETE' }),
+  return data as Full<NonNullable<T>>
 }
 
 export async function download(path: string): Promise<{ blob: Blob; fileName: string | null }> {

@@ -8,7 +8,7 @@ vi.mock('./auth', async (importOriginal) => ({
   signInAgain,
   stepUp,
 }))
-const { ApiError, http } = await import('./api')
+const { ApiError, call, client } = await import('./api')
 type ApiError = InstanceType<typeof ApiError>
 const { oidcSettings } = await import('./auth')
 
@@ -33,7 +33,10 @@ function jsonResponse(status: number, body: unknown, headers: Record<string, str
   })
 }
 
-describe('http client', () => {
+// The request openapi-fetch hands to fetch.
+const sent = (mock: { mock: { calls: unknown[][] } }, i = 0) => mock.mock.calls[i]![0] as Request
+
+describe('API client', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     signInAgain.mockClear()
@@ -44,8 +47,8 @@ describe('http client', () => {
   it("sends the signed-in person's token, and not an expired one", async () => {
     signIn()
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => jsonResponse(200, []))
-    await http.get('/api/v1/customers')
-    expect((fetchMock.mock.calls[0]![1]!.headers as Record<string, string>).Authorization).toBe('Bearer token-123')
+    await call(client.GET('/api/v1/customers'))
+    expect(sent(fetchMock).headers.get('Authorization')).toBe('Bearer token-123')
 
     window.sessionStorage.setItem(
       `oidc.user:${oidcSettings.authority}:${oidcSettings.client_id}`,
@@ -57,20 +60,20 @@ describe('http client', () => {
         expires_at: Math.floor(Date.now() / 1000) - 60,
       }),
     )
-    await http.get('/api/v1/customers')
-    expect((fetchMock.mock.calls[1]![1]!.headers as Record<string, string>).Authorization).toBeUndefined()
+    await call(client.GET('/api/v1/customers'))
+    expect(sent(fetchMock, 1).headers.get('Authorization')).toBeNull()
   })
 
   it('signs the person in again when their token is refused', async () => {
     signIn()
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(401, { title: 'Unauthorized' }))
-    await expect(http.get('/api/v1/customers')).rejects.toBeInstanceOf(ApiError)
+    await expect(call(client.GET('/api/v1/customers'))).rejects.toBeInstanceOf(ApiError)
     expect(signInAgain).toHaveBeenCalled()
   })
 
   it('leaves a signed-out 401 alone: the layout route is already sending them to sign in', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(401, { title: 'Unauthorized' }))
-    await expect(http.get('/api/v1/customers')).rejects.toBeInstanceOf(ApiError)
+    await expect(call(client.GET('/api/v1/customers'))).rejects.toBeInstanceOf(ApiError)
     expect(signInAgain).not.toHaveBeenCalled()
   })
 
@@ -80,23 +83,24 @@ describe('http client', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse(403, { title: 'Forbidden' }, { 'WWW-Authenticate': challenge }),
     )
-    await expect(http.post('/api/v1/customers', {})).rejects.toBeInstanceOf(ApiError)
+    await expect(
+      call(client.POST('/api/v1/customers', { body: { name: 'x', email: 'x@example.test' } })),
+    ).rejects.toBeInstanceOf(ApiError)
     expect(stepUp).toHaveBeenCalledWith(challenge)
   })
 
   it('sends JSON, a correlation id, and no Authorization header when signed out', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(201, { id: 1 }))
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(201, { id: 1, name: 'x' }))
 
-    const result = await http.post<{ id: number }>('/api/v1/things', { name: 'x' }, { correlationId: 'corr-1' })
+    const result = await call(client.POST('/api/v1/customers', { body: { name: 'x', email: 'x@example.test' } }))
 
-    expect(result).toEqual({ id: 1 })
-    const [url, init] = fetchMock.mock.calls[0]!
-    expect(url).toBe('/api/v1/things')
-    const headers = init!.headers as Record<string, string>
-    expect(headers['X-Correlation-ID']).toBe('corr-1')
-    expect(headers['Content-Type']).toBe('application/json')
-    expect(headers.Authorization).toBeUndefined()
-    expect(init!.body).toBe(JSON.stringify({ name: 'x' }))
+    expect(result).toEqual({ id: 1, name: 'x' })
+    const request = sent(fetchMock)
+    expect(new URL(request.url).pathname).toBe('/api/v1/customers')
+    expect(request.headers.get('X-Correlation-ID')).toMatch(/^[0-9a-f-]{36}$/)
+    expect(request.headers.get('Content-Type')).toBe('application/json')
+    expect(request.headers.get('Authorization')).toBeNull()
+    expect(await request.json()).toEqual({ name: 'x', email: 'x@example.test' })
   })
 
   it('surfaces ProblemDetails as ApiError with the echoed correlation id', async () => {
@@ -108,7 +112,7 @@ describe('http client', () => {
       ),
     )
 
-    const error = await http.get('/api/v1/things').catch((e: unknown) => e)
+    const error = await call(client.GET('/api/v1/customers')).catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(ApiError)
     const apiError = error as ApiError
@@ -121,6 +125,6 @@ describe('http client', () => {
 
   it('returns undefined for 204 responses', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }))
-    await expect(http.delete('/api/v1/things/1')).resolves.toBeUndefined()
+    await expect(call(client.DELETE('/api/v1/products/{id}', { params: { path: { id: 1 } } }))).resolves.toBeUndefined()
   })
 })

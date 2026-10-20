@@ -3,7 +3,7 @@ import { useAuth } from 'react-oidc-context'
 import { Button } from '@/components/ui/button'
 import { Checkbox, Field, Input } from '@/components/ui/field'
 import { Card, PageHeader } from '@/components/ui/primitives'
-import { ApiError, http } from '@/lib/api'
+import { ApiError, call, client } from '@/lib/api'
 import { claimsOf, resourceScopes, signInWithScopes } from '@/lib/auth'
 import type { Full, Schemas } from '@/lib/types'
 
@@ -33,14 +33,10 @@ function Result({ step, outcome }: { step: string; outcome: Outcome | null }) {
   )
 }
 
-async function send<T>(method: 'POST' | 'PUT' | 'GET', path: string, body?: unknown): Promise<[Outcome, T | null]> {
+// Runs one typed call and keeps what the API answered, success or problem, for the page to show.
+async function send<T>(method: string, path: string, run: () => Promise<T>): Promise<[Outcome, T | null]> {
   try {
-    const data =
-      method === 'GET'
-        ? await http.get<T>(path)
-        : method === 'POST'
-          ? await http.post<T>(path, body)
-          : await http.put<T>(path, body)
+    const data = await run()
     return [{ method, path, status: method === 'POST' ? 201 : 200, body: data }, data]
   } catch (error) {
     if (error instanceof ApiError) return [{ method, path, status: error.status, body: error.problem ?? null }, null]
@@ -77,14 +73,18 @@ export function SamplePage() {
       currency: 'AUD',
       stock: Number(stock),
     }
-    const [outcome, data] = await send<Full<Schemas['ProductDto']>>('POST', '/api/v1/products', body)
+    const [outcome, data] = await send('POST', '/api/v1/products', () =>
+      call(client.POST('/api/v1/products', { body })),
+    )
     setProductOutcome(outcome)
     setProduct(data)
   }
 
   const createCustomer = async () => {
     const body: Schemas['CreateCustomerCommand'] = { name: customerName, email }
-    const [outcome, data] = await send<Full<Schemas['CustomerDto']>>('POST', '/api/v1/customers', body)
+    const [outcome, data] = await send('POST', '/api/v1/customers', () =>
+      call(client.POST('/api/v1/customers', { body })),
+    )
     setCustomerOutcome(outcome)
     setCustomer(data)
   }
@@ -95,19 +95,28 @@ export function SamplePage() {
       customerId: customer.id,
       items: [{ productId: product.id, quantity: Number(quantity) }],
     }
-    const [outcome, data] = await send<Full<Schemas['OrderDto']>>('POST', '/api/v1/orders', body)
+    const [outcome, data] = await send('POST', '/api/v1/orders', () => call(client.POST('/api/v1/orders', { body })))
     setOrderOutcome(outcome)
     setOrder(data)
   }
 
   const confirmOrder = async () => {
     if (!order) return
-    const [put] = await send('PUT', `/api/v1/orders/${order.id}/status`, { orderId: order.id, status: 'Confirmed' })
+    const [put] = await send('PUT', `/api/v1/orders/${order.id}/status`, () =>
+      call(
+        client.PUT('/api/v1/orders/{id}/status', {
+          params: { path: { id: order.id } },
+          body: { orderId: order.id, status: 'Confirmed' },
+        }),
+      ),
+    )
     if (put.status >= 400) {
       setOrderOutcome(put)
       return
     }
-    const [read, data] = await send<Full<Schemas['OrderDto']>>('GET', `/api/v1/orders/${order.id}`)
+    const [read, data] = await send('GET', `/api/v1/orders/${order.id}`, () =>
+      call(client.GET('/api/v1/orders/{id}', { params: { path: { id: order.id } } })),
+    )
     setOrderOutcome(read)
     setOrder(data ?? order)
   }
