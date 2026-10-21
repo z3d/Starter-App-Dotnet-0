@@ -12,9 +12,11 @@ test("a product, a customer and an order, then a refusal decided by the token's 
 
     await page.getByRole('button', { name: 'Place the order' }).click()
     await expect(result(page, 'order')).toContainText('POST /api/v1/orders\n201')
+    await expect(page.getByTestId('order-statement')).toContainText('Order total, pending')
 
     await page.getByRole('button', { name: 'Confirm the order' }).click()
     await expect(result(page, 'order')).toContainText('"status": "Confirmed"')
+    await expect(page.getByTestId('order-statement')).toContainText('Order total, confirmed')
 
     await page.getByLabel('orders:write').uncheck()
     await page.getByRole('button', { name: 'Sign in again with these scopes' }).click()

@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { useAuth } from 'react-oidc-context'
 import { Button } from '@/components/ui/button'
 import { Checkbox, Field, Input } from '@/components/ui/field'
-import { Card, PageHeader } from '@/components/ui/primitives'
+import { HeroFigure, SplitBar, Statement } from '@/components/ui/figures'
+import { Card, EmptyState, PageHeader } from '@/components/ui/primitives'
 import { ApiError, call, client } from '@/lib/api'
+import { money } from '@/lib/format'
 import { claimsOf, resourceScopes, signInWithScopes } from '@/lib/auth'
 import type { Full, Schemas } from '@/lib/types'
 
@@ -228,6 +230,39 @@ export function SamplePage() {
           <Button onClick={() => void confirmOrder()} disabled={!order}>
             Confirm the order
           </Button>
+        </div>
+        <div className="mt-3">
+          {order ? (
+            <Statement data-testid="order-statement">
+              <HeroFigure
+                label={`Order total, ${order.status.toLowerCase()}`}
+                value={money(order.totalIncludingGst, { cents: true })}
+                hint={`${String(order.items.length)} line${order.items.length === 1 ? '' : 's'}, GST included.`}
+              />
+              <div className="mt-6">
+                <SplitBar
+                  dark
+                  label="The order total"
+                  segments={[
+                    {
+                      label: 'Excluding GST',
+                      value: Number(order.totalExcludingGst),
+                      display: money(order.totalExcludingGst, { cents: true }),
+                      tone: 'accent',
+                    },
+                    {
+                      label: 'GST',
+                      value: Number(order.totalGstAmount),
+                      display: money(order.totalGstAmount, { cents: true }),
+                      tone: 'info',
+                    },
+                  ]}
+                />
+              </div>
+            </Statement>
+          ) : (
+            <EmptyState compact title="No order yet" description="Place one to see its total and the GST in it." />
+          )}
         </div>
         <Result step="order" outcome={orderOutcome} />
       </Card>

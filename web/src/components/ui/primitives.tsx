@@ -114,11 +114,20 @@ export function EmptyState({
   title,
   description,
   action,
+  compact,
 }: {
   title: ReactNode
   description?: ReactNode
   action?: ReactNode
+  compact?: boolean
 }) {
+  if (compact)
+    return (
+      <div className="rounded-md bg-surface-sunken px-4 py-3">
+        <p className="font-medium text-ink">{title}</p>
+        {description ? <p className="text-xs text-ink-tertiary">{description}</p> : null}
+      </div>
+    )
   return (
     <div className="flex flex-col items-center rounded-lg border border-dashed border-line-strong px-6 py-14 text-center">
       <p className="font-display text-2xl text-ink">{title}</p>

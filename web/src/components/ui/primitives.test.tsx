@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { Button } from './button'
 import { Checkbox, Field } from './field'
+import { SplitBar } from './figures'
 import { Callout, Chip, EmptyState, PageHeader, StatTile } from './primitives'
 
 // The component vocabulary (docs/DESIGN.md): every screen is built from these.
@@ -71,6 +72,25 @@ describe('StatTile and EmptyState', () => {
     expect(screen.getByText('Open briefs')).toBeInTheDocument()
     expect(screen.getByText('No properties yet')).toBeInTheDocument()
     expect(screen.getByText('Add the first appraisal.')).toBeInTheDocument()
+  })
+})
+
+describe('SplitBar', () => {
+  it('names every part with its amount and leaves out a part that is nothing', () => {
+    render(
+      <SplitBar
+        label="The order total"
+        segments={[
+          { label: 'Excluding GST', value: 300, display: '$300.00', tone: 'accent' },
+          { label: 'GST', value: 30, display: '$30.00', tone: 'info' },
+          { label: 'Discount', value: 0, display: '$0.00', tone: 'rest' },
+        ]}
+      />,
+    )
+    expect(screen.getByRole('figure', { name: 'The order total' })).toBeInTheDocument()
+    expect(screen.getByText('Excluding GST').nextElementSibling).toHaveTextContent('$300.00')
+    expect(screen.getByText('GST').nextElementSibling).toHaveTextContent('$30.00')
+    expect(screen.queryByText('Discount')).not.toBeInTheDocument()
   })
 })
 
