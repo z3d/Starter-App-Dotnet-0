@@ -5,6 +5,7 @@ import { Button } from './button'
 import { Checkbox, Field } from './field'
 import { SplitBar } from './figures'
 import { Callout, Chip, EmptyState, PageHeader, StatTile } from './primitives'
+import { Queue, QueueRow, StageFlow, Waited } from './queue'
 
 // The component vocabulary (docs/DESIGN.md): every screen is built from these.
 describe('PageHeader', () => {
@@ -98,5 +99,46 @@ describe('Button', () => {
   it('is disabled while busy and still names itself', () => {
     render(<Button disabled>Save contact</Button>)
     expect(screen.getByRole('button', { name: 'Save contact' })).toBeDisabled()
+  })
+})
+
+describe('StageFlow', () => {
+  it('selects a stage, and clears it when the selected stage is pressed again', async () => {
+    const onSelect = vi.fn()
+    const stages = [
+      { key: 'Applied', label: 'Applied', count: 3, urgent: true },
+      { key: 'Active', label: 'Active', count: 12 },
+    ]
+    const { rerender } = render(<StageFlow label="Leases by stage" stages={stages} onSelect={onSelect} />)
+    await userEvent.click(screen.getByRole('button', { name: /Applied/ }))
+    expect(onSelect).toHaveBeenLastCalledWith('Applied')
+    rerender(<StageFlow label="Leases by stage" stages={stages} selected="Applied" onSelect={onSelect} />)
+    expect(screen.getByRole('button', { name: /Applied/ })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('button', { name: /Applied/ }))
+    expect(onSelect).toHaveBeenLastCalledWith(undefined)
+  })
+})
+
+describe('QueueRow', () => {
+  it('shows who, the next step and how long it has waited', () => {
+    render(
+      <Queue>
+        <QueueRow
+          title="Ada Lovelace"
+          next="Start the review"
+          reason="No receipt attached yet"
+          waited={<Waited days={1} tone="slow" />}
+        />
+      </Queue>,
+    )
+    const row = screen.getByRole('listitem')
+    expect(row).toHaveTextContent('Ada Lovelace')
+    expect(row).toHaveTextContent('Start the reviewNo receipt attached yet')
+    expect(row).toHaveTextContent('Waiting 1 day')
+  })
+
+  it('says under a day for something that arrived today', () => {
+    render(<Waited days={0} />)
+    expect(screen.getByText(/Waiting under a day/)).toBeInTheDocument()
   })
 })

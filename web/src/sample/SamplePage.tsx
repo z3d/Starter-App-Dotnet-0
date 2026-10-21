@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox, Field, Input } from '@/components/ui/field'
 import { HeroFigure, SplitBar, Statement } from '@/components/ui/figures'
 import { Card, EmptyState, PageHeader } from '@/components/ui/primitives'
+import { Queue, QueueRow, Waited } from '@/components/ui/queue'
 import { ApiError, call, client } from '@/lib/api'
 import { money } from '@/lib/format'
 import { claimsOf, resourceScopes, signInWithScopes } from '@/lib/auth'
@@ -231,6 +232,18 @@ export function SamplePage() {
             Confirm the order
           </Button>
         </div>
+        {order?.status === 'Pending' ? (
+          <Queue className="mt-3" data-testid="order-queue">
+            <QueueRow
+              title={`Order for ${customer?.name ?? 'the customer'}`}
+              detail={`${String(order.items.length)} line${order.items.length === 1 ? '' : 's'}`}
+              aside={money(order.totalIncludingGst, { cents: true })}
+              next="Confirm the order"
+              reason="It stays pending until someone confirms it"
+              waited={<Waited days={0} />}
+            />
+          </Queue>
+        ) : null}
         <div className="mt-3">
           {order ? (
             <Statement data-testid="order-statement">
