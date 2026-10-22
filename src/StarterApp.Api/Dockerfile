@@ -1,5 +1,5 @@
 # Use the .NET SDK image to build the application
-FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:ea8bde36c11b6e7eec2656d0e59101d4462f6bd630730f2c8201ed0572b295d5 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:747cbade5bfd918a175ac32f8f1d931edec2c7d0d5397a3de72eaef1ac1f66d2 AS build
 WORKDIR /src
 
 # Copy Directory.Build.props + Directory.Packages.props for shared configuration
@@ -39,7 +39,7 @@ RUN dotnet publish "StarterApp.Api.csproj" -c Release -o /app/publish /p:UseAppH
 
 # Runtime image: chiseled (no shell, no apt, globalization-invariant), nothing but the runtime.
 # The API uses the Npgsql managed driver; database inspection should happen from the PostgreSQL container or psql-capable tooling.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled@sha256:48e51f2f6798897be7ac4e775c049ed8fe60d3190f637e1f9c9dc7513efa659c AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled@sha256:5165aeeb688df15e869a56a7584bb94bf16a14e0b3ba77b49fcdbe350f6b8020 AS final
 
 WORKDIR /app
 
