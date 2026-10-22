@@ -61,6 +61,7 @@ Open from the [2026-09-27 review](reviews/REVIEW-2026-09-27-fresh-eyes.md#follow
 - None: every finding is fixed, accepted (#10, probes behind the gateway), or dismissed (#5, #15's gitleaks half).
 
 - **FIXED 2026-10-23: the image scan failed on the .NET 10.0.12 runtime.** CI's `docker-build` job had failed at "Scan migrator image" on every push since the 10.0.13 servicing release (13 Oct): five HIGH CVEs in `Microsoft.NETCore.App.Runtime` (CVE-2026-58280, -69651, -96225, -96231, -96233), and the API and Functions bases also carried seven in ASP.NET Core 10.0.12 (two CRITICAL), and the Functions base 111 fixed `linux-libc-dev` CVEs, none reported because the job stopped at the first scan. Every base image now pins its 10.0.13 digest and `global.json` the 10.0.402 SDK; a local Trivy scan of all four images reports no CRITICAL or HIGH.
+- **FIXED 2026-10-23: CI built the web image from a path that no longer exists.** `33e1a23` (20 Oct) moved `web/apps/web/Dockerfile` to `web/Dockerfile` but the `docker-build` job and `.dockerignore`'s `dist/` line kept the old path; the failing migrator scan hid it. Both now name `web/`.
 
 - **OPEN — bearer tokens are not sender-constrained.** The retired gateway assertion was bound to
   method and path with a ~150s lifetime; an IdP bearer token is valid for any endpoint in its
