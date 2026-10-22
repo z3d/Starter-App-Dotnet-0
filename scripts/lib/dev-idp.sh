@@ -33,17 +33,13 @@ idp_start() {
 }
 
 # idp_wait <idp-base-url>
-# Waits up to two minutes for the realm endpoint to answer.
+# Waits IDP_WAIT_SECONDS (default 120) for the realm endpoint to answer.
 idp_wait() {
-  local base_url="$1" ready=0
-  for _ in $(seq 1 60); do
-    if curl -fsS "${base_url}/realms/${DEV_IDP_REALM}" >/dev/null 2>&1; then
-      ready=1
-      break
-    fi
+  local base_url="$1" deadline=$((SECONDS + ${IDP_WAIT_SECONDS:-120}))
+  until curl -fsS "${base_url}/realms/${DEV_IDP_REALM}" >/dev/null 2>&1; do
+    (( SECONDS < deadline )) || return 1
     sleep 2
   done
-  [[ "$ready" == "1" ]]
 }
 
 # idp_json_string_field <field>

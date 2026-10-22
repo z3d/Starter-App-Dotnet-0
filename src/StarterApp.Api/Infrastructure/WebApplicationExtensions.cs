@@ -76,7 +76,7 @@ public static class WebApplicationExtensions
             ArgumentNullException => StatusCodes.Status400BadRequest,
             ArgumentOutOfRangeException => StatusCodes.Status400BadRequest,
             ArgumentException => StatusCodes.Status400BadRequest,
-            BadHttpRequestException => StatusCodes.Status400BadRequest,
+            BadHttpRequestException badRequest => badRequest.StatusCode,
             EntityNotFoundException => StatusCodes.Status404NotFound,
             FeatureToggles.FeatureDisabledException => StatusCodes.Status503ServiceUnavailable,
             DomainRuleException => StatusCodes.Status409Conflict,

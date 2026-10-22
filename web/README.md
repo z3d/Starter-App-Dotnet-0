@@ -20,6 +20,7 @@ npm run e2e                                # browser tests (Playwright) against 
 e2e/run-e2e.sh                             # the same tests against a stack the script boots: PostgreSQL, the dev Keycloak, the migrator, the API, the dev server
 e2e/run-e2e.sh --grep "sign"               # arguments go to `playwright test`
 E2E_DEPLOYED=1 e2e/run-e2e.sh              # the nginx image (Dockerfile) in front of the same stack, and the e2e/deployed project
+IDP_WAIT_SECONDS=360 API_WAIT_SECONDS=300 e2e/run-e2e.sh  # wait longer than two minutes each for Keycloak and the API (a busy Docker host)
 npx playwright install chromium            # once, for the browser
 ```
 

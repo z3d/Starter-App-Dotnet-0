@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Azure.Messaging.ServiceBus;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -23,6 +24,14 @@ public static class ServiceCollectionExtensions
 
                 switch (exception)
                 {
+                    case BadHttpRequestException { InnerException: NonUtcInstantException { Path: { } path } }:
+                        var field = path.StartsWith("$.", StringComparison.Ordinal) ? path[2..] : path;
+                        var error = NonUtcInstantException.ErrorFor(field);
+                        context.ProblemDetails.Extensions["errors"] = new Dictionary<string, string[]>(StringComparer.Ordinal)
+                        {
+                            [error.PropertyName] = [error.ErrorMessage]
+                        };
+                        break;
                     case ValidationException validationException:
                         context.ProblemDetails.Extensions["errors"] = validationException.Errors
                             .GroupBy(error => error.PropertyName)
@@ -42,10 +51,22 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    public static IServiceCollection AddApiJson(this IServiceCollection services)
+    {
+        services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            options.SerializerOptions.Converters.Add(new UtcInstantJsonConverter());
+        });
+        services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
+        return services;
+    }
+
     public static IServiceCollection AddApiOpenApi(this IServiceCollection services)
     {
         services.AddOpenApi(options =>
         {
+            options.AddSchemaTransformer((schema, context, _) => UtcInstantJsonConverter.DescribeAsDateTime(schema, context));
             options.AddDocumentTransformer((document, context, cancellationToken) =>
             {
                 document.Info.Title = "Starter App API";

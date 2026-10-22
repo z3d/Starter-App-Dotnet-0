@@ -13,6 +13,8 @@
 #   web/e2e/run-e2e.sh --walkthrough         # boot the same stack and record web/e2e/walkthrough.mjs on it
 #   SKIP_BOOT=1 BASE_URL=http://localhost:5173 API_URL=https://localhost:7286 IDP_URL=http://localhost:8090 web/e2e/run-e2e.sh
 #                                            # against a rig already running (no client regeneration)
+#   IDP_WAIT_SECONDS=360 API_WAIT_SECONDS=300 web/e2e/run-e2e.sh
+#                                            # wait longer than the default two minutes each for Keycloak and the API
 #
 # Requirements: Docker or Podman, .NET 10 SDK, Node 24 and npm, curl. The Playwright browser
 # comes from `npx playwright install chromium` (once).
@@ -31,6 +33,7 @@ E2E_DEPLOYED="${E2E_DEPLOYED:-0}"
 PG_IMAGE="${PG_IMAGE:-postgres:16-alpine}"
 PG_DB="starterapp_e2e"
 SKIP_BOOT="${SKIP_BOOT:-0}"
+API_WAIT_SECONDS="${API_WAIT_SECONDS:-120}"
 # The level the API names in its step-up challenge; the step-up test checks the app asks for it.
 export STEP_UP_ACR="${STEP_UP_ACR:-urn:starterapp-dev:loa:mfa}"
 RUN_ID="e2e-$$"
@@ -93,13 +96,13 @@ start_api() {
   Identity__StepUpAcrValues="$STEP_UP_ACR" \
     dotnet run --project "$REPO_ROOT/src/StarterApp.Api" -c Release --no-launch-profile >"$API_LOG" 2>&1 &
   API_PID=$!
-  local ready=0
-  for _ in $(seq 1 60); do
+  local ready=0 deadline=$((SECONDS + API_WAIT_SECONDS))
+  while (( SECONDS < deadline )); do
     if curl -fsS "${API_URL}/health/ready" >/dev/null 2>&1 || curl -fsS "${API_URL}/alive" >/dev/null 2>&1; then ready=1; break; fi
     if ! kill -0 "$API_PID" 2>/dev/null; then err "API process exited early. Tail of $API_LOG:"; tail -n 40 "$API_LOG" >&2; exit 1; fi
     sleep 2
   done
-  [[ "$ready" == "1" ]] || { err "API did not become ready. Tail of $API_LOG:"; tail -n 40 "$API_LOG" >&2; exit 1; }
+  [[ "$ready" == "1" ]] || { err "API did not become ready within ${API_WAIT_SECONDS}s (API_WAIT_SECONDS). Tail of $API_LOG:"; tail -n 40 "$API_LOG" >&2; exit 1; }
   log "API is ready."
 }
 
@@ -122,7 +125,7 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
   done
 
   log "Starting the dev Keycloak on port $IDP_PORT (the committed starterapp realm)"
-  idp_start "$IDP_CONTAINER" "$IDP_PORT" "$REPO_ROOT" || { err "Keycloak did not become ready."; exit 1; }
+  idp_start "$IDP_CONTAINER" "$IDP_PORT" "$REPO_ROOT" || { err "Keycloak did not become ready within ${IDP_WAIT_SECONDS:-120}s (IDP_WAIT_SECONDS)."; exit 1; }
 
   log "Running database migrations (DbMigrator)"
   ConnectionStrings__database="$CONN" dotnet run --project "$REPO_ROOT/src/StarterApp.DbMigrator" -c Release

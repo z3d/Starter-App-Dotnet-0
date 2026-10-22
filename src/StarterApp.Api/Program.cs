@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using Scalar.AspNetCore;
 using StarterApp.Api.Endpoints;
 using StarterApp.ServiceDefaults;
@@ -19,8 +18,7 @@ else
     builder.Services.AddDistributedMemoryCache();
 
 builder.Services.AddApiProblemDetails();
-builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddApiJson();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddApiOpenApi();
 builder.Services.AddPersistence(connectionString);
@@ -63,6 +61,7 @@ try
     app.UseRouting();
     app.UseJwtIdentity();
     app.UseRateLimiter();
+    app.UseMiddleware<UtcInstantParameterMiddleware>();
 
     app.MapApiEndpoints();
 
