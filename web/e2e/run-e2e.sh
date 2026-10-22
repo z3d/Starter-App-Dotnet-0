@@ -43,7 +43,9 @@ WEB_CONTAINER="${RUN_ID}-web"
 WEB_IMAGE="starterapp-web:${RUN_ID}"
 API_PID=""
 WEB_PID=""
-API_LOG="$WEB_DIR/test-results/api.log"
+# Not test-results: Playwright empties that folder when it starts, and a log written there is lost.
+LOG_DIR="$WEB_DIR/e2e-logs"
+API_LOG="$LOG_DIR/api.log"
 MODE="tests"
 if [[ "${1:-}" == "--walkthrough" ]]; then MODE="walkthrough"; shift; fi
 source "$REPO_ROOT/scripts/lib/dev-idp.sh"
@@ -110,7 +112,7 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
   for tool in "$CONTAINER_CLI" dotnet curl npm; do
     command -v "$tool" >/dev/null 2>&1 || { err "Required tool '$tool' not found on PATH."; exit 2; }
   done
-  mkdir -p "$WEB_DIR/test-results"
+  mkdir -p "$LOG_DIR"
   export API_URL="http://localhost:${API_PORT}"
   export IDP_URL="http://localhost:${IDP_PORT}"
   export WEB_PORT
@@ -168,7 +170,7 @@ if [[ "$MODE" == "walkthrough" ]]; then
   # The recording drives the dev server itself, so it is started here rather than by Playwright.
   if [[ -z "${BASE_URL:-}" ]]; then
     log "Starting the dev server on port $WEB_PORT"
-    VITE_API_URL="$API_URL" VITE_OIDC_AUTHORITY="${IDP_URL}/realms/starterapp" npx vite --port "$WEB_PORT" --strictPort >"$WEB_DIR/test-results/vite.log" 2>&1 &
+    VITE_API_URL="$API_URL" VITE_OIDC_AUTHORITY="${IDP_URL}/realms/starterapp" npx vite --port "$WEB_PORT" --strictPort >"$LOG_DIR/vite.log" 2>&1 &
     WEB_PID=$!
     for _ in $(seq 1 60); do
       if curl -fsS "http://localhost:${WEB_PORT}" >/dev/null 2>&1; then break; fi
