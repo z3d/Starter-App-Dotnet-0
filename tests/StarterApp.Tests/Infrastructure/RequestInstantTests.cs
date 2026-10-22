@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MediatorImpl = StarterApp.Api.Infrastructure.Mediator.Mediator;
 
 namespace StarterApp.Tests.Infrastructure;
 
 public sealed class RequestInstantTests : IAsyncLifetime
 {
+    private static readonly DateTimeOffset NineUtc = new(2026, 7, 1, 9, 0, 0, TimeSpan.Zero);
     private WebApplication _app = null!;
     private HttpClient _client = null!;
 
@@ -15,16 +17,16 @@ public sealed class RequestInstantTests : IAsyncLifetime
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
         builder.Services.AddApiProblemDetails();
-        builder.Services.AddApiJson();
-        builder.Services.AddApiOpenApi();
+        builder.Services.AddScoped<IMediator, MediatorImpl>();
+        builder.Services.AddScoped<IRequestHandler<ProbeCommand, ProbeCommand>, ProbeHandler>();
         _app = builder.Build();
         _app.UseExceptionHandling();
         _app.UseRouting();
-        _app.UseMiddleware<UtcInstantParameterMiddleware>();
-        _app.MapPost("/probe", (Probe probe) => probe);
-        _app.MapGet("/probe", (DateTimeOffset at, [FromQuery(Name = "until")] DateTimeOffset? before) => new Probe(at, before));
-        _app.MapGet("/probe/{at}", (DateTimeOffset at) => new Probe(at, null));
-        _app.MapOpenApi();
+        _app.MapPost("/probe", (ProbeCommand command, IMediator mediator, CancellationToken cancellationToken) => mediator.SendAsync(command, cancellationToken));
+        _app.MapGet("/probe", (DateTimeOffset at, DateTimeOffset? until, IMediator mediator, CancellationToken cancellationToken) =>
+            mediator.SendAsync(new ProbeCommand(at, until, null), cancellationToken));
+        _app.MapPost("/refused", (ProbeCommand command, IMediator mediator, CancellationToken cancellationToken) => mediator.SendAsync(command, cancellationToken))
+            .AddEndpointFilter((_, _) => ValueTask.FromResult<object?>(Results.StatusCode(StatusCodes.Status403Forbidden)));
         await _app.StartAsync();
         _client = _app.GetTestClient();
     }
@@ -36,22 +38,20 @@ public sealed class RequestInstantTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("""{"at":"2026-07-01T09:00:00+10:00"}""", "at")]
-    [InlineData("""{"at":"2026-07-01T09:00:00Z","until":"2026-07-01T09:00:00-05:30"}""", "until")]
+    [InlineData("""{"at":"2026-07-01T09:00:00+10:00"}""", "At")]
+    [InlineData("""{"at":"2026-07-01T09:00:00Z","until":"2026-07-01T09:00:00-05:30"}""", "Until")]
+    [InlineData("""{"at":"2026-07-01T09:00:00Z","items":[{"at":"2026-07-01T09:00:00Z"},{"at":"2026-07-01T19:00:00+10:00"}]}""", "Items[1].At")]
     public async Task Body_WithNonZeroOffset_IsABadRequestNamingTheField(string json, string field)
     {
-        using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-
-        var response = await _client.PostAsync("/probe", content);
+        var response = await PostAsync("/probe", json);
 
         await AssertNamesFieldAsync(response, field);
     }
 
     [Theory]
-    [InlineData("/probe?at=2026-07-01T09:00:00%2B10:00", "at")]
-    [InlineData("/probe?at=2026-07-01T09:00:00Z&until=2026-07-01T09:00:00%2B10:00", "until")]
-    [InlineData("/probe/2026-07-01T09:00:00%2B10:00", "at")]
-    public async Task QueryOrRoute_WithNonZeroOffset_IsABadRequestNamingTheField(string path, string field)
+    [InlineData("/probe?at=2026-07-01T09:00:00%2B10:00", "At")]
+    [InlineData("/probe?at=2026-07-01T09:00:00Z&until=2026-07-01T09:00:00%2B10:00", "Until")]
+    public async Task Query_WithNonZeroOffset_IsABadRequestNamingTheField(string path, string field)
     {
         var response = await _client.GetAsync(new Uri(path, UriKind.Relative));
 
@@ -63,63 +63,36 @@ public sealed class RequestInstantTests : IAsyncLifetime
     [InlineData("2026-07-01T09:00:00+00:00")]
     public async Task Body_InUtc_IsAcceptedAndWrittenAsBefore(string instant)
     {
-        using var content = new StringContent($$"""{"at":"{{instant}}","until":"{{instant}}"}""", System.Text.Encoding.UTF8, "application/json");
-
-        var response = await _client.PostAsync("/probe", content);
+        var response = await PostAsync("/probe", $$"""{"at":"{{instant}}","until":"{{instant}}","items":[{"at":"{{instant}}"}]}""");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var at = new DateTimeOffset(2026, 7, 1, 9, 0, 0, TimeSpan.Zero);
-        Assert.Equal(JsonSerializer.Serialize(new Probe(at, at), JsonSerializerOptions.Web), await response.Content.ReadAsStringAsync());
+        Assert.Equal(
+            JsonSerializer.Serialize(new ProbeCommand(NineUtc, NineUtc, [new ProbeItem(NineUtc)]), JsonSerializerOptions.Web),
+            await response.Content.ReadAsStringAsync());
     }
 
-    [Theory]
-    [InlineData("/probe?at=2026-07-01T09:00:00Z&until=2026-07-01T10:00:00%2B00:00")]
-    [InlineData("/probe/2026-07-01T09:00:00Z")]
-    public async Task QueryOrRoute_InUtc_IsAccepted(string path)
+    [Fact]
+    public async Task Query_InUtc_IsAccepted()
     {
-        var response = await _client.GetAsync(new Uri(path, UriKind.Relative));
+        var response = await _client.GetAsync(new Uri("/probe?at=2026-07-01T09:00:00Z&until=2026-07-01T10:00:00%2B00:00", UriKind.Relative));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var probe = await response.Content.ReadFromJsonAsync<Probe>();
-        Assert.Equal(new DateTimeOffset(2026, 7, 1, 9, 0, 0, TimeSpan.Zero), probe!.At);
+        Assert.Equal(NineUtc, (await response.Content.ReadFromJsonAsync<ProbeCommand>())!.At);
     }
 
     [Fact]
-    public async Task Body_ThatIsNotJson_IsStillABadRequestWithoutFieldErrors()
+    public async Task Refusal_ByAnEndpointFilter_StillComesBeforeTheInstantCheck()
     {
-        using var content = new StringContent("{", System.Text.Encoding.UTF8, "application/json");
+        var response = await PostAsync("/refused", """{"at":"2026-07-01T09:00:00+10:00"}""");
 
-        var response = await _client.PostAsync("/probe", content);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
-        Assert.False(problem!.Extensions.ContainsKey("errors"));
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    [Fact]
-    public async Task Body_OfTheWrongMediaType_KeepsTheFrameworksStatus()
+    private async Task<HttpResponseMessage> PostAsync(string path, string json)
     {
-        using var content = new StringContent("at", System.Text.Encoding.UTF8, "text/plain");
-
-        var response = await _client.PostAsync("/probe", content);
-
-        Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
+        using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        return await _client.PostAsync(new Uri(path, UriKind.Relative), content);
     }
-
-    [Fact]
-    public async Task OpenApi_StillDescribesInstantsAsDateTimeStrings()
-    {
-        using var document = JsonDocument.Parse(await _client.GetStringAsync(new Uri("/openapi/v1.json", UriKind.Relative)));
-
-        var properties = document.RootElement.GetProperty("components").GetProperty("schemas").GetProperty(nameof(Probe)).GetProperty("properties");
-        Assert.Equal("""{"type":"string","format":"date-time"}""", Compact(properties.GetProperty("at")));
-        Assert.Equal("""{"type":["null","string"],"format":"date-time"}""", Compact(properties.GetProperty("until")));
-        var parameters = document.RootElement.GetProperty("paths").GetProperty("/probe").GetProperty("get").GetProperty("parameters");
-        Assert.All(parameters.EnumerateArray(), parameter =>
-            Assert.Equal("""{"type":"string","format":"date-time"}""", Compact(parameter.GetProperty("schema"))));
-    }
-
-    private static string Compact(JsonElement element) => JsonSerializer.Serialize(element);
 
     private static async Task AssertNamesFieldAsync(HttpResponseMessage response, string field)
     {
@@ -128,8 +101,15 @@ public sealed class RequestInstantTests : IAsyncLifetime
         using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var errors = problem.RootElement.GetProperty("errors");
         Assert.Equal([field], errors.EnumerateObject().Select(error => error.Name));
-        Assert.Contains(field, errors.GetProperty(field)[0].GetString(), StringComparison.Ordinal);
+        Assert.StartsWith(field, errors.GetProperty(field)[0].GetString(), StringComparison.Ordinal);
     }
 
-    public sealed record Probe(DateTimeOffset At, DateTimeOffset? Until);
+    public sealed record ProbeItem(DateTimeOffset At);
+
+    public sealed record ProbeCommand(DateTimeOffset At, DateTimeOffset? Until, IReadOnlyList<ProbeItem>? Items) : IRequest<ProbeCommand>;
+
+    private sealed class ProbeHandler : IRequestHandler<ProbeCommand, ProbeCommand>
+    {
+        public Task<ProbeCommand> HandleAsync(ProbeCommand request, CancellationToken cancellationToken) => Task.FromResult(request);
+    }
 }

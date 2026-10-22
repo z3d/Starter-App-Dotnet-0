@@ -49,9 +49,10 @@ public class Mediator : IMediator
             static requestType =>
                 (ValidatorInvoker)Activator.CreateInstance(typeof(ValidatorInvokerImpl<>).MakeGenericType(requestType))!);
 
+        var instants = Validation.RequestInstants.NotInUtc(request);
         var errors = invoker.Validate(request, _serviceProvider);
-        if (errors.Count > 0)
-            throw new Validation.ValidationException(errors);
+        if (instants.Count > 0 || errors.Count > 0)
+            throw new Validation.ValidationException(instants.Concat(errors));
     }
 
     private abstract class RequestHandlerWrapper<TResponse>
