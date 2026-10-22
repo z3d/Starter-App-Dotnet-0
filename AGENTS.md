@@ -44,6 +44,16 @@ git fetch origin && git worktree add -b <your-branch> ../<dir> origin/main
 
 Push from the worktree and fast-forward `main` from it. Never revert or overwrite changes you didn't make. A doc-only commit in a fresh worktree can't run the build/test pre-commit hook (no build artifacts), so `--no-verify` is acceptable there.
 
+**The machine is shared too.** Disk, processes, ports and the container VM belong to every session on it:
+
+- Check free disk (`df -h`) before a build, an image or a browser stack, and stop under 10 GB: say so and wait for the person.
+- Remove the images, containers, tarballs and publish output you made when you are done with them, by name or id.
+- Kill only the PIDs you started (keep `$!`, or `lsof -ti :<your port>`), never by name or pattern (`pkill`, `killall`).
+- Never stop, reset or recreate the container VM, or prune, reset or `--repair` the engine's shared state, without the person.
+- Pick a port nobody is listening on (`lsof -i :<port>`) and say which you took. Before taking the next sequential number (a migration, an ADR), fetch `origin/main` and look in the other worktrees, and take the next one after all of them.
+
+`shared-machine-guard.sh` refuses the kill-by-pattern, VM and prune commands, and builds, image work and browser runs under `AGENT_MIN_FREE_GB` (10) free.
+
 ## Running a task
 
 - **Know what done is, and keep going until it is.** A task, and any brief handed to a subagent, says where it finishes (the tests that pass, what is merged) and when to stop. When a step doesn't need the person's input, keep going, and put status notes in the same message as the next action.
@@ -51,6 +61,8 @@ Push from the worktree and fast-forward `main` from it. Never revert or overwrit
 - **A long run keeps its task list in a file**, ticked as it goes: a scratch file, or the repo's status document when the items should outlive the run. A list that lives only in the conversation is lost when the context is summarised.
 - **A subagent's finding is checked against the code before it is accepted or passed on.**
 - **Say what you couldn't confirm, and where you looked.** A regulatory fact, a root cause or a test you didn't run is marked as unconfirmed, never stated as known.
+- **A failing test is a defect until a quiet rerun clears it.** Rerun the failing test alone, with no other build, test run or stack going on the machine; "load", "flaky" or "timing" is a cause only when that rerun passes, and the rerun is the evidence you cite. A failure you could not reproduce still goes in the tracker, with the test, the error and what else was running.
+- **CI on main that is red, or never started, is reported before anything else.** `ci-status.sh` names it at session start; when GitHub refused to start the jobs (billing, spending limit) CI is off for the repository and only the person can turn it back on.
 - **A defect you notice goes in the repo's tracker before the run ends, whether or not you fix it.** The tracker is the document this repo keeps its features and open work in (named under "Where to look"); a defect fixed in the run is recorded there as done, with what was wrong. One left unfixed says what was seen, on which screen or endpoint, and that the cause is unconfirmed. A finding that lives only in the conversation, a screenshot or a PR is lost when the context is summarised.
 - **Never weigh scope on human-team effort.** Agents build this repository, so "an N-month build" or "two sprints" is no reason to cut or defer a feature. Weigh it on what code can't solve: outside dependencies (regulators, banks, auditors, partner APIs and their access terms), evidence of demand, the cost of being wrong, and what it depends on. A research or spec doc that argues from human effort is flagged and discounted.
 - **End a run with what is waiting on the person first,** then what changed, then what was found.

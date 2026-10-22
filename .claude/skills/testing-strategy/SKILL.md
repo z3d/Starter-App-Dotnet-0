@@ -15,6 +15,7 @@ user-invocable: false
 - **Consistency reports are advisory.** They land in `docs/_local/consistency-*.txt` per test run; deterministic rules belong in convention tests, and builds never gate on a distance.
 - **A test must be able to fail, and be worth what it costs.** Show a new or strengthened test red once (break what it guards, restore). No silent skips, no loop over a set that can be empty, no name the body doesn't keep. Assert behaviour a person would notice, not that a setter sets. → [reference/test-worth.md](reference/test-worth.md)
 - **Strengthen, don't delete.** `Consistency/`, convention tests and tests that pin a decision stay; a weak one gets a wider matcher or a real assertion.
+- **A quiet rerun is what lets a failure be called load.** First check nothing else heavy is running (`ps -Ao pid,pcpu,command -r | head`, `podman ps`), then run the one test (`dotnet test --filter "FullyQualifiedName~<Name>"`, `npx playwright test <spec>`), not the suite. Failing again means a defect in the code or the test, whatever the first run looked like: a browser spec two sessions put down to load failed again on a quiet machine, and the cause was a cache the worker's writes never cleared.
 
 ## Where a test lives
 
