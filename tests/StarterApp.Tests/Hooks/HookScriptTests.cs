@@ -264,6 +264,8 @@ public sealed class HookScriptTests : IDisposable
         };
         foreach (var arg in args)
             start.ArgumentList.Add(arg);
+        foreach (var inherited in start.Environment.Keys.Where(key => key.StartsWith("GIT_", StringComparison.Ordinal)).ToList())
+            start.Environment.Remove(inherited);
         start.Environment["PATH"] = $"{_fakeBin}:{Environment.GetEnvironmentVariable("PATH")}";
         start.Environment["GIT_CONFIG_NOSYSTEM"] = "1";
         start.Environment["HOME"] = _scratch;
