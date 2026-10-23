@@ -51,6 +51,8 @@ public sealed class HookScriptTests : IDisposable
     [Theory]
     [InlineData("pnpm --dir web exec playwright test")]
     [InlineData("npm run build")]
+    [InlineData("npm run e2e:stack")]
+    [InlineData("pnpm run build:mock")]
     [InlineData("cd web && npm run e2e")]
     [InlineData("npm ci --no-audit")]
     [InlineData("pnpm install")]

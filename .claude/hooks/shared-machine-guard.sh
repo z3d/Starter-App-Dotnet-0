@@ -31,7 +31,7 @@ if printf '%s' "$command" | grep -qE "${at}${engine}[[:space:]]+(system[[:space:
   refuse "pruning, resetting or repairing the container engine's shared state" "Remove only the images, containers and volumes you made, by name or id. If it has to happen, ask the person to run it."
 fi
 
-node="(npm|pnpm|yarn|npx|pnpx)([[:space:]]+[^;&|[:space:]]+)*[[:space:]]+(ci|i|install|add|test|build|e2e|playwright|vitest)([[:space:]]|$)"
+node="(npm|pnpm|yarn|npx|pnpx)([[:space:]]+[^;&|[:space:]]+)*[[:space:]]+(ci|i|install|add|test|build|e2e|playwright|vitest)([[:space:]:]|$)"
 heavy="${at}((dotnet[[:space:]]+(build|test|publish|pack|restore))|(${engine}[[:space:]]+(build|compose|pull|load|save|run))|${node}|([^[:space:]]*run-e2e\.sh)|act([[:space:]]|$))"
 if printf '%s' "$command" | grep -qE "$heavy"; then
   free_kb=$(df -Pk "${CLAUDE_PROJECT_DIR:-$PWD}" 2>/dev/null | awk 'NR==2{print $4}')
