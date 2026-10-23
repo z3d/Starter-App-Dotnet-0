@@ -89,6 +89,10 @@ Open from the 23 October 2026 audit of a project derived from this template, eac
 - **DONE 2026-10-23 — the per-SELECT tenant check read a schema name as an outer alias.** `SqlSelectBlocks` counted a subquery as correlated when its text held `<alias>.`, and a schema-qualified table (`orders.order_items`, or agentdesk's `contacts.notes` under an outer `contacts`) matched, so an unscoped subquery passed. Found in agentdesk's merge. Fixed: table references are removed before the correlation test (`TheTenantPredicateCheck_ReadsEachSelectInAString`).
 - **DONE 2026-10-23 — a git hook's environment leaked into the gate's tests.** The first push through `.githooks/pre-push` ran `HookScriptTests` with the `GIT_DIR` git exports to hooks, so a scratch repository's `git init` reinitialised the real one and set `core.bare=true` in its shared config, which broke every checkout of it until it was set back. Fixed: the tests drop inherited `GIT_*` variables and the hook clears them before the gate.
 
+From the owner, 23 October 2026:
+
+- **DONE 2026-10-23 — the licence said two things.** `LICENSE` said MIT while `web/package.json` said `AGPL-3.0-only`. The owner chose AGPL-3.0-only on 23 October 2026, for this template and every project derived from it: `LICENSE` is now the unmodified GNU AGPL v3 text from gnu.org, and the README says `AGPL-3.0-only`.
+
 ### Found by the review of the 20–23 October commits (23 October 2026)
 
 Read-only review of `b50c629..c6e6856` at c6e6856; each item was read at HEAD, and the three guard items were reproduced by piping the command through the hook with `AGENT_MIN_FREE_GB` forced. Every one is also in the four derived projects, which carry these files unchanged.

@@ -1,6 +1,6 @@
 # Starter App Project with .NET Aspire
 
-A production-grade template for a .NET 10 service: Clean Architecture, CQRS and DDD over PostgreSQL, orchestrated locally by .NET Aspire, with domain events published through a transactional outbox to Azure Service Bus and consumed by Azure Functions, and a React web app that signs in with OIDC and calls the API through a generated client. MIT licensed.
+A production-grade template for a .NET 10 service: Clean Architecture, CQRS and DDD over PostgreSQL, orchestrated locally by .NET Aspire, with domain events published through a transactional outbox to Azure Service Bus and consumed by Azure Functions, and a React web app that signs in with OIDC and calls the API through a generated client. Licensed under the GNU AGPL v3 only (`AGPL-3.0-only`); see [LICENSE](LICENSE).
 
 It is maintained by AI agents, so it favours mechanical rules over architectural taste. The convention tests under `tests/StarterApp.Tests/Conventions/` are the authority on structure; [AGENTS.md](AGENTS.md) holds the rules they cannot enforce; [docs/DECISIONS.md](docs/DECISIONS.md) records why each notable choice was made and what would justify revisiting it. A project derived from this template prunes the sample domain and every capability its first module does not use ([docs/DERIVATION-PRUNING.md](docs/DERIVATION-PRUNING.md)).
 
