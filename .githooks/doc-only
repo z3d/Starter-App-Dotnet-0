@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Reads changed paths on stdin, one per line; exits 0 when every one is under docs/ or ends in .md.
+# Reads changed paths on stdin, one per line; exits 0 when every one is under docs/ or ends in .md,
+# except the exemplars and the JSON under docs/, which the tests read.
 set -uo pipefail
 while IFS= read -r path; do
   [ -n "$path" ] || continue
   case "$path" in
+    docs/exemplars/*|*.json) exit 1 ;;
     docs/*|*.md) ;;
     *) exit 1 ;;
   esac

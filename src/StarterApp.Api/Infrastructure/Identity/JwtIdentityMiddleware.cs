@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -23,6 +24,7 @@ internal sealed class JwtIdentityMiddleware
         }
 
         currentUserAccessor.Set(user);
+        Activity.Current?.SetTag("tenant.id", user.TenantId);
         using (Serilog.Context.LogContext.PushProperty("TenantId", user.TenantId))
             await _next(context);
     }

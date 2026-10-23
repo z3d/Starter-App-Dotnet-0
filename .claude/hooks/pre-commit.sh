@@ -29,7 +29,7 @@ if printf '%s' "$bare" | grep -qE "$push_re" && printf '%s' "$bare" | grep -qE -
 fi
 printf '%s' "$bare" | grep -qE "$commit_re" || exit 0
 skip_requested=0
-printf '%s' "$bare" | grep -qE -- '(^|[[:space:]])(-n|--no-verify)([[:space:]]|$)' && skip_requested=1
+printf '%s' "$bare" | grep -oE "${commit_re}[^;&|]*" | grep -qE -- '(^|[[:space:]])(-n|--no-verify)([[:space:]]|$)' && skip_requested=1
 
 # The tree is every `cd <dir>` before the commit, in order, then any `git -C <dir>` on the commit
 # itself. A path the shell would expand (a variable, a glob) cannot be followed from here; the

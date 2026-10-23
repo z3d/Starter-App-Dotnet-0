@@ -32,7 +32,7 @@ if printf '%s' "$command" | grep -qE "${at}${engine}[[:space:]]+(system[[:space:
 fi
 
 node="(npm|pnpm|yarn|npx|pnpx)([[:space:]]+[^;&|[:space:]]+)*[[:space:]]+(ci|i|install|add|test|build|e2e|playwright|vitest)([[:space:]:]|$)"
-heavy="${at}((dotnet[[:space:]]+(build|test|publish|pack|restore))|(${engine}[[:space:]]+(build|compose|pull|load|save|run))|${node}|([^[:space:]]*run-e2e\.sh)|act([[:space:]]|$))"
+heavy="${at}((dotnet[[:space:]]+(build|test|publish|pack|restore|run|watch))|(${engine}[[:space:]]+(build|compose|pull|load|save|run))|${node}|yarn[[:space:]]*($|[;&|])|([^[:space:]]*run-e2e\.sh)|act([[:space:]]|$))"
 if printf '%s' "$command" | grep -qE "$heavy"; then
   free_kb=$(df -Pk "${CLAUDE_PROJECT_DIR:-$PWD}" 2>/dev/null | awk 'NR==2{print $4}')
   case $free_kb in ''|*[!0-9]*) exit 0 ;; esac

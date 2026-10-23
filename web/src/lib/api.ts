@@ -4,12 +4,6 @@ import type { paths } from './api.generated'
 import { oidcSettings, signInAgain, stepUp } from './auth'
 import type { Full } from './types'
 
-// The API client. Every call is typed by its route, from the generated client: a route that does
-// not exist, a wrong parameter or a wrong body fails to compile, and the response type follows
-// from the route. Every request carries the current access token and a correlation id (the API
-// echoes X-Correlation-ID, the support handle when something goes wrong); a non-2xx response
-// surfaces as ApiError carrying the RFC 9457 ProblemDetails body the API returns.
-
 export interface ProblemDetails {
   type?: string
   title?: string
@@ -58,8 +52,6 @@ export function newCorrelationId(): string {
   return crypto.randomUUID()
 }
 
-// The identity seam on every request: the token in, a correlation id in, and the two answers the
-// provider sorts out (the session is gone, or the API wants the second factor).
 export const identity: Middleware = {
   onRequest({ request }) {
     const token = currentAccessToken()

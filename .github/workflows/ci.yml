@@ -147,6 +147,7 @@ jobs:
         path: |
           web/playwright-report
           web/test-results
+          web/e2e-logs
         retention-days: 7
 
   integration:
@@ -178,7 +179,7 @@ jobs:
       run: |
         sudo apt-get update -qq
         sudo apt-get install -y libnss3-tools
-        dotnet dev-certs https --trust || true
+        dotnet dev-certs https --trust
         echo "SSL_CERT_DIR=$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs:/etc/ssl/certs" >> "$GITHUB_ENV"
 
     - name: Aspire tests

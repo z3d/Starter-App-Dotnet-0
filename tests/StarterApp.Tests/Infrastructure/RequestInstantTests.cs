@@ -41,6 +41,8 @@ public sealed class RequestInstantTests : IAsyncLifetime
     [InlineData("""{"at":"2026-07-01T09:00:00+10:00"}""", "At")]
     [InlineData("""{"at":"2026-07-01T09:00:00Z","until":"2026-07-01T09:00:00-05:30"}""", "Until")]
     [InlineData("""{"at":"2026-07-01T09:00:00Z","items":[{"at":"2026-07-01T09:00:00Z"},{"at":"2026-07-01T19:00:00+10:00"}]}""", "Items[1].At")]
+    [InlineData("""{"at":"2026-07-01T09:00:00Z","byName":{"first":{"at":"2026-07-01T19:00:00+10:00"}}}""", "ByName[0].Value.At")]
+    [InlineData("""{"at":"2026-07-01T09:00:00Z","nested":{"nested":{"nested":{"nested":{"nested":{"at":"2026-07-01T19:00:00+10:00"}}}}}}""", "Nested.Nested.Nested.Nested.Nested.At")]
     public async Task Body_WithNonZeroOffset_IsABadRequestNamingTheField(string json, string field)
     {
         var response = await PostAsync("/probe", json);
@@ -106,7 +108,9 @@ public sealed class RequestInstantTests : IAsyncLifetime
 
     public sealed record ProbeItem(DateTimeOffset At);
 
-    public sealed record ProbeCommand(DateTimeOffset At, DateTimeOffset? Until, IReadOnlyList<ProbeItem>? Items) : IRequest<ProbeCommand>;
+    public sealed record ProbeNest(ProbeNest? Nested, DateTimeOffset? At);
+
+    public sealed record ProbeCommand(DateTimeOffset At, DateTimeOffset? Until, IReadOnlyList<ProbeItem>? Items, Dictionary<string, ProbeItem>? ByName = null, ProbeNest? Nested = null) : IRequest<ProbeCommand>;
 
     private sealed class ProbeHandler : IRequestHandler<ProbeCommand, ProbeCommand>
     {

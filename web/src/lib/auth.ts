@@ -30,10 +30,6 @@ const organization =
   present(runtime.oidcOrganization) ?? present(import.meta.env.VITE_OIDC_ORGANIZATION as string | undefined)
 const extraQueryParams = { ...(audience ? { audience } : {}), ...(organization ? { organization } : {}) }
 
-// OIDC settings for the SPA. Authorization code + PKCE against whichever provider the AppHost (or
-// deployment) points us at; the dev default is the AppHost's Keycloak "starterapp" realm and its
-// public `starterapp-web` client. Tokens are held in sessionStorage (per-tab, cleared on close):
-// the API validates the bearer JWT itself, so nothing here is trusted by the server.
 export const oidcSettings: UserManagerSettings = {
   authority:
     present(runtime.oidcAuthority) ??

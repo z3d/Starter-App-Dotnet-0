@@ -134,6 +134,9 @@ public partial class CqrsConventionTests : ConventionTestBase
     [InlineData("SELECT o.id FROM orders o WHERE o.owner_subject = @OwnerSubject AND o.tenant_id = @TenantId AND EXISTS (SELECT 1 FROM order_items i WHERE i.order_id = o.id)", 0)]
     [InlineData("SELECT u.id FROM audit u WHERE EXISTS (SELECT 1 FROM orders o WHERE o.id = u.order_id)", 1)]
     [InlineData("SELECT id FROM orders WHERE note <> ';' AND owner_subject = @OwnerSubject AND tenant_id = @TenantId", 0)]
+    [InlineData("SELECT id FROM orders WHERE note <> '--' AND owner_subject = @OwnerSubject AND tenant_id = @TenantId", 0)]
+    [InlineData("SELECT id FROM orders WHERE note <> '--' AND status = 'Paid'; SELECT id FROM customers WHERE owner_subject = @OwnerSubject", 2)]
+    [InlineData("SELECT id FROM orders -- don't\nWHERE owner_subject = @OwnerSubject AND tenant_id = @TenantId", 0)]
     [InlineData("SELECT o.id FROM orders o WHERE o.owner_subject = @OwnerSubject AND o.tenant_id = @TenantId AND EXISTS (SELECT 1 FROM orders.order_items i WHERE i.quantity > 1)", 1)]
     public void TheTenantPredicateCheck_ReadsEachSelectInAString(string sql, int expectedUnscoped)
     {

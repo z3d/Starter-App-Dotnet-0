@@ -34,6 +34,10 @@ public sealed class HookScriptTests : IDisposable
     [InlineData("pkill -f dotnet")]
     [InlineData("ls; pkill -f dotnet")]
     [InlineData("sudo killall node")]
+    [InlineData("bash -c \"cd web; pkill -f vite\"")]
+    [InlineData("sh -c 'pkill vite'")]
+    [InlineData("eval \"docker system prune -af\"")]
+    [InlineData("echo \"a'b\" ; pkill foo ; echo \"c'd\"")]
     public void Guard_RefusesKillingByPattern(string command)
     {
         Assert.Equal(2, RunGuard(command).ExitCode);
@@ -58,6 +62,9 @@ public sealed class HookScriptTests : IDisposable
     [InlineData("pnpm install")]
     [InlineData("npx playwright install chromium")]
     [InlineData("dotnet test")]
+    [InlineData("dotnet run --project dev/StarterApp.AppHost")]
+    [InlineData("dotnet watch --project src/StarterApp.Api")]
+    [InlineData("cd web && yarn")]
     public void Guard_ChecksFreeDiskBeforeHeavyWork(string command)
     {
         var result = RunGuard(command, ("AGENT_MIN_FREE_GB", "1000000"));
@@ -70,6 +77,8 @@ public sealed class HookScriptTests : IDisposable
     [InlineData("npm run lint")]
     [InlineData("git status")]
     [InlineData("pnpm --version")]
+    [InlineData("yarn --version")]
+    [InlineData("git commit -m \"bash -c pkill is refused by the guard\"")]
     public void Guard_LetsLightWorkThroughOnAFullDisk(string command)
     {
         Assert.Equal(0, RunGuard(command, ("AGENT_MIN_FREE_GB", "1000000")).ExitCode);

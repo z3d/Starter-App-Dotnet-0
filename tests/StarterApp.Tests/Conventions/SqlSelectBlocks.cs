@@ -39,8 +39,7 @@ internal static partial class SqlSelectBlocks
 
     private static string Clean(string sql)
     {
-        var withoutComments = Regex.Replace(Regex.Replace(sql, @"/\*[\s\S]*?\*/", " "), @"--[^\r\n]*", " ");
-        return Regex.Replace(withoutComments, @"'(?:[^']|'')*'", "''");
+        return Regex.Replace(sql, @"'(?:[^']|'')*'|/\*[\s\S]*?\*/|--[^\r\n]*", match => match.Value[0] == '\'' ? "''" : " ");
     }
 
     private static string Collapse(string sql, List<string> subqueries)
