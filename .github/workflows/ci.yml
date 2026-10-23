@@ -179,7 +179,8 @@ jobs:
       run: |
         sudo apt-get update -qq
         sudo apt-get install -y libnss3-tools
-        dotnet dev-certs https --trust
+        # Exit 4 is the expected partial trust on Linux: OpenSSL takes the cert through SSL_CERT_DIR, set below.
+        dotnet dev-certs https --trust || [ $? -eq 4 ]
         echo "SSL_CERT_DIR=$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs:/etc/ssl/certs" >> "$GITHUB_ENV"
 
     - name: Aspire tests
