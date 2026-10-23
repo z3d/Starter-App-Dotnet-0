@@ -18,11 +18,15 @@ public class CreateProductCommandValidator : IValidator<CreateProductCommand>
             yield return new ValidationError(nameof(request.Price), "Price cannot be negative");
         else if (request.Price > Money.MaxAmount)
             yield return new ValidationError(nameof(request.Price), $"Price must not exceed {Money.MaxAmount}");
+        else if (Money.IsValidCurrencyCode(request.Currency) && !Money.IsAtScale(request.Price.Value, request.Currency!))
+            yield return new ValidationError(nameof(request.Price), "Price has more decimal places than its currency allows; it is never rounded");
 
         if (string.IsNullOrWhiteSpace(request.Currency))
             yield return new ValidationError(nameof(request.Currency), "Currency is required");
         else if (!Money.IsValidCurrencyCode(request.Currency))
             yield return new ValidationError(nameof(request.Currency), "Currency must be a 3-letter ISO code");
+        else if (Money.MinorUnits(request.Currency) > Product.PriceDecimalPlaces)
+            yield return new ValidationError(nameof(request.Currency), $"Currency has more decimal places than a product price stores ({Product.PriceDecimalPlaces})");
 
         if (request.Stock is null)
             yield return new ValidationError(nameof(request.Stock), "Stock is required");

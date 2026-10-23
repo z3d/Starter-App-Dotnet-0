@@ -16,7 +16,7 @@ public class ProductFuzzTests
         return Prop.ForAll(NonNegativeStock(), smallPositiveInt,
             (initialStock, delta) =>
             {
-                var product = TestEntities.Product("Test", "Desc", Money.Create(10m), initialStock);
+                var product = TestEntities.Product("Test", "Desc", Money.Create(10m, "USD"), initialStock);
                 product.UpdateStock(delta);
                 product.UpdateStock(-delta);
                 return product.Stock == initialStock;
@@ -29,7 +29,7 @@ public class ProductFuzzTests
         return Prop.ForAll(NonNegativeStock(),
             initialStock =>
             {
-                var product = TestEntities.Product("Test", "Desc", Money.Create(10m), initialStock);
+                var product = TestEntities.Product("Test", "Desc", Money.Create(10m, "USD"), initialStock);
                 var excess = initialStock + 1;
                 try
                 { product.UpdateStock(-excess); return false; }
@@ -46,7 +46,7 @@ public class ProductFuzzTests
         return Prop.ForAll(names, amounts, stocks,
             (name, amount, stock) =>
             {
-                var product = TestEntities.Product(name, "Desc", Money.Create(amount), stock);
+                var product = TestEntities.Product(name, "Desc", Money.Create(amount, "USD"), stock);
                 return product.Name == name && product.Stock == stock;
             });
     }
@@ -57,7 +57,7 @@ public class ProductFuzzTests
     public void NameAtMaxLength_IsAccepted()
     {
         var name = new string('n', Product.MaxNameLength);
-        var product = TestEntities.Product(name, "Desc", Money.Create(10m), 1);
+        var product = TestEntities.Product(name, "Desc", Money.Create(10m, "USD"), 1);
         Assert.Equal(name, product.Name);
     }
 
@@ -70,7 +70,7 @@ public class ProductFuzzTests
             {
                 var name = new string('n', length);
                 try
-                { TestEntities.Product(name, "Desc", Money.Create(10m), 1); return false; }
+                { TestEntities.Product(name, "Desc", Money.Create(10m, "USD"), 1); return false; }
                 catch (ArgumentException) { return true; }
             });
     }
@@ -79,7 +79,7 @@ public class ProductFuzzTests
     public void DescriptionAtMaxLength_IsAccepted()
     {
         var description = new string('d', Product.MaxDescriptionLength);
-        var product = TestEntities.Product("Name", description, Money.Create(10m), 1);
+        var product = TestEntities.Product("Name", description, Money.Create(10m, "USD"), 1);
         Assert.Equal(description, product.Description);
     }
 
@@ -92,7 +92,7 @@ public class ProductFuzzTests
             {
                 var description = new string('d', length);
                 try
-                { TestEntities.Product("Name", description, Money.Create(10m), 1); return false; }
+                { TestEntities.Product("Name", description, Money.Create(10m, "USD"), 1); return false; }
                 catch (ArgumentException) { return true; }
             });
     }

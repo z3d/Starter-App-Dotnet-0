@@ -321,16 +321,13 @@ public class OrderTests
     }
 
     [Fact]
-    public void GetTotalExcludingGst_WithNoItems_ShouldReturnZero()
+    public void Totals_OfAnOrderWithNoItems_HaveNoCurrencyToBeIn()
     {
-        // Arrange
         var order = TestEntities.Order(1);
 
-        // Act
-        var total = order.GetTotalExcludingGst();
-
-        // Assert
-        Assert.Equal(Money.Create(0), total);
+        Assert.Throws<DomainRuleException>(order.GetTotalExcludingGst);
+        Assert.Throws<DomainRuleException>(order.GetTotalIncludingGst);
+        Assert.Throws<DomainRuleException>(order.GetTotalGstAmount);
     }
 
     [Fact]

@@ -104,4 +104,26 @@ public class CommandValidatorBoundaryTests
 
         Assert.Contains(errors, error => error.PropertyName == nameof(CreateProductCommand.Currency));
     }
+
+    [Theory]
+    [InlineData(10.999, "USD")]
+    [InlineData(10.5, "JPY")]
+    public void ProductValidators_WithAPricePastItsCurrencysScale_RefuseThePrice(decimal price, string currency)
+    {
+        var create = new CreateProductCommand { Name = "Widget", Description = "d", Price = price, Currency = currency, Stock = 1 };
+        var update = new UpdateProductCommand { Id = 1, Name = "Widget", Description = "d", Price = price, Currency = currency, Stock = 1 };
+
+        Assert.Contains(new CreateProductCommandValidator().Validate(create), error => error.PropertyName == nameof(create.Price));
+        Assert.Contains(new UpdateProductCommandValidator().Validate(update), error => error.PropertyName == nameof(update.Price));
+    }
+
+    [Fact]
+    public void ProductValidators_WithACurrencyOfMorePlacesThanAPriceStores_RefuseTheCurrency()
+    {
+        var create = new CreateProductCommand { Name = "Widget", Description = "d", Price = 1.234m, Currency = "KWD", Stock = 1 };
+        var update = new UpdateProductCommand { Id = 1, Name = "Widget", Description = "d", Price = 1.234m, Currency = "KWD", Stock = 1 };
+
+        Assert.Contains(new CreateProductCommandValidator().Validate(create), error => error.PropertyName == nameof(create.Currency));
+        Assert.Contains(new UpdateProductCommandValidator().Validate(update), error => error.PropertyName == nameof(update.Currency));
+    }
 }

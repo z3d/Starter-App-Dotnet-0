@@ -18,46 +18,31 @@ public class OrderItemFuzzTests
     private static Arbitrary<decimal> ValidPrice() =>
         Gen.Choose(0, 9_999_900).Select(i => (decimal)i / 100m).ToArbitrary();
 
-    // SUB-CENT (4dp) prices so the GST/total math genuinely produces sub-cent intermediates that
-    // Money.Create must quantize. A cents-only (2dp) generator can never exercise the rounding.
     private static Arbitrary<decimal> SubCentPrice() =>
-        Gen.Choose(0, 9_999_9999).Select(i => (decimal)i / 10_000m).ToArbitrary();
+        Gen.Choose(0, 9_999_999).SelectMany(cents => Gen.Choose(1, 99).Select(extra => cents / 100m + extra / 10_000m)).ToArbitrary();
 
     // Full DECIMAL(5,4) rate range (0..1.0000) so sub-cent GST residues are exercised.
     private static Arbitrary<decimal> AnyValidGstRate() =>
         Gen.Choose(0, 10_000).Select(i => (decimal)i / 10_000m).ToArbitrary();
 
     private const MidpointRounding Mode = MidpointRounding.AwayFromZero;
-    private const int Dp = Money.CurrencyDecimalPlaces;
 
-    private static decimal Round2(decimal value) => decimal.Round(value, Dp, Mode);
+    private static decimal Round2(decimal value) => decimal.Round(value, 2, Mode);
 
-    private static bool IsWholeCents(decimal amount) => amount == decimal.Round(amount, Dp);
+    private static bool IsWholeCents(decimal amount) => amount == decimal.Round(amount, 2);
 
-    // Independent re-derivation of the four computed-money getters, NOT by calling production code.
-    // Grounded in OrderItem.cs:
-    //   unitExcl   = Money.Create(price).Amount               (price quantized to 2dp first)
-    //   unitGst    = round(unitExcl * rate, 2, AwayFromZero)  (GetUnitGstAmount)
-    //   unitIncl   = round(unitExcl + unitGst, 2, AwayFromZero)
-    //   totalExcl  = round(unitExcl * qty, 2, AwayFromZero)
-    //   totalGst   = round(unitGst * qty, 2, AwayFromZero)
-    //   totalIncl  = round((unitExcl + unitGst) * qty, 2, AwayFromZero)
+    // GST per unit is the one rounding; every other figure is whole cents times a whole quantity.
     private static (decimal UnitIncl, decimal TotalExcl, decimal TotalIncl, decimal TotalGst) ExpectedMoney(
         decimal price, decimal gstRate, int quantity)
     {
-        var unitExcl = Round2(price); // Money.Create rounds the unit price to 2dp before any GST math.
-        var unitGst = Round2(unitExcl * gstRate);
-        var unitIncl = Round2(unitExcl + unitGst);
-        var totalExcl = Round2(unitExcl * quantity);
-        var totalGst = Round2(unitGst * quantity);
-        var totalIncl = Round2((unitExcl + unitGst) * quantity);
-        return (unitIncl, totalExcl, totalIncl, totalGst);
+        var unitGst = Round2(price * gstRate);
+        return (price + unitGst, price * quantity, (price + unitGst) * quantity, unitGst * quantity);
     }
 
     [Property(MaxTest = 500)]
     public Property AllComputedMoney_MatchesIndependentlyRoundedOracle()
     {
-        return Prop.ForAll(PositiveQuantity(), SubCentPrice(), AnyValidGstRate(),
+        return Prop.ForAll(PositiveQuantity(), ValidPrice(), AnyValidGstRate(),
             (quantity, price, gstRate) =>
             {
                 var item = new OrderItem(TestOrderId, 1, "Product", quantity, Money.Create(price, "USD"), gstRate);
@@ -116,19 +101,14 @@ public class OrderItemFuzzTests
     }
 
     [Property(MaxTest = 500)]
-    public Property TotalExcGst_MatchesIndependentlyRoundedExpected()
+    public Property ASubCentUnitPrice_IsRefusedNeverRounded()
     {
-        // Feeds SUB-CENT prices so the two-stage rounding (Money.Create quantizes the unit price to
-        // 2dp, then GetTotalPriceExcludingGst quantizes unitExcl*qty) is actually exercised. The oracle
-        // re-derives that two-stage rounding from the RAW price rather than restating the getter body
-        // over an already-rounded Money.Amount — so it fails if either rounding stage is broken.
-        return Prop.ForAll(PositiveQuantity(), SubCentPrice(),
-            (quantity, price) =>
+        return Prop.ForAll(SubCentPrice(),
+            price =>
             {
-                var item = new OrderItem(TestOrderId, 1, "Product", quantity, Money.Create(price, "USD"));
-                var expected = Round2(Round2(price) * quantity);
-                var actual = item.GetTotalPriceExcludingGst().Amount;
-                return (actual == expected).Label($"price={price}, qty={quantity} | actual={actual} vs expected={expected}");
+                try
+                { Money.Create(price, "USD"); return false.Label($"price={price} was accepted"); }
+                catch (ArgumentException) { return true.ToProperty(); }
             });
     }
 

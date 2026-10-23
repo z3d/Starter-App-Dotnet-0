@@ -23,6 +23,6 @@ internal static class TestEntities
         string? description = "Default Description",
         Money? price = null,
         int stock = 10) =>
-        new(name, description, price ?? Money.Create(9.99m), stock,
+        new(name, description, price ?? Money.Create(9.99m, "USD"), stock,
             OwnershipDefaults.LegacyOwnerSubject, OwnershipDefaults.LegacyTenantId);
 }

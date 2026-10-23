@@ -10,7 +10,7 @@ public class MoneyFuzzTests
         Gen.Choose(0, 999_999_999).Select(i => (decimal)i / 100m).ToArbitrary();
 
     private static Arbitrary<string> ValidCurrency() =>
-        Gen.Elements("USD", "EUR", "GBP", "AUD", "NZD", "JPY", "CAD")
+        Gen.Elements("USD", "EUR", "GBP", "AUD", "NZD", "CHF", "CAD")
            .ToArbitrary();
 
     [Property]
@@ -33,7 +33,7 @@ public class MoneyFuzzTests
             amount =>
             {
                 try
-                { Money.Create(amount); return false; }
+                { Money.Create(amount, "USD"); return false; }
                 catch (ArgumentOutOfRangeException) { return true; }
             });
     }
@@ -123,7 +123,6 @@ public class MoneyFuzzTests
     public Property AmountAtOrBelowMaxAmount_IsAccepted()
     {
         // Straddle MaxAmount from below: pick a cents offset back from the documented ceiling.
-        // Money.Create rounds to 2dp, so stay on whole-cent values to keep the boundary exact.
         var nearMax = Gen.Choose(0, 1_000_000)
             .Select(offset => Money.MaxAmount - ((decimal)offset / 100m))
             .ToArbitrary();

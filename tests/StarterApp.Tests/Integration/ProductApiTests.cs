@@ -74,6 +74,17 @@ public class ProductApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CreateProduct_WithAPricePastTheCentIsRefusedNotRounded()
+    {
+        var newProduct = new CreateProductCommand { Name = "Sub-cent", Description = "d", Price = 19.999m, Currency = "USD", Stock = 1 };
+
+        var response = await _fixture.Client.PostAsJsonAsync("/api/v1/products", newProduct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("never rounded", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task GetProduct_WithValidId_ShouldReturnProduct()
     {
         // Arrange

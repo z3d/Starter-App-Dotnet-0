@@ -12,13 +12,13 @@ public class MoneyTests
     {
         // numeric(18,2) overflows past MaxAmount (SqlState 22003) and would surface as a
         // client-input-driven 500; the domain guard must reject it first.
-        Assert.Throws<ArgumentOutOfRangeException>(() => Money.Create(Money.MaxAmount + 1m));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Money.Create(Money.MaxAmount + 1m, "USD"));
     }
 
     [Fact]
     public void Create_WithAmountAtMaxAmount_ShouldSucceed()
     {
-        var money = Money.Create(Money.MaxAmount);
+        var money = Money.Create(Money.MaxAmount, "USD");
 
         Assert.Equal(Money.MaxAmount, money.Amount);
     }
@@ -108,20 +108,6 @@ public class MoneyTests
         Log.Information("Money object successfully created with expected values");
     }
 
-    [Theory]
-    [InlineData(10.989, 10.99)]   // 9.99 * 1.10 style sub-cent
-    [InlineData(0.4995, 0.50)]    // round-half-up (AwayFromZero)
-    [InlineData(0.4949, 0.49)]    // rounds down
-    [InlineData(0.749250, 0.75)]  // DECIMAL(5,4) GST rate residue
-    [InlineData(2.675, 2.68)]     // exact in decimal — rounds up, no binary-float artifact
-    public void Create_WithSubCentAmount_ShouldQuantizeToTwoDecimals(decimal input, decimal expected)
-    {
-        var money = Money.Create(input, "USD");
-
-        Assert.Equal(expected, money.Amount);
-        Assert.Equal(money.Amount, decimal.Round(money.Amount, 2));
-    }
-
     [Fact]
     public void Create_WithNegativeAmount_ShouldThrowArgumentException()
     {
@@ -152,24 +138,6 @@ public class MoneyTests
             Money.Create(amount, currency));
         Assert.Contains("cannot be an empty string", exception.Message);
         Log.Information("Exception correctly thrown with message: {Message}", exception.Message);
-    }
-
-    [Fact]
-    public void FromDecimal_WithValidAmount_ShouldCreateMoneyWithDefaultCurrency()
-    {
-        // Arrange
-        Log.Information("Testing FromDecimal method with valid amount");
-        var amount = 10.99m;
-
-        // Act
-        Log.Debug("Creating money from decimal {Amount}", amount);
-        var money = Money.FromDecimal(amount);
-
-        // Assert
-        Assert.NotNull(money);
-        Assert.Equal(amount, money.Amount);
-        Assert.Equal("USD", money.Currency);
-        Log.Information("Money object successfully created with default currency");
     }
 
     [Fact]

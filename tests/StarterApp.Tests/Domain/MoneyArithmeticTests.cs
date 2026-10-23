@@ -7,15 +7,15 @@ public class MoneyArithmeticTests
     {
         // Add used to call the private constructor and was the one construction path that could
         // produce a Money above MaxAmount (numeric(18,2)); it now routes through Create().
-        var atCeiling = Money.Create(Money.MaxAmount);
+        var atCeiling = Money.Create(Money.MaxAmount, "USD");
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => atCeiling.Add(Money.Create(1m)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => atCeiling.Add(Money.Create(1m, "USD")));
     }
 
     [Fact]
     public void Add_And_Subtract_WithNull_ShouldThrowArgumentNullException()
     {
-        var money = Money.Create(10m);
+        var money = Money.Create(10m, "USD");
 
         Assert.Throws<ArgumentNullException>(() => money.Add(null!));
         Assert.Throws<ArgumentNullException>(() => money.Subtract(null!));

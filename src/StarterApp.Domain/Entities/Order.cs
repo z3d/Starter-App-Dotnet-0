@@ -162,30 +162,21 @@ public class Order : AggregateRoot
 
     public Money GetTotalExcludingGst()
     {
-        if (_items.Count == 0)
-            return Money.Create(0);
-
-        var firstCurrency = _items[0].UnitPriceExcludingGst.Currency;
+        var firstCurrency = CurrencyOfItems();
         var total = _items.Sum(item => item.GetTotalPriceExcludingGst().Amount);
         return Money.Create(total, firstCurrency);
     }
 
     public Money GetTotalIncludingGst()
     {
-        if (_items.Count == 0)
-            return Money.Create(0);
-
-        var firstCurrency = _items[0].UnitPriceExcludingGst.Currency;
+        var firstCurrency = CurrencyOfItems();
         var total = _items.Sum(item => item.GetTotalPriceIncludingGst().Amount);
         return Money.Create(total, firstCurrency);
     }
 
     public Money GetTotalGstAmount()
     {
-        if (_items.Count == 0)
-            return Money.Create(0);
-
-        var firstCurrency = _items[0].UnitPriceExcludingGst.Currency;
+        var firstCurrency = CurrencyOfItems();
         var totalGst = _items.Sum(item => item.GetTotalGstAmount().Amount);
         return Money.Create(totalGst, firstCurrency);
     }
@@ -198,6 +189,11 @@ public class Order : AggregateRoot
 
         RaiseDomainEvent(new OrderCreatedDomainEvent(this));
     }
+
+    private string CurrencyOfItems() =>
+        _items.Count == 0
+            ? throw new DomainRuleException("An order with no items has no currency, so it has no total")
+            : _items[0].UnitPriceExcludingGst.Currency;
 
     private void EnsureCurrencyMatchesExistingItems(string currency)
     {

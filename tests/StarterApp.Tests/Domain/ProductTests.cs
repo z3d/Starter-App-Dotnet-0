@@ -8,7 +8,7 @@ public class ProductTests
         // Arrange
         var name = "Test Product";
         var description = "Test Description";
-        var price = Money.Create(10.99m);
+        var price = Money.Create(10.99m, "USD");
         var stock = 100;
 
         // Act
@@ -73,11 +73,11 @@ public class ProductTests
     public void UpdateDetails_WithValidInputs_ShouldUpdateProduct()
     {
         // Arrange
-        var product = TestEntities.Product("Original Name", "Original Description", Money.Create(10.99m));
+        var product = TestEntities.Product("Original Name", "Original Description", Money.Create(10.99m, "USD"));
 
         var newName = "Updated Name";
         var newDescription = "Updated Description";
-        var newPrice = Money.Create(19.99m);
+        var newPrice = Money.Create(19.99m, "USD");
 
         // Act
         product.UpdateDetails(newName, newDescription, newPrice);
@@ -98,7 +98,7 @@ public class ProductTests
 
         // Act & Assert
         Assert.Throws<ArgumentException>(() =>
-            product.UpdateDetails(invalidName, "Description", Money.Create(10.00m)));
+            product.UpdateDetails(invalidName, "Description", Money.Create(10.00m, "USD")));
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public class ProductTests
         var product = TestEntities.Product();
 
         var exception = Assert.Throws<ArgumentException>(() =>
-            product.UpdateDetails("Name", new string('d', Product.MaxDescriptionLength + 1), Money.Create(10.00m)));
+            product.UpdateDetails("Name", new string('d', Product.MaxDescriptionLength + 1), Money.Create(10.00m, "USD")));
 
         Assert.Contains($"Product description cannot exceed {Product.MaxDescriptionLength} characters", exception.Message);
     }
@@ -154,5 +154,14 @@ public class ProductTests
             product.UpdateStock(quantityToRemove));
 
         Assert.Contains("Cannot reduce stock below zero", exception.Message);
+    }
+
+    [Fact]
+    public void APriceInACurrencyOfMorePlacesThanAProductStores_IsRefused()
+    {
+        Assert.Throws<DomainRuleException>(() => TestEntities.Product("Name", "Desc", Money.Create(1.234m, "KWD")));
+
+        var product = TestEntities.Product("Name", "Desc", Money.Create(1.23m, "USD"));
+        Assert.Throws<DomainRuleException>(() => product.UpdateDetails("Name", "Desc", Money.Create(1.234m, "KWD")));
     }
 }

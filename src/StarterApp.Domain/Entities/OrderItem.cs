@@ -73,7 +73,7 @@ public class OrderItem
 
     private decimal GetUnitGstAmount()
     {
-        return decimal.Round(UnitPriceExcludingGst.Amount * GstRate, Money.CurrencyDecimalPlaces, MidpointRounding.AwayFromZero);
+        return decimal.Round(UnitPriceExcludingGst.Amount * GstRate, Money.MinorUnits(UnitPriceExcludingGst.Currency), MidpointRounding.AwayFromZero);
     }
 
 }

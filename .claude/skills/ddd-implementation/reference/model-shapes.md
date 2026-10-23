@@ -47,7 +47,7 @@ Every owner-scoped aggregate (`Product`, `Customer`, `Order`) follows this owner
 
 ## Value object
 
-Immutable, private constructor, static factory that validates **and normalizes**:
+Immutable, private constructor, static factory that validates **and normalizes** (upper-cases the code; it never rounds the amount):
 
 ```csharp
 public class Money
@@ -61,7 +61,7 @@ public class Money
         Currency = currency;
     }
 
-    public static Money Create(decimal amount, string currency = "USD")
+    public static Money Create(decimal amount, string currency)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(amount);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(amount, MaxAmount);
@@ -71,9 +71,12 @@ public class Money
         if (!IsValidCurrencyCode(currency))
             throw new ArgumentException("Currency code must be a three-letter ISO code", nameof(currency));
 
-        // Normalize: round to 2 dp (whole minor units) and upper-case the currency.
-        var rounded = decimal.Round(amount, CurrencyDecimalPlaces, MidpointRounding.AwayFromZero);
-        return new Money(rounded, currency.ToUpperInvariant());
+        // Refuse, never round: an amount past the currency's ISO 4217 minor units is a caller's error.
+        var code = currency.ToUpperInvariant();
+        if (!IsAtScale(amount, code))
+            throw new ArgumentException($"{amount} has more decimal places than {code} allows ({MinorUnits(code)}); amounts are never rounded", nameof(amount));
+
+        return new Money(amount, code);
     }
 
     // Overrides Equals(object) and GetHashCode(), implements IEquatable<Money>

@@ -16,7 +16,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         {
             priceBuilder.Property(m => m.Amount)
                 .HasColumnName("price_amount")
-                .HasPrecision(18, 2);
+                .HasPrecision(18, Product.PriceDecimalPlaces);
             priceBuilder.Property(m => m.Currency)
                 .HasColumnName("price_currency")
                 .HasMaxLength(3);

@@ -4,6 +4,7 @@ public class Product
 {
     public const int MaxNameLength = 100;
     public const int MaxDescriptionLength = 500;
+    public const int PriceDecimalPlaces = 2;
 
     public int Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
@@ -30,6 +31,7 @@ public class Product
 
         ValidateName(name);
         ValidateDescription(description);
+        ValidatePriceCurrency(price);
         OwnershipDefaults.Validate(ownerSubject, tenantId);
 
         Name = name;
@@ -47,6 +49,7 @@ public class Product
 
         ValidateName(name);
         ValidateDescription(description);
+        ValidatePriceCurrency(price);
 
         Name = name;
         Description = description ?? string.Empty;
@@ -73,4 +76,10 @@ public class Product
             throw new ArgumentException($"Product description cannot exceed {MaxDescriptionLength} characters", nameof(description));
     }
 
+
+    private static void ValidatePriceCurrency(Money price)
+    {
+        if (Money.MinorUnits(price.Currency) > PriceDecimalPlaces)
+            throw new DomainRuleException($"{price.Currency} has more decimal places than a product price stores ({PriceDecimalPlaces})");
+    }
 }
