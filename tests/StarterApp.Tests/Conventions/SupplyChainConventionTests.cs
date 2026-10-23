@@ -76,6 +76,22 @@ public class SupplyChainConventionTests : ConventionTestBase
         Assert.Contains("\"rollForward\"", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void CodeQl_AnalysesEveryLanguageTheRepositoryShips()
+    {
+        var workflow = File.ReadAllText(Path.Combine(TestPaths.RepoRoot, ".github", "workflows", "codeql.yml"));
+        var expected = new List<string> { "csharp" };
+        if (File.Exists(Path.Combine(TestPaths.RepoRoot, "web", "package.json")))
+            expected.Add("javascript-typescript");
+
+        var missing = expected
+            .Where(language => !Regex.IsMatch(workflow, $@"(?m)^\s*(?:languages:|language:\s*\[)[^\n]*\b{Regex.Escape(language)}\b"))
+            .ToList();
+
+        Assert.True(missing.Count == 0,
+            "codeql.yml must analyse every language the repository ships; missing: " + string.Join(", ", missing));
+    }
+
     private static string? ParseFromImageReference(string fromLine)
     {
         var tokens = fromLine.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);

@@ -74,7 +74,17 @@ dotnet run --project src/StarterApp.DbMigrator -- --ConnectionStrings:database "
 ```
 
 Real deployments run the migrator to completion (a job, init container, or release step) before
-starting API replicas. Two runs at once are safe: each takes a PostgreSQL advisory lock before
+rolling out the new API and Functions revisions; the previous revision keeps serving against the new
+schema meanwhile, which is what expand/contract migrations are for. The AppHost's
+`WaitForCompletion(migrator)` holds only under Aspire: once published, the order is the deployer's. A
+revision that starts first answers not-ready on `/health/ready` (the `database-schema` check compares
+the migration journal with the scripts the build embeds) until the migrator has run.
+
+Each script runs in its own transaction, under `lock_timeout` (`Migrator:LockTimeout`, 5 seconds) and
+`statement_timeout` (`Migrator:StatementTimeout`, 15 minutes), so a script that waits on live traffic's
+lock fails and the run stops with the scripts before it applied; run the job again. A script whose first
+line is `-- migrator: no-transaction` runs outside a transaction and holds one statement, for
+`CREATE INDEX CONCURRENTLY`. Two runs at once are safe: each takes a PostgreSQL advisory lock before
 reading `schemaversions`, so the second waits and then finds nothing pending. To add a migration, add the next numbered `.sql` file under
 `src/StarterApp.DbMigrator/Scripts/` with explicit deterministic names for every constraint and
 index, then run the tests; the migration conventions check embedding and naming. Details in
@@ -139,7 +149,7 @@ The AppHost describes the Azure shape in publish mode and nothing else in this r
 | `redis` | container | Azure Managed Redis (Balanced B0), Entra auth only — access keys disabled |
 | `seq` | container | not published; logs and traces reach the Aspire dashboard and Log Analytics over OTLP |
 | `keycloak` | container with `Realms/` bind-mounted, `admin`/`admin` | the same image with the realm copied in (`Realms/Dockerfile`); admin password is a generated secret parameter |
-| `migrator` | project, run once | a Container App **job** the deployer starts after each deploy |
+| `migrator` | project, run once, before the API starts | a Container App **job** the deployer runs to success before rolling out the new `api` and `functions` revisions |
 | `api`, `functions` | as today | container apps in one Container Apps environment, each with its own managed identity |
 
 Every deployed dependency is reached with the app's managed identity: there is no key, password or

@@ -35,15 +35,34 @@ for r in sorted(latest.values(), key=lambda r: r["createdAt"], reverse=True):
 ' 2>/dev/null) || exit 0
 [ -n "$bad" ] || exit 0
 
-first=$(printf '%s\n' "$bad" | head -1 | cut -f1)
-refused=$(bounded gh run view "$first" -R "$slug" | grep -m1 -E 'job was not started|spending limit|account payments|billing' | sed -E 's/^[[:space:]]*X[[:space:]]+//')
+views=$(mktemp -d) || exit 0
+trap 'rm -rf "$views"' EXIT
+while IFS=$'\t' read -r id _; do
+  [ -n "$id" ] && { bounded gh run view "$id" -R "$slug" </dev/null >"$views/$id" & }
+done < <(printf '%s\n' "$bad")
+wait
 
-list=$(printf '%s\n' "$bad" | awk -F'\t' '{printf "  %s: %s on %s, %s\n", $2, $3, $4, $5}')
-msg="CI on ${branch} of ${slug} is not green. The latest run of each of these workflows failed:"$'\n'"${list}"
-if [ -n "$refused" ]; then
-  msg+=$'\n'"GitHub never started the jobs: \"${refused}\" CI is off for this repository until the account's billing is fixed, so nothing pushed is being checked. Tell the person first; only they can fix it."
-else
-  msg+=$'\n'"Read why before starting other work (gh run view <id> -R ${slug} --log-failed), and tell the person if it is not yours to fix."
+list=""
+refused_any=0
+failed_any=0
+while IFS=$'\t' read -r id name conclusion day url; do
+  [ -n "$id" ] || continue
+  reason=$(grep -m1 -E 'job was not started|spending limit|account payments|billing' "$views/$id" | sed -E 's/^[[:space:]]*X[[:space:]]+//')
+  if [ -n "$reason" ]; then
+    refused_any=1
+    list+="  ${name}: GitHub never started the jobs on ${day} (\"${reason}\"), ${url}"$'\n'
+  else
+    failed_any=1
+    list+="  ${name}: ${conclusion} on ${day}, ${url}"$'\n'
+  fi
+done < <(printf '%s\n' "$bad")
+
+msg="CI on ${branch} of ${slug} is not green. The latest run of each of these workflows failed:"$'\n'"${list%$'\n'}"
+if [ "$refused_any" = 1 ]; then
+  msg+=$'\n'"Where GitHub never started the jobs, CI is off for this repository until the account's billing is fixed, so nothing pushed is being checked. Tell the person first; only they can fix it."
+fi
+if [ "$failed_any" = 1 ]; then
+  msg+=$'\n'"Read why the others failed before starting other work (gh run view <id> -R ${slug} --log-failed), and tell the person if it is not yours to fix."
 fi
 python3 -c 'import json,sys; r=sys.argv[1]; print(json.dumps({"systemMessage": r, "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": r}}))' "$msg"
 exit 0

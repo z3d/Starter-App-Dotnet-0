@@ -74,7 +74,8 @@ The default (`df_`) case is the one that bites: an unnamed `DEFAULT` looks harml
 Migrations run exclusively through the DbMigrator console app — never in API startup, which races across replicas.
 
 - **Aspire:** AppHost runs DbMigrator with `WaitFor` on PostgreSQL.
-- **Container deployments:** run the DbMigrator image/job to completion before starting API replicas.
+- **Container deployments:** run the DbMigrator image/job to completion before rolling out the new API revision; until it has run, that revision's `/health/ready` reports the database behind (`DatabaseSchemaHealthCheck`).
+- **Transactions:** each script runs in its own transaction under `Migrator:LockTimeout` (5s) and `Migrator:StatementTimeout` (15min). A script whose first line is `-- migrator: no-transaction` runs outside one and holds exactly one statement, for `CREATE INDEX CONCURRENTLY` (`MigrationCompatibilityConventionTests`).
 - **Standalone dev:** `dotnet run --project src/StarterApp.DbMigrator`.
 - **Integration tests:** `TestFixture.RunDbUpMigrations()`.
 

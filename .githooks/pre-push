@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# The full local gate before anything leaves this machine: format, build, every test project, and the
+# web app's checks. A push whose every changed path is documentation (.githooks/doc-only) skips it.
+set -uo pipefail
+
+hooks=$(cd "$(dirname "$0")" && pwd)
+root=$(git rev-parse --show-toplevel) || exit 1
+cd "$root" || exit 1
+
+zero=0000000000000000000000000000000000000000
+changed=""
+pushing=0
+head=$(git rev-parse HEAD)
+other=""
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ -n "${local_sha:-}" ] || continue
+  [ "$local_sha" = "$zero" ] && continue
+  pushing=1
+  [ "$local_sha" = "$head" ] || other=$local_sha
+  if [ "$remote_sha" = "$zero" ]; then
+    base=$(git merge-base "$local_sha" origin/HEAD 2>/dev/null || git merge-base "$local_sha" origin/main 2>/dev/null || true)
+  else
+    base=$remote_sha
+  fi
+  if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+    changed+=$'\n'"(unknown base for $local_sha)"
+    continue
+  fi
+  changed+=$'\n'"$(git diff --name-only "$base" "$local_sha")"
+done
+[ "$pushing" = 1 ] || exit 0
+
+if printf '%s\n' "$changed" | "$hooks/doc-only"; then
+  echo "pre-push: every changed path is documentation; skipping the gate" >&2
+  exit 0
+fi
+
+if [ -n "$other" ]; then
+  echo "pre-push: the gate builds the working tree, but $other is not HEAD; push from a tree checked out at it" >&2
+  exit 1
+fi
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+  echo "pre-push: the gate builds the working tree, which has uncommitted changes; commit or stash them and push again" >&2
+  exit 1
+fi
+
+dotnet --version >/dev/null 2>&1 || { export DOTNET_ROOT="$HOME/.dotnet" PATH="$HOME/.dotnet:$PATH"; }
+echo "pre-push: format, build and test before the push leaves (skip only by pushing documentation alone)" >&2
+dotnet restore || exit 1
+dotnet format --verify-no-changes --verbosity minimal --no-restore || exit 1
+dotnet build --no-restore || exit 1
+dotnet test --no-build || exit 1
+
+if [ -f web/package.json ]; then
+  (
+    cd web || exit 1
+    [ -d node_modules ] || npm ci --no-audit --no-fund || exit 1
+    npm run format:check && npm run lint && npm run typecheck && npm test
+  ) || exit 1
+fi

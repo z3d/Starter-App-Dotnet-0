@@ -18,27 +18,31 @@ concurrency:
 
 jobs:
   analyze:
-    name: Analyze (csharp)
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       security-events: write
       actions: read
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ csharp, javascript-typescript ]
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     # build-mode: none analyzes C# without compiling — no SDK/restore needed, and it sidesteps
     # the locked-restore/RID constraints the build jobs carry. Switch to build-mode: autobuild
-    # (or manual) if a future query needs full compilation-based dataflow.
+    # (or manual) if a future query needs full compilation-based dataflow. TypeScript never builds.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
       with:
-        languages: csharp
+        languages: ${{ matrix.language }}
         build-mode: none
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
       with:
-        category: "/language:csharp"
+        category: "/language:${{ matrix.language }}"

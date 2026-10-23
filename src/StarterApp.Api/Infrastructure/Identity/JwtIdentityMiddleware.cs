@@ -15,14 +15,16 @@ internal sealed class JwtIdentityMiddleware
 
     public async Task InvokeAsync(HttpContext context, CurrentUserAccessor currentUserAccessor)
     {
-        if (context.User.Identity?.IsAuthenticated == true)
+        var user = context.User.Identity?.IsAuthenticated == true ? Map(context.User) : null;
+        if (user is null)
         {
-            var user = Map(context.User);
-            if (user != null)
-                currentUserAccessor.Set(user);
+            await _next(context);
+            return;
         }
 
-        await _next(context);
+        currentUserAccessor.Set(user);
+        using (Serilog.Context.LogContext.PushProperty("TenantId", user.TenantId))
+            await _next(context);
     }
 
     private static CurrentUser? Map(ClaimsPrincipal principal)

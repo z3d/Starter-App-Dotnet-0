@@ -11,6 +11,7 @@ command=$(printf '%s' "$payload" | python3 -c 'import json,sys
 try: print(json.load(sys.stdin).get("tool_input",{}).get("command",""))
 except Exception: pass' 2>/dev/null)
 [ -n "$command" ] || exit 0
+command=$(printf '%s' "$command" | python3 "$(dirname "${BASH_SOURCE[0]}")/strip-quoted.py" 2>/dev/null) || exit 0
 
 at='(^|[;&|({`]|\$\()[[:space:]]*(sudo[[:space:]]+)?(command[[:space:]]+)?'
 engine='(podman|docker)'
@@ -30,7 +31,8 @@ if printf '%s' "$command" | grep -qE "${at}${engine}[[:space:]]+(system[[:space:
   refuse "pruning, resetting or repairing the container engine's shared state" "Remove only the images, containers and volumes you made, by name or id. If it has to happen, ask the person to run it."
 fi
 
-heavy="${at}((dotnet[[:space:]]+(build|test|publish|pack|restore))|(${engine}[[:space:]]+(build|compose|pull|load|save|run))|(npm[[:space:]]+(ci|install|test))|(npx[[:space:]]+playwright)|([^[:space:]]*run-e2e\.sh)|act([[:space:]]|$))"
+node="(npm|pnpm|yarn|npx|pnpx)([[:space:]]+[^;&|[:space:]]+)*[[:space:]]+(ci|i|install|add|test|build|e2e|playwright|vitest)([[:space:]]|$)"
+heavy="${at}((dotnet[[:space:]]+(build|test|publish|pack|restore))|(${engine}[[:space:]]+(build|compose|pull|load|save|run))|${node}|([^[:space:]]*run-e2e\.sh)|act([[:space:]]|$))"
 if printf '%s' "$command" | grep -qE "$heavy"; then
   free_kb=$(df -Pk "${CLAUDE_PROJECT_DIR:-$PWD}" 2>/dev/null | awk 'NR==2{print $4}')
   case $free_kb in ''|*[!0-9]*) exit 0 ;; esac

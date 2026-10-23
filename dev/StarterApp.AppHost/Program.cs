@@ -183,9 +183,7 @@ var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
        // Published from the project's own Dockerfile, the one CI checks. The SDK's container publish
        // restores for linux-x64 and cannot use the locked lock files.
        .PublishAsDockerFile(container => container.WithDockerfile(repoRoot, "src/StarterApp.DbMigrator/Dockerfile"))
-       // A process that runs to completion is a Container Apps job, not an app that would be restarted
-       // forever. The hosting repository starts it after each deploy, or runs the migrator locally with
-       // the operator's own Entra identity.
+       // The deployer runs this job to success before rolling out api and functions; WaitForCompletion holds only locally.
        .PublishAsAzureContainerAppJob((_, job) => job.Configuration.TriggerType = Azure.Provisioning.AppContainers.ContainerAppJobTriggerType.Manual)
        .WithReference(db)
        .WaitFor(db);

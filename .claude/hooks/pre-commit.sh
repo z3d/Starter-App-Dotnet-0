@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Format, build and test before an agent's `git commit`, in the tree the commit lands in.
 set -uo pipefail
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 payload=$(cat 2>/dev/null || true)
 read_field() {
@@ -17,9 +18,18 @@ cwd=$(read_field cwd)
 [ -n "$command" ] || command=$payload
 [ -n "$cwd" ] || cwd=$PWD
 
+bare=$(printf '%s' "$command" | python3 "$here/strip-quoted.py" 2>/dev/null) || bare=$command
+
 commit_re='(^|[^[:alnum:]_-])git([[:space:]]+-[cC][[:space:]]+[^[:space:]]+)*[[:space:]]+commit([^[:alnum:]-]|$)'
-printf '%s' "$command" | grep -qE "$commit_re" || exit 0
-printf '%s' "$command" | grep -qE -- '(^|[[:space:]])(-n|--no-verify)([[:space:]]|$)' && exit 0
+push_re='(^|[^[:alnum:]_-])git([[:space:]]+-[cC][[:space:]]+[^[:space:]]+)*[[:space:]]+push([^[:alnum:]-]|$)'
+no_verify_re='(^|[[:space:]])--no-verify([[:space:]]|$)'
+if printf '%s' "$bare" | grep -qE "$push_re" && printf '%s' "$bare" | grep -qE -- "$no_verify_re"; then
+  echo "pre-commit: git push --no-verify skips the pre-push gate; push without it (a documentation-only push skips the gate by itself)" >&2
+  exit 2
+fi
+printf '%s' "$bare" | grep -qE "$commit_re" || exit 0
+skip_requested=0
+printf '%s' "$bare" | grep -qE -- '(^|[[:space:]])(-n|--no-verify)([[:space:]]|$)' && skip_requested=1
 
 # The tree is every `cd <dir>` before the commit, in order, then any `git -C <dir>` on the commit
 # itself. A path the shell would expand (a variable, a glob) cannot be followed from here; the
@@ -51,6 +61,18 @@ fi
 cd "$target" 2>/dev/null || exit 0
 root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 cd "$root" || exit 2
+
+# Everything the commit could carry: staged, unstaged and untracked, since staging may happen later in the command.
+if [ "$skip_requested" = 1 ]; then
+  doc_only="$here/../../.githooks/doc-only"
+  [ -x "$doc_only" ] || exit 0
+  if { git diff --name-only HEAD 2>/dev/null; git diff --name-only --cached 2>/dev/null; git ls-files --others --exclude-standard; } | "$doc_only"; then
+    exit 0
+  fi
+  echo "pre-commit: --no-verify is for a documentation-only commit, and this tree changes paths outside docs/ and *.md; commit without it" >&2
+  exit 2
+fi
+
 [ -f tests/StarterApp.Tests/StarterApp.Tests.csproj ] || exit 0
 
 dotnet --version >/dev/null 2>&1 || { export DOTNET_ROOT="$HOME/.dotnet" PATH="$HOME/.dotnet:$PATH"; }

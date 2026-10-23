@@ -76,17 +76,26 @@ public class PayloadCaptureOptions
     // Matched as substrings after normalising, so "ssn" also covers "ssnId".
     internal static readonly string[] DefaultSensitivePropertyNames =
     [
+        "accountno",
+        "accountnumber",
         "address",
         "authorization",
+        "bankaccount",
+        "birth",
+        "bsb",
         "cookie",
+        "dob",
         "email",
+        "income",
         "license",
         "medicare",
+        "mobile",
         "name",
         "national",
         "passport",
         "password",
         "phone",
+        "salary",
         "secret",
         "set-cookie",
         "ssn",
@@ -94,5 +103,6 @@ public class PayloadCaptureOptions
         "token"
     ];
 
+    // Configured names are appended to these defaults by the binder, never in place of them.
     public string[] SensitivePropertyNames { get; set; } = DefaultSensitivePropertyNames;
 }

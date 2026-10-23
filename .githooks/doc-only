@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Reads changed paths on stdin, one per line; exits 0 when every one is under docs/ or ends in .md.
+set -uo pipefail
+while IFS= read -r path; do
+  [ -n "$path" ] || continue
+  case "$path" in
+    docs/*|*.md) ;;
+    *) exit 1 ;;
+  esac
+done
+exit 0

@@ -117,6 +117,47 @@ public class MigrationCompatibilityConventionTests
         Assert.Empty(Check("Contract", "-- completes: 0010_Expand_Phone.sql\nDROP TABLE customers;", _ => true));
     }
 
+    [Fact]
+    public void ScriptsOutsideATransaction_AreMarkedAndHoldOneStatement()
+    {
+        var failures = Directory.GetFiles(ScriptsDirectory, "*.sql")
+            .SelectMany(file => TransactionModeFailures(File.ReadAllText(file)).Select(failure => $"  {Path.GetFileName(file)}: {failure}"))
+            .ToList();
+
+        Assert.True(failures.Count == 0,
+            "Each script runs in its own transaction unless its first line is the no-transaction header:\n" + string.Join("\n", failures));
+    }
+
+    [Theory]
+    [InlineData("CREATE INDEX CONCURRENTLY ix_customers_phone ON customers (phone);", "header")]
+    [InlineData("-- migrator: no-transaction\nCREATE INDEX CONCURRENTLY ix_a ON customers (a);\nCREATE INDEX CONCURRENTLY ix_b ON customers (b);", "one statement")]
+    [InlineData("-- migrator: no-transaction\nCREATE INDEX ix_customers_phone ON customers (phone);\nALTER TABLE customers ADD COLUMN note text NULL;", "one statement")]
+    public void TheTransactionModeCheck_RefusesWhatCannotRun(string sql, string expected)
+    {
+        Assert.Contains(TransactionModeFailures(sql), failure => failure.Contains(expected, StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("-- migrator: no-transaction\nCREATE INDEX CONCURRENTLY ix_customers_phone ON customers (phone);")]
+    [InlineData("CREATE INDEX ix_customers_phone ON customers (phone);\nALTER TABLE customers ADD COLUMN note text NULL;")]
+    public void TheTransactionModeCheck_AllowsWhatRuns(string sql)
+    {
+        Assert.Empty(TransactionModeFailures(sql));
+    }
+
+    internal static IReadOnlyList<string> TransactionModeFailures(string sql)
+    {
+        var body = Regex.Replace(Regex.Replace(sql, @"--[^\r\n]*", ""), @"/\*[\s\S]*?\*/", "");
+        var statements = body.Split(';').Count(statement => !string.IsNullOrWhiteSpace(statement));
+        var outside = DatabaseMigrationEngine.RunsOutsideATransaction(sql);
+
+        if (!outside && Regex.IsMatch(body, @"\bCONCURRENTLY\b", RegexOptions.IgnoreCase))
+            return [$"CONCURRENTLY cannot run inside a transaction; start the script with the header '{DatabaseMigrationEngine.NoTransactionHeader}'."];
+        if (outside && statements != 1)
+            return [$"a script outside a transaction holds one statement, so a failure cannot leave it half applied; it has {statements}."];
+        return [];
+    }
+
     internal static IReadOnlyList<string> Check(string kind, string sql, Func<string, bool> expandScriptExistsBefore)
     {
         var failures = new List<string>();

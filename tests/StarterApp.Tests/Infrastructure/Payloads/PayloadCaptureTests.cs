@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StarterApp.ServiceDefaults.Payloads;
@@ -195,6 +196,41 @@ public class PayloadCaptureTests
         Assert.Contains("***REDACTED***", redacted);
         Assert.DoesNotContain("ada@example.com", redacted);
         Assert.Contains("\"total\":42", redacted);
+    }
+
+    [Theory]
+    [InlineData("mobile", "0412345678")]
+    [InlineData("grossAnnualIncome", "123456")]
+    [InlineData("baseSalary", "98765")]
+    [InlineData("dob", "1990-01-31")]
+    [InlineData("dateOfBirth", "1990-01-31")]
+    [InlineData("bsb", "062-000")]
+    [InlineData("accountNumber", "12345678")]
+    [InlineData("bankAccount", "062000 12345678")]
+    public void JsonPayloadRedactor_MasksPersonalAndFinancialFieldsByDefault(string field, string value)
+    {
+        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions()));
+
+        var redacted = redactor.Redact($$"""{"{{field}}":"{{value}}","total":42}""", "application/json");
+
+        Assert.DoesNotContain(value, redacted);
+        Assert.Contains("\"total\":42", redacted);
+    }
+
+    [Fact]
+    public void ConfiguredSensitiveNames_AddToTheDefaults()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["PayloadCapture:SensitivePropertyNames:0"] = "employeeNumber" })
+            .Build();
+        var options = new PayloadCaptureOptions();
+        configuration.GetSection("PayloadCapture").Bind(options);
+        var redactor = new JsonPayloadRedactor(Options.Create(options));
+
+        var redacted = redactor.Redact("""{"employeeNumber":"E-77","email":"ada@example.com","total":42}""", "application/json");
+
+        Assert.DoesNotContain("E-77", redacted);
+        Assert.DoesNotContain("ada@example.com", redacted);
     }
 
     [Fact]

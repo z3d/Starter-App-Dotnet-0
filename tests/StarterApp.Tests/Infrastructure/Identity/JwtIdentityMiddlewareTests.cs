@@ -79,6 +79,30 @@ public class JwtIdentityMiddlewareTests
         Assert.False(accessor.IsAuthenticated);
     }
 
+    [Fact]
+    public async Task LogsWrittenWhileTheRequestRuns_CarryTheTenant()
+    {
+        var events = new List<Serilog.Events.LogEvent>();
+        using var logger = new LoggerConfiguration().Enrich.FromLogContext().WriteTo.Sink(new CollectingSink(events)).CreateLogger();
+        var identity = new ClaimsIdentity([new Claim("sub", "user-1"), new Claim("tid", "tenant-1")], authenticationType: "Bearer");
+        var context = new DefaultHttpContext { User = new ClaimsPrincipal(identity) };
+
+        await new JwtIdentityMiddleware(_ =>
+        {
+            logger.Information("handling");
+            return Task.CompletedTask;
+        }).InvokeAsync(context, new CurrentUserAccessor());
+
+        var logged = Assert.Single(events);
+        Assert.True(logged.Properties.TryGetValue("TenantId", out var tenant), "the request's log lines carry no TenantId");
+        Assert.Equal("\"tenant-1\"", tenant.ToString());
+    }
+
+    private sealed class CollectingSink(List<Serilog.Events.LogEvent> events) : Serilog.Core.ILogEventSink
+    {
+        public void Emit(Serilog.Events.LogEvent logEvent) => events.Add(logEvent);
+    }
+
     private static async Task<ICurrentUser> RunAsync(params (string Type, string Value)[] claims)
     {
         var identity = new ClaimsIdentity(claims.Select(claim => new Claim(claim.Type, claim.Value)), authenticationType: "Bearer");

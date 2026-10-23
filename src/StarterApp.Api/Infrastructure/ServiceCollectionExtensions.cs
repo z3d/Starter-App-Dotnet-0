@@ -249,6 +249,9 @@ public static class ServiceCollectionExtensions
         var healthChecks = services.AddHealthChecks()
             .AddCheck<DatabaseReadinessHealthCheck>("database", tags: ["ready", "durable"]);
 
+        services.AddSingleton<DatabaseSchemaHealthCheck>();
+        healthChecks.AddCheck<DatabaseSchemaHealthCheck>("database-schema", tags: ["ready"]);
+
         // The in-memory cache is per process. Tagging it durable would hide a missing Redis.
         if (!string.IsNullOrEmpty(configuration.GetConnectionString("redis")))
             healthChecks.AddCheck<DistributedCacheHealthCheck>("distributed-cache", tags: ["durable"]);

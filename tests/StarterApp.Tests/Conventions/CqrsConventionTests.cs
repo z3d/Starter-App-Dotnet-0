@@ -94,9 +94,6 @@ public partial class CqrsConventionTests : ConventionTestBase
         var handlers = GetOwnerScopedQueryHandlers().ToList();
         Assert.NotEmpty(handlers);
 
-        // Validate EACH SELECT literal independently. Joining every literal into one blob (the prior
-        // approach) let a handler pass on a single owner-filtered SELECT while a SECOND, unfiltered SELECT
-        // literal silently leaked cross-owner rows — the owner predicate only had to appear *somewhere*.
         var failures = new List<string>();
         foreach (var handler in handlers)
         {
@@ -104,29 +101,49 @@ public partial class CqrsConventionTests : ConventionTestBase
                 .Where(literal => literal.Contains("SELECT", StringComparison.OrdinalIgnoreCase)
                     && OwnedTableRegex().IsMatch(literal));
 
-            foreach (var literal in ownedTableSelects)
+            foreach (var select in ownedTableSelects.SelectMany(literal => SqlSelectBlocks.Unscoped(literal, OwnedTableRegex(), IsOwnerScoped)))
             {
-                if (OwnerSubjectPredicateRegex().IsMatch(literal) && TenantPredicateRegex().IsMatch(literal))
-                    continue;
-
                 var exempt = GatedSubQueryExemptions.Any(e =>
                     string.Equals(handler.FullName, e.HandlerFullName, StringComparison.Ordinal) &&
-                    literal.Contains(e.SqlFragment, StringComparison.Ordinal));
+                    select.Contains(e.SqlFragment, StringComparison.Ordinal));
                 if (exempt)
                     continue;
 
                 failures.Add($"{handler.FullName} has a SELECT over an owner-scoped table " +
                     "(customers/products/orders/order_items) that omits owner_subject = @OwnerSubject and/or " +
-                    "tenant_id = @TenantId and is not a documented gated-subquery exemption.");
+                    $"tenant_id = @TenantId and is not a documented gated-subquery exemption: {select}");
             }
         }
 
         failures = failures.Distinct().OrderBy(message => message).ToList();
 
         Assert.True(failures.Count == 0,
-            "Owner-scoped query handlers must enforce owner filters in EVERY SELECT literal, not just one:\n" +
+            "Owner-scoped query handlers must enforce owner filters in every SELECT, not just one per string:\n" +
             string.Join("\n", failures));
     }
+
+    [Theory]
+    [InlineData("SELECT id FROM orders WHERE owner_subject = @OwnerSubject AND tenant_id = @TenantId", 0)]
+    [InlineData("SELECT id FROM orders WHERE owner_subject = @OwnerSubject AND tenant_id = @TenantId; SELECT id FROM customers WHERE owner_subject = @OwnerSubject", 1)]
+    [InlineData("SELECT id FROM orders WHERE owner_subject = @OwnerSubject AND tenant_id = @TenantId UNION ALL SELECT id FROM orders WHERE status = 'Paid'", 1)]
+    [InlineData("SELECT o.id, (SELECT count(*) FROM orders) AS total FROM orders o WHERE o.owner_subject = @OwnerSubject AND o.tenant_id = @TenantId", 1)]
+    [InlineData("WITH paid AS (SELECT id FROM orders WHERE status = 'Paid') SELECT id FROM paid", 1)]
+    [InlineData("SELECT id FROM orders -- owner_subject = @OwnerSubject AND tenant_id = @TenantId", 1)]
+    [InlineData("WITH mine AS (SELECT id FROM orders WHERE owner_subject = @OwnerSubject AND tenant_id = @TenantId) SELECT id FROM mine", 0)]
+    [InlineData("SELECT o.id, t.total FROM orders o LEFT JOIN LATERAL (SELECT SUM(quantity) AS total FROM order_items WHERE order_id = o.id) t ON TRUE WHERE o.owner_subject = @OwnerSubject AND o.tenant_id = @TenantId", 0)]
+    [InlineData("SELECT o.id FROM orders o WHERE o.owner_subject = @OwnerSubject AND o.tenant_id = @TenantId AND EXISTS (SELECT 1 FROM order_items i WHERE i.order_id = o.id)", 0)]
+    [InlineData("SELECT u.id FROM audit u WHERE EXISTS (SELECT 1 FROM orders o WHERE o.id = u.order_id)", 1)]
+    [InlineData("SELECT id FROM orders WHERE note <> ';' AND owner_subject = @OwnerSubject AND tenant_id = @TenantId", 0)]
+    public void TheTenantPredicateCheck_ReadsEachSelectInAString(string sql, int expectedUnscoped)
+    {
+        var unscoped = SqlSelectBlocks.Unscoped(sql, OwnedTableRegex(), IsOwnerScoped);
+
+        Assert.True(unscoped.Count == expectedUnscoped,
+            $"expected {expectedUnscoped} unscoped SELECT(s), found {unscoped.Count}:\n" + string.Join("\n", unscoped));
+    }
+
+    private static bool IsOwnerScoped(string sql) =>
+        OwnerSubjectPredicateRegex().IsMatch(sql) && TenantPredicateRegex().IsMatch(sql);
 
     [Fact]
     public void QueryHandlers_MustInjectOwnerOnlyPolicy()

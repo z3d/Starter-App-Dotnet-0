@@ -52,7 +52,7 @@ try
         return OutboxReplayer.Run(connectionString, args.Skip(1).ToArray());
     }
 
-    if (DatabaseMigrationEngine.Migrate(connectionString))
+    if (DatabaseMigrationEngine.Migrate(connectionString, MigrationSessionOptions.From(configuration)))
     {
         Log.Information("Database migration completed successfully in {Elapsed}", elapsed.Elapsed);
         return 0;

@@ -21,37 +21,46 @@ The watch writes these lines, in fixed words (`JobWatchTests` pins them):
 | `Scheduled job <name> cannot be watched: its schedule '<schedule>' is not a five- or six-field cron expression or an hh:mm:ss interval` | Error | The watch cannot read this job's schedule. The other jobs are still judged. |
 | `Job watch: <n> scheduled jobs watched, <m> need attention` | Information | Every pass ends with it. Its absence means the worker, or its timers, or its logs are down. |
 
-`host.json` excludes traces from sampling, so an Error line is never dropped before it reaches Application Insights.
-The worker also counts every run on the `starterapp.scheduled_job.runs` counter (tagged `job` and `outcome`), which
-the Aspire dashboard shows locally.
+The lines reach the container's console, and that is where they are kept once published: the services export
+OpenTelemetry over OTLP only (`src/StarterApp.ServiceDefaults/Extensions.cs`), which in a published environment
+goes by default to the Aspire dashboard the environment hosts (memory only), and nothing sends to Application Insights. Azure Container Apps
+collects every container's stdout and stderr into the environment's Log Analytics workspace, in the table
+`ContainerAppConsoleLogs_CL` with the line in `Log_s` and the app in `ContainerAppName_s`
+([Monitor logs in Azure Container Apps with Log Analytics](https://learn.microsoft.com/en-us/azure/container-apps/log-monitoring)).
+An environment whose logs go through Azure Monitor diagnostic settings instead writes `ContainerAppConsoleLogs`,
+with `Log` and `ContainerAppName`
+([table reference](https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/containerappconsolelogs)).
+The queries below use the first; swap the names for the second. The worker also counts every run on the
+`starterapp.scheduled_job.runs` counter (tagged `job` and `outcome`), which the Aspire dashboard shows locally.
 
 ## Alert rules
 
 The alert rules belong to the hosting environment's repository, not here. They are log queries over the lines
-above; these are the three to declare (Application Insights `traces`, or `AppTraces` in the workspace):
+above, matched on their fixed words with the job's name read from the text, since a console line carries no
+structured properties. These are the three to declare:
 
 ```kusto
 // A scheduled job failed: fire per job, every 15 minutes over the last 15 minutes
-traces
-| where message startswith "Scheduled job " and (message contains " is failing: " or message contains " cannot be watched: ")
-| extend Job = tostring(customDimensions.prop__Job)
+ContainerAppConsoleLogs_CL
+| where Log_s has "Scheduled job " and (Log_s has " is failing: " or Log_s has " cannot be watched: ")
+| extend Job = extract(@"Scheduled job (\S+) (is failing|cannot be watched):", 1, Log_s)
 | summarize count() by Job
 
 // A scheduled job has not run: same shape
-traces
-| where message startswith "Scheduled job " and message contains " is overdue: "
-| extend Job = tostring(customDimensions.prop__Job)
+ContainerAppConsoleLogs_CL
+| where Log_s has "Scheduled job " and Log_s has " is overdue: "
+| extend Job = extract(@"Scheduled job (\S+) is overdue:", 1, Log_s)
 | summarize count() by Job
 
 // The watch itself is silent: fire when this returns 0 over the last 30 minutes
-traces
-| where message startswith "Job watch: "
+ContainerAppConsoleLogs_CL
+| where Log_s has "Job watch: "
 | count
 ```
 
-The `Job` dimension's name depends on how the host forwards structured properties (`prop__Job` from the Functions
-host, `Job` from the OpenTelemetry exporter); check one real line before declaring the rule. Change the wording of
-the lines only together with the rules that match them.
+Check one real line in the workspace before declaring the rules: the console format (and whether the Functions
+host prefixes the line) decides what `Log_s` holds around the fixed words. Change the wording of the lines only
+together with the rules that match them.
 
 ## 1. Find out what happened
 
@@ -64,11 +73,11 @@ ORDER BY started_on_utc DESC LIMIT 10;
 A failed run's `summary` is `{"error": "..."}`. The job's own lines, and the host's, are in the same logs:
 
 ```kusto
-traces
-| where timestamp > ago(1d) and tostring(customDimensions.Category) startswith "Function."
-| where severityLevel >= 2
-| project timestamp, category = tostring(customDimensions.Category), message
-| order by timestamp desc
+ContainerAppConsoleLogs_CL
+| where TimeGenerated > ago(1d) and ContainerAppName_s == "functions"
+| where Log_s has_any ("fail", "error", "warn")
+| project TimeGenerated, RevisionName_s, Log_s
+| order by TimeGenerated desc
 ```
 
 ## 2. Fix the cause
