@@ -23,8 +23,9 @@ internal static partial class SqlSelectBlocks
         foreach (var branch in SetOperationOrStatement().Split(block).Where(part => !string.IsNullOrWhiteSpace(part)))
         {
             var defined = Aliases(branch);
+            var references = TableReference().Replace(branch, " ");
             var correlated = outerAliases.Except(defined, StringComparer.OrdinalIgnoreCase)
-                .Any(alias => Regex.IsMatch(branch, $@"\b{Regex.Escape(alias)}\.", RegexOptions.IgnoreCase));
+                .Any(alias => Regex.IsMatch(references, $@"\b{Regex.Escape(alias)}\.", RegexOptions.IgnoreCase));
             var passes = isScoped(branch) || correlated;
 
             if (tables.IsMatch(branch) && !passes)
