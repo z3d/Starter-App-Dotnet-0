@@ -174,6 +174,8 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
             configuration.AddInMemoryCollection(TestJwtIdentity.Configuration);
+            // Every test calls as one subject, so the per-subject limit would queue the suite a window at a time.
+            configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["RateLimiting:PermitLimit"] = "1000000" });
         });
 
         builder.ConfigureLogging(logging =>
