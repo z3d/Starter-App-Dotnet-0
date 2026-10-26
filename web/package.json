@@ -21,14 +21,14 @@
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
     "@tanstack/react-query": "^5.104.0",
-    "@tanstack/react-router": "^1.170.40",
+    "@tanstack/react-router": "^1.170.46",
     "@tanstack/react-table": "^9.2.4",
-    "@tanstack/react-virtual": "^3.14.13",
+    "@tanstack/react-virtual": "^3.14.22",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
-    "lucide-react": "^1.49.0",
+    "lucide-react": "^1.61.0",
     "oidc-client-ts": "^3.5.0",
     "openapi-fetch": "^0.17.0",
     "radix-ui": "^1.6.7",
@@ -43,7 +43,7 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
-    "@tanstack/router-plugin": "^1.168.41",
+    "@tanstack/router-plugin": "^1.168.48",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
@@ -58,7 +58,7 @@
     "prettier": "^3.9.9",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
-    "vite": "^8.3.1",
+    "vite": "^8.3.5",
     "vitest": "^5.0.2"
   },
   "overrides": {
