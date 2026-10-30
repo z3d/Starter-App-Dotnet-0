@@ -15,7 +15,7 @@ export function Statement({ className, children, ...props }: ComponentProps<'sec
         aria-hidden
         viewBox="0 0 400 200"
         preserveAspectRatio="none"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 w-full text-accent"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 w-full text-highlight"
         fill="none"
         stroke="currentColor"
       >
@@ -24,7 +24,7 @@ export function Statement({ className, children, ...props }: ComponentProps<'sec
             key={i}
             d={`M0 ${String(170 - i * 18)} C 120 ${String(120 - i * 22)}, 260 ${String(210 - i * 14)}, 400 ${String(110 - i * 20)}`}
             strokeWidth="1"
-            opacity={0.2 - i * 0.03}
+            opacity={0.16 - i * 0.025}
           />
         ))}
       </svg>
@@ -36,8 +36,8 @@ export function Statement({ className, children, ...props }: ComponentProps<'sec
 export function HeroFigure({ label, value, hint }: { label: ReactNode; value: ReactNode; hint?: ReactNode }) {
   return (
     <div>
-      <p className="inline-flex items-center gap-1.5 text-2xs font-medium tracking-[0.08em] text-rail-ink uppercase">
-        <span className="size-1.5 rounded-full bg-accent" aria-hidden />
+      <p className="inline-flex items-center gap-1.5 text-2xs font-medium tracking-[0.08em] text-highlight uppercase">
+        <span className="size-1.5 rounded-full bg-highlight" aria-hidden />
         {label}
       </p>
       <p className="mt-2 font-display text-[4rem] leading-[0.9] tracking-[-0.02em] text-white tnum md:text-[5rem]">
@@ -52,7 +52,7 @@ export function FigureStrip({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
       className={cn(
-        'hairline grid divide-y divide-line overflow-hidden rounded-lg bg-surface sm:auto-cols-fr sm:grid-flow-col sm:divide-x sm:divide-y-0',
+        'card grid divide-y divide-line overflow-hidden rounded-xl bg-surface sm:auto-cols-fr sm:grid-flow-col sm:divide-x sm:divide-y-0',
         className,
       )}
       {...props}
@@ -62,7 +62,7 @@ export function FigureStrip({ className, ...props }: ComponentProps<'div'>) {
 
 const figureTones = {
   neutral: 'text-ink',
-  accent: 'text-accent',
+  accent: 'text-accent-deep',
   positive: 'text-positive',
   caution: 'text-caution',
 }
@@ -94,7 +94,7 @@ export function Figure({
           dark ? 'text-rail-ink-muted' : 'text-ink-secondary',
         )}
       >
-        {Icon ? <Icon className={cn('size-3.5', dark ? 'text-rail-ink' : 'text-accent')} aria-hidden /> : null}
+        {Icon ? <Icon className={cn('size-3.5', dark ? 'text-highlight' : 'text-accent')} aria-hidden /> : null}
         {label}
       </p>
       <p
@@ -113,6 +113,8 @@ export function Figure({
 
 const segmentTones = {
   accent: 'bg-accent',
+  deep: 'bg-accent-deep',
+  highlight: 'bg-highlight',
   positive: 'bg-positive',
   caution: 'bg-caution',
   info: 'bg-info',

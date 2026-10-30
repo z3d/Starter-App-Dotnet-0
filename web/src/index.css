@@ -1,12 +1,10 @@
 @import 'tailwindcss';
 
-/* StarterApp UI — the product's own design system.
-   Direction: an instrument, not a brochure. Ink-on-paper neutrals with a single cool "accent"
-   accent for the thing that matters right now; hairline borders instead of shadows; generous
-   type with an editorial serif for titles and a humanist sans for everything else; tabular,
-   slashed-zero numerals everywhere money or counts appear. The one figure a screen is about may sit
-   large on a dark statement band with its parts drawn (components/ui/figures.tsx). Light and dark
-   are both first-class.
+/* StarterApp UI — the flock's design system (docs/DESIGN.md). A derived product keeps the shape and
+   sets its own two accents here: `accent` is what to act on, `highlight` is where you are.
+   Warm paper with a faint grain and a soft glow from each accent, a header band on every screen,
+   cards just off the paper, an editorial serif for titles and figures, a humanist sans for the rest,
+   tabular slashed-zero numerals wherever money or counts appear. Light and dark are both first-class.
 
    Semantic tokens only — components never reach for raw values. */
 :root {
@@ -20,9 +18,16 @@
   --ink-tertiary: oklch(0.62 0.01 60);
   --line: oklch(0.9 0.006 80); /* hairlines */
   --line-strong: oklch(0.8 0.008 80);
-  --accent: oklch(0.52 0.1 200); /* accent: focus, active nav, primary CTA */
+  --accent: oklch(0.52 0.1 200); /* what to act on: primary action, the first part of a split */
+  --accent-deep: oklch(0.42 0.1 205); /* the end of the primary button's gradient, the eyebrow's ink */
   --accent-ink: oklch(0.99 0.005 200);
   --accent-soft: oklch(0.94 0.03 200);
+  --highlight: oklch(0.76 0.12 85); /* where you are: the active rail item, the current step, the second part */
+  --highlight-ink: oklch(0.25 0.04 70);
+  --highlight-soft: oklch(0.95 0.045 90);
+  --glow-accent: oklch(0.88 0.05 200 / 0.45); /* the page's fixed background glow, top left */
+  --glow-highlight: oklch(0.92 0.07 90 / 0.4); /* and top right */
+  --card-shadow: 0 1px 2px oklch(0.3 0.03 60 / 0.05), 0 6px 18px -10px oklch(0.3 0.03 60 / 0.16);
   --rail: oklch(0.21 0.012 60); /* sidebar */
   --rail-ink: oklch(0.86 0.008 80);
   --rail-ink-muted: oklch(0.6 0.01 60);
@@ -58,8 +63,15 @@
     --line: oklch(0.29 0.008 60);
     --line-strong: oklch(0.38 0.01 60);
     --accent: oklch(0.74 0.1 200);
+    --accent-deep: oklch(0.62 0.1 205);
     --accent-ink: oklch(0.18 0.03 200);
     --accent-soft: oklch(0.3 0.05 200);
+    --highlight: oklch(0.82 0.12 88);
+    --highlight-ink: oklch(0.22 0.04 70);
+    --highlight-soft: oklch(0.32 0.05 85);
+    --glow-accent: oklch(0.4 0.07 205 / 0.35);
+    --glow-highlight: oklch(0.42 0.07 85 / 0.25);
+    --card-shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 24px -12px oklch(0 0 0 / 0.6);
     --rail: oklch(0.13 0.008 60);
     --rail-ink: oklch(0.84 0.008 80);
     --rail-ink-muted: oklch(0.55 0.01 60);
@@ -95,8 +107,15 @@
   --line: oklch(0.29 0.008 60);
   --line-strong: oklch(0.38 0.01 60);
   --accent: oklch(0.74 0.1 200);
+  --accent-deep: oklch(0.62 0.1 205);
   --accent-ink: oklch(0.18 0.03 200);
   --accent-soft: oklch(0.3 0.05 200);
+  --highlight: oklch(0.82 0.12 88);
+  --highlight-ink: oklch(0.22 0.04 70);
+  --highlight-soft: oklch(0.32 0.05 85);
+  --glow-accent: oklch(0.4 0.07 205 / 0.35);
+  --glow-highlight: oklch(0.42 0.07 85 / 0.25);
+  --card-shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 24px -12px oklch(0 0 0 / 0.6);
   --rail: oklch(0.13 0.008 60);
   --rail-ink: oklch(0.84 0.008 80);
   --rail-ink-muted: oklch(0.55 0.01 60);
@@ -130,8 +149,12 @@
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
   --color-accent-ink: var(--accent-ink);
   --color-accent-soft: var(--accent-soft);
+  --color-highlight: var(--highlight);
+  --color-highlight-ink: var(--highlight-ink);
+  --color-highlight-soft: var(--highlight-soft);
   --color-rail: var(--rail);
   --color-rail-ink: var(--rail-ink);
   --color-rail-ink-muted: var(--rail-ink-muted);
@@ -181,6 +204,7 @@
   --radius-xl: 1rem;
 
   --shadow-hairline: 0 0 0 1px var(--line);
+  --shadow-card: 0 0 0 1px var(--line), var(--card-shadow);
   --shadow-lift: 0 1px 2px oklch(0 0 0 / 0.04), 0 8px 24px -12px oklch(0 0 0 / 0.18);
   --shadow-pop: 0 1px 2px oklch(0 0 0 / 0.06), 0 16px 40px -16px oklch(0 0 0 / 0.28);
 
@@ -196,13 +220,26 @@
     background: var(--color-canvas);
   }
   body {
-    background: var(--color-canvas);
+    background:
+      radial-gradient(60rem 28rem at 12% -6rem, var(--glow-accent), transparent 70%),
+      radial-gradient(48rem 24rem at 100% -4rem, var(--glow-highlight), transparent 70%), var(--color-canvas);
+    background-attachment: fixed;
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-size: 0.875rem;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     font-feature-settings: 'ss01', 'cv11';
+  }
+  /* A fixed grain over the page, so the paper is not flat. */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
   :focus-visible {
     outline: 2px solid var(--color-focus);
@@ -234,13 +271,31 @@
   box-shadow: var(--shadow-hairline);
 }
 
+@utility card {
+  box-shadow: var(--shadow-card);
+}
+
+@utility rise {
+  animation: rise 320ms var(--ease-out) both;
+}
+
+/* The dark band for a screen's one figure, lit by the accent from one corner and the highlight from the other. */
 @utility statement {
   background:
-    radial-gradient(36rem 20rem at 0% 0%, oklch(0.5 0.09 200 / 0.45), transparent 70%),
-    radial-gradient(28rem 18rem at 100% 100%, oklch(0.55 0.08 240 / 0.2), transparent 70%), var(--color-rail);
+    radial-gradient(36rem 20rem at 0% 0%, oklch(from var(--accent) l c h / 0.5), transparent 70%),
+    radial-gradient(28rem 18rem at 100% 100%, oklch(from var(--highlight) l c h / 0.22), transparent 70%),
+    var(--color-rail);
   box-shadow:
     inset 0 1px 0 oklch(1 0 0 / 0.06),
-    0 18px 40px -24px oklch(0.25 0.04 220 / 0.55);
+    0 18px 40px -24px oklch(from var(--accent) 0.3 c h / 0.55);
+}
+
+/* The rail's own light: the same two corners, dimmer. */
+@utility rail-lit {
+  background:
+    radial-gradient(18rem 14rem at 0% 0%, oklch(from var(--accent) 0.5 c h / 0.32), transparent 70%),
+    radial-gradient(16rem 12rem at 100% 100%, oklch(from var(--highlight) 0.6 c h / 0.16), transparent 70%),
+    var(--color-rail);
 }
 
 @utility grow-bar {

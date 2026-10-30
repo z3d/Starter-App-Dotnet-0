@@ -12,9 +12,12 @@ export function percent(value: number | string | null | undefined, digits = 1) {
   return `${Number(value).toFixed(digits)}%`
 }
 
+// A plain "2026-07-01" is a calendar day, so it is read in the browser's own timezone rather than as UTC midnight.
 export function day(iso: string | null | undefined) {
   if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+  const plain = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  const date = plain ? new Date(Number(plain[1]), Number(plain[2]) - 1, Number(plain[3])) : new Date(iso)
+  return date.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 export function whenAt(iso: string | null | undefined) {

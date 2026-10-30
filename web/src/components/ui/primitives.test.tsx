@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { Button } from './button'
 import { Checkbox, Field } from './field'
 import { SplitBar } from './figures'
-import { Callout, Chip, EmptyState, PageHeader, StatTile } from './primitives'
+import { Avatar, Callout, Chip, EmptyState, PageHeader, StatTile, Steps } from './primitives'
 import { Queue, QueueRow, StageFlow, Waited } from './queue'
 
 // The component vocabulary (docs/DESIGN.md): every screen is built from these.
@@ -57,7 +57,7 @@ describe('Chip and Callout', () => {
     )
     expect(screen.getByText('Matched')).toHaveClass('text-positive')
     expect(screen.getByText('Deal-breaker')).toHaveClass('text-negative')
-    expect(screen.getByText('Check the consent')).toHaveClass('text-caution')
+    expect(screen.getByText('Check the consent').parentElement).toHaveClass('text-caution')
   })
 })
 
@@ -92,6 +92,28 @@ describe('SplitBar', () => {
     expect(screen.getByText('Excluding GST').nextElementSibling).toHaveTextContent('$300.00')
     expect(screen.getByText('GST').nextElementSibling).toHaveTextContent('$30.00')
     expect(screen.queryByText('Discount')).not.toBeInTheDocument()
+  })
+})
+
+describe('Steps and Avatar', () => {
+  it('marks the current step, names a stopped one and draws initials', () => {
+    render(
+      <>
+        <Steps
+          label="Order stage"
+          steps={[
+            { label: 'Placed', state: 'done' },
+            { label: 'Confirmed', state: 'current' },
+            { label: 'Cancelled', state: 'stopped' },
+          ]}
+        />
+        <Avatar name="Ada Lovelace" />
+      </>,
+    )
+    expect(screen.getByRole('list', { name: 'Order stage' })).toBeInTheDocument()
+    expect(screen.getByText('Confirmed').closest('li')).toHaveAttribute('aria-current', 'step')
+    expect(screen.getByText('Cancelled')).toHaveClass('text-negative')
+    expect(screen.getByText('AL')).toBeInTheDocument()
   })
 })
 
