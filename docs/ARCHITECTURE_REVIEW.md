@@ -92,7 +92,7 @@ Open from the 23 October 2026 audit of a project derived from this template, eac
 
 From the owner, 23 October 2026:
 
-- **DONE 2026-10-23 — the licence said two things.** `LICENSE` said MIT while `web/package.json` said `AGPL-3.0-only`. The owner chose AGPL-3.0-only on 23 October 2026, for this template and every project derived from it: `LICENSE` is now the unmodified GNU AGPL v3 text from gnu.org, and the README says `AGPL-3.0-only`.
+- **DONE 2026-10-23 — the licence said two things.** `LICENSE` said MIT while `web/package.json` said `AGPL-3.0-only`. The owner chose AGPL-3.0-only on 23 October 2026, for this template and every project derived from it: `LICENSE` is now the unmodified GNU AGPL v3 text from gnu.org, and the README says `AGPL-3.0-only`. **Corrected 31 October 2026:** the owner's choice was AGPL-3.0-only for the derived products, not for this template; `LICENSE` is the MIT text again (as at c86a003) and `web/package.json` says MIT. Each derived project keeps its own AGPL-3.0-only `LICENSE`, prefixed with a notice naming the project so a template sync conflicts instead of carrying MIT down (`docs/DECISIONS.md` in each).
 
 ### Found by the review of the 20–23 October commits (23 October 2026)
 

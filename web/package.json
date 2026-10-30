@@ -1,7 +1,7 @@
 {
   "name": "starterapp-web",
   "private": true,
-  "license": "AGPL-3.0-only",
+  "license": "MIT",
   "version": "0.0.0",
   "type": "module",
   "scripts": {
