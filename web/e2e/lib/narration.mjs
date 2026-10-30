@@ -38,11 +38,41 @@ export function synthesise(narration, name) {
 // Cueing: a scene begins when its line starts, and never before the line ahead of it has been
 // heard, so two voices cannot overlap however the scenes are placed on a page.
 export function cueing(page, clips) {
+  // The screencast only writes a frame when something on the page changes, so a still scene is shorter on the
+  // recording than on the clock and every line after it lands early; a two-pixel heartbeat keeps the frames coming.
+  page.addInitScript(() => {
+    const tick = () => {
+      const beat = document.body?.appendChild(document.createElement('div'))
+      if (!beat) return requestAnimationFrame(tick)
+      Object.assign(beat.style, {
+        position: 'fixed',
+        right: '0',
+        bottom: '0',
+        width: '2px',
+        height: '2px',
+        opacity: '0.02',
+        pointerEvents: 'none',
+        zIndex: '2147483647',
+      })
+      let on = false
+      const flip = () => {
+        on = !on
+        beat.style.background = on ? '#000' : '#fff'
+        requestAnimationFrame(flip)
+      }
+      flip()
+    }
+    requestAnimationFrame(tick)
+  })
   const started = Date.now()
   const cues = []
   let heardBy = 0
   let current = 'start'
-  const settle = () => page.waitForTimeout(Math.max(0, heardBy - Date.now()))
+  // The last settle, before the context closes, marks where the recording ends; closing it can take a while.
+  const settle = async () => {
+    await page.waitForTimeout(Math.max(0, heardBy - Date.now()))
+    cues.ended = Date.now()
+  }
   const scene = async (key) => {
     await settle()
     current = key
@@ -65,8 +95,9 @@ export function finish({ out, name, started, cues, clips, work }) {
   if (!webm) throw new Error(`No recording found in ${out}`)
   renameSync(`${out}/${webm}`, target)
   // What was said when, for a take that reads wrong: the cue times are the moments the lines start.
+  const total = (cues.ended ?? Date.now()) - started
   console.error(
-    `narration: ${Object.keys(clips).length} lines, ${cues.length} cues over ${Math.round((Date.now() - started) / 1000)} s: ${cues.map((c) => `${c.key}@${Math.round(c.at / 1000)}s`).join(' ')}`,
+    `narration: ${Object.keys(clips).length} lines, ${cues.length} cues over ${Math.round(total / 1000)} s: ${cues.map((c) => `${c.key}@${Math.round(c.at / 1000)}s`).join(' ')}`,
   )
   let final = target
   try {
@@ -81,15 +112,21 @@ export function finish({ out, name, started, cues, clips, work }) {
       const seconds = Number(
         execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${target}"`).toString(),
       )
-      const scale = (seconds * 1000) / (Date.now() - started)
+      const scale = (seconds * 1000) / total
       // The screencast paints about half a second behind the page, so the voice waits that long too.
       const lag = 500
       // The browser starting and the sign-in page loading are silent; the take begins a moment before the first line.
       const trim = Math.max(0, Math.round(spoken[0].at * scale) + lag - 800)
       const inputs = spoken.map((cue) => `-i "${clips[cue.key].file}"`).join(' ')
-      const delays = spoken
-        .map((cue, i) => `[${i + 1}]adelay=${Math.round(cue.at * scale) + lag - trim}:all=1[n${i}]`)
-        .join(';')
+      // The recording loses time while the screen is still, which is exactly when a line is speaking, so a scaled
+      // cue can land before the line ahead of it has finished; a line never starts until the one before has ended.
+      let heard = 0
+      const starts = spoken.map((cue) => {
+        const at = Math.max(Math.round(cue.at * scale) + lag - trim, heard + 500)
+        heard = at + clips[cue.key].ms
+        return at
+      })
+      const delays = spoken.map((_, i) => `[${i + 1}]adelay=${starts[i]}:all=1[n${i}]`).join(';')
       const mix = spoken.map((_, i) => `[n${i}]`).join('')
       const filter = `[0:v]trim=start=${trim / 1000},setpts=PTS-STARTPTS[picture];${delays};${mix}amix=inputs=${spoken.length}:normalize=0,apad[voice]`
       execSync(
