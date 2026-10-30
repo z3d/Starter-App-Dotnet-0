@@ -11,11 +11,11 @@ import { clearStale, cueing, finish, synthesise } from './lib/narration.mjs'
 
 const narration = {
   'sign-in':
-    'This is the starter app. A person signs in through the identity provider with the authorisation code flow; the API verifies every token itself, and this page shows the claims it reads.',
+    'This is the starter: the template every product in the flock begins from. The sample inside it is a tiny shop, just enough to show the moving parts. I sign in with a password and a second factor, and the page shows what the API learned about me from the token it checked itself.',
   writes:
-    'A product and a customer are two synchronous writes. Each needs its scope and a second factor; the API answers with the record it created.',
+    'Two straightforward writes. I create a product, then a customer. Each one needs the right permission and that second factor, and the API hands back the record it made.',
   order:
-    'An order is one commit that also writes its event to the outbox, and confirming it does the same. The Service Bus topic carries the events to the Functions.',
+    'Now an order. Placing it is one commit that also leaves an event in the outbox, and confirming it does the same. From the outbox the events travel over the message bus to the functions that react to them. A product built on this template replaces the shop with its own story, and this video with its own.',
 }
 
 const base = process.env.BASE_URL ?? 'http://localhost:5173'
