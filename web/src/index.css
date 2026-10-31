@@ -15,7 +15,7 @@
   --surface-sunken: oklch(0.955 0.005 80); /* table heads, code, wells */
   --ink: oklch(0.2 0.01 60); /* primary text */
   --ink-secondary: oklch(0.45 0.012 60);
-  --ink-tertiary: oklch(0.62 0.01 60);
+  --ink-tertiary: oklch(0.55 0.01 60);
   --line: oklch(0.9 0.006 80); /* hairlines */
   --line-strong: oklch(0.8 0.008 80);
   --accent: oklch(0.52 0.1 200); /* what to act on: primary action, the first part of a split */
@@ -30,7 +30,7 @@
   --card-shadow: 0 1px 2px oklch(0.3 0.03 60 / 0.05), 0 6px 18px -10px oklch(0.3 0.03 60 / 0.16);
   --rail: oklch(0.21 0.012 60); /* sidebar */
   --rail-ink: oklch(0.86 0.008 80);
-  --rail-ink-muted: oklch(0.6 0.01 60);
+  --rail-ink-muted: oklch(0.66 0.01 60);
   --rail-line: oklch(0.29 0.012 60);
   --rail-active: oklch(0.3 0.02 45);
   --positive: oklch(0.55 0.13 150);
@@ -59,7 +59,7 @@
     --surface-sunken: oklch(0.19 0.008 60);
     --ink: oklch(0.93 0.006 80);
     --ink-secondary: oklch(0.72 0.008 70);
-    --ink-tertiary: oklch(0.55 0.008 70);
+    --ink-tertiary: oklch(0.62 0.008 70);
     --line: oklch(0.29 0.008 60);
     --line-strong: oklch(0.38 0.01 60);
     --accent: oklch(0.74 0.1 200);
@@ -74,7 +74,7 @@
     --card-shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 24px -12px oklch(0 0 0 / 0.6);
     --rail: oklch(0.13 0.008 60);
     --rail-ink: oklch(0.84 0.008 80);
-    --rail-ink-muted: oklch(0.55 0.01 60);
+    --rail-ink-muted: oklch(0.64 0.01 60);
     --rail-line: oklch(0.24 0.01 60);
     --rail-active: oklch(0.27 0.025 45);
     --positive: oklch(0.72 0.13 150);
@@ -103,7 +103,7 @@
   --surface-sunken: oklch(0.19 0.008 60);
   --ink: oklch(0.93 0.006 80);
   --ink-secondary: oklch(0.72 0.008 70);
-  --ink-tertiary: oklch(0.55 0.008 70);
+  --ink-tertiary: oklch(0.62 0.008 70);
   --line: oklch(0.29 0.008 60);
   --line-strong: oklch(0.38 0.01 60);
   --accent: oklch(0.74 0.1 200);
@@ -118,7 +118,7 @@
   --card-shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 24px -12px oklch(0 0 0 / 0.6);
   --rail: oklch(0.13 0.008 60);
   --rail-ink: oklch(0.84 0.008 80);
-  --rail-ink-muted: oklch(0.55 0.01 60);
+  --rail-ink-muted: oklch(0.64 0.01 60);
   --rail-line: oklch(0.24 0.01 60);
   --rail-active: oklch(0.27 0.025 45);
   --positive: oklch(0.72 0.13 150);
@@ -176,7 +176,7 @@
   --color-ai-soft: var(--ai-soft);
   --color-focus: var(--focus);
 
-  /* Legacy shadcn-style aliases so third-party snippets still resolve. */
+  /* Legacy shadcn-style aliases so third-party snippets still resolve; `accent` is not among them, it is the product's own token. */
   --color-background: var(--canvas);
   --color-foreground: var(--ink);
   --color-muted: var(--surface-sunken);
@@ -186,8 +186,6 @@
   --color-border: var(--line);
   --color-primary: var(--ink);
   --color-primary-foreground: var(--surface);
-  --color-accent: var(--surface-sunken);
-  --color-accent-foreground: var(--ink);
   --color-destructive: var(--negative);
   --color-ring: var(--focus);
 
