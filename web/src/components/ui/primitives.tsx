@@ -324,7 +324,7 @@ export function Steps({ steps, label }: { steps: Step[]; label: string }) {
 
 const avatarHues = [
   'bg-accent-soft text-accent-deep',
-  'bg-highlight-soft text-highlight-ink',
+  'bg-highlight text-highlight-ink',
   'bg-positive-soft text-positive',
   'bg-info-soft text-info',
   'bg-ai-soft text-ai',
