@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-/* StarterApp UI — the flock's design system (docs/DESIGN.md). A derived product keeps the shape and
+/* StarterApp UI — the template's design system (docs/DESIGN.md). A derived project keeps the shape and
    sets its own two accents here: `accent` is what to act on, `highlight` is where you are.
    Warm paper with a faint grain and a soft glow from each accent, a header band on every screen,
    cards just off the paper, an editorial serif for titles and figures, a humanist sans for the rest,
@@ -176,7 +176,7 @@
   --color-ai-soft: var(--ai-soft);
   --color-focus: var(--focus);
 
-  /* Legacy shadcn-style aliases so third-party snippets still resolve; `accent` is not among them, it is the product's own token. */
+  /* Legacy shadcn-style aliases so third-party snippets still resolve; `accent` is not among them, it is the project's own token. */
   --color-background: var(--canvas);
   --color-foreground: var(--ink);
   --color-muted: var(--surface-sunken);

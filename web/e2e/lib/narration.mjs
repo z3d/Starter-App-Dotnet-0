@@ -1,4 +1,4 @@
-// Narration for a walkthrough recording, the way gumnut's is told: each scene has one line, spoken
+// Narration for a walkthrough recording: each scene has one line, spoken
 // by an Australian neural voice through edge-tts (Microsoft's Edge read-aloud service; `pip install
 // edge-tts`, it needs the network), synthesised before the browser opens so every scene is held at
 // least as long as its line, then mixed onto the video at the moment each scene began. NARRATOR
