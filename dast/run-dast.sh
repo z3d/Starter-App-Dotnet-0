@@ -124,6 +124,9 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
     log "SKIP_SEED=1 — running without the owner-scoped data seed"
   fi
 
+  log "Building the API before timing its readiness"
+  dotnet build "$REPO_ROOT/src/StarterApp.Api" -c Release
+
   log "Starting API on port $API_PORT (Development, validating tokens from the dev Keycloak)"
   : > "$API_LOG"
   # Bind all interfaces (0.0.0.0), not just loopback: ZAP runs inside a Docker
@@ -143,7 +146,7 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
   Identity__Authority="http://localhost:${IDP_PORT}/realms/starterapp" \
   Identity__RequireHttpsMetadata=false \
   RateLimiting__PermitLimit=1000000 \
-    dotnet run --project "$REPO_ROOT/src/StarterApp.Api" -c Release --no-launch-profile \
+    dotnet run --project "$REPO_ROOT/src/StarterApp.Api" -c Release --no-build --no-restore --no-launch-profile \
     >"$API_LOG" 2>&1 &
   API_PID=$!
 

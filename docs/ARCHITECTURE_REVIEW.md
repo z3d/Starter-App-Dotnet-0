@@ -53,6 +53,9 @@ Dependabot, CodeQL). The full analysis is in the archive.
 
 ## Open findings
 
+- **FIXED 2026-11-03: the Functions runtime image carried the HIGH Brotli finding CVE-2026-111497.** The runtime now pins Microsoft's `25eab21` digest. A local amd64 container reports `libbrotli1` version `1.1.0-2ubuntu0.1`, the fixed version named by the failing Trivy gate, instead of `1.1.0-2build2`.
+- **2026-11-03: DAST builds the API before starting its readiness deadline.** Secretariat Bank's 1 November run expired after two minutes with an empty API log while `dotnet run` still owned the build. Compilation now finishes in the foreground and its failure is reported directly; the background process uses `--no-build --no-restore`, so the existing two-minute bound measures API startup. The deterministic DAST runner regressions pass; the historical run's build duration is unconfirmed.
+
 The eight findings from the [2026-09-05 review](reviews/ARCHITECTURE_REVIEW-2026-09-05.md#resolution--2026-09-06)
 are resolved, with failing-before/passing-after regressions and final validation in the record.
 
