@@ -1,10 +1,10 @@
-# StarterApp UI — the flock's design system
+# StarterApp UI — the template's design system
 
-**Status:** Adopted 31 October 2026, from the shape ZSalaryPackage (NovatedLeasing) arrived at · **Source of truth:** `web/src/index.css` (tokens), `web/src/components/ui/` (primitives). A derived product keeps the shape, sets its own two accents in `index.css`, draws its own mark in `app-shell.tsx`, and writes its screens with these primitives.
+**Status:** Adopted 31 October 2026 · **Source of truth:** `web/src/index.css` (tokens), `web/src/components/ui/` (primitives). A derived project keeps the shape, sets its own two accents in `index.css`, draws its own mark in `app-shell.tsx`, and writes its screens with these primitives.
 
 ## Direction
 
-**The figure is the picture.** People open these products for figures: a balance, what leaves a pay, who is in the room, what is owed. Each screen's one figure that matters is set large on a dark statement band, lit from one corner by the accent and the other by the highlight, and the parts it is made of are drawn as a bar with a legend, never only listed. Around that the system stays warm paper: a faint grain on the canvas, a soft glow from each accent at the top of the page, a header band on every screen, cards just off the paper, an editorial serif for titles and figures and a quiet humanist sans for everything else.
+**The figure is the picture.** People open a screen for a figure: a total, a balance, a count, what is due. Each screen's one figure that matters is set large on a dark statement band, lit from one corner by the accent and the other by the highlight, and the parts it is made of are drawn as a bar with a legend, never only listed. Around that the system stays warm paper: a faint grain on the canvas, a soft glow from each accent at the top of the page, a header band on every screen, cards just off the paper, an editorial serif for titles and figures and a quiet humanist sans for everything else.
 
 Seven rules:
 
@@ -14,7 +14,7 @@ Seven rules:
 4. **Numbers are data.** Tabular, slashed-zero numerals everywhere money, rates or counts appear (`.tnum`). Money shows its currency's scale and never a rounded cent.
 5. **Colour never carries meaning alone.** A status or a split's part always pairs colour with a label and, where space allows, an icon; a stopped step says why in words.
 6. **A staff screen is about the next decision.** A queue row names who, the next step in the accent and why, and how long it has waited (`QueueRow`, `Waited`), oldest first; a list of records opens on its stages with a count each (`StageFlow`).
-7. **An estimate says so.** A figure the product worked out from tables or assumptions is labelled an estimate where it appears.
+7. **An estimate says so.** A figure the app worked out from tables or assumptions is labelled an estimate where it appears.
 
 ## Tokens
 
@@ -25,7 +25,7 @@ Defined once as CSS custom properties on `:root`, overridden for dark under `pre
 | Surfaces | `canvas`, `surface`, `surface-raised`, `surface-sunken` | canvas is the page; surface for cards/tables/inputs; raised for popovers; sunken for table heads and wells |
 | Text | `ink`, `ink-secondary`, `ink-tertiary` | three levels only |
 | Lines | `line`, `line-strong` | hairlines; strong for dashed empty states and hover borders |
-| Accents | `accent`, `accent-deep`, `accent-ink`, `accent-soft`; `highlight`, `highlight-ink`, `highlight-soft` | rule 3; `accent-deep` is the end of the primary button's gradient and the eyebrow's ink. A product sets these seven and nothing else changes |
+| Accents | `accent`, `accent-deep`, `accent-ink`, `accent-soft`; `highlight`, `highlight-ink`, `highlight-soft` | rule 3; `accent-deep` is the end of the primary button's gradient and the eyebrow's ink. A derived project sets these seven and nothing else changes |
 | Glow | `glow-accent`, `glow-highlight`, `card-shadow` | the page's fixed background glow and the soft half of `shadow-card` |
 | Sidebar | `rail`, `rail-ink`, `rail-ink-muted`, `rail-line`, `rail-active` | the dark rail is its own mini-palette so it works in both themes; `rail-lit` lights it from the accents |
 | Semantic | `positive`, `caution`, `negative`, `info`, each with a `-soft` surface; `ai` for machine-made content | chips, callouts |
@@ -67,7 +67,7 @@ Legacy shadcn-style aliases (`background`, `foreground`, `muted`, `border`, `pri
 ## Composite components
 
 - **App shell** (`app-shell.tsx`): 240 px dark rail lit from its corners, the mark, ⌘K, the primary nav (the active item carries a highlight bar and a highlight icon), a note card, and the user card; on mobile a top bar plus a bottom tab bar. The page content rises into place on each route. Content is capped at 72 rem.
-- **Command palette** (`command-palette.tsx`): cmdk over a Radix dialog; groups *Go to* and *Account*; a product adds *Create* and record search.
+- **Command palette** (`command-palette.tsx`): cmdk over a Radix dialog; groups *Go to* and *Account*; a derived project adds *Create* and record search.
 
 ## Accessibility
 
@@ -84,6 +84,6 @@ WCAG 2.2 AA is the bar: every text-on-surface pair in both themes clears 4.5:1; 
 - No estimate shown as a fact.
 - No raw colour in a component: a token first.
 
-## How a derived product takes it
+## How a derived project takes it
 
 Set `accent`, `accent-deep`, `accent-ink`, `accent-soft`, `highlight`, `highlight-ink`, `highlight-soft` and the two glows in `index.css` for light and dark; draw the mark; name the product in the shell. Add a token before adding a raw colour. Add a primitive before styling a one-off. A new screen starts with `PageHeader`; then a `Statement` when it has a figure a person came for, and either `DataTable` or a `1fr + 16rem` grid. Run `web/e2e/screenshots.mjs` against the dev stack to see every screen in light, dark and mobile before merging a visual change.
