@@ -25,10 +25,10 @@ Defined once as CSS custom properties on `:root`, overridden for dark under `pre
 | Surfaces | `canvas`, `surface`, `surface-raised`, `surface-sunken` | canvas is the page; surface for cards/tables/inputs; raised for popovers; sunken for table heads and wells |
 | Text | `ink`, `ink-secondary`, `ink-tertiary` | three levels only |
 | Lines | `line`, `line-strong` | hairlines; strong for dashed empty states and hover borders |
-| Accents | `accent`, `accent-deep`, `accent-ink`, `accent-soft`; `highlight`, `highlight-ink`, `highlight-soft` | rule 3; `accent-deep` is the end of the primary button's gradient and the eyebrow's ink. A derived project sets these seven and nothing else changes |
+| Accents | `accent`, `accent-deep`, `accent-ink`, `accent-soft`, `accent-strong`; `highlight`, `highlight-ink`, `highlight-soft` | rule 3; `accent-deep` is the end of the primary button's gradient and the eyebrow's ink; `accent-strong` is the accent's text on `accent-soft`, taken from `accent` at a fixed lightness. A derived project sets the other seven and nothing else changes |
 | Glow | `glow-accent`, `glow-highlight`, `card-shadow` | the page's fixed background glow and the soft half of `shadow-card` |
 | Sidebar | `rail`, `rail-ink`, `rail-ink-muted`, `rail-line`, `rail-active` | the dark rail is its own mini-palette so it works in both themes; `rail-lit` lights it from the accents |
-| Semantic | `positive`, `caution`, `negative`, `info`, each with a `-soft` surface; `ai` for machine-made content | chips, callouts |
+| Semantic | `positive`, `caution`, `negative`, `info`, each with a `-soft` surface and a `-strong` ink for text on that surface or a card; `ai` for machine-made content, the same three | chips, callouts, avatars, the danger button, toned figures, stat tiles and wait times set `-strong`; the bare tone is for dots, borders, bars and icons |
 | Focus | `focus` | a ring, 2 px offset, on every focusable element |
 
 Legacy shadcn-style aliases (`background`, `foreground`, `muted`, `border`, `primary`, `destructive`, `ring`) map onto the above so drop-in components keep working.
@@ -71,7 +71,7 @@ Legacy shadcn-style aliases (`background`, `foreground`, `muted`, `border`, `pri
 
 ## Accessibility
 
-WCAG 2.2 AA is the bar: every text-on-surface pair in both themes clears 4.5:1; focus is always visible; touch targets are at least 40 px on mobile; icons are `aria-hidden` when a label is present; forms use real `<label>` wrapping and `role="alert"` errors; reduced motion is honoured.
+WCAG 2.2 AA is the bar: every text-on-surface pair in both themes clears 4.5:1, and `contrast.test.tsx` measures every chip, callout, avatar, danger-button, figure, stat-tile and wait-time pair in light, system dark and chosen dark from `index.css`; focus is always visible; touch targets are at least 40 px on mobile; icons are `aria-hidden` when a label is present; forms use real `<label>` wrapping and `role="alert"` errors; reduced motion is honoured.
 
 ## What this design avoids
 

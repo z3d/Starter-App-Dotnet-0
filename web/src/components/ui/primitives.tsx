@@ -87,8 +87,8 @@ export function StatTile({
         className={cn(
           'mt-1 font-display text-3xl leading-none tnum',
           tone === 'accent' && 'text-accent-deep',
-          tone === 'positive' && 'text-positive',
-          tone === 'caution' && 'text-caution',
+          tone === 'positive' && 'text-positive-strong',
+          tone === 'caution' && 'text-caution-strong',
         )}
       >
         {value}
@@ -157,7 +157,7 @@ export function EmptyState({
         <span
           className={cn(
             'grid size-8 shrink-0 place-items-center rounded-full',
-            done ? 'bg-positive-soft text-positive' : 'bg-accent-soft text-accent',
+            done ? 'bg-positive-soft text-positive-strong' : 'bg-accent-soft text-accent-strong',
           )}
           aria-hidden
         >
@@ -223,12 +223,12 @@ export function Kbd({ children }: { children: ReactNode }) {
 
 const chipTones = {
   neutral: 'bg-surface-sunken text-ink-secondary',
-  positive: 'bg-positive-soft text-positive',
-  caution: 'bg-caution-soft text-caution',
-  negative: 'bg-negative-soft text-negative',
-  info: 'bg-info-soft text-info',
-  ai: 'bg-ai-soft text-ai',
-  accent: 'bg-accent-soft text-accent',
+  positive: 'bg-positive-soft text-positive-strong',
+  caution: 'bg-caution-soft text-caution-strong',
+  negative: 'bg-negative-soft text-negative-strong',
+  info: 'bg-info-soft text-info-strong',
+  ai: 'bg-ai-soft text-ai-strong',
+  accent: 'bg-accent-soft text-accent-strong',
 }
 
 export function Chip({
@@ -253,9 +253,9 @@ export function Chip({
 }
 
 const calloutTones = {
-  info: { box: 'bg-info-soft text-info border-info', icon: Info },
-  caution: { box: 'bg-caution-soft text-caution border-caution', icon: AlertTriangle },
-  negative: { box: 'bg-negative-soft text-negative border-negative', icon: OctagonAlert },
+  info: { box: 'bg-info-soft text-info-strong border-info', icon: Info },
+  caution: { box: 'bg-caution-soft text-caution-strong border-caution', icon: AlertTriangle },
+  negative: { box: 'bg-negative-soft text-negative-strong border-negative', icon: OctagonAlert },
 }
 
 export function Callout({ tone = 'info', children }: { tone?: 'info' | 'caution' | 'negative'; children: ReactNode }) {
@@ -323,11 +323,11 @@ export function Steps({ steps, label }: { steps: Step[]; label: string }) {
 }
 
 const avatarHues = [
-  'bg-accent-soft text-accent-deep',
+  'bg-accent-soft text-accent-strong',
   'bg-highlight text-highlight-ink',
-  'bg-positive-soft text-positive',
-  'bg-info-soft text-info',
-  'bg-ai-soft text-ai',
+  'bg-positive-soft text-positive-strong',
+  'bg-info-soft text-info-strong',
+  'bg-ai-soft text-ai-strong',
 ]
 
 export function Avatar({ name, className }: { name: string; className?: string }) {

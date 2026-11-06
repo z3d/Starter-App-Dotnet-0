@@ -13,7 +13,7 @@ const buttonVariants = cva(
           'bg-gradient-to-b from-accent to-accent-deep text-accent-ink shadow-[0_1px_0_inset_oklch(1_0_0/0.2),0_4px_12px_-4px_var(--color-accent)] hover:brightness-110',
         secondary: 'bg-surface text-ink card hover:bg-surface-sunken',
         ghost: 'text-ink-secondary hover:bg-surface-sunken hover:text-ink',
-        danger: 'bg-negative-soft text-negative hover:brightness-95',
+        danger: 'bg-negative-soft text-negative-strong hover:brightness-95',
         link: 'text-accent underline-offset-4 hover:underline',
       },
       size: {

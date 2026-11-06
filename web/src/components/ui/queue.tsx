@@ -61,7 +61,7 @@ export function StageFlow({
 
 const waitTones = {
   fresh: 'text-ink-secondary',
-  slow: 'text-caution',
+  slow: 'text-caution-strong',
   late: 'text-negative',
 }
 

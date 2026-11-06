@@ -55,9 +55,9 @@ describe('Chip and Callout', () => {
         <Callout tone="caution">Check the consent</Callout>
       </>,
     )
-    expect(screen.getByText('Matched')).toHaveClass('text-positive')
-    expect(screen.getByText('Deal-breaker')).toHaveClass('text-negative')
-    expect(screen.getByText('Check the consent').parentElement).toHaveClass('text-caution')
+    expect(screen.getByText('Matched')).toHaveClass('text-positive-strong')
+    expect(screen.getByText('Deal-breaker')).toHaveClass('text-negative-strong')
+    expect(screen.getByText('Check the consent').parentElement).toHaveClass('text-caution-strong')
   })
 })
 

@@ -22,6 +22,7 @@
   --accent-deep: oklch(0.42 0.1 205); /* the end of the primary button's gradient, the eyebrow's ink */
   --accent-ink: oklch(0.99 0.005 200);
   --accent-soft: oklch(0.94 0.03 200);
+  --accent-strong: oklch(from var(--accent) 0.5 calc(c * 0.8) h);
   --highlight: oklch(0.76 0.12 85); /* where you are: the active rail item, the current step, the second part */
   --highlight-ink: oklch(0.25 0.04 70);
   --highlight-soft: oklch(0.95 0.045 90);
@@ -35,18 +36,23 @@
   --rail-active: oklch(0.3 0.02 45);
   --positive: oklch(0.55 0.13 150);
   --positive-soft: oklch(0.94 0.04 150);
+  --positive-strong: oklch(from var(--positive) 0.5 c h);
   --caution: oklch(0.7 0.15 75);
   --caution-soft: oklch(0.96 0.05 85);
+  --caution-strong: oklch(from var(--caution) 0.52 calc(c * 0.7) h);
   --negative: oklch(0.56 0.19 25);
   --negative-soft: oklch(0.95 0.035 25);
+  --negative-strong: oklch(from var(--negative) 0.53 c h);
   --info: oklch(0.55 0.11 240);
   --info-soft: oklch(0.94 0.03 240);
+  --info-strong: oklch(from var(--info) 0.51 c h);
   --band-strong: oklch(0.5 0.14 150);
   --band-good: oklch(0.52 0.12 240);
   --band-possible: oklch(0.66 0.14 75);
   --band-below: oklch(0.6 0.01 60);
   --ai: oklch(0.55 0.13 300);
   --ai-soft: oklch(0.95 0.03 300);
+  --ai-strong: oklch(from var(--ai) 0.53 c h);
   --focus: oklch(0.6 0.17 35 / 0.45);
 }
 
@@ -66,6 +72,7 @@
     --accent-deep: oklch(0.62 0.1 205);
     --accent-ink: oklch(0.18 0.03 200);
     --accent-soft: oklch(0.3 0.05 200);
+    --accent-strong: var(--accent);
     --highlight: oklch(0.82 0.12 88);
     --highlight-ink: oklch(0.22 0.04 70);
     --highlight-soft: oklch(0.32 0.05 85);
@@ -79,18 +86,23 @@
     --rail-active: oklch(0.27 0.025 45);
     --positive: oklch(0.72 0.13 150);
     --positive-soft: oklch(0.27 0.05 150);
+    --positive-strong: var(--positive);
     --caution: oklch(0.8 0.14 80);
     --caution-soft: oklch(0.3 0.06 80);
+    --caution-strong: var(--caution);
     --negative: oklch(0.7 0.17 25);
     --negative-soft: oklch(0.3 0.06 25);
+    --negative-strong: var(--negative);
     --info: oklch(0.72 0.11 240);
     --info-soft: oklch(0.28 0.05 240);
+    --info-strong: var(--info);
     --band-strong: oklch(0.72 0.14 150);
     --band-good: oklch(0.72 0.12 240);
     --band-possible: oklch(0.8 0.14 80);
     --band-below: oklch(0.6 0.01 60);
     --ai: oklch(0.74 0.12 300);
     --ai-soft: oklch(0.3 0.06 300);
+    --ai-strong: var(--ai);
     --focus: oklch(0.72 0.15 40 / 0.5);
   }
 }
@@ -110,6 +122,7 @@
   --accent-deep: oklch(0.62 0.1 205);
   --accent-ink: oklch(0.18 0.03 200);
   --accent-soft: oklch(0.3 0.05 200);
+  --accent-strong: var(--accent);
   --highlight: oklch(0.82 0.12 88);
   --highlight-ink: oklch(0.22 0.04 70);
   --highlight-soft: oklch(0.32 0.05 85);
@@ -123,18 +136,23 @@
   --rail-active: oklch(0.27 0.025 45);
   --positive: oklch(0.72 0.13 150);
   --positive-soft: oklch(0.27 0.05 150);
+  --positive-strong: var(--positive);
   --caution: oklch(0.8 0.14 80);
   --caution-soft: oklch(0.3 0.06 80);
+  --caution-strong: var(--caution);
   --negative: oklch(0.7 0.17 25);
   --negative-soft: oklch(0.3 0.06 25);
+  --negative-strong: var(--negative);
   --info: oklch(0.72 0.11 240);
   --info-soft: oklch(0.28 0.05 240);
+  --info-strong: var(--info);
   --band-strong: oklch(0.72 0.14 150);
   --band-good: oklch(0.72 0.12 240);
   --band-possible: oklch(0.8 0.14 80);
   --band-below: oklch(0.6 0.01 60);
   --ai: oklch(0.74 0.12 300);
   --ai-soft: oklch(0.3 0.06 300);
+  --ai-strong: var(--ai);
   --focus: oklch(0.72 0.15 40 / 0.5);
 }
 
@@ -152,6 +170,7 @@
   --color-accent-deep: var(--accent-deep);
   --color-accent-ink: var(--accent-ink);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-strong: var(--accent-strong);
   --color-highlight: var(--highlight);
   --color-highlight-ink: var(--highlight-ink);
   --color-highlight-soft: var(--highlight-soft);
@@ -162,18 +181,23 @@
   --color-rail-active: var(--rail-active);
   --color-positive: var(--positive);
   --color-positive-soft: var(--positive-soft);
+  --color-positive-strong: var(--positive-strong);
   --color-caution: var(--caution);
   --color-caution-soft: var(--caution-soft);
+  --color-caution-strong: var(--caution-strong);
   --color-negative: var(--negative);
   --color-negative-soft: var(--negative-soft);
+  --color-negative-strong: var(--negative-strong);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  --color-info-strong: var(--info-strong);
   --color-band-strong: var(--band-strong);
   --color-band-good: var(--band-good);
   --color-band-possible: var(--band-possible);
   --color-band-below: var(--band-below);
   --color-ai: var(--ai);
   --color-ai-soft: var(--ai-soft);
+  --color-ai-strong: var(--ai-strong);
   --color-focus: var(--focus);
 
   /* Legacy shadcn-style aliases so third-party snippets still resolve; `accent` is not among them, it is the project's own token. */

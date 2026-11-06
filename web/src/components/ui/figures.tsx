@@ -63,8 +63,8 @@ export function FigureStrip({ className, ...props }: ComponentProps<'div'>) {
 const figureTones = {
   neutral: 'text-ink',
   accent: 'text-accent-deep',
-  positive: 'text-positive',
-  caution: 'text-caution',
+  positive: 'text-positive-strong',
+  caution: 'text-caution-strong',
 }
 
 export function Figure({
