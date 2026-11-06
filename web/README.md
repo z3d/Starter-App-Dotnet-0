@@ -37,4 +37,13 @@ e2e/run-e2e.sh --walkthrough               # boots the stack on its own ports, r
 BASE_URL=http://localhost:5173 node e2e/walkthrough.mjs   # against the running AppHost rig
 ```
 
+### Presenting it live
+
+The same walkthrough runs as a live demo with `PRESENTER=1`: no voice and no recording, the app in a visible browser on the largest display that is not the main one (`PRESENTER_SCREEN=main` keeps it on the laptop), and a presenter console at http://localhost:4173 showing each scene's line, what comes next and the whole list. Next (Enter or →) runs a scene; Pause (P) stops at the next wait and opens a scratch tab signed in as the same person, and resuming closes it and carries on in the demo's own tab; Auto (A) runs straight through; clicking a scene jumps to it, forward by running the scenes between, back by resetting the database and replaying. A failed step leaves the browser where it stopped. `e2e/lib/presenter.mjs` holds it.
+
+```bash
+e2e/run-e2e.sh --present                   # boots the stack, presents, resets the database to go back
+PRESENTER=1 BASE_URL=http://localhost:5173 node e2e/walkthrough.mjs   # against the running AppHost rig (no going back)
+```
+
 Each scene is a few lines of Playwright, paced with `pause()` so a viewer can follow; use the same `data-testid`s and names the browser tests use, and add a flow to `e2e/tests` first so the story never drives something untested. `e2e/screenshots.mjs` is the still-image companion (`BASE_URL=http://localhost:5173 node e2e/screenshots.mjs` writes every screen in light, dark and mobile to `e2e/shots/`).

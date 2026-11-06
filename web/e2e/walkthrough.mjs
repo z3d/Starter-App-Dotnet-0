@@ -5,9 +5,9 @@
 // edge-tts and mixed onto the video where the scene began; NARRATOR=none records silently. Output is
 // docs/media/starterapp-walkthrough.mp4 (ffmpeg on the path; without it, the silent .webm). Run against a live stack:
 //   BASE_URL=http://localhost:5173 node e2e/walkthrough.mjs
-import { chromium } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { clearStale, cueing, finish, synthesise } from './lib/narration.mjs'
+import { openBrowser } from './lib/presenter.mjs'
 
 const narration = {
   'sign-in':
@@ -25,9 +25,7 @@ clearStale(out)
 const { clips, work } = synthesise(narration, 'starterapp')
 
 const size = { width: 1440, height: 900 }
-const browser = await chromium.launch()
-const context = await browser.newContext({ viewport: size, deviceScaleFactor: 1, recordVideo: { dir: out, size } })
-const page = await context.newPage()
+const { browser, context, page } = await openBrowser({ out, size })
 const { started, cues, scene, settle } = cueing(page, clips)
 const pause = (ms = 1200) => page.waitForTimeout(ms)
 const type = async (selector, text) => {

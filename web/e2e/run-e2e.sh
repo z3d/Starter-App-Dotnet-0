@@ -11,6 +11,7 @@
 #   web/e2e/run-e2e.sh --grep "sign"         # arguments after the script go to playwright test
 #   E2E_DEPLOYED=1 web/e2e/run-e2e.sh        # the same stack, but the nginx image (web/Dockerfile) in front, and e2e/deployed
 #   web/e2e/run-e2e.sh --walkthrough         # boot the same stack and record web/e2e/walkthrough.mjs on it
+#   web/e2e/run-e2e.sh --present             # boot the same stack and present the walkthrough live (e2e/lib/presenter.mjs)
 #   SKIP_BOOT=1 BASE_URL=http://localhost:5173 API_URL=https://localhost:7286 IDP_URL=http://localhost:8090 web/e2e/run-e2e.sh
 #                                            # against a rig already running (no client regeneration)
 #   IDP_WAIT_SECONDS=360 API_WAIT_SECONDS=300 web/e2e/run-e2e.sh
@@ -48,6 +49,7 @@ LOG_DIR="$WEB_DIR/e2e-logs"
 API_LOG="$LOG_DIR/api.log"
 MODE="tests"
 if [[ "${1:-}" == "--walkthrough" ]]; then MODE="walkthrough"; shift; fi
+if [[ "${1:-}" == "--present" ]]; then MODE="present"; shift; fi
 source "$REPO_ROOT/scripts/lib/dev-idp.sh"
 
 CONTAINER_CLI="${CONTAINER_CLI:-}"
@@ -166,7 +168,7 @@ else
 fi
 
 cd "$WEB_DIR"
-if [[ "$MODE" == "walkthrough" ]]; then
+if [[ "$MODE" == "walkthrough" || "$MODE" == "present" ]]; then
   # The recording drives the dev server itself, so it is started here rather than by Playwright.
   if [[ -z "${BASE_URL:-}" ]]; then
     log "Starting the dev server on port $WEB_PORT"
@@ -178,8 +180,24 @@ if [[ "$MODE" == "walkthrough" ]]; then
     done
     export BASE_URL="http://localhost:${WEB_PORT}"
   fi
-  log "Recording the walkthrough against $BASE_URL"
-  node e2e/walkthrough.mjs "$@"
+  if [[ "$MODE" == "walkthrough" ]]; then
+    log "Recording the walkthrough against $BASE_URL"
+    node e2e/walkthrough.mjs "$@"
+  else
+    log "Presenting the walkthrough against $BASE_URL; the console is at http://localhost:${PRESENTER_PORT:-4173}"
+    export PRESENTER=1 PRESENTER_JUMP_FILE="$LOG_DIR/presenter-jump"
+    rm -f "$PRESENTER_JUMP_FILE"
+    while true; do
+      code=0
+      node e2e/walkthrough.mjs "$@" || code=$?
+      [[ $code -eq 75 && -s "$PRESENTER_JUMP_FILE" && "$SKIP_BOOT" != "1" ]] || exit $code
+      export PRESENTER_JUMP="$(cat "$PRESENTER_JUMP_FILE")"
+      rm -f "$PRESENTER_JUMP_FILE"
+      log "Going back to scene $PRESENTER_JUMP: recreating the database, then replaying"
+      "$CONTAINER_CLI" exec "$PG_CONTAINER" psql -q -U postgres -d postgres -c "DROP DATABASE \"$PG_DB\" WITH (FORCE)" -c "CREATE DATABASE \"$PG_DB\""
+      ConnectionStrings__database="$CONN" dotnet run --project "$REPO_ROOT/src/StarterApp.DbMigrator" -c Release >/dev/null
+    done
+  fi
 elif [[ "$E2E_DEPLOYED" == "1" ]]; then
   log "Running the browser tests against the web image"
   npx playwright test --project=deployed "$@"

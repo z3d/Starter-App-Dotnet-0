@@ -7,12 +7,17 @@
 import { execSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { presenter, presenting } from './presenter.mjs'
+
+let lines = {}
 
 // Synthesises one clip per line; { key: { file, ms } }, or {} when the voice is off or unavailable.
 export function synthesise(narration, name) {
   const narrator = process.env.NARRATOR ?? 'en-AU-NatashaNeural'
   const clips = {}
   let work = null
+  lines = narration
+  if (presenting) return { clips, work }
   if (narrator === 'none') return { clips, work }
   try {
     execSync('python3 -m edge_tts --help', { stdio: 'ignore' })
@@ -38,6 +43,7 @@ export function synthesise(narration, name) {
 // Cueing: a scene begins when its line starts, and never before the line ahead of it has been
 // heard, so two voices cannot overlap however the scenes are placed on a page.
 export function cueing(page, clips) {
+  if (presenting) return presenter(page, lines)
   // The screencast only writes a frame when something on the page changes, so a still scene is shorter on the
   // recording than on the clock and every line after it lands early; a two-pixel heartbeat keeps the frames coming.
   page.addInitScript(() => {
