@@ -16,7 +16,7 @@ public class PayloadCaptureMiddlewareTests
         {
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsync("""{"id":42,"email":"response@example.com"}""");
-        }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+        }, sink, new PayloadCaptureTests.FixedTimeProvider(timestamp), Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
 
         var services = new ServiceCollection();
         services.AddSingleton<ICurrentUser>(new CurrentUser("subject-7", AuthenticatedPrincipalType.User, "tenant-7", ["customers:write"]));
@@ -45,19 +45,61 @@ public class PayloadCaptureMiddlewareTests
         Assert.Equal("case-456", context.Response.Headers[CorrelationContext.HeaderName]);
     }
 
+    [Fact]
+    public async Task InvokeAsync_WhenTheRequestCrossesAMinuteBoundary_ArchivesBothHalvesInOneBlobUnderTheRequestMinute()
+    {
+        var store = new InMemoryPayloadArchiveStore();
+        var clock = new SteppingTimeProvider(new DateTimeOffset(2026, 5, 3, 4, 7, 59, 900, TimeSpan.Zero));
+        var options = Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions());
+        var sink = new PayloadCaptureSink(store, new JsonPayloadRedactor(options), clock, options, new LoggerFactory().CreateLogger<PayloadCaptureSink>());
+        var middleware = new PayloadCaptureMiddleware(async context =>
+        {
+            clock.Advance(TimeSpan.FromMilliseconds(200));
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync("""{"id":42}""");
+        }, sink, clock, options, new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = HttpMethods.Post;
+        context.Request.Path = "/api/v1/contacts";
+        context.Request.ContentType = "application/json";
+        context.Request.Headers[CorrelationContext.HeaderName] = "case-boundary";
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes("""{"name":"Ada"}"""));
+        context.Response.Body = new MemoryStream();
+
+        await middleware.InvokeAsync(context);
+
+        var archive = Assert.Single(store.Lines, pair => pair.Key.StartsWith("archive/", StringComparison.Ordinal));
+        Assert.Equal("archive/2026-05-03/04/07/case-boundary.jsonl", archive.Key);
+        Assert.Equal(2, archive.Value.Count);
+        Assert.All(archive.Value, line => Assert.Contains("\"archiveBlobName\":\"archive/2026-05-03/04/07/case-boundary.jsonl\"", line));
+        var audit = Assert.Single(store.Lines, pair => pair.Key.StartsWith("audit/", StringComparison.Ordinal));
+        Assert.Equal("audit/2026-05-03/04/07/payload-audit.jsonl", audit.Key);
+    }
+
+    private sealed class SteppingTimeProvider(DateTimeOffset start) : TimeProvider
+    {
+        private DateTimeOffset _now = start;
+
+        public void Advance(TimeSpan by) => _now += by;
+
+        public override DateTimeOffset GetUtcNow() => _now;
+    }
+
     [Theory]
     [InlineData("GET", null, "application/problem+json")]
     [InlineData("PUT", "application/octet-stream", "application/octet-stream")]
     public async Task InvokeAsync_ForAnAnonymousCaller_ArchivesBothPayloadsButWritesNoEntityIndex(string method, string? requestContentType, string responseContentType)
     {
         var store = new InMemoryPayloadArchiveStore();
-        var sink = PayloadCaptureTests.CreateSink(store, new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero));
+        var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
+        var sink = PayloadCaptureTests.CreateSink(store, timestamp);
         var middleware = new PayloadCaptureMiddleware(async context =>
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             context.Response.ContentType = responseContentType;
             await context.Response.WriteAsync("""{"status":401,"customerId":434343}""");
-        }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+        }, sink, new PayloadCaptureTests.FixedTimeProvider(timestamp), Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
 
         var context = new DefaultHttpContext();
         context.Request.Method = method;
@@ -84,7 +126,7 @@ public class PayloadCaptureMiddlewareTests
         {
             downstreamCorrelationId = context.Request.Headers[CorrelationContext.HeaderName].ToString();
             return Task.CompletedTask;
-        }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+        }, sink, new PayloadCaptureTests.FixedTimeProvider(timestamp), Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
 
         var context = new DefaultHttpContext();
         context.Request.Method = HttpMethods.Get;
@@ -114,7 +156,7 @@ public class PayloadCaptureMiddlewareTests
         {
             downstreamCorrelationId = context.Request.Headers[CorrelationContext.HeaderName].ToString();
             return Task.CompletedTask;
-        }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+        }, sink, new PayloadCaptureTests.FixedTimeProvider(timestamp), Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
 
         var context = new DefaultHttpContext();
         context.Request.Method = HttpMethods.Get;
@@ -144,7 +186,7 @@ public class PayloadCaptureMiddlewareTests
             await context.Response.WriteAsync("""{"id":7,"secretOutcome":"approved"}""");
             await abortSource.CancelAsync();
             abortSource.Token.ThrowIfCancellationRequested();
-        }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+        }, sink, new PayloadCaptureTests.FixedTimeProvider(timestamp), Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
 
         var context = new DefaultHttpContext();
         context.Request.Method = HttpMethods.Get;
@@ -171,7 +213,7 @@ public class PayloadCaptureMiddlewareTests
         {
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsync("""{"description":"response payload is too large"}""");
-        }, sink, Microsoft.Extensions.Options.Options.Create(options), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+        }, sink, new PayloadCaptureTests.FixedTimeProvider(timestamp), Microsoft.Extensions.Options.Options.Create(options), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
 
         var context = new DefaultHttpContext();
         context.Request.Method = HttpMethods.Post;
@@ -212,7 +254,7 @@ public class PayloadCaptureMiddlewareTests
                 "order-status"));
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsync("{}");
-        }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+        }, sink, new PayloadCaptureTests.FixedTimeProvider(timestamp), Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
 
         var services = new ServiceCollection();
         services.AddSingleton<ICurrentUser>(new CurrentUser(
@@ -249,12 +291,13 @@ public class PayloadCaptureMiddlewareTests
     public async Task InvokeAsync_SkipsCaptureForHealthProbeRoutes()
     {
         var store = new InMemoryPayloadArchiveStore();
-        var sink = PayloadCaptureTests.CreateSink(store, new DateTimeOffset(2026, 6, 12, 8, 0, 0, TimeSpan.Zero));
+        var timestamp = new DateTimeOffset(2026, 6, 12, 8, 0, 0, TimeSpan.Zero);
+        var sink = PayloadCaptureTests.CreateSink(store, timestamp);
         var middleware = new PayloadCaptureMiddleware(async context =>
         {
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsync("{}");
-        }, sink, Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
+        }, sink, new PayloadCaptureTests.FixedTimeProvider(timestamp), Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());
 
         foreach (var route in PayloadCaptureMiddleware.ProbeSkipRoutes)
         {

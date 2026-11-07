@@ -105,7 +105,7 @@ public class PayloadRedactionRegressionTests
         var store = new InMemoryPayloadArchiveStore();
         var logger = new RecordingLogger();
         var sink = CreateSink(store, logger, options);
-        var middleware = new PayloadCaptureMiddleware(_ => Task.CompletedTask, sink,
+        var middleware = new PayloadCaptureMiddleware(_ => Task.CompletedTask, sink, TimeProvider.System,
             Options.Create(options), NullLogger<PayloadCaptureMiddleware>.Instance);
         var context = new DefaultHttpContext();
         context.Request.Method = "POST";

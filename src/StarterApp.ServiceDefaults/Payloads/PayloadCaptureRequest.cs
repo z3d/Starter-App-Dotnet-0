@@ -3,6 +3,9 @@ namespace StarterApp.ServiceDefaults.Payloads;
 public sealed class PayloadCaptureRequest
 {
     public string? CorrelationId { get; init; }
+
+    // Both halves of one HTTP exchange pass the same instant, so a request that crosses a minute lands in one archive blob.
+    public DateTimeOffset? TimestampUtc { get; init; }
     public string Direction { get; init; } = string.Empty;
     public string Channel { get; init; } = string.Empty;
     public string Operation { get; init; } = string.Empty;

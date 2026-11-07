@@ -9,17 +9,20 @@ public sealed class PayloadCaptureMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly IPayloadCaptureSink _payloadCaptureSink;
+    private readonly TimeProvider _timeProvider;
     private readonly PayloadCaptureOptions _options;
     private readonly ILogger<PayloadCaptureMiddleware> _logger;
 
     public PayloadCaptureMiddleware(
         RequestDelegate next,
         IPayloadCaptureSink payloadCaptureSink,
+        TimeProvider timeProvider,
         IOptions<PayloadCaptureOptions> options,
         ILogger<PayloadCaptureMiddleware> logger)
     {
         _next = next;
         _payloadCaptureSink = payloadCaptureSink;
+        _timeProvider = timeProvider;
         _options = options.Value;
         _logger = logger;
     }
@@ -63,7 +66,8 @@ public sealed class PayloadCaptureMiddleware
         using var correlationScope = CorrelationContext.Push(correlationId);
         using var logScope = LogContext.PushProperty("CorrelationId", correlationId);
 
-        var requestRecord = await CaptureRequestAsync(context, correlationId);
+        var startedUtc = _timeProvider.GetUtcNow();
+        var requestRecord = await CaptureRequestAsync(context, correlationId, startedUtc);
 
         var originalResponseBody = context.Response.Body;
         await using var responseBody = new BoundedCaptureStream(originalResponseBody, _options.MaxPayloadBytes);
@@ -72,13 +76,13 @@ public sealed class PayloadCaptureMiddleware
         try
         {
             await _next(context);
-            await IndexEntitiesIfAuthenticatedAsync(context, requestRecord, await CaptureResponseAsync(context, correlationId, responseBody));
+            await IndexEntitiesIfAuthenticatedAsync(context, requestRecord, await CaptureResponseAsync(context, correlationId, startedUtc, responseBody));
         }
         catch (OperationCanceledException)
         {
             // A client hanging up must not stop the audit record, so the buffered bytes are captured with a token the client cannot cancel.
             _logger.LogWarning("HTTP request was canceled for correlation {CorrelationId}; capturing the partial response for audit", correlationId);
-            await IndexEntitiesIfAuthenticatedAsync(context, requestRecord, await CaptureResponseAsync(context, correlationId, responseBody));
+            await IndexEntitiesIfAuthenticatedAsync(context, requestRecord, await CaptureResponseAsync(context, correlationId, startedUtc, responseBody));
             throw;
         }
         catch (Exception ex)
@@ -105,7 +109,7 @@ public sealed class PayloadCaptureMiddleware
         }
     }
 
-    private async Task<PayloadCaptureRecord?> CaptureRequestAsync(HttpContext context, string correlationId)
+    private async Task<PayloadCaptureRecord?> CaptureRequestAsync(HttpContext context, string correlationId, DateTimeOffset startedUtc)
     {
         var metadata = new Dictionary<string, string>
         {
@@ -119,6 +123,7 @@ public sealed class PayloadCaptureMiddleware
             return await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
             {
                 CorrelationId = correlationId,
+                TimestampUtc = startedUtc,
                 Direction = "inbound",
                 Channel = PayloadCaptureChannels.Http,
                 Operation = $"{context.Request.Method} {context.Request.Path}",
@@ -138,6 +143,7 @@ public sealed class PayloadCaptureMiddleware
         return await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
         {
             CorrelationId = correlationId,
+            TimestampUtc = startedUtc,
             Direction = "inbound",
             Channel = PayloadCaptureChannels.Http,
             Operation = $"{context.Request.Method} {context.Request.Path}",
@@ -152,7 +158,7 @@ public sealed class PayloadCaptureMiddleware
         }, context.RequestAborted);
     }
 
-    private async Task<PayloadCaptureRecord?> CaptureResponseAsync(HttpContext context, string correlationId, BoundedCaptureStream responseBody)
+    private async Task<PayloadCaptureRecord?> CaptureResponseAsync(HttpContext context, string correlationId, DateTimeOffset startedUtc, BoundedCaptureStream responseBody)
     {
         var metadata = new Dictionary<string, string>
         {
@@ -175,6 +181,7 @@ public sealed class PayloadCaptureMiddleware
             return await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
             {
                 CorrelationId = correlationId,
+                TimestampUtc = startedUtc,
                 Direction = "outbound",
                 Channel = PayloadCaptureChannels.Http,
                 Operation = $"{context.Request.Method} {context.Request.Path}",
@@ -190,6 +197,7 @@ public sealed class PayloadCaptureMiddleware
         return await _payloadCaptureSink.CaptureAsync(new PayloadCaptureRequest
         {
             CorrelationId = correlationId,
+            TimestampUtc = startedUtc,
             Direction = "outbound",
             Channel = PayloadCaptureChannels.Http,
             Operation = $"{context.Request.Method} {context.Request.Path}",
