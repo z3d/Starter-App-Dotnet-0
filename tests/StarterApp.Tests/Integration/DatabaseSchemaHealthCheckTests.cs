@@ -54,14 +54,33 @@ public class DatabaseSchemaHealthCheckTests
         Assert.Equal(HealthStatus.Healthy, (await CheckAsync(applied)).Status);
     }
 
+    [Fact]
+    public async Task ADatabaseRecreatedBehindTheBuild_IsNotReadyAgain()
+    {
+        await using var dataSource = await CreateDatabaseAsync(["StarterApp.DbMigrator.Scripts.0001_Expand_First.sql", "StarterApp.DbMigrator.Scripts.0002_Expand_Second.sql"]);
+        var check = new DatabaseSchemaHealthCheck(dataSource, Expected);
+        Assert.Equal(HealthStatus.Healthy, (await check.CheckHealthAsync(new HealthCheckContext())).Status);
+
+        await using (var drop = dataSource.CreateCommand("DROP TABLE schemaversions"))
+            await drop.ExecuteNonQueryAsync();
+
+        Assert.Equal(HealthStatus.Unhealthy, (await check.CheckHealthAsync(new HealthCheckContext())).Status);
+    }
+
     private async Task<HealthCheckResult> CheckAsync(string[]? journal)
+    {
+        await using var dataSource = await CreateDatabaseAsync(journal);
+        return await new DatabaseSchemaHealthCheck(dataSource, Expected).CheckHealthAsync(new HealthCheckContext());
+    }
+
+    private async Task<NpgsqlDataSource> CreateDatabaseAsync(string[]? journal)
     {
         var database = new NpgsqlConnectionStringBuilder(_fixture.ConnectionString) { Database = "schema_" + Guid.NewGuid().ToString("N")[..12] }.ConnectionString;
         await using (var admin = NpgsqlDataSource.Create(_fixture.ConnectionString))
         await using (var create = admin.CreateCommand($"CREATE DATABASE \"{new NpgsqlConnectionStringBuilder(database).Database}\""))
             await create.ExecuteNonQueryAsync();
 
-        await using var dataSource = NpgsqlDataSource.Create(database);
+        var dataSource = NpgsqlDataSource.Create(database);
         if (journal is not null)
         {
             await using (var table = dataSource.CreateCommand("CREATE TABLE schemaversions (schemaversionsid serial PRIMARY KEY, scriptname varchar(255) NOT NULL, applied timestamp NOT NULL DEFAULT now())"))
@@ -74,6 +93,6 @@ public class DatabaseSchemaHealthCheckTests
             }
         }
 
-        return await new DatabaseSchemaHealthCheck(dataSource, Expected).CheckHealthAsync(new HealthCheckContext());
+        return dataSource;
     }
 }

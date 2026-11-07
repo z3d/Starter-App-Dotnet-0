@@ -9,7 +9,6 @@ public sealed class DatabaseSchemaHealthCheck : IHealthCheck
 
     private readonly NpgsqlDataSource _dataSource;
     private readonly IReadOnlyList<string> _expectedScripts;
-    private volatile bool _upToDate;
 
     public DatabaseSchemaHealthCheck(NpgsqlDataSource dataSource)
         : this(dataSource, EmbeddedScriptNames(typeof(DatabaseSchemaHealthCheck).Assembly))
@@ -31,9 +30,6 @@ public sealed class DatabaseSchemaHealthCheck : IHealthCheck
 
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
-        if (_upToDate)
-            return HealthCheckResult.Healthy("The database has every migration this build expects");
-
         try
         {
             var applied = new List<string>();
@@ -48,10 +44,7 @@ public sealed class DatabaseSchemaHealthCheck : IHealthCheck
                 .Where(expected => !applied.Any(name => name.EndsWith("." + expected, StringComparison.Ordinal)))
                 .ToList();
             if (missing.Count == 0)
-            {
-                _upToDate = true;
                 return HealthCheckResult.Healthy("The database has every migration this build expects");
-            }
 
             return HealthCheckResult.Unhealthy(
                 $"The database is behind this build: {missing.Count} migration(s) not applied, the first {missing[0]}. Run the migrator before this revision takes traffic.");
