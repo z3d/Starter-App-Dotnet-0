@@ -17,9 +17,9 @@ PRESENTER=1 BASE_URL=http://localhost:5173 node web/e2e/walkthrough.mjs   # agai
 - **Console** at http://localhost:4173, its own Chrome window on the main screen: the scene, the line to say, what is next and every scene down the side. Enter or → next, P pause, A auto, and Quit as a button; in a terminal, Q quits too.
 - **The app** opens in a separate Chromium on the largest display that is not the main one; `PRESENTER_SCREEN=main` keeps it on the laptop.
 - **Pause** stops at the next wait and opens a scratch tab signed in as the same person; resuming closes it, and the demo carries on in its own tab, untouched (a half-filled form survives). Reloading the demo tab instead loses typed fields.
-- **Jump** by clicking a scene: forward runs the scenes between without stopping; back exits 75 after writing the scene to `PRESENTER_JUMP_FILE`, and `run-e2e.sh --present` recreates the database, migrates and replays up to it.
+- **Jump** by clicking a scene: forward runs the scenes between without stopping; back exits 75 after writing the scene to `PRESENTER_JUMP_FILE`, and `run-e2e.sh --present` recreates the database, migrates, restarts the API (its in-memory cache would outlive the old rows) and replays up to it.
 - **A failed step** leaves the browser where it stopped, shows the error in the console and saves `web/test-results/presenter-failure.png`. Carry on by hand.
-- `PRESENTER_AUTO=1` runs straight through; `HEADLESS=1 PRESENTER_CONSOLE=0` is the unattended check, driven by `POST /act/next`, `/act/pause`, `/act/jump/<n>` and read from `GET /events`.
+- `PRESENTER_AUTO=1` runs straight through; `HEADLESS=1 PRESENTER_CONSOLE=0` is the unattended check, driven by `POST /act/next`, `/act/pause`, `/act/jump/<n>` and read from `GET /events`. The console answers only `localhost` or `127.0.0.1` on its port and refuses a POST that a browser marks as coming from another page (`Origin`, `Sec-Fetch-Site`, `Referer`), so another tab cannot drive the demo; `curl` sends none of them and is let through.
 
 The walkthrough wants a database that has not run the story yet: `run-e2e.sh --present` starts from an empty one. Against the AppHost rig, reset it first (stop the AppHost, remove its Postgres container and volume, start it again; restarting alone keeps the data).
 

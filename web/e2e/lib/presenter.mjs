@@ -8,6 +8,7 @@ import { writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { emitKeypressEvents } from 'node:readline'
 import { tmpdir } from 'node:os'
+import { refusal } from './console-gate.mjs'
 
 export const presenting = process.env.PRESENTER === '1'
 export const jumpExitCode = 75
@@ -102,7 +103,7 @@ const console_ = {
     this.page = page
     if (!presenting) return
     const port = Number(process.env.PRESENTER_PORT ?? '4173')
-    createServer((req, res) => this.serve(req, res)).listen(port, '127.0.0.1', () => {
+    createServer((req, res) => this.serve(req, res, port)).listen(port, '127.0.0.1', () => {
       say(`Presenter console: http://localhost:${port}`)
       if (process.env.PRESENTER_CONSOLE !== '0' && !process.env.PRESENTER_JUMP) openConsole(`http://localhost:${port}`)
     })
@@ -143,7 +144,12 @@ const console_ = {
     for (const res of this.clients) res.write(`data: ${JSON.stringify(state)}\n\n`)
   },
 
-  serve(req, res) {
+  serve(req, res, port) {
+    const refused = refusal(req, port)
+    if (refused) {
+      res.writeHead(403, { 'Content-Type': 'text/plain' })
+      return res.end(`Refused: ${refused}`)
+    }
     if (req.url === '/events') {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' })
       this.clients.add(res)
