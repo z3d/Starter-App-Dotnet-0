@@ -26,6 +26,8 @@ export async function openBrowser({ out, size }) {
   })
   const context = await browser.newContext({ viewport: null })
   const page = await context.newPage()
+  // A cold dev server can take longer than the first scene's waits to serve the app; warm it before scene 1.
+  await page.goto(process.env.BASE_URL ?? 'http://localhost:5173', { timeout: 120_000 }).catch(() => {})
   console_.closeBrowser = browser.close.bind(browser)
   console_.attach(page)
   context.close = () => console_.end()
