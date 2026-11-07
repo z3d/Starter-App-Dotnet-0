@@ -118,6 +118,13 @@ Clean: 9bdc8ac, 75db6da, 37ebfff, e0c4046, b4e0668, 79c0507, e8eac0e, 9574d31, a
 
 Fixes, same day: `strip-quoted.py` strips both quote kinds in one left-to-right pass and prints the body of each `sh -c '...'` and `eval "..."` on a line of its own, so the guard reads a command hidden in one; `dotnet run|watch` and a bare `yarn` are heavy work; CI uploads `web/e2e-logs`; `doc-only` refuses `docs/exemplars/*` and any `.json`; the dev-cert trust step fails when it fails; `RequestInstants` walks generic containers, tuples and eight levels, keyed on the request's root namespace; `SqlSelectBlocks.Clean` strips literals and comments in one pass; `pre-commit.sh` reads `-n` only on the `git commit` segment; `JwtIdentityMiddleware` tags the activity with `tenant.id` beside the log push (the half of the derived projects' tenancy fix that is generic). Not fixed: the worktree hooks are still untested (`ARCHITECTURE_REVIEW.md` says so).
 
+### Found in review (8 November 2026)
+
+- **FIXED 2026-11-08: the presenter console acted on any POST.** `web/e2e/lib/presenter.mjs` served `/act/<verb>` on 127.0.0.1:4173 with no check, so any page in the presenter's browser could drive the demo, and a rebound DNS name could read it. `console-gate.mjs` refuses a foreign `Host`, and a POST whose `Origin`, `Sec-Fetch-Site` or `Referer` is not the console's (f1cf756, `console-gate.test.mjs`).
+- **FIXED 2026-11-08: going back in a live demo kept the API's in-memory state.** `run-e2e.sh --present` recreated the database but left the API running, with its in-process `IDistributedCache` (by-id customer and product reads) and a pool of terminated connections. The API is now restarted with the database (ecdfc8d; checked live, no automated test).
+- **FIXED 2026-11-08: the schema readiness check kept its first healthy answer for the process lifetime.** `DatabaseSchemaHealthCheck` stopped querying once the journal caught up, so a database restored or recreated behind the build stayed ready. It reads the journal on every probe (11598dd, `ADatabaseRecreatedBehindTheBuild_IsNotReadyAgain`).
+- **FIXED 2026-11-08: one HTTP exchange could write two archive blobs.** The middleware captured inbound and outbound through two `CaptureAsync` calls, each reading the clock, and blob names are partitioned by minute, so a request crossing a minute wrote two `archive/<minute>/<correlation>.jsonl` blobs. One timestamp per request now goes on both captures (`PayloadCaptureRequest.TimestampUtc`); ported from a derived project's fix (4658195, 30d4bca, `InvokeAsync_WhenTheRequestCrossesAMinuteBoundary_ArchivesBothHalvesInOneBlobUnderTheRequestMinute`).
+
 ## Accepted with a trigger
 
 - **Folder-only Clean Architecture (2026-06-09).** `Domain` is compiler-enforced; `Application`
