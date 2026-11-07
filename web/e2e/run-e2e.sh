@@ -193,9 +193,13 @@ if [[ "$MODE" == "walkthrough" || "$MODE" == "present" ]]; then
       [[ $code -eq 75 && -s "$PRESENTER_JUMP_FILE" && "$SKIP_BOOT" != "1" ]] || exit $code
       export PRESENTER_JUMP="$(cat "$PRESENTER_JUMP_FILE")"
       rm -f "$PRESENTER_JUMP_FILE"
-      log "Going back to scene $PRESENTER_JUMP: recreating the database, then replaying"
+      log "Going back to scene $PRESENTER_JUMP: recreating the database and restarting the API, then replaying"
+      # The API's in-memory cache and connection pool would outlive the database it describes.
+      kill "$API_PID" 2>/dev/null || true
+      wait "$API_PID" 2>/dev/null || true
       "$CONTAINER_CLI" exec "$PG_CONTAINER" psql -q -U postgres -d postgres -c "DROP DATABASE \"$PG_DB\" WITH (FORCE)" -c "CREATE DATABASE \"$PG_DB\""
       ConnectionStrings__database="$CONN" dotnet run --project "$REPO_ROOT/src/StarterApp.DbMigrator" -c Release >/dev/null
+      start_api "a fresh process for the recreated database"
     done
   fi
 elif [[ "$E2E_DEPLOYED" == "1" ]]; then
