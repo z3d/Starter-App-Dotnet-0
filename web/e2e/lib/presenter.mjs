@@ -14,17 +14,22 @@ export const jumpExitCode = 75
 const jumpFile = process.env.PRESENTER_JUMP_FILE ?? `${tmpdir()}/walkthrough-presenter-jump`
 const say = (s) => console.log(s)
 
-export async function openBrowser({ out, size }) {
+export async function openBrowser({ out, size, context: options = {} }) {
   if (!presenting) {
     const browser = await chromium.launch()
-    const context = await browser.newContext({ viewport: size, deviceScaleFactor: 1, recordVideo: { dir: out, size } })
+    const context = await browser.newContext({
+      ...options,
+      viewport: size,
+      deviceScaleFactor: 1,
+      recordVideo: { dir: out, size },
+    })
     return { browser, context, page: await context.newPage() }
   }
   const browser = await chromium.launch({
     headless: process.env.HEADLESS === '1',
     args: [...screenArgs(), '--start-maximized'],
   })
-  const context = await browser.newContext({ viewport: null })
+  const context = await browser.newContext({ ...options, viewport: null })
   const page = await context.newPage()
   // A cold dev server can take longer than the first scene's waits to serve the app; warm it before scene 1.
   await page.goto(process.env.BASE_URL ?? 'http://localhost:5173', { timeout: 120_000 }).catch(() => {})
