@@ -61,7 +61,7 @@ public class PayloadCaptureMiddlewareTests
 
         var context = new DefaultHttpContext();
         context.Request.Method = HttpMethods.Post;
-        context.Request.Path = "/api/v1/contacts";
+        context.Request.Path = "/api/v1/customers";
         context.Request.ContentType = "application/json";
         context.Request.Headers[CorrelationContext.HeaderName] = "case-boundary";
         context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes("""{"name":"Ada"}"""));
