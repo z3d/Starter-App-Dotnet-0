@@ -103,6 +103,10 @@ appsettings.Local.json
 *.Development.json
 *.Local.json
 
+# Claude Code per-user settings: commands approved with "don't ask again" are saved
+# here whole, secrets included. *.Local.json above misses it on a case-sensitive file system.
+.claude/settings.local.json
+
 # Temporary files
 *.tmp
 *.temp
