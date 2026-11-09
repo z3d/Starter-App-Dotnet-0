@@ -13,7 +13,7 @@ except Exception: pass' 2>/dev/null)
 [ -n "$command" ] || exit 0
 command=$(printf '%s' "$command" | python3 "$(dirname "${BASH_SOURCE[0]}")/strip-quoted.py" 2>/dev/null) || exit 0
 
-at='(^|[;&|({`]|\$\()[[:space:]]*(sudo[[:space:]]+)?(command[[:space:]]+)?'
+at='(^|[;&|({`]|\$\()[[:space:]]*(sudo[[:space:]]+)?(command[[:space:]]+)?(timeout[[:space:]]+[^[:space:]]+[[:space:]]+)?(xargs[[:space:]]+([^;&|[:space:]]+[[:space:]]+)*)?'
 engine='(podman|docker)'
 refuse() {
   printf 'Refused on a shared machine: %s\nOther sessions run on this machine (AGENTS.md, "Working alongside other sessions"). %s\n' "$1" "$2" >&2
@@ -22,6 +22,12 @@ refuse() {
 
 if printf '%s' "$command" | grep -qE "${at}(pkill|killall)([[:space:]]|$)"; then
   refuse "killing processes by name or pattern" "Kill only the PIDs you started: keep \$! when you start something, or find yours with lsof -ti :<your port>, and pass them to kill. If it has to happen, ask the person to run it."
+fi
+if printf '%s' "$command" | grep -qE 'pgrep[^;&]*\|[[:space:]]*xargs[^;&|]*kill|kill[^;&|]*(\$\(|`)[[:space:]]*pgrep'; then
+  refuse "killing processes by name or pattern" "pgrep piped into kill is pkill by another name. Kill only the PIDs you started."
+fi
+if printf '%s' "$command" | grep -qE "${engine}[[:space:]]+(rm|rmi|stop|kill|(container|image|volume)[[:space:]]+rm)[^;&|]*(\\\$\\(|\`)[[:space:]]*${engine}[[:space:]]+(ps|images|(container|image|volume)[[:space:]]+ls)"; then
+  refuse "removing every container, image or volume the engine lists" "That is a prune by another name. Remove only what you made, by name or id."
 fi
 if printf '%s' "$command" | grep -qE "${at}${engine}[[:space:]]+machine[[:space:]]+(stop|reset|rm|restart|init)([[:space:]]|$)"; then
   refuse "stopping, resetting or recreating the container VM" "It takes down every session's containers. If it has to happen, ask the person to run it."

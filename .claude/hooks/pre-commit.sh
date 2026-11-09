@@ -20,8 +20,13 @@ cwd=$(read_field cwd)
 
 bare=$(printf '%s' "$command" | python3 "$here/strip-quoted.py" 2>/dev/null) || bare=$command
 
-commit_re='(^|[^[:alnum:]_-])git([[:space:]]+-[cC][[:space:]]+[^[:space:]]+)*[[:space:]]+commit([^[:alnum:]-]|$)'
-push_re='(^|[^[:alnum:]_-])git([[:space:]]+-[cC][[:space:]]+[^[:space:]]+)*[[:space:]]+push([^[:alnum:]-]|$)'
+git_opts='([[:space:]]+(-[cC][[:space:]]+[^[:space:]]+|--[a-z-]+(=[^[:space:]]+)?|-[pP]))*'
+commit_re="(^|[^[:alnum:]_-])git${git_opts}[[:space:]]+commit([^[:alnum:]-]|\$)"
+push_re="(^|[^[:alnum:]_-])git${git_opts}[[:space:]]+push([^[:alnum:]-]|\$)"
+if printf '%s' "$bare" | grep -qE '(^|[[:space:]])(-c[[:space:]]+)?core\.hooksPath=|GIT_CONFIG_(COUNT|KEY_|PARAMETERS)' && printf '%s' "$bare" | grep -qE "$commit_re|$push_re"; then
+  echo "pre-commit: overriding core.hooksPath on a commit or push skips the gates; run it without the override" >&2
+  exit 2
+fi
 no_verify_re='(^|[[:space:]])--no-verify([[:space:]]|$)'
 if printf '%s' "$bare" | grep -qE "$push_re" && printf '%s' "$bare" | grep -qE -- "$no_verify_re"; then
   echo "pre-commit: git push --no-verify skips the pre-push gate; push without it (a documentation-only push skips the gate by itself)" >&2

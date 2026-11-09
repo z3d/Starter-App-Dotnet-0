@@ -69,7 +69,7 @@ public class OutboxProcessor : BackgroundService
                         stoppingToken);
                 }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "Unexpected error in outbox processing loop");
             }
@@ -156,7 +156,7 @@ public class OutboxProcessor : BackgroundService
                         Metadata = BuildCaptureMetadata(message, _options.TopicName)
                     }, cancellationToken);
                 }
-                catch (Exception captureEx) when (captureEx is not OperationCanceledException)
+                catch (Exception captureEx) when (!cancellationToken.IsCancellationRequested)
                 {
                     // If the archive store is down, the batch pauses and no message loses a retry (#79). If only this message fails to capture, it loses one, so it ends up in Error where it can be replayed.
                     if (IsStoreWideCaptureFailure(captureEx))
@@ -187,7 +187,7 @@ public class OutboxProcessor : BackgroundService
                 published++;
                 _logger.LogInformation("Published outbox message {MessageId} ({Type})", message.Id, message.Type);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 // A Service Bus outage must not cost every message a retry. The batch pauses and the claims stay locked until LockedUntilUtc.
                 if (IsTransientDependencyError(ex))
@@ -288,18 +288,29 @@ public class OutboxProcessor : BackgroundService
         }
     }
 
-    private static bool IsTransientServiceBusError(Exception ex)
+    // A broker-wide refusal (outage, missing role, missing topic, a timeout) fails every message the same way, so it pauses the batch; only a fault of the one message spends its retry.
+    internal static bool IsTransientServiceBusError(Exception ex)
     {
-        return ex is ServiceBusException sbEx && sbEx.Reason is
-            ServiceBusFailureReason.ServiceCommunicationProblem or
-            ServiceBusFailureReason.ServiceTimeout or
-            ServiceBusFailureReason.ServiceBusy or
-            ServiceBusFailureReason.QuotaExceeded;
+        return ex switch
+        {
+            ServiceBusException sbEx => sbEx.IsTransient || sbEx.Reason is
+                ServiceBusFailureReason.ServiceCommunicationProblem or
+                ServiceBusFailureReason.ServiceTimeout or
+                ServiceBusFailureReason.ServiceBusy or
+                ServiceBusFailureReason.QuotaExceeded or
+                ServiceBusFailureReason.MessagingEntityNotFound or
+                ServiceBusFailureReason.MessagingEntityDisabled,
+            UnauthorizedAccessException or Azure.Identity.AuthenticationFailedException or OperationCanceledException => true,
+            _ => false
+        };
     }
 
     // A storage error would fail every message the same way. Any other error belongs to this one message.
     internal static bool IsStoreWideCaptureFailure(Exception ex)
     {
+        if (ex is OperationCanceledException)
+            return true;
+
         for (var current = ex; current is not null; current = current.InnerException)
         {
             if (current is RequestFailedException)

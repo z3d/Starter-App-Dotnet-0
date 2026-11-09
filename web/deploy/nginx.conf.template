@@ -5,11 +5,12 @@ server {
     server_name _;
     root /usr/share/nginx/html;
     index index.html;
+    include /etc/nginx/security-headers.conf;
 
     # Never cache the shell or the runtime config; hashed assets can be cached hard.
-    location = /index.html { add_header Cache-Control "no-store"; }
-    location = /config.js  { root /usr/share/nginx/runtime; add_header Cache-Control "no-store"; }
-    location /assets/      { add_header Cache-Control "public, max-age=31536000, immutable"; }
+    location = /index.html { include /etc/nginx/security-headers.conf; add_header Cache-Control "no-store"; }
+    location = /config.js  { root /usr/share/nginx/runtime; include /etc/nginx/security-headers.conf; add_header Cache-Control "no-store"; }
+    location /assets/      { include /etc/nginx/security-headers.conf; add_header Cache-Control "public, max-age=31536000, immutable"; }
 
     # Same-origin API: the application calls relative /api/... paths.
     location /api/ {

@@ -94,7 +94,7 @@ start_api() {
   ASPNETCORE_ENVIRONMENT=Development \
   ASPNETCORE_URLS="http://${bind}:${API_PORT}" \
   ConnectionStrings__database="$CONN" \
-  RateLimiting__PermitLimit="${PERMIT_LIMIT:-1000000}" \
+  RateLimiting__PermitLimit="${PERMIT_LIMIT-1000000}" \
   Identity__Authority="${IDP_URL}/realms/starterapp" \
   Identity__RequireHttpsMetadata=false \
   Identity__StepUpAcrValues="$STEP_UP_ACR" \
@@ -135,7 +135,7 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
   ConnectionStrings__database="$CONN" dotnet run --project "$REPO_ROOT/src/StarterApp.DbMigrator" -c Release
 
   # The specs sign in and write a handful of times; the deployed shape keeps the normal limit.
-  if [[ "$E2E_DEPLOYED" == "1" ]]; then PERMIT_LIMIT="" start_api "the normal rate limit"; else start_api; fi
+  if [[ "$E2E_DEPLOYED" == "1" ]]; then PERMIT_LIMIT=100 start_api "the normal rate limit"; else start_api; fi
 
   if [[ "$MODE" == "tests" ]]; then
     log "Regenerating the API client from ${API_URL}/openapi/v1.json"

@@ -198,11 +198,39 @@ public class OutboxProcessorTests
         Assert.Null(errored.ProcessedOnUtc);
     }
 
+    [Fact]
+    public async Task ProcessBatch_WhenTheBrokerRefusesTheIdentity_ShouldNotConsumeRetryBudget()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        await using (var setupContext = CreateDbContext(dbName))
+        {
+            setupContext.OutboxMessages.Add(CreateTestMessage());
+            await setupContext.SaveChangesAsync();
+        }
+
+        var senderMock = new Mock<ServiceBusSender>();
+        senderMock.Setup(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new UnauthorizedAccessException("Send claim required"));
+
+        var processor = CreateProcessor(dbName, senderMock.Object, maxRetries: 1);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        for (var i = 0; i < 5; i++)
+            await RunSingleBatchAsync(processor, cts.Token);
+
+        await using var verifyContext = CreateDbContext(dbName);
+        var message = await verifyContext.OutboxMessages.FirstAsync();
+        Assert.Equal(0, message.RetryCount);
+        Assert.Null(message.Error);
+    }
+
     [Theory]
     [InlineData(ServiceBusFailureReason.ServiceCommunicationProblem)]
     [InlineData(ServiceBusFailureReason.ServiceTimeout)]
     [InlineData(ServiceBusFailureReason.ServiceBusy)]
     [InlineData(ServiceBusFailureReason.QuotaExceeded)]
+    [InlineData(ServiceBusFailureReason.MessagingEntityNotFound)]
+    [InlineData(ServiceBusFailureReason.MessagingEntityDisabled)]
     public async Task ProcessBatch_WhenTransientServiceBusFailure_ShouldNotConsumeRetryBudget(ServiceBusFailureReason reason)
     {
         // Arrange — transient dependency failures (SB down, throttled) must not poison messages

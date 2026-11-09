@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # SessionStart: remove what is provably finished, so leftovers never pile up (AGENTS.md, "Working
 # alongside other sessions"). Only two things go, and only after IDLE_HOURS untouched:
-#   - a linked worktree whose HEAD is in origin/main and which has no uncommitted or untracked file
+#   - a linked worktree whose HEAD is in origin/main and which has no uncommitted or untracked file,
+#     and no ignored file other than build output
 #     (then its branch, with `git branch -d`, which refuses anything unmerged)
 #   - a local branch with no worktree whose tip is in origin/main
 # A worktree another session has just made from main is also "merged and clean", which is why the
@@ -30,6 +31,7 @@ mtime() { local t; t=$(stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/nul
 newest() { local m=0 f t seen=0; for f in "$@"; do [ -e "$f" ] || continue; seen=1; t=$(mtime "$f"); [ "$t" -gt "$m" ] && m=$t; done; [ "$seen" = 1 ] && echo "$m" || echo "$now"; }
 merged() { git merge-base --is-ancestor "$1" origin/main 2>/dev/null; }
 
+rebuildable='(^|/)(bin|obj|node_modules|dist|TestResults|\.vite|\.vs|\.idea|\.DS_Store|[^/]*\.tsbuildinfo)/?$'
 removed=()
 while IFS='|' read -r path head ref locked; do
   [ -n "$path" ] && [ "$path" != "$primary" ] && [ "$path" != "$here" ] || continue
@@ -37,6 +39,8 @@ while IFS='|' read -r path head ref locked; do
   [ -d "$path" ] || continue
   merged "$head" || continue
   [ -z "$(git -C "$path" status --porcelain --untracked-files=normal 2>/dev/null)" ] || continue
+  # `worktree remove` deletes ignored files too; only build output may go with it.
+  [ -z "$(git -C "$path" status --porcelain --ignored=matching 2>/dev/null | sed -n 's/^!! //p' | grep -vE "$rebuildable")" ] || continue
   admin=$(cd "$(git -C "$path" rev-parse --git-dir 2>/dev/null)" 2>/dev/null && pwd) || continue
   [ "$(newest "$admin/HEAD" "$admin/index" "$admin/logs/HEAD" "$path")" -lt "$cutoff" ] || continue
   git worktree remove "$path" 2>/dev/null || continue

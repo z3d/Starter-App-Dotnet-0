@@ -15,8 +15,12 @@ var connectionString = builder.Configuration.GetConnectionString("database")
 
 if (!string.IsNullOrEmpty(builder.Configuration.GetConnectionString("redis")))
     builder.AddRedisDistributedCache("redis", configureOptions: options => AzureClientAuthentication.ConfigureRedis(options));
-else
+else if (builder.Environment.IsDevelopment() || builder.Environment.EnvironmentName == "Testing")
     builder.Services.AddDistributedMemoryCache();
+else
+    throw new InvalidOperationException(
+        "ConnectionStrings:redis is required outside Development/Testing environments. " +
+        "A per-process cache is invalidated only on the replica that took the write, so the others would serve stale rows.");
 
 builder.Services.AddApiProblemDetails();
 builder.Services.ConfigureHttpJsonOptions(options =>

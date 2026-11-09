@@ -66,6 +66,14 @@ describe('signInAgain', () => {
     expect(signinRedirect).toHaveBeenCalled()
     expect(window.sessionStorage.getItem('starterapp.returnTo')).toBe('/customers')
   })
+
+  it('does not redirect a second time straight after the first, so a refused token cannot loop', () => {
+    window.sessionStorage.clear()
+    signinRedirect.mockClear()
+    auth.signInAgain()
+    auth.signInAgain()
+    expect(signinRedirect).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('signInWithScopes', () => {

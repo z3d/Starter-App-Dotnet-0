@@ -75,12 +75,33 @@ public static class DatabaseMigrationEngine
                 Log.Error(result.Error,
                     "Database migration failed while running {Script}; the scripts before it are applied. A lock wait over {LockTimeout} or a statement over {StatementTimeout} fails the script (Migrator:LockTimeout, Migrator:StatementTimeout)",
                     result.ErrorScript?.Name ?? "<no script>", session.LockTimeout, session.StatementTimeout);
+                ReportInvalidIndexes(lockConnection);
                 return false;
             }
         }
 
+        if (ReportInvalidIndexes(lockConnection))
+            return false;
+
         Log.Information("Database migration applied {ScriptCount} script(s)", applied);
         return true;
+    }
+
+    // A CREATE INDEX CONCURRENTLY that failed leaves the index behind INVALID, and IF NOT EXISTS would then journal its script as applied.
+    private static bool ReportInvalidIndexes(NpgsqlConnection connection)
+    {
+        var invalid = new List<string>();
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT format('%I.%I', n.nspname, c.relname) FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE NOT i.indisvalid ORDER BY 1";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+                invalid.Add(reader.GetString(0));
+        }
+
+        foreach (var index in invalid)
+            Log.Error("Index {Index} is INVALID (a concurrent build failed part-way); run DROP INDEX CONCURRENTLY {Index} and migrate again", index, index);
+        return invalid.Count > 0;
     }
 
     public static bool Migrate(string connectionString, MigrationSessionOptions? session = null)

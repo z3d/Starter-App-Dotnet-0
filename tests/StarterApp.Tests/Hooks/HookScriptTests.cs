@@ -38,6 +38,11 @@ public sealed class HookScriptTests : IDisposable
     [InlineData("sh -c 'pkill vite'")]
     [InlineData("eval \"docker system prune -af\"")]
     [InlineData("echo \"a'b\" ; pkill foo ; echo \"c'd\"")]
+    [InlineData("pgrep -f vite | xargs kill")]
+    [InlineData("kill $(pgrep -f vite)")]
+    [InlineData("timeout 5 pkill node")]
+    [InlineData("docker rm -f $(docker ps -aq)")]
+    [InlineData("podman rmi $(podman images -q)")]
     public void Guard_RefusesKillingByPattern(string command)
     {
         Assert.Equal(2, RunGuard(command).ExitCode);
@@ -123,6 +128,14 @@ public sealed class HookScriptTests : IDisposable
         Assert.Equal(2, result.ExitCode);
     }
 
+    [Theory]
+    [InlineData("git -c core.hooksPath=/dev/null push origin HEAD:main")]
+    [InlineData("git --no-pager push --no-verify origin HEAD:main")]
+    public void PreCommit_RefusesTheWaysAroundThePrePushGate(string command)
+    {
+        Assert.Equal(2, RunPreCommit(NewRepository(), command).ExitCode);
+    }
+
     [Fact]
     public void PreCommit_DoesNotReadACommitMessageAsAPush()
     {
@@ -177,6 +190,21 @@ public sealed class HookScriptTests : IDisposable
     }
 
     [Fact]
+    public void PrePush_RefusesUntrackedSourceThePushDoesNotCarry()
+    {
+        var repo = NewRepository();
+        var before = Git(repo, "rev-parse", "HEAD").Trim();
+        File.WriteAllText(Path.Combine(repo, "src", "Code.cs"), "class Changed {}\n");
+        Commit(repo, "Code");
+        File.WriteAllText(Path.Combine(repo, "src", "Forgotten.cs"), "class Forgotten {}\n");
+
+        var result = RunPrePush(repo, before);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.False(File.Exists(_toolLog), "the gate does not build a tree the push does not match");
+    }
+
+    [Fact]
     public void CiStatus_AttributesEachFailedRunToItsOwnCause()
     {
         var repo = NewRepository();
@@ -190,7 +218,10 @@ public sealed class HookScriptTests : IDisposable
         WriteExecutable(Path.Combine(_fakeBin, "gh"), $$"""
             #!/usr/bin/env bash
             case "$1 $2" in
-              "run list") cat '{{Path.Combine(_scratch, "runs.json")}}' ;;
+              "workflow list") printf 'CI Build\nCodeQL\n' ;;
+              "run list")
+                while [ $# -gt 0 ]; do [ "$1" = --workflow ] && name=$2; shift; done
+                python3 -c 'import json,sys; print(json.dumps([r for r in json.load(open(sys.argv[1])) if r["workflowName"] == sys.argv[2]][:1]))' '{{Path.Combine(_scratch, "runs.json")}}' "$name" ;;
               "run view")
                 if [ "$3" = 1 ]; then echo "X The job was not started because recent account payments have failed or your spending limit needs to be increased."
                 else echo "X Unit tests failed"; fi ;;

@@ -19,6 +19,7 @@ FROM nginxinc/nginx-unprivileged:1.31-alpine@sha256:b9241c6e7b8e9a862f129d8d4199
 USER root
 COPY web/deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY web/deploy/config.js.template /etc/nginx/templates/config.js.template
+COPY web/deploy/security-headers.conf /etc/nginx/security-headers.conf
 COPY --chmod=755 web/deploy/10-render-config.sh /docker-entrypoint.d/10-render-config.sh
 COPY --from=build /src/dist /usr/share/nginx/html
 # The base's digest trails Alpine's security fixes; CI's Trivy scan fails on a fixable HIGH.

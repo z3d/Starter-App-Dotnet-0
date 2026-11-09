@@ -2,6 +2,7 @@
 # nginx's entrypoint renders /etc/nginx/templates/*.template into /etc/nginx/conf.d; this renders
 # config.js into the one directory nginx's user may write, beside the read-only web root.
 set -eu
+: "${OIDC_AUTHORITY:?OIDC_AUTHORITY is required: the web app has no identity provider to sign in with}"
 : "${OIDC_CLIENT_ID:=starterapp-web}"
 : "${OIDC_SCOPE:=openid products:read products:write customers:read customers:write orders:read orders:write}"
 # Auth0 only: the API identifier and the Organization; empty for a Keycloak realm.

@@ -18,3 +18,13 @@ test('signing in goes through the identity provider and a write goes through ngi
     await deleteProductsNamed(name)
   }
 })
+
+test('the shell, the runtime config and the assets carry the security headers', async ({ request }) => {
+  for (const path of ['/', '/index.html', '/config.js', '/some/client/route']) {
+    const headers = (await request.get(path)).headers()
+    expect(headers['x-frame-options'], path).toBe('DENY')
+    expect(headers['x-content-type-options'], path).toBe('nosniff')
+    expect(headers['content-security-policy'], path).toContain("frame-ancestors 'none'")
+    expect(headers['content-security-policy'], path).toContain("script-src 'self'")
+  }
+})

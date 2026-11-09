@@ -20,8 +20,24 @@ branch=${branch:-main}
 
 bounded() { perl -e 'alarm shift; exec @ARGV' "$LIMIT" "$@" 2>/dev/null; }
 
-runs=$(bounded gh run list -R "$slug" --branch "$branch" --limit 40 \
-  --json databaseId,workflowName,status,conclusion,createdAt,url) || exit 0
+# One query per workflow: a nightly run is soon pushed out of any shared "latest N" window by per-push runs.
+names=$(bounded gh workflow list -R "$slug" --json name,state --jq '.[] | select(.state == "active") | .name') || exit 0
+[ -n "$names" ] || exit 0
+parts=$(mktemp -d) || exit 0
+n=0
+while IFS= read -r name; do
+  n=$((n + 1))
+  bounded gh run list -R "$slug" --branch "$branch" --workflow "$name" --status completed --limit 1 \
+    --json databaseId,workflowName,status,conclusion,createdAt,url >"$parts/$n" &
+done < <(printf '%s\n' "$names")
+wait
+runs=$(python3 -c 'import json,sys,glob
+out=[]
+for f in glob.glob(sys.argv[1]+"/*"):
+    try: out+=json.load(open(f))
+    except Exception: pass
+print(json.dumps(out))' "$parts")
+rm -rf "$parts"
 
 bad=$(printf '%s' "$runs" | python3 -c '
 import json, sys

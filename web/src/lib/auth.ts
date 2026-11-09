@@ -76,6 +76,10 @@ export function claimsOf(accessToken: string | undefined): Record<string, unknow
 
 // The session is gone (a 401): sign in again, back to the same page.
 export function signInAgain(): void {
+  // A token the API keeps refusing (wrong audience, clock skew) would otherwise loop through the provider's live session forever.
+  const last = Number(window.sessionStorage.getItem('starterapp.signInAgainAt'))
+  if (last && Date.now() - last < 30_000) return
+  window.sessionStorage.setItem('starterapp.signInAgainAt', String(Date.now()))
   rememberReturnTo()
   void userManager().signinRedirect()
 }
