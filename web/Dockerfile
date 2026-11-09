@@ -15,7 +15,7 @@ RUN npm run build
 
 # The unprivileged variant runs every process as uid 101, not only the workers. The bundle stays root-owned,
 # so nginx can read it but never rewrite it; config.js, the one file rendered at start-up, gets its own directory.
-FROM nginxinc/nginx-unprivileged:1.31-alpine@sha256:b9241c6e7b8e9a862f129d8d4199ab64b10390949a78bdd5603379b32c844083
+FROM nginxinc/nginx-unprivileged:1.31-alpine@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e
 USER root
 COPY web/deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY web/deploy/config.js.template /etc/nginx/templates/config.js.template
