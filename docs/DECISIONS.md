@@ -380,10 +380,6 @@ Types with behaviour are looked for by name, so the file carries the name; a DTO
 
 Every `Aspire.*` package and the AppHost SDK moved from 13.2.3 to 13.6.5 for the advisories against 13.2.3 (GHSA-f7vh-h5g3-7jrh, GHSA-4g86-54fm-h9h8), which `TreatWarningsAsErrors` turns into a failed restore. It drags up the OpenTelemetry exporter and hosting (1.17.0), `Microsoft.Extensions.Configuration*` (10.0.14), `Microsoft.Extensions.Http.Resilience` (10.10.0), `Azure.Storage.Blobs` (12.29.2) and the `MessagePack` pin (2.5.307; left in place, not rechecked for whether Aspire still needs it). Since this version a stack's containers are tied to the checkout that started it and use fixed ports, so only one checkout's stack runs at a time on a machine.
 
-## Walkthrough slides take their colours from a tone (2026-11-13)
-
-`web/e2e/lib/slides.mjs` came back from a derived product, where its one hard-coded palette had to be edited throughout to brand a client's fork. A tone now holds the background, accent, text on the accent, muted text, font and footer label, set as CSS variables on the slide; the stylesheet names no colour of its own but white. A product edits `tones`; one with a brand for staff and another for the people they serve gives each a tone, and a portrait card names the tone of the person shown. Not taken: a brand per area of the web app (`data-brand` on the page root with a token block per brand), which only a product with two brands needs.
-
 ## Taken from derived projects
 
 Improvements a derived project made to code the template also carries come back up here, translated onto the sample.

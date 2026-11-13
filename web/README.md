@@ -39,8 +39,6 @@ BASE_URL=http://localhost:5173 node e2e/walkthrough.mjs   # against the running 
 
 ### Presenting it live
 
-Slides between scenes come from `e2e/lib/slides.mjs` (`showSlide`, `hideSlide`): a title with rows, steps, points, a note or a person's portrait card. Every colour and font is a tone in that file; a product sets its own there, and one with two brands gives each a tone and names it on the slide. The sample walkthrough here is short enough to need none.
-
 The same walkthrough runs as a live demo with `PRESENTER=1`: no voice and no recording, the app in a visible browser on the largest display that is not the main one (`PRESENTER_SCREEN=main` keeps it on the laptop), and a presenter console at http://localhost:4173 showing each scene's line, what comes next and the whole list. Next (Enter or →) runs a scene; Pause (P) stops at the next wait and opens a scratch tab signed in as the same person, and resuming closes it and carries on in the demo's own tab; Auto (A) runs straight through; clicking a scene jumps to it, forward by running the scenes between, back by resetting the database, restarting the API and replaying. The console takes commands only from its own page or a non-browser client, so another page open in the same browser cannot drive it (`e2e/lib/console-gate.mjs`). A failed step leaves the browser where it stopped. `e2e/lib/presenter.mjs` holds it.
 
 ```bash
