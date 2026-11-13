@@ -145,6 +145,59 @@ public class MigrationCompatibilityConventionTests
         Assert.Empty(TransactionModeFailures(sql));
     }
 
+    // A plain CREATE INDEX holds a lock that blocks every write to its table until the build ends, and a script's statements share one transaction,
+    // so several of them hold their locks together. An index on a table that already holds rows is built CONCURRENTLY, one a script.
+    private static readonly Regex AnyIndex = new(@"\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+(?<concurrently>CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?\w+\s+ON\s+(?:ONLY\s+)?(?<table>[\w.]+)", RegexOptions.IgnoreCase);
+
+    // No applied script breaks the check; a script named here would be one that ran before the check and is never edited.
+    private static readonly string[] IndexesBuiltBeforeTheCheck = [];
+
+    [Fact]
+    public void AnIndexOnATableThatAlreadyExists_IsBuiltConcurrently()
+    {
+        var failures = EnforcedScripts()
+            .Where(file => !IndexesBuiltBeforeTheCheck.Contains(Path.GetFileName(file)))
+            .SelectMany(file => BlockingIndexFailures(File.ReadAllText(file)).Select(failure => $"  {Path.GetFileName(file)}: {failure}"))
+            .ToList();
+
+        Assert.True(failures.Count == 0,
+            "An index on a table an earlier script created is built with CREATE INDEX CONCURRENTLY, in a script of its own under the no-transaction header:\n" + string.Join("\n", failures));
+    }
+
+    [Fact]
+    public void AScriptExcusedFromTheIndexCheck_IsStillOneThatNeedsIt()
+    {
+        Assert.All(IndexesBuiltBeforeTheCheck, name => Assert.NotEmpty(BlockingIndexFailures(File.ReadAllText(Path.Combine(ScriptsDirectory, name)))));
+    }
+
+    [Theory]
+    [InlineData("CREATE INDEX ix_customers_phone ON customers (phone);")]
+    [InlineData("CREATE UNIQUE INDEX ux_customers_phone ON public.customers (phone);")]
+    [InlineData("CREATE TABLE people (id uuid NOT NULL);\nCREATE INDEX ix_customers_phone ON customers (phone);")]
+    public void TheIndexCheck_RefusesAPlainIndexOnAnExistingTable(string sql)
+    {
+        Assert.Single(BlockingIndexFailures(sql));
+    }
+
+    [Theory]
+    [InlineData("-- migrator: no-transaction\nCREATE INDEX CONCURRENTLY ix_customers_phone ON customers (phone);")]
+    [InlineData("CREATE TABLE people (id uuid NOT NULL);\nCREATE INDEX ix_people_id ON people (id);")]
+    [InlineData("-- CREATE INDEX ix_customers_phone ON customers (phone); is only a comment\nALTER TABLE customers ADD COLUMN note text NULL;")]
+    public void TheIndexCheck_AllowsAConcurrentBuildAndAnIndexOnANewTable(string sql)
+    {
+        Assert.Empty(BlockingIndexFailures(sql));
+    }
+
+    internal static IReadOnlyList<string> BlockingIndexFailures(string sql)
+    {
+        var body = Regex.Replace(Regex.Replace(sql, @"--[^\r\n]*", ""), @"/\*[\s\S]*?\*/", "").Replace("\"", "");
+        var created = CreatedTable.Matches(body).Select(match => match.Groups["table"].Value.ToLowerInvariant()).ToHashSet(StringComparer.Ordinal);
+        return AnyIndex.Matches(body)
+            .Where(match => !match.Groups["concurrently"].Success && !created.Contains(match.Groups["table"].Value.ToLowerInvariant()))
+            .Select(match => $"a plain CREATE INDEX on {match.Groups["table"].Value} blocks its writes while it builds; use CREATE INDEX CONCURRENTLY in its own script.")
+            .ToList();
+    }
+
     internal static IReadOnlyList<string> TransactionModeFailures(string sql)
     {
         var body = Regex.Replace(Regex.Replace(sql, @"--[^\r\n]*", ""), @"/\*[\s\S]*?\*/", "");
