@@ -1,5 +1,5 @@
 # Build stage
-FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:212fe4cb74627d5adf9817a4088906ae3edff1bd853bb27565d4b46731efe61e AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:fe0fd4e93bd2fbb47c883b7a6369e5c8d3db8bf01cdc5981f6ee35fbdf3ff4fb AS build
 WORKDIR /src
 
 COPY ["Directory.Build.props", "Directory.Build.props"]
@@ -23,7 +23,7 @@ WORKDIR "/src/src/StarterApp.DbMigrator"
 RUN dotnet publish "StarterApp.DbMigrator.csproj" -c Release -o /app/publish /p:UseAppHost=false -p:EnforceCodeStyleInBuild=false
 
 # Runtime stage: console app, so the plain runtime (not aspnet), chiseled (no shell, no apt).
-FROM mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled@sha256:9ff26250358cef92587a087a7bef8d5655893385ff921ad9d5e924f20602fad4 AS final
+FROM mcr.microsoft.com/dotnet/runtime:10.0-noble-chiseled@sha256:1b234cef150624fe8cc7d027e8d742c0f03a16aef2484dc469eb8c872167255e AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 

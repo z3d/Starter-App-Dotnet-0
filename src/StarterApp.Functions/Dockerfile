@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:212fe4cb74627d5adf9817a4088906ae3edff1bd853bb27565d4b46731efe61e AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:fe0fd4e93bd2fbb47c883b7a6369e5c8d3db8bf01cdc5981f6ee35fbdf3ff4fb AS build
 WORKDIR /src
 
 COPY Directory.Build.props .
@@ -23,7 +23,7 @@ COPY src/StarterApp.ServiceDefaults/ src/StarterApp.ServiceDefaults/
 # same tree passes locally), so a Windows clone cannot build the image the E2E suite boots.
 RUN dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Release -o /app/publish -p:EnforceCodeStyleInBuild=false
 
-FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0@sha256:a8a70c7bbbda3a4a99f4d0715aaddec4d7f17e76aa41fcd6423c85ae5d3b49c5
+FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0@sha256:6990da543e1dc1c7bb8d8d32c702c87a525db7b8ea621e645b479c822ed72c6d
 # The base still ships apt 2.8.3 (CVE-2026-109518); drop this once its digest carries 2.8.4ubuntu0.1.
 RUN apt-get update && apt-get install -y --no-install-recommends --only-upgrade apt libapt-pkg6.0t64 && rm -rf /var/lib/apt/lists/*
 WORKDIR /home/site/wwwroot
