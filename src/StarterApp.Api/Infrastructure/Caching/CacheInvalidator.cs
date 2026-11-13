@@ -2,12 +2,6 @@ using Microsoft.Extensions.Caching.Distributed;
 
 namespace StarterApp.Api.Infrastructure.Caching;
 
-public interface ICacheInvalidator
-{
-    Task InvalidateProductAsync(int productId, CancellationToken cancellationToken = default);
-    Task InvalidateCustomerAsync(int customerId, CancellationToken cancellationToken = default);
-}
-
 public class CacheInvalidator : ICacheInvalidator
 {
     private readonly IDistributedCache _cache;

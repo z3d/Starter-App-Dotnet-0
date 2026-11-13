@@ -2,12 +2,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace StarterApp.ServiceDefaults.Payloads;
 
-public enum PayloadCaptureFailureMode
-{
-    FailOpen,
-    FailClosed
-}
-
 public class PayloadCaptureOptions
 {
     public bool Enabled { get; set; } = true;

@@ -3,21 +3,6 @@ using Npgsql;
 
 namespace StarterApp.ServiceDefaults.Jobs;
 
-// A failure to record is logged and swallowed. Writing the history must never take down the job it describes.
-public interface IJobRunRecorder
-{
-    Task<Guid> StartRunAsync(string jobName, DateTimeOffset startedOnUtc, CancellationToken cancellationToken);
-    Task CompleteRunAsync(Guid runId, DateTimeOffset completedOnUtc, string outcome, string summary, CancellationToken cancellationToken);
-    Task RecordRunAsync(string jobName, DateTimeOffset startedOnUtc, DateTimeOffset completedOnUtc, string outcome, string summary, CancellationToken cancellationToken);
-}
-
-public sealed class NullJobRunRecorder : IJobRunRecorder
-{
-    public Task<Guid> StartRunAsync(string jobName, DateTimeOffset startedOnUtc, CancellationToken cancellationToken) => Task.FromResult(Guid.Empty);
-    public Task CompleteRunAsync(Guid runId, DateTimeOffset completedOnUtc, string outcome, string summary, CancellationToken cancellationToken) => Task.CompletedTask;
-    public Task RecordRunAsync(string jobName, DateTimeOffset startedOnUtc, DateTimeOffset completedOnUtc, string outcome, string summary, CancellationToken cancellationToken) => Task.CompletedTask;
-}
-
 public sealed class NpgsqlJobRunRecorder : IJobRunRecorder
 {
     private readonly NpgsqlDataSource _dataSource;

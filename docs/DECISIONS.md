@@ -25,7 +25,7 @@ The usual reason to split the two — keeping an internal model from leaking int
 
 The assumption this bakes in: **every domain event is a public, archived contract.** Any property added to one is also a wire-contract and a data-retention decision.
 
-Updating a contract deliberately: `UPDATE_EVENT_SNAPSHOTS=1 dotnet test --filter EventContractSnapshot`, then choose between a compatible change, an `OutboxMessage.SchemaVersion` bump, and a new `.v2` contract. New events need a representative instance plus fixture — completeness is test-enforced.
+Updating a contract deliberately: `UPDATE_EVENT_SNAPSHOTS=1 dotnet test --filter EventContractSnapshot`, then choose between a compatible change (the snapshot is updated under the same name) and a new `.v2` contract. There is no separate schema version number: this line once offered an `OutboxMessage.SchemaVersion` bump that the code never had (removed 2026-11-13). The version in the event's name is the only one. New events need a representative instance plus fixture — completeness is test-enforced.
 
 **Re-add trigger for a translation layer:** the first time a domain event needs a property the external contract shouldn't expose (rich internal state, entity references, PII you don't want archived), **or** the first time you need an in-process, same-transaction reaction to a domain event.
 
@@ -367,6 +367,18 @@ The rate limiter's partition, the owner cache key and the payload archive's `ten
 ## Money is refused off its currency's scale, never rounded, and has no default currency (2026-10-23)
 
 `Money.Create` defaulted to USD and rounded any amount to two places, so a caller that forgot the currency got dollars and an amount of 10.989 became 10.99 without anyone deciding to round. Both are wrong for any project that holds money: a derived bank found it first. Now `Money.Create(amount, currency)` takes the currency every time, and an amount with more decimal places than the currency's ISO 4217 minor units (`Money.MinorUnits`: 0 for JPY and the other zero-place codes, 3 for KWD and its group, 4 for CLF and UYW, 2 otherwise, checked against the SIX list published 2026-09-17) throws `ArgumentException`; trailing zeros are not places, so 12.5000 from a `numeric` column is 12.5. Rounding happens only inside a named calculation at a stated mode (the sample's per-unit GST, at the currency's places). Validators refuse an off-scale amount first with `Money.IsAtScale`, so a client gets a 400 naming the field. The sample stores prices as `numeric(18,2)`, so a product refuses a currency with more than two places rather than let PostgreSQL round it, and an order with no items has no currency and so no total. Codes the list gives no minor units (gold, SDRs, XXX) fall through to two places. **Re-add trigger:** none for the rounding; a project that needs those no-unit codes gives them their own table.
+
+## One type per file, with two exceptions (2026-11-13)
+
+Every source file under `src` and `dev` holds one type. Two things may share a file: a command or query with its handler, in a file named after the command or query; and a DTO or read model with the small records only it uses, in a file named after the DTO or read model. `CommandFileConventionTests` and `OneTypePerFileConventionTests` fail anything else.
+
+This template always kept one command per file, but as a habit. A derived product's first module grouped them (`BrandCommands.cs`), every later module copied it, and a review on 13 November 2026 found 120 commands and queries in 35 files and validators 28 to a file; nothing had failed. The rule now has tests, and the 21 files here that grouped types (`ICQRSInterfaces.cs`, `FeatureToggles.cs`, the job and payload helpers) were split, text moved only. The consistency cohorts find a handler's file by its class, so `ICommand.cs` and a command's nested record are not mistaken for one.
+
+Types with behaviour are looked for by name, so the file carries the name; a DTO's nested records are read with it and gain nothing from separate files. **Re-add trigger** for grouping: none.
+
+## Aspire 13.6.5 (2026-11-13)
+
+Every `Aspire.*` package and the AppHost SDK moved from 13.2.3 to 13.6.5 for the advisories against 13.2.3 (GHSA-f7vh-h5g3-7jrh, GHSA-4g86-54fm-h9h8), which `TreatWarningsAsErrors` turns into a failed restore. It drags up the OpenTelemetry exporter and hosting (1.17.0), `Microsoft.Extensions.Configuration*` (10.0.14), `Microsoft.Extensions.Http.Resilience` (10.10.0), `Azure.Storage.Blobs` (12.29.2) and the `MessagePack` pin (2.5.307; left in place, not rechecked for whether Aspire still needs it). Since this version a stack's containers are tied to the checkout that started it and use fixed ports, so only one checkout's stack runs at a time on a machine.
 
 ## Taken from derived projects
 

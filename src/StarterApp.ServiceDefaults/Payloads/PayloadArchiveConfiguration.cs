@@ -48,14 +48,3 @@ public static class PayloadArchiveConfiguration
         return string.IsNullOrWhiteSpace(connectionString) ? null : connectionString;
     }
 }
-
-// A wrapper, so the archive store can never pick up an unrelated BlobServiceClient from DI.
-public sealed class PayloadArchiveClientProvider
-{
-    public PayloadArchiveClientProvider(BlobServiceClient? client)
-    {
-        Client = client;
-    }
-
-    public BlobServiceClient? Client { get; }
-}

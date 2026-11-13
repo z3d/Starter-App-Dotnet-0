@@ -18,12 +18,6 @@ public class CreateOrderCommand : ICommand, IRequest<OrderDto>, IOwnerAuthorized
     public string? IdempotencyKey { get; set; }
 }
 
-public class CreateOrderItemCommand
-{
-    public int ProductId { get; set; }
-    public int Quantity { get; set; }
-}
-
 public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, OrderDto>
 {
     private const string IdempotencyOperation = "orders.create";

@@ -11,6 +11,7 @@ Read a real handler before writing one. `docs/exemplars/command-handlers/` and `
 ## The rules
 
 - **Commands use `ApplicationDbContext` and return DTOs; queries use Dapper on `IDbConnection` and return ReadModels.** Never cross. `CqrsConventionTests` enforces both directions, positively and negatively.
+- **One command or query per file**, named after it (`CreateOrderCommand.cs`), with its handler in the same file. Everything else is one type per file, except a DTO or read model with the small records only it uses. `CommandFileConventionTests` and `OneTypePerFileConventionTests` fail a grouped file (`docs/DECISIONS.md`, "One type per file").
 - **No repository layer.** DbContext is already unit-of-work plus repository; the indirection bought nothing.
 - **A command declares `ICommand` *and* `IRequest<T>`.** `ICommand` is a bare marker. A query declares only `IQuery<T>`, which already extends `IRequest<T>`. A command with no natural result returns `IRequest<Unit>` — there is no non-generic `IRequest`.
 - **Commands:** load tracked entities with `.Include()`, mutate through domain methods, one `SaveChangesAsync(cancellationToken)`, invalidate the cache key *after* the save.

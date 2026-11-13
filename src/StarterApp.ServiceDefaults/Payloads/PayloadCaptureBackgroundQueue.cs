@@ -5,8 +5,6 @@ using Microsoft.Extensions.Options;
 
 namespace StarterApp.ServiceDefaults.Payloads;
 
-public sealed record PendingPayloadAppend(string BlobName, string Line);
-
 // Limited in bytes, not items. An audit line carries the whole captured payload.
 public sealed class PayloadCaptureBackgroundQueue
 {

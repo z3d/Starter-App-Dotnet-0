@@ -56,9 +56,10 @@ public abstract class CohortValidationTestBase<TFingerprint>
 
         var onDisk = Directory
             .EnumerateFiles(SourceTreeAbsolutePath, SourceFileGlob, SearchOption.AllDirectories)
-            .Select(Path.GetFileNameWithoutExtension)
-            .Where(name => name is not null)
-            .Select(name => SourceFileNameToTypeName(name!))
+            // A file named like a member but holding no handler (ICommand.cs, a command's nested item record) is not one.
+            .Select(path => (Name: SourceFileNameToTypeName(Path.GetFileNameWithoutExtension(path)), Text: File.ReadAllText(path)))
+            .Where(file => file.Text.Contains($"class {file.Name}", StringComparison.Ordinal))
+            .Select(file => file.Name)
             .ToHashSet();
 
         var missingFromDiscovery = onDisk.Except(discovered).ToList();

@@ -9,34 +9,6 @@ using StarterApp.ServiceDefaults.Jobs;
 
 namespace StarterApp.Functions;
 
-[AttributeUsage(AttributeTargets.Method)]
-public sealed class WatchedJobAttribute(string name) : Attribute
-{
-    public string Name { get; } = name;
-}
-
-public sealed record WatchedJob(string Name, string Schedule)
-{
-    public string? ScheduleSetting => Schedule is ['%', .., '%'] ? Schedule.Trim('%') : null;
-}
-
-public enum JobHealth
-{
-    Healthy,
-    Failing,
-    Overdue,
-    Unwatchable,
-}
-
-public sealed class JobWatchOptions
-{
-    public const string SectionName = "JobWatch";
-
-    public int OverdueGraceMinutes { get; set; } = 15;
-
-    public int UnfinishedAfterMinutes { get; set; } = 120;
-}
-
 public sealed class JobWatchFunction
 {
     private const string Stamp = "u";

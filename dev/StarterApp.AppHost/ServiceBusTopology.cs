@@ -39,5 +39,3 @@ public static class ServiceBusTopology
     public const string OrderCreatedEventType = "order.created.v1";
     public const string OrderStatusChangedEventType = "order.status-changed.v1";
 }
-
-public sealed record SubscriptionFilter(string SubscriptionName, string RuleName, string EventType);

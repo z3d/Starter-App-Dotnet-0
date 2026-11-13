@@ -1,26 +1,5 @@
 namespace StarterApp.ServiceDefaults.Payloads;
 
-// For things the system produced, as opposed to payloads that arrived. Nothing produces one yet.
-public interface IArtifactCaptureSink
-{
-    Task CaptureArtifactAsync(ArtifactCaptureRequest request, CancellationToken cancellationToken);
-
-    Task CaptureBinaryArtifactAsync(string artifactName, string stage, string? contentType, byte[] content,
-        IReadOnlyList<PayloadEntityReference>? entityReferences, CancellationToken cancellationToken);
-}
-
-public sealed class ArtifactCaptureRequest
-{
-    public string ArtifactName { get; init; } = string.Empty;
-
-    // "generated" for a final artefact, "intermediate" for one made part way through.
-    public string Stage { get; init; } = ArtifactCaptureSink.GeneratedStage;
-    public string? ContentType { get; init; }
-    public string Payload { get; init; } = string.Empty;
-    public Dictionary<string, string> Metadata { get; init; } = [];
-    public List<PayloadEntityReference> EntityReferences { get; init; } = [];
-}
-
 public sealed class ArtifactCaptureSink : IArtifactCaptureSink
 {
     public const string ChannelName = PayloadCaptureChannels.Artifact;

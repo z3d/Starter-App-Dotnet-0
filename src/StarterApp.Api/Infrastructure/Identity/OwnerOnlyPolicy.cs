@@ -1,13 +1,5 @@
 namespace StarterApp.Api.Infrastructure.Identity;
 
-public interface IOwnerOnlyPolicy
-{
-    OwnerScope GetRequiredScope();
-    void Authorize(string ownerSubject, string tenantId);
-}
-
-public sealed record OwnerScope(string OwnerSubject, string TenantId);
-
 public sealed class OwnerOnlyPolicy : IOwnerOnlyPolicy
 {
     private readonly ICurrentUser _currentUser;

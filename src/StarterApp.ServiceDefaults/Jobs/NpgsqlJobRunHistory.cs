@@ -2,24 +2,6 @@ using Npgsql;
 
 namespace StarterApp.ServiceDefaults.Jobs;
 
-public sealed record LastRun(DateTimeOffset StartedOnUtc, string? CompletedOutcome, DateTimeOffset? UnfinishedSinceUtc = null);
-
-public interface IJobRunHistory
-{
-    Task<IReadOnlyDictionary<string, LastRun>?> LastRunsAsync(IReadOnlyList<string> jobNames, CancellationToken cancellationToken);
-
-    Task<IReadOnlyDictionary<string, DateTimeOffset>> WatchedSinceAsync(IReadOnlyList<string> jobNames, DateTimeOffset nowUtc, CancellationToken cancellationToken);
-}
-
-public sealed class NoJobRunHistory : IJobRunHistory
-{
-    public Task<IReadOnlyDictionary<string, LastRun>?> LastRunsAsync(IReadOnlyList<string> jobNames, CancellationToken cancellationToken)
-        => Task.FromResult<IReadOnlyDictionary<string, LastRun>?>(null);
-
-    public Task<IReadOnlyDictionary<string, DateTimeOffset>> WatchedSinceAsync(IReadOnlyList<string> jobNames, DateTimeOffset nowUtc, CancellationToken cancellationToken)
-        => Task.FromResult<IReadOnlyDictionary<string, DateTimeOffset>>(new Dictionary<string, DateTimeOffset>());
-}
-
 public sealed class NpgsqlJobRunHistory : IJobRunHistory
 {
     private const string LastRunsSql = """
