@@ -90,6 +90,7 @@ public class PayloadCaptureOptions
         "password",
         "phone",
         "salary",
+        "search",
         "secret",
         "set-cookie",
         "ssn",

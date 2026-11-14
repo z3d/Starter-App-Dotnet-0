@@ -483,7 +483,7 @@ public class PayloadCaptureTests
             {
                 ["method"] = "GET",
                 ["path"] = "/api/v1/products",
-                ["queryString"] = "?page=2&pageSize=50&token=secret-abc-123&email=ada@example.com"
+                ["queryString"] = "?page=2&pageSize=50&token=secret-abc-123&email=ada@example.com&search=ada%20lovelace"
             }
         }, CancellationToken.None);
 
@@ -499,6 +499,9 @@ public class PayloadCaptureTests
         Assert.Contains("pageSize=50", queryString);
         Assert.Contains("token=[REDACTED]", queryString);
         Assert.Contains("email=[REDACTED]", queryString);
+        // A search box takes a name, an email or a phone number, so what was typed is not kept.
+        Assert.Contains("search=[REDACTED]", queryString);
+        Assert.DoesNotContain("lovelace", queryString);
 
         // Sensitive values must not survive anywhere in the archive or audit blob metadata.
         Assert.DoesNotContain("secret-abc-123", archiveLine);
