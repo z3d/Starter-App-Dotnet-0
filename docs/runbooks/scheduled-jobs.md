@@ -1,6 +1,6 @@
 # A scheduled job failed, or didn't run
 
-The Functions worker runs the timer jobs (here, the payload archive cleanup on `PayloadCapture:CleanupCron`) and
+The Functions worker runs the timer jobs (here, the payload archive cleanup on `PayloadCapture:CleanupCron` and the idempotency record cleanup on `Idempotency:CleanupCron`) and
 each writes its runs to `job_runs`. Every 15 minutes (`JobWatch:Cron`) the job watch, `JobWatchFunction`, compares
 each watched job's last run with its schedule and logs what it finds. A job is watched by carrying
 `[WatchedJob("<name it records under>")]` on its timer function (`FunctionsHostConfigConventionTests` fails a timer

@@ -10,6 +10,7 @@ public class PagingConventionTests : ConventionTestBase
 
     private static readonly Dictionary<string, string> FixedBatches = new()
     {
+        ["IdempotencyRecordPurge"] = "deletes BatchSize expired records a statement and loops until none are left or its time budget runs out; the rest go next run",
         ["OutboxProcessor"] = "claims BatchSize messages per poll; the rest wait for the next poll, none is dropped",
     };
 

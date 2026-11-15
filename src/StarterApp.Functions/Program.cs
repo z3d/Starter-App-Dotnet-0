@@ -9,6 +9,7 @@ builder.AddServiceDefaults();
 builder.AddPayloadCapture();
 builder.AddJobRunRecording();
 builder.AddMessageInbox();
+builder.Services.AddSingleton(provider => new IdempotencyRecordPurge(provider.GetService<Npgsql.NpgsqlDataSource>()));
 builder.Services.AddOptions<JobWatchOptions>().BindConfiguration(JobWatchOptions.SectionName);
 
 builder.Build().Run();

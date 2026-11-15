@@ -9,6 +9,7 @@
     "PayloadCapture:EntityIndexPrefix": "entity-index",
     "PayloadCapture:RetentionDays": "30",
     "PayloadCapture__CleanupCron": "0 0 * * * *",
-    "JobWatch__Cron": "0 */15 * * * *"
+    "JobWatch__Cron": "0 */15 * * * *",
+    "Idempotency__CleanupCron": "0 30 3 * * *"
   }
 }

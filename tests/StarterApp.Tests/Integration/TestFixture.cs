@@ -62,25 +62,8 @@ public class TestDatabaseFixture : IAsyncLifetime
     {
         try
         {
-            // Use DbUp to run migrations from the DbMigrator project
-            var migratorAssembly = Assembly.Load("StarterApp.DbMigrator");
-
-            var upgrader = DeployChanges.To
-                .PostgresqlDatabase(connectionString)
-                .WithScriptsEmbeddedInAssembly(migratorAssembly) // Use embedded scripts from the DbMigrator assembly
-                .LogToConsole()
-                .WithTransaction()
-                .Build();
-
-            var result = upgrader.PerformUpgrade();
-
-            if (!result.Successful)
-            {
-                Console.WriteLine($"Database migration failed: {result.Error}");
-                return false;
-            }
-
-            return true;
+            // The migrator's own path: its per-script transactions and its no-transaction scripts, as when deployed.
+            return StarterApp.DbMigrator.DatabaseMigrationEngine.MigrateDatabase(connectionString, Assembly.Load("StarterApp.DbMigrator"));
         }
         catch (Exception ex)
         {

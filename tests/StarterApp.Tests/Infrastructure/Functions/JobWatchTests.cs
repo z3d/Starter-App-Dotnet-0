@@ -18,7 +18,7 @@ public class JobWatchTests
 
     [Fact]
     public void EveryTimerJobMarkedWatched_IsDiscoveredWithTheSettingItsTimerRunsOn()
-        => Assert.Equal([new WatchedJob(PayloadArchiveCleanupFunction.JobName, "%PayloadCapture:CleanupCron%")], JobWatchFunction.Jobs);
+        => Assert.Equal([new WatchedJob(IdempotencyRecordCleanupFunction.JobName, "%Idempotency:CleanupCron%"), new WatchedJob(PayloadArchiveCleanupFunction.JobName, "%PayloadCapture:CleanupCron%")], JobWatchFunction.Jobs);
 
     [Theory]
     [InlineData("Succeeded")]

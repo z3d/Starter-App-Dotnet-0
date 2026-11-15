@@ -33,6 +33,7 @@ WORKDIR /home/site/wwwroot
 # this env var to change the schedule.
 ENV PayloadCapture__CleanupCron="0 0 * * * *"
 ENV JobWatch__Cron="0 */15 * * * *"
+ENV Idempotency__CleanupCron="0 30 3 * * *"
 COPY --from=build /app/publish .
 # Non-root like the API and migrator: the base image already gives $APP_UID /home and a world-writable
 # Secrets directory, so the one change is listening above 1024.
