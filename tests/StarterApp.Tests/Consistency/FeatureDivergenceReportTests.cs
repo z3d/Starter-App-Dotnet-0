@@ -167,7 +167,10 @@ public class FeatureDivergenceReportTests
         var report = FeatureDivergenceReport.Analyse(all, ex);
 
         Assert.Empty(report.First(r => r.FeatureName == "HasPagination").DivergentMembers);
-        Assert.Empty(report.First(r => r.FeatureName == "IsCacheable").DivergentMembers);
+        // The cache is keyed per subject with no pattern delete, so one administrator's change could not evict a colleague's copy.
+        string[] tenantWideReads = ["GetTenantSettingsQueryHandler"];
+        Assert.DoesNotContain(report.First(r => r.FeatureName == "IsCacheable").DivergentMembers,
+            m => !tenantWideReads.Contains(m.TypeName));
         Assert.Empty(report.First(r => r.FeatureName == "ReturnsList").DivergentMembers);
     }
 }
