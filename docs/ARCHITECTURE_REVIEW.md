@@ -226,6 +226,17 @@ The first, second and last of the open items are in the sample domain, which a d
   pre-change checklist; `AGENTS.md` stays a pointer to the root doc.
 - **Compiler-enforced module boundaries.** Trigger and design are in the folder-only entry above
   and the modular-monolith decision in `DECISIONS.md`.
+- **Recent-MFA check for high-risk actions.** `SecuredBy2Fa()` asks only whether the session's
+  sign-in used a second factor (`amr` contains `mfa`). The identity provider's session bounds how
+  long that holds (the dev realm: 30 minutes idle, 10 hours at most); nothing asks how recently.
+  That is right for the template's policy, a second factor on every write, where a freshness rule
+  would send a user back to MFA every few minutes. Trigger: a derived project names an action that
+  needs a fresh second factor (role grants, payout or bank-detail changes, bulk export, breach
+  notification). Then add a separate `RequireRecentMfa(TimeSpan)` filter beside `SecuredBy2Fa()`,
+  map `auth_time` in `JwtIdentityMiddleware` next to `amr`, and answer a stale or missing value
+  with the RFC 9470 challenge carrying `max_age`, so the client re-authenticates and retries.
+  Entra v2 and Auth0 access tokens carry no `auth_time` by default, so the IdP profile must add
+  it, and a token without it fails closed. `SecuredBy2Fa()` itself stays as it is.
 - **Broker-observed settlement tests.** Retry-then-complete, abandon-then-redeliver, dead-letter
   reason, and lock renewal across the 210 s deadline are proven only against a fake
   `ServiceBusMessageActions` plus constant arithmetic; no test opens a receiver or reads a
