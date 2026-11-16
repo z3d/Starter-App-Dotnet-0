@@ -376,6 +376,12 @@ This template always kept one command per file, but as a habit. A derived produc
 
 Types with behaviour are looked for by name, so the file carries the name; a DTO's nested records are read with it and gain nothing from separate files. **Re-add trigger** for grouping: none.
 
+## The worker's files sit in folders named after what they serve (2026-11-16)
+
+In `src/StarterApp.Functions`, each module's functions, with their options and results, sit in a folder named after the module they serve (`Orders` here); `Housekeeping` holds the scheduled jobs that cross modules (the job watch, payload archive cleanup, the idempotency purge) and `Infrastructure` the inbox, message settlement and, in a product that has them, the worker's identity and API client. The namespace stays `StarterApp.Functions` for every file, so nothing that names a type changed. It is still one project; if modules become assemblies, a module's folder moves with it. `WorkerLayoutConventionTests` fails a file left at the worker's root (other than `Program.cs`) or a folder given its own namespace.
+
+A flat worker reads well at seven files and badly at sixty, and a derived product's worker grows with its modules. The folder is a judgement per file (which module does it serve?), so it is made when the file is added, not in a sweep later. **Re-add trigger** for a flat worker: none.
+
 ## Aspire 13.6.5 (2026-11-13)
 
 Every `Aspire.*` package and the AppHost SDK moved from 13.2.3 to 13.6.5 for the advisories against 13.2.3 (GHSA-f7vh-h5g3-7jrh, GHSA-4g86-54fm-h9h8), which `TreatWarningsAsErrors` turns into a failed restore. It drags up the OpenTelemetry exporter and hosting (1.17.0), `Microsoft.Extensions.Configuration*` (10.0.14), `Microsoft.Extensions.Http.Resilience` (10.10.0), `Azure.Storage.Blobs` (12.29.2) and the `MessagePack` pin (2.5.307; left in place, not rechecked for whether Aspire still needs it). Since this version a stack's containers are tied to the checkout that started it and use fixed ports, so only one checkout's stack runs at a time on a machine.
