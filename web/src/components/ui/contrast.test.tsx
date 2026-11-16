@@ -162,7 +162,7 @@ const pairs = [
     pair(
       `figure ${tone}`,
       <Figure label="l" value="v" tone={tone as keyof typeof figureTones} />,
-      (root) => root.querySelector('.font-display')!,
+      (root) => root.querySelector('.tnum')!,
       true,
     ),
   ),

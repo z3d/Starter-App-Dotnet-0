@@ -54,6 +54,7 @@
   --ai-soft: oklch(0.95 0.03 300);
   --ai-strong: oklch(from var(--ai) 0.53 c h);
   --focus: oklch(0.6 0.17 35 / 0.45);
+  --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236f6a65' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>"); /* the select's arrow, in ink-tertiary */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -104,6 +105,7 @@
     --ai-soft: oklch(0.3 0.06 300);
     --ai-strong: var(--ai);
     --focus: oklch(0.72 0.15 40 / 0.5);
+    --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a39e98' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>"); /* the select's arrow, in ink-tertiary */
   }
 }
 
@@ -154,6 +156,7 @@
   --ai-soft: oklch(0.3 0.06 300);
   --ai-strong: var(--ai);
   --focus: oklch(0.72 0.15 40 / 0.5);
+  --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a39e98' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>"); /* the select's arrow, in ink-tertiary */
 }
 
 @theme inline {
@@ -283,6 +286,16 @@
 @utility font-display {
   font-family: var(--font-display);
   letter-spacing: -0.01em;
+}
+
+/* A select's arrow. A Tailwind arbitrary value cannot hold the SVG (its spaces split the class), so it is a token. */
+@utility select-chevron {
+  appearance: none;
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 12px;
+  padding-right: 2rem;
 }
 
 @utility tnum {

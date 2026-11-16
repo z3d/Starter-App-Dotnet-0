@@ -43,16 +43,7 @@ export function Input({ className, ...props }: ComponentProps<'input'>) {
 }
 
 export function Select({ className, ...props }: ComponentProps<'select'>) {
-  return (
-    <select
-      className={cn(
-        control,
-        'appearance-none bg-[url("data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23888%22 stroke-width=%222%22><path d=%22m6 9 6 6 6-6%22/></svg>")] bg-[length:12px] bg-[right_0.75rem_center] bg-no-repeat pr-8',
-        className,
-      )}
-      {...props}
-    />
-  )
+  return <select className={cn(control, 'select-chevron', className)} {...props} />
 }
 
 export function Textarea({ className, ...props }: ComponentProps<'textarea'>) {

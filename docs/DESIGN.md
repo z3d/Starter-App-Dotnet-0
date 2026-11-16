@@ -30,10 +30,11 @@ Defined once as CSS custom properties on `:root`, overridden for dark under `pre
 | Sidebar | `rail`, `rail-ink`, `rail-ink-muted`, `rail-line`, `rail-active` | the dark rail is its own mini-palette so it works in both themes; `rail-lit` lights it from the accents |
 | Semantic | `positive`, `caution`, `negative`, `info`, each with a `-soft` surface and a `-strong` ink for text on that surface or a card; `ai` for machine-made content, the same three | chips, callouts, avatars, the danger button, toned figures, stat tiles and wait times set `-strong`; the bare tone is for dots, borders, bars and icons |
 | Focus | `focus` | a ring, 2 px offset, on every focusable element |
+| Controls | `chevron` | a select's arrow as an SVG in `ink-tertiary`, through the `select-chevron` utility; a Tailwind arbitrary value cannot hold it, because its spaces split the class (`class-names.test.ts`) |
 
 Legacy shadcn-style aliases (`background`, `foreground`, `muted`, `border`, `primary`, `destructive`, `ring`) map onto the above so drop-in components keep working.
 
-**Type.** Instrument Sans (UI, 14 px base at 1.5 line height), Instrument Serif (display: page titles at 2.5 rem on the header band, section titles at 1.25 rem, hero numbers at 4 to 5 rem), IBM Plex Mono (identifiers, references, keyboard hints). Loaded from Google Fonts with system fallbacks.
+**Type.** Instrument Sans (UI, 14 px base at 1.5 line height), Instrument Serif (display: page titles at 2.5 rem on the header band, section titles at 1.25 rem, hero numbers at 4 to 5 rem), IBM Plex Mono (identifiers, references, keyboard hints). Loaded from Google Fonts with system fallbacks. A `Figure` in a strip is set in the sans at semibold, not the serif: at strip size the serif's thin 1 reads as an l.
 
 **Shape and depth.** Radii 6 / 8 / 12 / 16 px; cards and tables are 12 px. `shadow-card` (the `card` utility) is the default for anything on the page; `shadow-hairline` stays for small controls; `shadow-lift` only on hover of interactive cards; `shadow-pop` only under the command palette and dialogs.
 

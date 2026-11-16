@@ -99,8 +99,8 @@ export function Figure({
       </p>
       <p
         className={cn(
-          'mt-1 font-display tnum',
-          small ? 'text-[1.5rem] leading-tight' : 'text-[2rem] leading-none',
+          'mt-1.5 font-semibold tracking-tight tnum',
+          small ? 'text-[1.25rem] leading-tight' : 'text-[1.75rem] leading-none',
           dark ? 'text-white' : figureTones[tone],
         )}
       >
