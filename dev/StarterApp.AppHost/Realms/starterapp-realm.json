@@ -5,6 +5,14 @@
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
   "registrationAllowed": false,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administers the tenant: may change its settings (the settings:write scope)."
+      }
+    ]
+  },
   "clients": [
     {
       "clientId": "starterapp-dev",
@@ -34,7 +42,9 @@
         "orders:read",
         "orders:write",
         "products:read",
-        "products:write"
+        "products:write",
+        "settings:read",
+        "settings:write"
       ]
     },
     {
@@ -68,7 +78,9 @@
         "orders:read",
         "orders:write",
         "products:read",
-        "products:write"
+        "products:write",
+        "settings:read",
+        "settings:write"
       ]
     }
   ],
@@ -190,6 +202,21 @@
       }
     },
     {
+      "name": "settings:read",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
+    },
+    {
+      "name": "settings:write",
+      "description": "The tenant's own settings, such as its colour theme. Granted only to holders of the admin realm role: a client scope with a role scope mapping is left out of the token for anyone without one of its roles.",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
+    },
+    {
       "name": "email",
       "description": "OpenID Connect built-in scope: email",
       "protocol": "openid-connect",
@@ -301,6 +328,14 @@
       ]
     }
   ],
+  "scopeMappings": [
+    {
+      "clientScope": "settings:write",
+      "roles": [
+        "admin"
+      ]
+    }
+  ],
   "users": [
     {
       "username": "dev-user",
@@ -324,6 +359,9 @@
           "value": "dev-password",
           "temporary": false
         }
+      ],
+      "realmRoles": [
+        "admin"
       ]
     },
     {

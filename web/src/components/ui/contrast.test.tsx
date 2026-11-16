@@ -6,12 +6,13 @@ import { Button } from './button'
 import { Figure } from './figures'
 import { Avatar, Callout, Chip, StatTile } from './primitives'
 import { Waited } from './queue'
+import { defaultPalette, palettes } from '@/palettes'
 
-const css = readFileSync('src/index.css', 'utf8')
+const css = readFileSync('src/index.css', 'utf8') + readFileSync('src/palettes.css', 'utf8')
 
 function declarations(selector: string) {
   const start = css.indexOf(`${selector} {`)
-  if (start < 0) throw new Error(`no ${selector} block in index.css`)
+  if (start < 0) throw new Error(`no ${selector} block in index.css or palettes.css`)
   const body = css.slice(css.indexOf('{', start) + 1, css.indexOf('}', start))
   return Object.fromEntries(
     [...body.matchAll(/--([\w-]+):\s*([^;]+);/g)].map((m) => [
@@ -21,12 +22,30 @@ function declarations(selector: string) {
   )
 }
 
-const light = declarations(':root')
-const themes = {
-  light,
-  'dark (system)': { ...light, ...declarations(":root:not([data-theme='light'])") },
-  'dark (chosen)': { ...light, ...declarations(":root[data-theme='dark']") },
+const base = {
+  light: declarations(':root'),
+  system: declarations(":root:not([data-theme='light'])"),
+  chosen: declarations(":root[data-theme='dark']"),
 }
+// A palette's blocks win over the default's in each mode, as in the browser.
+const themes = Object.fromEntries(
+  palettes.flatMap(({ id }) => {
+    const own =
+      id === defaultPalette
+        ? { light: {}, system: {}, chosen: {} }
+        : {
+            light: declarations(`:root[data-palette='${id}']`),
+            system: declarations(`:root[data-palette='${id}']:not([data-theme='light'])`),
+            chosen: declarations(`:root[data-palette='${id}'][data-theme='dark']`),
+          }
+    const light = { ...base.light, ...own.light }
+    return [
+      [`${id} light`, light],
+      [`${id} dark (system)`, { ...light, ...base.system, ...own.system }],
+      [`${id} dark (chosen)`, { ...light, ...base.chosen, ...own.chosen }],
+    ]
+  }),
+)
 const tailwind = declarations('@theme inline')
 
 type Oklch = { l: number; c: number; h: number }
@@ -168,7 +187,23 @@ const pairs = [
   ),
 ]
 
-const cases = pairs.flatMap((p) =>
+const tokenPairs = [
+  ...['ink', 'ink-secondary', 'ink-tertiary'].flatMap((text) =>
+    ['canvas', 'surface', 'surface-raised', 'surface-sunken'].map((surface) => ({ text, surface })),
+  ),
+  ...['canvas', 'surface', 'surface-sunken'].map((surface) => ({ text: 'accent-strong', surface })),
+  { text: 'accent-ink', surface: 'accent' },
+  { text: 'accent-ink', surface: 'accent-deep' },
+  { text: 'highlight-ink', surface: 'highlight' },
+  { text: 'surface', surface: 'ink' },
+  { text: 'rail-ink', surface: 'rail' },
+  { text: 'rail-ink', surface: 'rail-active' },
+  { text: 'rail-ink-muted', surface: 'rail' },
+  { text: 'rail-ink-muted', surface: 'rail-active' },
+  { text: 'highlight', surface: 'rail' },
+].map((p) => ({ name: `${p.text} on ${p.surface}`, ...p }))
+
+const cases = [...pairs, ...tokenPairs].flatMap((p) =>
   Object.entries(themes).map(([theme, vars]) => {
     const resolve = (utility: string) => oklch(tailwind[`color-${utility}`]!, vars)
     const ratio = contrast(resolve(p.text), resolve(p.surface))
@@ -181,6 +216,10 @@ describe('tinted text on its surface', () => {
     expect(contrast({ l: 1, c: 0, h: 0 }, { l: 0, c: 0, h: 0 })).toBeCloseTo(21, 2)
     expect(contrast({ l: 0.627955, c: 0.257683, h: 29.2339 }, { l: 1, c: 0, h: 0 })).toBeCloseTo(4, 2)
     expect(contrast({ l: Math.cbrt(0.181164), c: 0, h: 0 }, { l: 1, c: 0, h: 0 })).toBeCloseTo(4.54, 2)
+  })
+
+  it('measures every palette the app declares', () => {
+    expect(Object.keys(themes)).toHaveLength(palettes.length * 3)
   })
 
   it('covers every avatar hue', () => {

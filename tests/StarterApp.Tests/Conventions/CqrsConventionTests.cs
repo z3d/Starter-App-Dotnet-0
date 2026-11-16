@@ -189,6 +189,7 @@ public partial class CqrsConventionTests : ConventionTestBase
             .Where(t => t.IsClass && !t.IsAbstract && typeof(ICommand).IsAssignableFrom(t))
             .Where(t => t.Name.EndsWith("Command", StringComparison.Ordinal))
             .Where(t => !CommandsThatOnlyCreateANewAggregate.Contains(t))
+            .Where(t => !CommandsOnTheCallersOwnTenantRow.Contains(t))
             .Where(t => !typeof(IOwnerAuthorizedMutation).IsAssignableFrom(t))
             .Select(t => t.FullName ?? t.Name)
             .OrderBy(name => name)
@@ -205,6 +206,12 @@ public partial class CqrsConventionTests : ConventionTestBase
     [
         typeof(CreateCustomerCommand),
         typeof(CreateProductCommand),
+    ];
+
+    // Keyed by the token's own tenant with no owner subject; who may write it is the endpoint's settings:write scope.
+    private static readonly HashSet<Type> CommandsOnTheCallersOwnTenantRow =
+    [
+        typeof(UpdateTenantSettingsCommand),
     ];
 
     [Fact]

@@ -1,17 +1,25 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Home, LogOut, Search, ShieldCheck } from 'lucide-react'
+import { Home, LogOut, Search, Settings, ShieldCheck } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useAuth } from 'react-oidc-context'
+import { AppearanceMenu } from '@/components/appearance-menu'
 import { CommandPalette } from '@/components/command-palette'
+import { useCanAdminister, useTenantAppearance } from '@/lib/appearance'
 import { cn } from '@/lib/utils'
 
 // The rail. A derived project replaces the sample item with its own pages.
-export const nav = [{ to: '/', label: 'Sample', icon: Home, exact: true, mobile: true }] as const
+export const nav = [
+  { to: '/', label: 'Sample', icon: Home, exact: true, mobile: true, admin: false },
+  { to: '/settings', label: 'Settings', icon: Settings, exact: false, mobile: true, admin: true },
+] as const
 
 export function AppShell({ children }: { children: ReactNode }) {
   const auth = useAuth()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const canAdminister = useCanAdminister()
+  const shown = nav.filter((item) => !item.admin || canAdminister)
+  useTenantAppearance()
   const name =
     (auth.user?.profile.name as string | undefined) ??
     (auth.user?.profile.preferred_username as string | undefined) ??
@@ -42,7 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
 
         <nav className="mt-4 flex flex-col gap-0.5 px-3" aria-label="Primary">
-          {nav.map((item) => {
+          {shown.map((item) => {
             const active = item.exact ? pathname === item.to : pathname.startsWith(item.to)
             return (
               <Link
@@ -71,7 +79,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="mt-auto border-t border-rail-line p-3">
           <div className="flex items-center gap-2.5">
-            <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-accent to-highlight text-xs font-semibold text-accent-ink">
+            <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-accent to-accent-deep text-xs font-semibold text-accent-ink">
               {initials || 'Y'}
             </span>
             <div className="min-w-0 flex-1">
@@ -80,6 +88,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {auth.user?.profile.tid as string}
               </p>
             </div>
+            <AppearanceMenu className="rounded-md p-1.5 text-rail-ink-muted transition-colors hover:bg-rail-active hover:text-rail-ink" />
             <button
               type="button"
               aria-label="Sign out"
@@ -96,10 +105,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-line bg-canvas/85 px-4 backdrop-blur md:hidden">
           <Mark />
           <span className="font-display text-lg">StarterApp</span>
+          <AppearanceMenu className="ml-auto rounded-md p-2 text-ink-secondary hover:bg-surface-sunken" />
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
-            className="ml-auto rounded-md p-2 text-ink-secondary hover:bg-surface-sunken"
+            className="rounded-md p-2 text-ink-secondary hover:bg-surface-sunken"
             aria-label="Search"
           >
             <Search className="size-5" />
@@ -114,7 +124,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="sticky bottom-0 flex border-t border-line bg-surface/90 shadow-[0_-8px_24px_-16px_oklch(0_0_0/0.3)] backdrop-blur md:hidden"
           aria-label="Primary"
         >
-          {nav
+          {shown
             .filter((item) => item.mobile)
             .map((item) => {
               const active = item.exact ? pathname === item.to : pathname.startsWith(item.to)
@@ -124,7 +134,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   to={item.to}
                   className={cn(
                     'flex flex-1 flex-col items-center gap-1 py-2 text-2xs',
-                    active ? 'font-medium text-accent' : 'text-ink-secondary',
+                    active ? 'font-medium text-accent-strong' : 'text-ink-secondary',
                   )}
                 >
                   <item.icon className="size-5" />

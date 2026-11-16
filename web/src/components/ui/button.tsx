@@ -14,7 +14,7 @@ const buttonVariants = cva(
         secondary: 'bg-surface text-ink card hover:bg-surface-sunken',
         ghost: 'text-ink-secondary hover:bg-surface-sunken hover:text-ink',
         danger: 'bg-negative-soft text-negative-strong hover:brightness-95',
-        link: 'text-accent underline-offset-4 hover:underline',
+        link: 'text-accent-strong underline-offset-4 hover:underline',
       },
       size: {
         sm: 'h-7 px-2.5 text-xs',

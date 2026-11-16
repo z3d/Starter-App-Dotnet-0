@@ -118,6 +118,11 @@ Clean: 9bdc8ac, 75db6da, 37ebfff, e0c4046, b4e0668, 79c0507, e8eac0e, 9574d31, a
 
 Fixes, same day: `strip-quoted.py` strips both quote kinds in one left-to-right pass and prints the body of each `sh -c '...'` and `eval "..."` on a line of its own, so the guard reads a command hidden in one; `dotnet run|watch` and a bare `yarn` are heavy work; CI uploads `web/e2e-logs`; `doc-only` refuses `docs/exemplars/*` and any `.json`; the dev-cert trust step fails when it fails; `RequestInstants` walks generic containers, tuples and eight levels, keyed on the request's root namespace; `SqlSelectBlocks.Clean` strips literals and comments in one pass; `pre-commit.sh` reads `-n` only on the `git commit` segment; `JwtIdentityMiddleware` tags the activity with `tenant.id` beside the log push (the half of the derived projects' tenancy fix that is generic). Not fixed: the worktree hooks are still untested (`ARCHITECTURE_REVIEW.md` says so).
 
+### Found while adding colour themes (17 November 2026)
+
+- **FIXED 2026-11-17: two of the default theme's text pairs were under 4.5:1.** `ink-tertiary` on `surface-raised` in dark was 4.40:1 (popovers and dialogs) and `rail-ink-muted` on `rail-active` in light was 4.40:1 (the rail's hovered and active items). `contrast.test.tsx` measured only the primitives' pairs; it now also measures the shell's token pairs for every theme, and `ink-tertiary` (dark) moved from 0.62 to 0.645 and `rail-ink-muted` (light) from 0.66 to 0.68.
+- **FIXED 2026-11-17: the eyebrow, an accent figure and an accent stat tile set words in `accent-deep`, the end of the button's gradient.** A theme with dark text on a light button cannot keep `accent-deep` dark enough for words; they now use `accent-strong`, as the link, the active tab and the urgent stage do (they used `text-accent`, the bare tone, which DESIGN.md keeps for icons).
+
 ### Found in review (8 November 2026)
 
 - **FIXED 2026-11-08: the presenter console acted on any POST.** `web/e2e/lib/presenter.mjs` served `/act/<verb>` on 127.0.0.1:4173 with no check, so any page in the presenter's browser could drive the demo, and a rebound DNS name could read it. `console-gate.mjs` refuses a foreign `Host`, and a POST whose `Origin`, `Sec-Fetch-Site` or `Referer` is not the console's (f1cf756, `console-gate.test.mjs`).

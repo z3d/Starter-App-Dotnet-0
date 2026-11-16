@@ -82,7 +82,7 @@ if [ -z "$SMOKE_ACCESS_TOKEN" ]; then
         --data-urlencode "client_secret=${SMOKE_CLIENT_SECRET:-local-dev-client-secret-not-a-secret}" \
         --data-urlencode "username=${SMOKE_USERNAME:-dev-user}" \
         --data-urlencode "password=${SMOKE_PASSWORD:-dev-password}" \
-        --data-urlencode "scope=customers:read customers:write orders:read orders:write products:read products:write" \
+        --data-urlencode "scope=customers:read customers:write orders:read orders:write products:read products:write settings:read settings:write" \
         | json_field access_token) || {
         echo "Token request against $AUTHORITY failed."
         exit 2

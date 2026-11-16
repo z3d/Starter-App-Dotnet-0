@@ -18,7 +18,7 @@ internal static class TestJwtIdentity
 
     public const string DefaultSubject = "test-user-01";
     public const string DefaultTenantId = "test-tenant-01";
-    public const string DefaultScopes = "customers:read customers:write orders:read orders:write products:read products:write";
+    public const string DefaultScopes = "customers:read customers:write orders:read orders:write products:read products:write settings:read settings:write";
     public const string DefaultAuthenticationMethods = "mfa pwd";
     public const string StepUpAcrValues = "urn:starterapp-tests:loa:mfa";
 

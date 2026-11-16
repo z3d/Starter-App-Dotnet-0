@@ -41,7 +41,7 @@ export function StageFlow({
                 <span
                   className={cn(
                     'mt-0.5 block font-display text-[1.75rem] leading-none tnum',
-                    stage.urgent ? 'text-accent' : 'text-ink',
+                    stage.urgent ? 'text-accent-strong' : 'text-ink',
                   )}
                 >
                   {stage.count}
@@ -115,7 +115,7 @@ export function QueueRow({
         {waited ? <div className="mt-0.5">{waited}</div> : null}
       </div>
       <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm">
-        <span className="inline-flex items-center gap-1 font-medium text-accent">
+        <span className="inline-flex items-center gap-1 font-medium text-accent-strong">
           <ChevronRight className="size-3.5 translate-y-0.5" aria-hidden />
           {next}
         </span>

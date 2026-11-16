@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './palettes.css';
 
 /* StarterApp UI — the template's design system (docs/DESIGN.md). A derived project keeps the shape and
    sets its own two accents here: `accent` is what to act on, `highlight` is where you are.
@@ -19,10 +20,10 @@
   --line: oklch(0.9 0.006 80); /* hairlines */
   --line-strong: oklch(0.8 0.008 80);
   --accent: oklch(0.52 0.1 200); /* what to act on: primary action, the first part of a split */
-  --accent-deep: oklch(0.42 0.1 205); /* the end of the primary button's gradient, the eyebrow's ink */
+  --accent-deep: oklch(0.42 0.1 205); /* the end of the primary button's gradient */
   --accent-ink: oklch(0.99 0.005 200);
   --accent-soft: oklch(0.94 0.03 200);
-  --accent-strong: oklch(from var(--accent) 0.5 calc(c * 0.8) h);
+  --accent-strong: oklch(from var(--accent) 0.5 calc(c * 0.8) h); /* the accent as text, on any surface */
   --highlight: oklch(0.76 0.12 85); /* where you are: the active rail item, the current step, the second part */
   --highlight-ink: oklch(0.25 0.04 70);
   --highlight-soft: oklch(0.95 0.045 90);
@@ -31,7 +32,7 @@
   --card-shadow: 0 1px 2px oklch(0.3 0.03 60 / 0.05), 0 6px 18px -10px oklch(0.3 0.03 60 / 0.16);
   --rail: oklch(0.21 0.012 60); /* sidebar */
   --rail-ink: oklch(0.86 0.008 80);
-  --rail-ink-muted: oklch(0.66 0.01 60);
+  --rail-ink-muted: oklch(0.68 0.01 60);
   --rail-line: oklch(0.29 0.012 60);
   --rail-active: oklch(0.3 0.02 45);
   --positive: oklch(0.55 0.13 150);
@@ -55,6 +56,8 @@
   --ai-strong: oklch(from var(--ai) 0.53 c h);
   --focus: oklch(0.6 0.17 35 / 0.45);
   --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236f6a65' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>"); /* the select's arrow, in ink-tertiary */
+  --glow-rail: oklch(from var(--accent) 0.5 c h / 0.32); /* the rail's light from the accent's corner */
+  --glow-statement: oklch(from var(--accent) l c h / 0.5); /* and the statement band's */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -66,7 +69,7 @@
     --surface-sunken: oklch(0.19 0.008 60);
     --ink: oklch(0.93 0.006 80);
     --ink-secondary: oklch(0.72 0.008 70);
-    --ink-tertiary: oklch(0.62 0.008 70);
+    --ink-tertiary: oklch(0.645 0.008 70);
     --line: oklch(0.29 0.008 60);
     --line-strong: oklch(0.38 0.01 60);
     --accent: oklch(0.74 0.1 200);
@@ -117,7 +120,7 @@
   --surface-sunken: oklch(0.19 0.008 60);
   --ink: oklch(0.93 0.006 80);
   --ink-secondary: oklch(0.72 0.008 70);
-  --ink-tertiary: oklch(0.62 0.008 70);
+  --ink-tertiary: oklch(0.645 0.008 70);
   --line: oklch(0.29 0.008 60);
   --line-strong: oklch(0.38 0.01 60);
   --accent: oklch(0.74 0.1 200);
@@ -317,7 +320,7 @@
 /* The dark band for a screen's one figure, lit by the accent from one corner and the highlight from the other. */
 @utility statement {
   background:
-    radial-gradient(36rem 20rem at 0% 0%, oklch(from var(--accent) l c h / 0.5), transparent 70%),
+    radial-gradient(36rem 20rem at 0% 0%, var(--glow-statement), transparent 70%),
     radial-gradient(28rem 18rem at 100% 100%, oklch(from var(--highlight) l c h / 0.22), transparent 70%),
     var(--color-rail);
   box-shadow:
@@ -328,7 +331,7 @@
 /* The rail's own light: the same two corners, dimmer. */
 @utility rail-lit {
   background:
-    radial-gradient(18rem 14rem at 0% 0%, oklch(from var(--accent) 0.5 c h / 0.32), transparent 70%),
+    radial-gradient(18rem 14rem at 0% 0%, var(--glow-rail), transparent 70%),
     radial-gradient(16rem 12rem at 100% 100%, oklch(from var(--highlight) 0.6 c h / 0.16), transparent 70%),
     var(--color-rail);
 }

@@ -24,6 +24,9 @@ async function session({ colorScheme = 'light', viewport = { width: 1440, height
   })
   await page.waitForTimeout(1200)
   await page.screenshot({ path: `${out}/sample-${tag}.png`, fullPage: true })
+  await page.goto(`${base}/settings`)
+  await page.getByRole('radiogroup', { name: 'Colour theme' }).waitFor()
+  await page.screenshot({ path: `${out}/settings-${tag}.png`, fullPage: true })
   await context.close()
 }
 

@@ -23,7 +23,7 @@ export function PageHeader({
       <div className="relative flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           {eyebrow ? (
-            <p className="mb-2 inline-flex items-center gap-1.5 text-2xs font-medium tracking-[0.08em] text-accent-deep uppercase">
+            <p className="mb-2 inline-flex items-center gap-1.5 text-2xs font-medium tracking-[0.08em] text-accent-strong uppercase">
               <span className="size-1.5 rounded-full bg-highlight" aria-hidden />
               {eyebrow}
             </p>
@@ -86,7 +86,7 @@ export function StatTile({
       <p
         className={cn(
           'mt-1 font-display text-3xl leading-none tnum',
-          tone === 'accent' && 'text-accent-deep',
+          tone === 'accent' && 'text-accent-strong',
           tone === 'positive' && 'text-positive-strong',
           tone === 'caution' && 'text-caution-strong',
         )}

@@ -33,7 +33,7 @@ curl -s "$KEYCLOAK/realms/starterapp/protocol/openid-connect/token" \
   -d grant_type=password -d client_id=starterapp-dev \
   -d client_secret=local-dev-client-secret-not-a-secret \
   -d username=dev-user -d password=dev-password \
-  -d 'scope=products:read products:write customers:read customers:write orders:read orders:write'
+  -d 'scope=products:read products:write customers:read customers:write orders:read orders:write settings:read settings:write'
 ```
 
 Write routes require the matching `*:write` scope and an `amr` claim containing `mfa` (the dev realm's users carry it as an attribute, all but `password-only`; a real IdP earns it). A browser client that lacks it is told so with a step-up challenge; `web/apps/web/src/lib/auth.ts` answers it.
@@ -82,6 +82,17 @@ Create/update body:
   "email": "john.doe@example.com"
 }
 ```
+
+## Tenant Settings
+
+Base path: `/api/v1/settings`. One record per tenant (the token's `tid`), read by everyone in it and changed only by an administrator: in the dev realm `settings:write` is granted only to holders of the `admin` realm role (`dev-user` has it, `password-only` does not), and a token without it is refused before the handler runs.
+
+| Method | Endpoint | Scope | MFA | Response |
+|--------|----------|-------|-----|----------|
+| `GET` | `/api/v1/settings/appearance` | `settings:read` | No | `200 OK` with `{ "palette": "sky" \| null, "updatedBy", "lastUpdated" }`; `palette` is `null` until an administrator chooses one |
+| `PUT` | `/api/v1/settings/appearance` | `settings:write` | Yes | `200 OK` with `TenantSettingsDto`, or `400` when `palette` is not a lower-case name of letters, digits and hyphens (at most 32) |
+
+The API accepts any well-formed name; the web app shows the default theme for one it does not declare (`web/src/palettes.ts`). Who changed it and when are on the record (`updated_by`, `last_updated`) and in the payload archive.
 
 ## Order Management
 

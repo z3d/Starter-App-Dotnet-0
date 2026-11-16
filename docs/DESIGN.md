@@ -1,6 +1,6 @@
 # StarterApp UI — the template's design system
 
-**Status:** Adopted 31 October 2026 · **Source of truth:** `web/src/index.css` (tokens), `web/src/components/ui/` (primitives). A derived project keeps the shape, sets its own two accents in `index.css`, draws its own mark in `app-shell.tsx`, and writes its screens with these primitives.
+**Status:** Adopted 31 October 2026 · **Source of truth:** `web/src/index.css` (tokens), `web/src/components/ui/` (primitives). A derived project keeps the shape, sets its own two accents in `index.css`, declares its colour themes in `web/src/palettes.ts` (below, "Colour themes"), draws its own mark in `app-shell.tsx`, and writes its screens with these primitives.
 
 ## Direction
 
@@ -25,12 +25,12 @@ Defined once as CSS custom properties on `:root`, overridden for dark under `pre
 | Surfaces | `canvas`, `surface`, `surface-raised`, `surface-sunken` | canvas is the page; surface for cards/tables/inputs; raised for popovers; sunken for table heads and wells |
 | Text | `ink`, `ink-secondary`, `ink-tertiary` | three levels only |
 | Lines | `line`, `line-strong` | hairlines; strong for dashed empty states and hover borders |
-| Accents | `accent`, `accent-deep`, `accent-ink`, `accent-soft`, `accent-strong`; `highlight`, `highlight-ink`, `highlight-soft` | rule 3; `accent-deep` is the end of the primary button's gradient and the eyebrow's ink; `accent-strong` is the accent's text on `accent-soft`, taken from `accent` at a fixed lightness. A derived project sets the other seven and nothing else changes |
-| Glow | `glow-accent`, `glow-highlight`, `card-shadow` | the page's fixed background glow and the soft half of `shadow-card` |
-| Sidebar | `rail`, `rail-ink`, `rail-ink-muted`, `rail-line`, `rail-active` | the dark rail is its own mini-palette so it works in both themes; `rail-lit` lights it from the accents |
+| Accents | `accent`, `accent-deep`, `accent-ink`, `accent-soft`, `accent-strong`; `highlight`, `highlight-ink`, `highlight-soft` | rule 3; `accent-deep` is the end of the primary button's gradient and nothing else, so a theme may keep it light under dark button text; `accent-strong` is the accent as text on any surface (links, eyebrows, the active tab, an accent figure, a chip on `accent-soft`), taken from `accent` at a fixed lightness. `text-accent` is for icons and strokes, never words. A derived project sets the other seven and nothing else changes |
+| Glow | `glow-accent`, `glow-highlight`, `card-shadow`; `glow-rail`, `glow-statement` | the page's fixed background glow and the soft half of `shadow-card`; the accent's light in the rail's corner and the statement band's, which a theme with a pale rail turns pale |
+| Sidebar | `rail`, `rail-ink`, `rail-ink-muted`, `rail-line`, `rail-active` | the rail is its own mini-palette so it works in both modes; dark in the default theme, pale in a theme that says so, and the statement band takes the same surface; `rail-lit` lights it from the accents |
 | Semantic | `positive`, `caution`, `negative`, `info`, each with a `-soft` surface and a `-strong` ink for text on that surface or a card; `ai` for machine-made content, the same three | chips, callouts, avatars, the danger button, toned figures, stat tiles and wait times set `-strong`; the bare tone is for dots, borders, bars and icons |
 | Focus | `focus` | a ring, 2 px offset, on every focusable element |
-| Controls | `chevron` | a select's arrow as an SVG in `ink-tertiary`, through the `select-chevron` utility; a Tailwind arbitrary value cannot hold it, because its spaces split the class (`class-names.test.ts`) |
+| Controls | `chevron` | a select's arrow as an SVG in `ink-tertiary` (each theme repeats it in its own), through the `select-chevron` utility; a Tailwind arbitrary value cannot hold it, because its spaces split the class (`class-names.test.ts`) |
 
 Legacy shadcn-style aliases (`background`, `foreground`, `muted`, `border`, `primary`, `destructive`, `ring`) map onto the above so drop-in components keep working.
 
@@ -67,12 +67,22 @@ Legacy shadcn-style aliases (`background`, `foreground`, `muted`, `border`, `pri
 
 ## Composite components
 
-- **App shell** (`app-shell.tsx`): 240 px dark rail lit from its corners, the mark, ⌘K, the primary nav (the active item carries a highlight bar and a highlight icon), a note card, and the user card; on mobile a top bar plus a bottom tab bar. The page content rises into place on each route. Content is capped at 72 rem.
+- **App shell** (`app-shell.tsx`): 240 px rail lit from its corners, the mark, ⌘K, the primary nav (the active item carries a highlight bar and a highlight icon; Settings shows only to an administrator), a note card, and the user card with Appearance and sign-out; on mobile a top bar plus a bottom tab bar. The page content rises into place on each route. Content is capped at 72 rem.
 - **Command palette** (`command-palette.tsx`): cmdk over a Radix dialog; groups *Go to* and *Account*; a derived project adds *Create* and record search.
+
+## Colour themes
+
+A person picks light, dark or the device's own setting from **Appearance** in the user card (on mobile, the top bar). That choice is theirs and stays in their browser (`localStorage`, `appearance.mode`). The **colour theme** belongs to the tenant: an administrator picks it on the Settings page, the API keeps it (`GET` and `PUT /api/v1/settings/appearance`, the `PUT` needing the `settings:write` scope that only the admin role is granted), and everyone in the tenant sees it.
+
+- **Where a product declares its themes:** `web/src/palettes.ts`, one list (`id`, `label`, `description`, `swatch`) and one `defaultPalette`. The picker lists exactly what it declares, in its order.
+- **Where the colours are:** the default theme's colours are the three token blocks at the top of `index.css`, so a page with no attribute is the default. Every other theme has the same three blocks in `web/src/palettes.css` under `:root[data-palette='<id>']`, and redefines every colour token, never type, shape or motion. `palettes.test.ts` refuses a theme declared without its blocks, a block nobody declared, a block missing a token, a block for the default, and a swatch that is not the theme's own accent and highlight.
+- **How it switches:** `data-theme` (`light`, `dark`, or absent for the device's setting) and `data-palette` (absent for the default) on `<html>`. A theme's blocks are one step more specific than the default's, so either attribute works with either value of the other. `public/appearance.js` sets both from `localStorage` before the first paint; the app then asks the API for the tenant's theme, applies it and remembers it for next time (`src/lib/appearance.ts`). It is a file rather than an inline script because the image's CSP allows scripts from `'self'` only.
+- **To change the default:** move the theme's colours into `index.css`'s blocks, move the old default's into `palettes.css` if it stays on offer, and set `defaultPalette`. A tenant that chose a theme keeps it.
+- **The template offers** Teal (its default: teal and gold on warm paper, dark rail), Sky, Fresh and Coral (pale rails). A derived project keeps its own palette as its default and offers whichever of these it wants.
 
 ## Accessibility
 
-WCAG 2.2 AA is the bar: every text-on-surface pair in both themes clears 4.5:1, and `contrast.test.tsx` measures every chip, callout, avatar, danger-button, figure, stat-tile and wait-time pair in light, system dark and chosen dark from `index.css`; focus is always visible; touch targets are at least 40 px on mobile; icons are `aria-hidden` when a label is present; forms use real `<label>` wrapping and `role="alert"` errors; reduced motion is honoured.
+WCAG 2.2 AA is the bar: every text-on-surface pair in both modes of every theme clears 4.5:1, and `contrast.test.tsx` measures every chip, callout, avatar, danger-button, figure, stat-tile and wait-time pair, and the shell's own (the inks on each surface, the accent as text, the button's ink on both ends of its gradient, the highlight's ink, the rail's inks and the highlight on the rail), in light, system dark and chosen dark for every theme `palettes.ts` declares; focus is always visible; touch targets are at least 40 px on mobile; icons are `aria-hidden` when a label is present; forms use real `<label>` wrapping and `role="alert"` errors; reduced motion is honoured.
 
 ## What this design avoids
 
@@ -87,4 +97,4 @@ WCAG 2.2 AA is the bar: every text-on-surface pair in both themes clears 4.5:1, 
 
 ## How a derived project takes it
 
-Set `accent`, `accent-deep`, `accent-ink`, `accent-soft`, `highlight`, `highlight-ink`, `highlight-soft` and the two glows in `index.css` for light and dark; draw the mark; name the product in the shell. Add a token before adding a raw colour. Add a primitive before styling a one-off. A new screen starts with `PageHeader`; then a `Statement` when it has a figure a person came for, and either `DataTable` or a `1fr + 16rem` grid. Run `web/e2e/screenshots.mjs` against the dev stack to see every screen in light, dark and mobile before merging a visual change.
+Set `accent`, `accent-deep`, `accent-ink`, `accent-soft`, `highlight`, `highlight-ink`, `highlight-soft` and the two glows in `index.css` for light and dark; declare the themes it offers in `palettes.ts` with its own as the default, and drop from `palettes.css` any it does not; draw the mark; name the product in the shell. Add a token before adding a raw colour. Add a primitive before styling a one-off. A new screen starts with `PageHeader`; then a `Statement` when it has a figure a person came for, and either `DataTable` or a `1fr + 16rem` grid. Run `web/e2e/screenshots.mjs` against the dev stack to see every screen in light, dark and mobile before merging a visual change.

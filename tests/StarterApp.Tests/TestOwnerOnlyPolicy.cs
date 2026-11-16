@@ -6,7 +6,7 @@ internal static class TestOwnerOnlyPolicy
         OwnershipDefaults.LegacyOwnerSubject,
         AuthenticatedPrincipalType.User,
         OwnershipDefaults.LegacyTenantId,
-        ["customers:read", "customers:write", "orders:read", "orders:write", "products:read", "products:write"]), new OwnerPolicyEvaluationTracker());
+        ["customers:read", "customers:write", "orders:read", "orders:write", "products:read", "products:write", "settings:read", "settings:write"]), new OwnerPolicyEvaluationTracker());
 
     public static IOwnerOnlyPolicy For(string subject, string tenantId)
     {
@@ -14,6 +14,6 @@ internal static class TestOwnerOnlyPolicy
             subject,
             AuthenticatedPrincipalType.User,
             tenantId,
-            ["customers:read", "customers:write", "orders:read", "orders:write", "products:read", "products:write"]), new OwnerPolicyEvaluationTracker());
+            ["customers:read", "customers:write", "orders:read", "orders:write", "products:read", "products:write", "settings:read", "settings:write"]), new OwnerPolicyEvaluationTracker());
     }
 }

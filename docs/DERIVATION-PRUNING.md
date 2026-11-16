@@ -71,3 +71,8 @@ applicable (no modules), and in a derived project it fails from the first module
 What is **not** prunable without a recorded decision: the payload capture/audit posture, the
 outbox (publish-after-write is how events get lost), validator coverage, and the convention
 fleet that enforces whatever subset you keep.
+
+`TenantSettings` (the tenant's colour theme, `/api/v1/settings/appearance`, the Settings page) is
+not sample. It sits in `<App>.Domain` only because the template has no module; when that project
+goes, the aggregate, its query, command, validators and endpoint move into the module that owns the
+tenant, its table into that module's schema, and its convention-list entries move with it.

@@ -163,7 +163,7 @@ public sealed class AspireE2EFixture : IAsyncLifetime
                         ["client_secret"] = "local-dev-client-secret-not-a-secret",
                         // The resource scopes are optional client scopes so callers (and the web app's
                         // walkthrough) choose what a token carries; request the full set here.
-                        ["scope"] = "customers:read customers:write orders:read orders:write products:read products:write"
+                        ["scope"] = "customers:read customers:write orders:read orders:write products:read products:write settings:read settings:write"
                     }),
                     cancellationToken);
                 response.EnsureSuccessStatusCode();

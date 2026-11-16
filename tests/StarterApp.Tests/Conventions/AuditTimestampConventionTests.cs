@@ -13,7 +13,8 @@ public class AuditTimestampConventionTests : ConventionTestBase
     [
         (typeof(Customer), "customers"),
         (typeof(Product), "products"),
-        (typeof(Order), "orders")
+        (typeof(Order), "orders"),
+        (typeof(TenantSettings), "tenant_settings")
     ];
 
     [Fact]
