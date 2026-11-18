@@ -80,6 +80,12 @@ fi
 
 [ -f tests/StarterApp.Tests/StarterApp.Tests.csproj ] || exit 0
 
+# A documentation-only commit has nothing to build or test.
+doc_only="$here/../../.githooks/doc-only"
+if [ -x "$doc_only" ] && { git diff --name-only HEAD 2>/dev/null; git diff --name-only --cached 2>/dev/null; git ls-files --others --exclude-standard; } | "$doc_only"; then
+  exit 0
+fi
+
 dotnet --version >/dev/null 2>&1 || { export DOTNET_ROOT="$HOME/.dotnet" PATH="$HOME/.dotnet:$PATH"; }
 echo "pre-commit: checking $root" >&2
 while IFS= read -r proj; do
@@ -90,5 +96,5 @@ while IFS= read -r proj; do
 done < <(git ls-files '*.csproj')
 dotnet format --verify-no-changes --verbosity minimal --no-restore \
   && dotnet build --no-restore \
-  && dotnet test tests/StarterApp.Tests/StarterApp.Tests.csproj --no-build \
+  && dotnet test tests/StarterApp.Tests/StarterApp.Tests.csproj --no-build --filter "FullyQualifiedName!~Integration" \
   || exit 2

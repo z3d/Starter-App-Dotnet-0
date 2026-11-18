@@ -8,6 +8,7 @@ root=$(git rev-parse --show-toplevel) || exit 1
 cd "$root" || exit 1
 
 zero=0000000000000000000000000000000000000000
+remote=${1:-origin}
 changed=""
 pushing=0
 head=$(git rev-parse HEAD)
@@ -18,7 +19,10 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
   pushing=1
   [ "$local_sha" = "$head" ] || other=$local_sha
   if [ "$remote_sha" = "$zero" ]; then
-    base=$(git merge-base "$local_sha" origin/HEAD 2>/dev/null || git merge-base "$local_sha" origin/main 2>/dev/null || true)
+    base=""
+    for ref in "${remote}/HEAD" "${remote}/main" origin/HEAD origin/main; do
+      base=$(git merge-base "$local_sha" "$ref" 2>/dev/null) && break
+    done
   else
     base=$remote_sha
   fi
