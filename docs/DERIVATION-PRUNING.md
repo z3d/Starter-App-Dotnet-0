@@ -19,6 +19,13 @@ the project: they copy its shapes, keep its rules, and route new work through it
 - **In the same change, every support capability is decided.** Owner scoping, the distributed
   cache and Redis, feature toggles and the rest either have a module consumer or are removed
   with a re-add trigger. None is left in place waiting for a use.
+- **The decision record stops calling the project a layered monolith.** `docs/DECISIONS.md`
+  carries "Layered monolith, not a modular monolith (design on file, not adopted)", which is
+  true of the template and its sample. The first module meets its re-add trigger, so in the same
+  change the entry is replaced with one that records the project as a modular monolith (one
+  schema and one `Contracts/` namespace per module, held by `ModuleConventionTests`), the
+  alternative rejected and its own re-add trigger. Kept unchanged, it tells the next reader the
+  opposite of what the code does; derived projects carried it for weeks before anyone noticed.
 - **The template's rules become the project's rules only where they fit.** The template's
   "a seam with one implementation is an exemplar" rule protects the template's teaching seams.
   In a derived project a seam stays only when it is a real boundary (a module's `Contracts/`
