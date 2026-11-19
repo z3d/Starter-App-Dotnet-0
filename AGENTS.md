@@ -112,6 +112,7 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 |---|---|
 | Exceptions are the app-wide error model — no `Result<T>`/ErrorOr | A component with expected, frequent, locally-handled failures may use `Result<T>` internally, never across the mediator/endpoint boundary |
 | The domain event *is* the wire contract — no separate `IIntegrationEvent`, no in-process dispatcher | A domain event needs a property the external contract shouldn't carry, or you need a same-transaction in-process reaction |
+| One `domain-events` topic: it carries one kind of message (domain events) from one sender (the outbox); each consumer is a subscription with a correlation filter per event type | A second kind of message: commands go on a queue, events from or for another system get their own topic; or an event type needing its own topic settings, or modules becoming separate deployables |
 | Payload capture runs as the *first* middleware, ahead of exception handling and rate limiting | None — moving it behind the rate limiter blinds the audit trail to rejected traffic and needs a new recorded decision |
 | AppHost + AppHost.Tests are exempt from `packages.lock.json` | None — the Aspire SDK injects host-RID packages, so no single lock file satisfies locked mode across platforms |
 | NuGet signature validation is deliberately off; feed restriction + lock hashes cover it | A clean-cache Linux restore passes across the full package set with `trustedSigners` enabled |
