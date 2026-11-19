@@ -14,6 +14,14 @@ export const presenting = process.env.PRESENTER === '1'
 export const jumpExitCode = 75
 const jumpFile = process.env.PRESENTER_JUMP_FILE ?? `${tmpdir()}/walkthrough-presenter-jump`
 const say = (s) => console.log(s)
+// The live pace; the recording never applies it. DEMO_SPEED=1 DEMO_TYPING=1 DEMO_SLOWMO=0 is the recording's.
+const pace = {
+  speed: Number(process.env.DEMO_SPEED ?? '2'),
+  typing: Number(process.env.DEMO_TYPING ?? '4'),
+  slowMo: Number(process.env.PRESENTER_JUMP ?? '0') ? 0 : Number(process.env.DEMO_SLOWMO ?? '450'),
+}
+
+export const typingDelay = (ms) => (presenting && !console_.jumpTo ? Math.round(ms * pace.typing) : ms)
 
 export async function openBrowser({ out, size, context: options = {} }) {
   if (!presenting) {
@@ -29,6 +37,7 @@ export async function openBrowser({ out, size, context: options = {} }) {
   const browser = await chromium.launch({
     headless: process.env.HEADLESS === '1',
     args: [...screenArgs(), '--start-maximized'],
+    slowMo: pace.slowMo,
   })
   const context = await browser.newContext({ ...options, viewport: null })
   const page = await context.newPage()
@@ -45,7 +54,7 @@ export function presenter(page, narration) {
   console_.steps = Object.entries(narration).map(([key, notes]) => ({ key, title: title(key), notes }))
   const original = page.waitForTimeout.bind(page)
   page.waitForTimeout = async (ms) => {
-    if (!console_.jumpTo) await original(ms)
+    if (!console_.jumpTo) await original(ms * pace.speed)
     await console_.hold()
   }
   const scene = async (key) => {

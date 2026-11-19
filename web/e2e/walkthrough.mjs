@@ -7,7 +7,7 @@
 //   BASE_URL=http://localhost:5173 node e2e/walkthrough.mjs
 import { mkdirSync } from 'node:fs'
 import { clearStale, cueing, finish, synthesise } from './lib/narration.mjs'
-import { openBrowser } from './lib/presenter.mjs'
+import { openBrowser, typingDelay } from './lib/presenter.mjs'
 
 const narration = {
   'sign-in':
@@ -31,7 +31,7 @@ const pause = (ms = 1200) => page.waitForTimeout(ms)
 const type = async (selector, text) => {
   await page.click(selector)
   await page.fill(selector, '')
-  await page.type(selector, text, { delay: 35 })
+  await page.type(selector, text, { delay: typingDelay(35) })
   // A field left focused keeps its accent ring, which an audience reads as an error.
   await page.locator(selector).blur()
 }
