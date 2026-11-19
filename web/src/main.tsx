@@ -44,7 +44,7 @@ createRoot(document.getElementById('root')!).render(
     <AuthProvider {...oidcSettings} onSigninCallback={onSigninCallback}>
       <QueryClientProvider client={queryClient}>
         <App />
-        <Toaster position="bottom-right" richColors closeButton />
+        <Toaster position="bottom-right" mobileOffset={{ bottom: 88 }} richColors closeButton />
       </QueryClientProvider>
     </AuthProvider>
   </StrictMode>,

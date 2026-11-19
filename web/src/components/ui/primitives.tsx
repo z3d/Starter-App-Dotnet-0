@@ -1,5 +1,5 @@
 import { AlertTriangle, Check, Info, type LucideIcon, OctagonAlert, Sparkles, X } from 'lucide-react'
-import type { ComponentProps, ReactNode } from 'react'
+import { type ComponentProps, type ReactNode, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from './button'
 
@@ -18,7 +18,7 @@ export function PageHeader({
   actions?: ReactNode
 }) {
   return (
-    <header className="relative mb-6 overflow-hidden rounded-xl bg-[linear-gradient(115deg,var(--color-surface)_35%,var(--color-accent-soft)_80%,var(--color-highlight-soft))] px-6 py-6 card md:px-8 md:py-7">
+    <header className="relative mb-6 overflow-hidden rounded-xl bg-[linear-gradient(115deg,var(--color-surface)_35%,var(--color-accent-soft)_80%,var(--color-highlight-soft))] px-5 py-5 card sm:px-6 sm:py-6 md:px-8 md:py-7">
       <HeaderArt />
       <div className="relative flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
@@ -28,7 +28,7 @@ export function PageHeader({
               {eyebrow}
             </p>
           ) : null}
-          <h1 className="font-display text-[2.5rem] leading-none text-ink">{title}</h1>
+          <h1 className="font-display text-[2rem] leading-none text-ink sm:text-[2.5rem]">{title}</h1>
           {description ? <p className="mt-2.5 max-w-2xl text-ink-secondary">{description}</p> : null}
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
@@ -98,10 +98,27 @@ export function StatTile({
   )
 }
 
+// Each cell carries its column's name, which index.css shows beside it when the rows stack at phone width.
 export function DataTable({ className, ...props }: ComponentProps<'table'>) {
+  const ref = useRef<HTMLTableElement>(null)
+  useEffect(() => {
+    const table = ref.current
+    if (!table) return
+    const label = () => {
+      const names = [...table.querySelectorAll('thead th')].map((th) => th.textContent?.trim() ?? '')
+      for (const row of table.querySelectorAll('tbody tr'))
+        [...row.children].forEach((cell, i) => {
+          if ((cell as HTMLElement).dataset.label !== names[i]) (cell as HTMLElement).dataset.label = names[i] ?? ''
+        })
+    }
+    label()
+    const observer = new MutationObserver(label)
+    observer.observe(table, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [])
   return (
     <div className="card overflow-x-auto rounded-xl bg-surface">
-      <table className={cn('w-full border-collapse text-sm', className)} {...props} />
+      <table ref={ref} className={cn('data-table w-full border-collapse text-sm', className)} {...props} />
     </div>
   )
 }

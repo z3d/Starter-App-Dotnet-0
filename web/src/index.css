@@ -286,6 +286,79 @@
   }
 }
 
+/* Phone width: thumb-sized controls, 16px fields so a phone browser does not zoom in, and table rows stacked as cards. */
+@media (width < 48rem) {
+  [data-slot='button'],
+  main button,
+  [data-mobile-menu] a,
+  [data-mobile-menu] button {
+    min-height: 2.75rem;
+  }
+  main input:not([type='checkbox'], [type='radio']),
+  main select,
+  main textarea,
+  [role='dialog'] input:not([type='checkbox'], [type='radio']),
+  [role='dialog'] select,
+  [role='dialog'] textarea {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+  main label:has(> input[type='checkbox']) {
+    min-height: 2.75rem;
+  }
+  main input[type='checkbox'] {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  .data-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .data-table,
+  .data-table tbody,
+  .data-table tr {
+    display: block;
+    width: 100%;
+  }
+  .data-table tr {
+    padding: 0.625rem 1rem;
+  }
+  .data-table tr + tr {
+    border-top: 1px solid var(--color-line);
+  }
+  .data-table td {
+    display: block;
+    min-width: 0;
+    padding: 0.25rem 0;
+    border: 0;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .data-table td::before {
+    content: attr(data-label);
+    float: left;
+    margin-right: 1rem;
+    font-size: 0.75rem;
+    line-height: 1.5rem;
+    color: var(--color-ink-tertiary);
+    text-align: left;
+  }
+  .data-table td:first-child {
+    font-weight: 500;
+    text-align: left;
+  }
+  .data-table td:first-child::before,
+  .data-table td[data-label='']::before {
+    display: none;
+  }
+  .data-table td:empty {
+    display: none;
+  }
+}
+
 @utility font-display {
   font-family: var(--font-display);
   letter-spacing: -0.01em;

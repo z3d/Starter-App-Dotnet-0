@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { Button } from './button'
 import { Checkbox, Field } from './field'
 import { SplitBar } from './figures'
-import { Avatar, Callout, Chip, EmptyState, PageHeader, StatTile, Steps } from './primitives'
+import { Avatar, Callout, Chip, DataTable, EmptyState, PageHeader, StatTile, Steps, Td, Th } from './primitives'
 import { Queue, QueueRow, StageFlow, Waited } from './queue'
 
 // The component vocabulary (docs/DESIGN.md): every screen is built from these.
@@ -162,5 +162,33 @@ describe('QueueRow', () => {
   it('says under a day for something that arrived today', () => {
     render(<Waited days={0} />)
     expect(screen.getByText(/Waiting under a day/)).toBeInTheDocument()
+  })
+})
+
+describe('DataTable', () => {
+  it("copies each column's heading onto its cells, for the rows stacked as cards at phone width", async () => {
+    const table = (rows: string[]) => (
+      <DataTable>
+        <thead>
+          <tr>
+            <Th>Name</Th>
+            <Th align="right">Stock</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row}>
+              <Td>{row}</Td>
+              <Td align="right">3</Td>
+            </tr>
+          ))}
+        </tbody>
+      </DataTable>
+    )
+    const { rerender } = render(table(['Widget']))
+    expect(screen.getByText('Widget')).toHaveAttribute('data-label', 'Name')
+    rerender(table(['Widget', 'Gadget']))
+    await vi.waitFor(() => expect(screen.getByText('Gadget')).toHaveAttribute('data-label', 'Name'))
+    expect(screen.getAllByText('3')[1]).toHaveAttribute('data-label', 'Stock')
   })
 })

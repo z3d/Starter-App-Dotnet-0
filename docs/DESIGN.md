@@ -47,7 +47,7 @@ Legacy shadcn-style aliases (`background`, `foreground`, `muted`, `border`, `pri
 | Primitive | Used for |
 |---|---|
 | `Button` — `primary` (ink), `accent` (the accent's gradient), `secondary` (card), `ghost`, `danger`, `link`; sizes sm/md/lg/icon | every action |
-| `PageHeader` | the header band: a card washed from surface through the accent to the highlight, contour lines in its corner, a highlight-dotted eyebrow, the serif title at 2.5 rem, description, actions |
+| `PageHeader` | the header band: a card washed from surface through the accent to the highlight, contour lines in its corner, a highlight-dotted eyebrow, the serif title at 2.5 rem (2 rem on a phone), description, actions |
 | `Card` | grouping; `interactive` adds the lift on hover |
 | `Statement`, `HeroFigure` (`figures.tsx`) | the dark band for a screen's one figure: the figure in the serif at 4–5 rem, a highlight eyebrow, highlight contour lines along its foot |
 | `Figure`, `FigureStrip` (`figures.tsx`) | a labelled figure with an icon; a strip sets several on one card divided by hairlines, `dark` sets one on a statement, `small` sets a value in words a size down |
@@ -57,7 +57,7 @@ Legacy shadcn-style aliases (`background`, `foreground`, `muted`, `border`, `pri
 | `Queue`, `QueueRow`, `Waited` (`queue.tsx`) | a queue of items waiting on someone: who, a detail line, the next step and its reason, an amount, and how long it has waited in a tone that turns slow and late |
 | `Steps` | a record's way through its stages; done in the accent with a tick, current in the highlight, a stopped step in negative with its reason as the label |
 | `Avatar` | a person's initials on one of five soft hues, picked from the name |
-| `DataTable`, `Th`, `Td`, `Tr` | dense lists; sunken uppercase header row, hairline row dividers, right-aligned numerals, an accent wash on hover |
+| `DataTable`, `Th`, `Td`, `Tr` | dense lists; sunken uppercase header row, hairline row dividers, right-aligned numerals, an accent wash on hover; at phone width each row stacks as a card, every cell labelled with its column's heading |
 | `Chip` — neutral/positive/caution/negative/info/ai/accent | statuses and treatments; a dot in the tone before the label, never wrapped |
 | `Callout` | inline guidance; a tone's icon and a 3 px rule on its left |
 | `EmptyState` | dashed well with an accent glow, an `icon` in a raised circle, serif headline, one call to action; `compact` is one line for a section with nothing in it yet (`done` turns its icon green) |
@@ -67,8 +67,12 @@ Legacy shadcn-style aliases (`background`, `foreground`, `muted`, `border`, `pri
 
 ## Composite components
 
-- **App shell** (`app-shell.tsx`): 240 px rail lit from its corners, the mark, ⌘K, the primary nav (the active item carries a highlight bar and a highlight icon; Settings shows only to an administrator), a note card, and the user card with Appearance and sign-out; on mobile a top bar plus a bottom tab bar. The page content rises into place on each route. Content is capped at 72 rem.
+- **App shell** (`app-shell.tsx`): 240 px rail lit from its corners, the mark, ⌘K, the primary nav (the active item carries a highlight bar and a highlight icon; Settings shows only to an administrator), a note card, and the user card with Appearance and sign-out; below the `md` breakpoint a compact top bar (Appearance, Search and a Menu button that opens the rail as a drawer, closing when a page is chosen) plus a bottom tab bar for the items marked `mobile`. The page content rises into place on each route. Content is capped at 72 rem.
 - **Command palette** (`command-palette.tsx`): cmdk over a Radix dialog; groups *Go to* and *Account*; a derived project adds *Create* and record search.
+
+## Phone width
+
+Every screen works at 390 px wide, switched by width alone, so a desktop browser's responsive mode shows the same and widening the window brings the desktop layout back without a reload. Below `md` (48 rem): buttons and fields are at least 44 px tall, fields set 16 px text so a phone browser does not zoom in when one is tapped, and a `DataTable` stacks its rows as cards (the component copies each column's heading onto its cells as `data-label`, and `index.css` shows it beside the value), so no page that uses it changes. Nothing scrolls sideways. The desktop layout is unchanged. `web/e2e/tests/phone-width.spec.ts` holds it: the menu, a page's controls and the way back to desktop in a 390 × 844 window.
 
 ## Colour themes
 
@@ -82,7 +86,7 @@ A person picks light, dark or the device's own setting from **Appearance** in th
 
 ## Accessibility
 
-WCAG 2.2 AA is the bar: every text-on-surface pair in both modes of every theme clears 4.5:1, and `contrast.test.tsx` measures every chip, callout, avatar, danger-button, figure, stat-tile and wait-time pair, and the shell's own (the inks on each surface, the accent as text, the button's ink on both ends of its gradient, the highlight's ink, the rail's inks and the highlight on the rail), in light, system dark and chosen dark for every theme `palettes.ts` declares; focus is always visible; touch targets are at least 40 px on mobile; icons are `aria-hidden` when a label is present; forms use real `<label>` wrapping and `role="alert"` errors; reduced motion is honoured.
+WCAG 2.2 AA is the bar: every text-on-surface pair in both modes of every theme clears 4.5:1, and `contrast.test.tsx` measures every chip, callout, avatar, danger-button, figure, stat-tile and wait-time pair, and the shell's own (the inks on each surface, the accent as text, the button's ink on both ends of its gradient, the highlight's ink, the rail's inks and the highlight on the rail), in light, system dark and chosen dark for every theme `palettes.ts` declares; focus is always visible; touch targets are at least 44 px below `md`; icons are `aria-hidden` when a label is present; forms use real `<label>` wrapping and `role="alert"` errors; reduced motion is honoured.
 
 ## What this design avoids
 
