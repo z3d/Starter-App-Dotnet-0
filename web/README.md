@@ -46,4 +46,4 @@ e2e/run-e2e.sh --present                   # boots the stack, presents, resets t
 PRESENTER=1 BASE_URL=http://localhost:5173 node e2e/walkthrough.mjs   # against the running AppHost rig (no going back)
 ```
 
-Each scene is a few lines of Playwright, paced with `pause()` so a viewer can follow; use the same `data-testid`s and names the browser tests use, and add a flow to `e2e/tests` first so the story never drives something untested. `e2e/screenshots.mjs` is the still-image companion (`BASE_URL=http://localhost:5173 node e2e/screenshots.mjs` writes every screen in light, dark and mobile to `e2e/shots/`).
+Each scene is a few lines of Playwright, paced with `pause()` so a viewer can follow, and fields filled with `type()`, which moves off the field once it is filled, as a person tabbing on would, so its accent focus ring is not read as an error; use the same `data-testid`s and names the browser tests use, and add a flow to `e2e/tests` first so the story never drives something untested. `e2e/screenshots.mjs` is the still-image companion (`BASE_URL=http://localhost:5173 node e2e/screenshots.mjs` writes every screen in light, dark and mobile to `e2e/shots/`).

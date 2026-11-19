@@ -32,6 +32,8 @@ const type = async (selector, text) => {
   await page.click(selector)
   await page.fill(selector, '')
   await page.type(selector, text, { delay: 35 })
+  // A field left focused keeps its accent ring, which an audience reads as an error.
+  await page.locator(selector).blur()
 }
 
 // Sign in
