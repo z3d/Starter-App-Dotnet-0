@@ -20,9 +20,9 @@ USER root
 COPY web/deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY web/deploy/config.js.template /etc/nginx/templates/config.js.template
 COPY web/deploy/security-headers.conf /etc/nginx/security-headers.conf
-COPY --chmod=755 web/deploy/10-render-config.sh /docker-entrypoint.d/10-render-config.sh
+COPY web/deploy/10-render-config.sh /docker-entrypoint.d/10-render-config.sh
 COPY --from=build /src/dist /usr/share/nginx/html
 # The base's digest trails Alpine's security fixes; CI's Trivy scan fails on a fixable HIGH.
-RUN apk upgrade --no-cache && mkdir -p /usr/share/nginx/runtime && chown 101:101 /usr/share/nginx/runtime
+RUN apk upgrade --no-cache && chmod 755 /docker-entrypoint.d/10-render-config.sh && mkdir -p /usr/share/nginx/runtime && chown 101:101 /usr/share/nginx/runtime
 USER 101
 EXPOSE 8080
