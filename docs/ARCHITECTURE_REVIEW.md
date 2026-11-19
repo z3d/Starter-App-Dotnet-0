@@ -154,6 +154,16 @@ Found by reading the code. The items marked FIXED were fixed the same day, with 
 
 The first, second and last of the open items are in the sample domain, which a derived project removes at its first module; they matter as the shape a module copies.
 
+### Found in use (20 November 2026)
+
+Each was seen where an app built on this template was used or shown, and is fixed here the same day.
+
+- **FIXED 2026-11-20: no screen worked at phone width.** `index.css` had no width breakpoint, the phone header had no way to the rail's sign-out or tenant, and a `DataTable` scrolled sideways inside its card. Below `md` the header has a Menu button that opens the rail as a drawer, controls are 44 px with 16 px field text, and `DataTable` stacks rows as cards labelled by column (`phone-width.spec.ts`, passing on `run-e2e.sh`; `app-shell.test.tsx`; `primitives.test.tsx` for the labels, since jsdom applies no media query). No page in the template uses `DataTable`, so the stacked cards are not seen in a browser test here.
+- **FIXED 2026-11-20: the live demo ran at the video's pace,** too quick for a room. `DEMO_SPEED`, `DEMO_TYPING` and `DEMO_SLOWMO` slow it, defaulting to 2, 4 and 450 ms; the recording reads none of them (no automated test; checked by importing `presenter.mjs` with and without `PRESENTER=1`).
+- **FIXED 2026-11-20: a field the walkthrough had filled kept its accent focus ring,** which with a red or pink theme read as a validation error. `type()` blurs the field after filling it (no automated test).
+- **FIXED 2026-11-20: the integration-test reset could not clear an append-only table,** since a trigger refusing `DELETE` refuses Respawn too, and the Expand check refused the word `TRUNCATE` anywhere, so a migration could not add a `BEFORE TRUNCATE` trigger. The reset runs with `session_replication_role = replica`, and the check matches `TRUNCATE` only where a statement starts (`MigrationCompatibilityConventionTests`; the integration suite passes with the new reset, though no table in the template is append-only yet).
+- **FIXED 2026-11-20: the web image needed BuildKit.** `COPY --chmod` is refused by the classic builder a registry build uses; the script is copied plainly and made executable in the `RUN` line (built locally with Podman, the script mode checked as 755; not run on a classic-builder registry build).
+
 ## Accepted with a trigger
 
 - **Folder-only Clean Architecture (2026-06-09).** `Domain` is compiler-enforced; `Application`
