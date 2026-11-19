@@ -21,7 +21,7 @@ user-invocable: false
 
 Two test projects, split by cost:
 
-- **`StarterApp.Tests`** — unit, convention, fuzzing, and API integration. `WebApplicationFactory<IApiMarker>` + Testcontainers PostgreSQL + Respawn per-test reset. In-process: fast, debuggable, Service Bus is a no-op.
+- **`StarterApp.Tests`** — unit, convention, fuzzing, and API integration. `WebApplicationFactory<IApiMarker>` + Testcontainers PostgreSQL + Respawn per-test reset, run with `session_replication_role = replica` so a trigger that makes a table append-only does not refuse it. In-process: fast, debuggable, Service Bus is a no-op.
 - **`StarterApp.AppHost.Tests`** — full distributed app via `DistributedApplicationTestingBuilder`. Only for cross-service paths (API → outbox → Service Bus → Functions). Use `[AspireFact]` (skipped unless `STARTERAPP_ASPIRE_TESTS=true`); clients via `app.CreateHttpClient("api")`.
 
 Read `Conventions/` before adding a rule and `Fuzzing/` before adding a property — both establish the local idiom.

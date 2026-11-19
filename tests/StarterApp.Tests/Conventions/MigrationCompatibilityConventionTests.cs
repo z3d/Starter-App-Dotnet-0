@@ -24,7 +24,7 @@ public class MigrationCompatibilityConventionTests
         (new Regex(@"\bALTER\s+TABLE\b[^;]*\bRENAME\b", RegexOptions.IgnoreCase), "ALTER TABLE ... RENAME"),
         (new Regex(@"\bALTER\s+TABLE\b[^;]*\bALTER\s+(?:COLUMN\s+)?\w+\s+(?:SET\s+DATA\s+)?TYPE\b", RegexOptions.IgnoreCase), "ALTER COLUMN ... TYPE"),
         (new Regex(@"\bSET\s+NOT\s+NULL\b", RegexOptions.IgnoreCase), "SET NOT NULL"),
-        (new Regex(@"\bTRUNCATE\b", RegexOptions.IgnoreCase), "TRUNCATE"),
+        (new Regex(@"(?:^|;)\s*TRUNCATE\b", RegexOptions.IgnoreCase), "TRUNCATE"),
         (new Regex(@"\bDELETE\s+FROM\b", RegexOptions.IgnoreCase), "DELETE FROM"),
     ];
 
@@ -80,6 +80,7 @@ public class MigrationCompatibilityConventionTests
     [InlineData("ALTER TABLE customers ALTER phone SET DATA TYPE text;", "TYPE")]
     [InlineData("ALTER TABLE customers ALTER COLUMN phone SET NOT NULL;", "SET NOT NULL")]
     [InlineData("TRUNCATE customers;", "TRUNCATE")]
+    [InlineData("SELECT 1;\nTRUNCATE TABLE customers;", "TRUNCATE")]
     [InlineData("DELETE FROM customers WHERE phone IS NULL;", "DELETE FROM")]
     [InlineData("ALTER TABLE customers ADD COLUMN phone varchar(32) NOT NULL;", "NOT NULL without DEFAULT")]
     [InlineData("ALTER TABLE customers ADD phone varchar(32) NOT NULL;", "NOT NULL without DEFAULT")]
@@ -98,6 +99,7 @@ public class MigrationCompatibilityConventionTests
     [InlineData("ALTER TABLE customers ADD COLUMN phone varchar(32) NOT NULL CONSTRAINT df_customers_phone DEFAULT '';")]
     [InlineData("CREATE TABLE people (id uuid NOT NULL, CONSTRAINT pk_people PRIMARY KEY (id), CONSTRAINT uq_people_id UNIQUE (id));\nCREATE UNIQUE INDEX ix_people_id ON people (id);")]
     [InlineData("CREATE INDEX ix_customers_phone ON customers (phone);")]
+    [InlineData("CREATE TRIGGER trg_entries_no_truncate BEFORE TRUNCATE ON entries FOR EACH STATEMENT EXECUTE FUNCTION refuse_change();")]
     [InlineData("DROP INDEX IF EXISTS ix_customers_phone;")]
     [InlineData("UPDATE customers SET phone = '' WHERE phone IS NULL;")]
     [InlineData("ALTER TABLE customers ALTER COLUMN phone DROP DEFAULT;")]

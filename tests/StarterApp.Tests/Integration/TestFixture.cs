@@ -114,7 +114,18 @@ public class TestDatabaseFixture : IAsyncLifetime
             await connection.OpenAsync();
 
             // DbUp manages its schema journal, and Respawn leaves it alone between tests.
-            await _respawner.ResetAsync(connection);
+            // Replica mode skips the triggers that make a table append-only; only a superuser may set it.
+            await using (var replica = new NpgsqlCommand("SET session_replication_role = replica", connection))
+                await replica.ExecuteNonQueryAsync();
+            try
+            {
+                await _respawner.ResetAsync(connection);
+            }
+            finally
+            {
+                await using var restore = new NpgsqlCommand("RESET session_replication_role", connection);
+                await restore.ExecuteNonQueryAsync();
+            }
 
             Console.WriteLine("Database reset complete");
         }
