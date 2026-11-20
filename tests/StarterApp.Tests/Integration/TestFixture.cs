@@ -142,6 +142,7 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
 {
     private readonly TestDatabaseFixture _dbFixture;
     private readonly Serilog.ILogger _logger;
+    private int _disposed;
     public InMemoryPayloadArchiveStore PayloadArchiveStore { get; } = new();
     public HttpClient Client { get; private set; } = null!;
 
@@ -209,23 +210,27 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
             throw;
         }
     }
-    // Add 'new' keyword to hide the inherited member
-    public new async Task DisposeAsync()
+    Task IAsyncLifetime.DisposeAsync() => DisposeAsync().AsTask();
+
+    // xUnit disposes a collection fixture twice (IAsyncLifetime, then IAsyncDisposable); a second pass re-stops hosts that are already gone.
+    public override async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            return;
+
+        Environment.SetEnvironmentVariable("ConnectionStrings__database", null);
         try
         {
-            // Clean up environment variable
-            Environment.SetEnvironmentVariable("ConnectionStrings__database", null);
-
             Client?.Dispose();
-            base.Dispose();
-            await _dbFixture.DisposeAsync();
-            Log.Information("ApiTestFixture disposed");
+            await base.DisposeAsync();
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error disposing ApiTestFixture");
+            _logger.Error(ex, "Error disposing the API hosts");
         }
+
+        await _dbFixture.DisposeAsync();
+        GC.SuppressFinalize(this);
     }
 
     public async Task ResetDatabaseAsync()
