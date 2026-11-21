@@ -398,6 +398,22 @@ A flat worker reads well at seven files and badly at sixty, and a derived produc
 
 Every `Aspire.*` package and the AppHost SDK moved from 13.2.3 to 13.6.5 for the advisories against 13.2.3 (GHSA-f7vh-h5g3-7jrh, GHSA-4g86-54fm-h9h8), which `TreatWarningsAsErrors` turns into a failed restore. It drags up the OpenTelemetry exporter and hosting (1.17.0), `Microsoft.Extensions.Configuration*` (10.0.14), `Microsoft.Extensions.Http.Resilience` (10.10.0), `Azure.Storage.Blobs` (12.29.2) and the `MessagePack` pin (2.5.307; left in place, not rechecked for whether Aspire still needs it). Since this version a stack's containers are tied to the checkout that started it and use fixed ports, so only one checkout's stack runs at a time on a machine.
 
+## How a derived project deploys: promote one image, migrate, probe, then shift traffic (2026-11-21)
+
+No deploy workflow exists here, because nothing deploys the template. This records the shape a derived project builds its first one from, so it does not invent one. The target is the one the AppHost publishes: Azure Container Apps, with the migrator as a manual Container Apps job.
+
+- **Build once.** `publish-images.yml` already pushes every image to GHCR tagged with the commit SHA after CI passes on `main`. A deploy names a SHA and promotes those images. It never rebuilds.
+- **Every environment is deployed by hand** (`workflow_dispatch`, the SHA as input). Nothing deploys on a merge.
+- **The order, per environment:** start the migrator job and wait for it to succeed, polled with a time limit that fails the run; create new `api`, `functions` and `web` revisions at 0% traffic; wait until the new API revision answers `/health/ready` (its `database-schema` check refuses until the journal holds every script the build carries); then move traffic to the new revisions.
+- **Rollback is moving traffic back** to the previous revision, which multiple-revision mode keeps. Dispatching an older SHA also works, since GHCR keeps images by SHA and nothing depends on a workflow's artefact retention.
+- **A schema change and the code that needs it ship in separate deploys** unless the migration works with the code already running. `MigrationCompatibilityConventionTests` keeps each script expand-or-contract; this rule is only about which deploy carries it.
+- **The workflow signs in to Azure with OIDC federated credentials**, never a stored secret, like every other credential here.
+- **Every deployed environment sets its own name** (`ASPNETCORE_ENVIRONMENT`, and `AZURE_FUNCTIONS_ENVIRONMENT` for the worker), and none is `Development` or `Testing`: the API relaxes its identity checks under both. The workflow comes with a test that reads its settings and fails on either name. A host with no name set runs as `Production`, which is safe but hides which environment a log line came from.
+- **When several images build in parallel** (a project that builds in a registry rather than taking GHCR's), each build writes its own log and a failed one prints it.
+- **Not in the protocol: infrastructure.** Resources already exist; the workflow updates them. Production IaC stays out of this repository ("Considered and rejected" below).
+
+Rejected: App Service staging slots (the template does not publish to App Service); deploying to a test environment on every merge, with numbered releases promoted onward by dispatch. The second is a reasonable shape, and a derived project's owner may choose it, with its own entry. **Re-add trigger** for deploy-on-merge to a test environment: a nightly integration run green for several weeks, a concurrency group per environment, and a failed migration visible somewhere other than the run log.
+
 ## Taken from derived projects
 
 Improvements a derived project made to code the template also carries come back up here, translated onto the sample.
