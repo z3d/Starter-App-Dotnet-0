@@ -81,6 +81,7 @@ public static class WebApplicationExtensions
             FeatureToggles.FeatureDisabledException => StatusCodes.Status503ServiceUnavailable,
             DomainRuleException => StatusCodes.Status409Conflict,
             Idempotency.IdempotencyKeyReusedException => StatusCodes.Status422UnprocessableEntity,
+            Upstream.UpstreamServiceException { IsPermanent: false } => StatusCodes.Status502BadGateway,
             // A plain .NET exception is a server bug. It falls through to a 500 so alerting sees it.
             _ => StatusCodes.Status500InternalServerError
         };

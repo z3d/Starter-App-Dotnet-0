@@ -35,6 +35,11 @@ public static class ServiceCollectionExtensions
                     case DomainRuleException or EntityNotFoundException:
                         context.ProblemDetails.Detail = exception.Message;
                         break;
+                    case Upstream.UpstreamServiceException { IsPermanent: false } upstream:
+                        context.ProblemDetails.Detail = context.HttpContext.RequestServices?.GetService<IHostEnvironment>()?.IsDevelopment() == true
+                            ? upstream.Message
+                            : "An outside service is not answering. Try again shortly.";
+                        break;
                 }
             };
         });

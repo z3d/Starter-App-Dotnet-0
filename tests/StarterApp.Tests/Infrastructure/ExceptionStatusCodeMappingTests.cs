@@ -87,4 +87,14 @@ public class ExceptionStatusCodeMappingTests
 
         Assert.Equal(StatusCodes.Status500InternalServerError, statusCode);
     }
+
+    [Theory]
+    [InlineData(false, StatusCodes.Status502BadGateway)]
+    [InlineData(true, StatusCodes.Status500InternalServerError)]
+    public void ResolveExceptionStatusCode_WithUpstreamFailure_ShouldReturnBadGatewayOnlyWhenItMayClear(bool isPermanent, int expected)
+    {
+        var exception = new StarterApp.Api.Infrastructure.Upstream.UpstreamServiceException("rates", isPermanent, "failed");
+
+        Assert.Equal(expected, WebApplicationExtensions.ResolveExceptionStatusCode(exception));
+    }
 }
