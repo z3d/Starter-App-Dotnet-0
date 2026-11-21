@@ -44,7 +44,8 @@
         "products:read",
         "products:write",
         "settings:read",
-        "settings:write"
+        "settings:write",
+        "assistant:use"
       ]
     },
     {
@@ -80,7 +81,8 @@
         "products:read",
         "products:write",
         "settings:read",
-        "settings:write"
+        "settings:write",
+        "assistant:use"
       ]
     }
   ],
@@ -211,6 +213,14 @@
     {
       "name": "settings:write",
       "description": "The tenant's own settings, such as its colour theme. Granted only to holders of the admin realm role: a client scope with a role scope mapping is left out of the token for anyone without one of its roles.",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true"
+      }
+    },
+    {
+      "name": "assistant:use",
+      "description": "Asking the assistant for its next turn, and reading its status and the changes its cards may propose. The assistant's reads and changes go through the other scopes' routes, as the person.",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true"

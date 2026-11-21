@@ -467,6 +467,11 @@
           "Microsoft.Extensions.Logging": "10.0.4"
         }
       },
+      "Microsoft.Extensions.AI.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.5.1",
+        "contentHash": "nB0l3IlsVbNeUxsE7nZNb9GY8rP1OSeqpj0pseORPejt474HNKEauTWTLdSJPkSvPlRMxowZNMo6nyp7APAiSg=="
+      },
       "Microsoft.Extensions.AmbientMetadata.Application": {
         "type": "Transitive",
         "resolved": "10.10.0",
@@ -1230,6 +1235,7 @@
       "starterapp.api": {
         "type": "Project",
         "dependencies": {
+          "Anthropic": "[13.8.0, )",
           "Aspire.StackExchange.Redis.DistributedCaching": "[13.6.5, )",
           "Azure.Identity": "[1.21.0, )",
           "Azure.Messaging.ServiceBus": "[7.20.1, )",
@@ -1300,6 +1306,15 @@
       },
       "starterapp.sharedkernel": {
         "type": "Project"
+      },
+      "Anthropic": {
+        "type": "CentralTransitive",
+        "requested": "[13.8.0, )",
+        "resolved": "13.8.0",
+        "contentHash": "N1+grCB2HdfsFsuRVVjBgN0evlxtdvSBw26P7rvaVGHrqgnr00Llw8sPuOP8w8akKzcN5tOd+3I75iEeERJbEQ==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.5.1"
+        }
       },
       "Aspire.StackExchange.Redis.DistributedCaching": {
         "type": "CentralTransitive",

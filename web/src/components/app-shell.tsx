@@ -1,12 +1,14 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Home, LogOut, Menu, Search, Settings, ShieldCheck, X } from 'lucide-react'
+import { Home, LogOut, Menu, Search, Settings, ShieldCheck, Sparkles, X } from 'lucide-react'
 import { Dialog as RadixDialog } from 'radix-ui'
 import { type ReactNode, useState } from 'react'
 import { useAuth } from 'react-oidc-context'
 import { AppearanceMenu } from '@/components/appearance-menu'
+import { AssistantDock } from '@/components/assistant-dock'
 import { CommandPalette } from '@/components/command-palette'
 import { ConnectionBanner } from '@/components/connection-banner'
 import { useCanAdminister, useTenantAppearance } from '@/lib/appearance'
+import { openAssistant, useAssistantDock } from '@/lib/interface'
 import { cn } from '@/lib/utils'
 
 // The rail. A derived project replaces the sample item with its own pages.
@@ -21,6 +23,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const canAdminister = useCanAdminister()
+  const dock = useAssistantDock()
   const shown = nav.filter((item) => !item.admin || canAdminister)
   useTenantAppearance()
   const name =
@@ -53,6 +56,20 @@ export function AppShell({ children }: { children: ReactNode }) {
         <span className="flex-1 text-left">Search or jump to…</span>
         <span className="rounded border border-rail-line px-1 font-mono text-2xs">⌘K</span>
       </button>
+
+      {dock.available ? (
+        <button
+          type="button"
+          onClick={() => {
+            setMenuOpen(false)
+            openAssistant()
+          }}
+          className="mx-3 mt-2 flex h-9 items-center gap-2 rounded-md border border-rail-line px-2.5 text-sm text-rail-ink-muted transition-colors hover:bg-rail-active hover:text-rail-ink"
+        >
+          <Sparkles className="size-4 text-highlight" />
+          Use the assistant
+        </button>
+      ) : null}
 
       <nav className="mt-4 flex flex-col gap-0.5 px-3" aria-label="Primary">
         {shown.map((item) => {
@@ -167,6 +184,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </div>
 
+      <AssistantDock area="app" />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <RadixDialog.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <RadixDialog.Portal>

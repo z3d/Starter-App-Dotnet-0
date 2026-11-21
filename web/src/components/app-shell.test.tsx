@@ -21,6 +21,13 @@ vi.mock('@/lib/appearance', async (original) => ({
   useTenantAppearance: () => {},
 }))
 vi.mock('@/components/command-palette', () => ({ CommandPalette: () => null }))
+vi.mock('@/components/assistant-dock', () => ({ AssistantDock: () => null }))
+const dock = vi.hoisted(() => ({ available: false }))
+const openAssistant = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/interface', () => ({
+  openAssistant,
+  useAssistantDock: () => ({ available: dock.available, open: false, question: null }),
+}))
 
 describe('AppShell', () => {
   it('puts the side menu behind a menu button in the phone header, closing when a page is chosen', () => {
@@ -34,5 +41,17 @@ describe('AppShell', () => {
     expect(signoutRedirect).toHaveBeenCalled()
     fireEvent.click(within(menu).getByRole('link', { name: 'Settings' }))
     expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull()
+  })
+
+  it('offers the assistant on the rail only when the API says it is on', () => {
+    dock.available = false
+    const { unmount } = render(<AppShell>page</AppShell>)
+    expect(screen.queryByRole('button', { name: 'Use the assistant' })).toBeNull()
+    unmount()
+
+    dock.available = true
+    render(<AppShell>page</AppShell>)
+    fireEvent.click(screen.getByRole('button', { name: 'Use the assistant' }))
+    expect(openAssistant).toHaveBeenCalled()
   })
 })

@@ -10,6 +10,7 @@ export const resourceScopes = [
   'orders:write',
   'settings:read',
   'settings:write',
+  'assistant:use',
 ] as const
 export const DEFAULT_SCOPES = `openid ${resourceScopes.join(' ')}`
 

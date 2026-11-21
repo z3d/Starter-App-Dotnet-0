@@ -79,6 +79,7 @@ public static class WebApplicationExtensions
             BadHttpRequestException => StatusCodes.Status400BadRequest,
             EntityNotFoundException => StatusCodes.Status404NotFound,
             FeatureToggles.FeatureDisabledException => StatusCodes.Status503ServiceUnavailable,
+            Assistant.AssistantUnavailableException assistantUnavailable => assistantUnavailable.StatusCode,
             DomainRuleException => StatusCodes.Status409Conflict,
             Idempotency.IdempotencyKeyReusedException => StatusCodes.Status422UnprocessableEntity,
             Upstream.UpstreamServiceException { IsPermanent: false } => StatusCodes.Status502BadGateway,

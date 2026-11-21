@@ -4,7 +4,7 @@
 set -eu
 : "${OIDC_AUTHORITY:?OIDC_AUTHORITY is required: the web app has no identity provider to sign in with}"
 : "${OIDC_CLIENT_ID:=starterapp-web}"
-: "${OIDC_SCOPE:=openid products:read products:write customers:read customers:write orders:read orders:write settings:read settings:write}"
+: "${OIDC_SCOPE:=openid products:read products:write customers:read customers:write orders:read orders:write settings:read settings:write assistant:use}"
 # Auth0 only: the API identifier and the Organization; empty for a Keycloak realm.
 : "${OIDC_AUDIENCE:=}"
 : "${OIDC_ORGANIZATION:=}"

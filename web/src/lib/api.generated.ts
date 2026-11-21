@@ -54,6 +54,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/assistant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the assistant is turned on in this environment */
+        get: operations["GetAssistantStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant/routes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The changes a person in an area may make, each with the fields its card asks for
+         * @description The cards the web app builds, for a request the assistant proposed or a step the person picked, come from this list, so a card asks for the same fields in the same order every time. It needs no model.
+         */
+        get: operations["GetAssistantRoutes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask the assistant for its next turn: a question, a read for the browser to run, or an action for the person to confirm
+         * @description The browser holds the conversation and sends all of it each time, with the area the person is working in, which they must hold a role for. The reads run in the browser through this API as the person; a proposal changes nothing until the person confirms it through the route it names. 503 when no model is configured here, and 502 when the model does not answer; neither changes anything.
+         */
+        post: operations["NextAssistantTurn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/customers": {
         parameters: {
             query?: never;
@@ -252,6 +309,55 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AssistantBlockDto: {
+            type?: string;
+            text?: null | string;
+            thinking?: null | string;
+            signature?: null | string;
+            data?: null | string;
+            id?: null | string;
+            name?: null | string;
+            input?: null | Record<string, never>;
+            route?: null | components["schemas"]["AssistantRouteDto"];
+        };
+        AssistantFieldDto: {
+            name?: string;
+            required?: boolean;
+            kind?: string;
+            options?: string[];
+            label?: null | string;
+            whenField?: null | string;
+            whenValues?: null | string[];
+        };
+        AssistantMessageDto: {
+            role?: string;
+            text?: null | string;
+            blocks?: null | components["schemas"]["AssistantBlockDto"][];
+            results?: null | components["schemas"]["AssistantToolResultDto"][];
+        };
+        AssistantRouteDto: {
+            method?: string;
+            path?: string;
+            summary?: string;
+            scope?: string;
+            fields?: components["schemas"]["AssistantFieldDto"][];
+        };
+        AssistantRoutesDto: {
+            routes?: components["schemas"]["AssistantRouteDto"][];
+        };
+        AssistantStatusDto: {
+            enabled?: boolean;
+            primary?: boolean;
+        };
+        AssistantToolResultDto: {
+            toolUseId?: string;
+            content?: string;
+            isError?: boolean;
+        };
+        AssistantTurnDto: {
+            blocks?: components["schemas"]["AssistantBlockDto"][];
+            stopReason?: string;
+        };
         ClientEvent: {
             kind?: null | string;
             name?: null | string;
@@ -305,6 +411,10 @@ export interface components {
             /** Format: date-time */
             dateCreated?: string;
             isActive?: boolean;
+        };
+        NextAssistantTurnQuery: {
+            messages?: components["schemas"]["AssistantMessageDto"][];
+            area?: null | string;
         };
         OrderDto: {
             /** Format: uuid */
@@ -525,6 +635,135 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetAssistantStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantStatusDto"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetAssistantRoutes: {
+        parameters: {
+            query?: {
+                area?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantRoutesDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    NextAssistantTurn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NextAssistantTurnQuery"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantTurnDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

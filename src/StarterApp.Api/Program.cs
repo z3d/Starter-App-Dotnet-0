@@ -36,6 +36,7 @@ builder.Services.AddApiRateLimiting();
 builder.Services.AddOptions<ClientOptions>().BindConfiguration(ClientOptions.SectionName);
 builder.Services.AddApiHealthChecks(builder.Configuration);
 builder.Services.AddServiceBusPublisher(builder.Configuration, builder.Environment);
+builder.Services.AddAssistant(builder.Configuration);
 builder.AddPayloadCapture();
 builder.AddJobRunRecording();
 

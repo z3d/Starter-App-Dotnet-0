@@ -154,6 +154,11 @@ Found by reading the code. The items marked FIXED were fixed the same day, with 
 
 The first, second and last of the open items are in the sample domain, which a derived project removes at its first module; they matter as the shape a module copies.
 
+### Found while porting the assistant (21 November 2026)
+
+- **OPEN: the assistant has not answered a live call here.** No key is configured where it was ported, so the prompt in `AssistantPrompt.cs` (the sample's system text, notes and two specific tools) has not been read by a model, and the recorded responses the integration tests replay were shaped by hand from a derived project's captures, not captured under this prompt. What is proven today: the turn route sends the configured model the prompt, the tools and the route list and carries a recorded reply back (`AssistantApiTests`); the browser loop, the cards and the forms (`assistant.test.ts`, `assistant-panel.test.tsx`, `assistant-home.test.tsx`). Not proven: that a model given this prompt finds, asks and proposes as intended.
+- **OPEN: a card asks for a field the API requires as if it were optional.** `CreateCustomerCommand`'s name and email are non-nullable strings, but the OpenAPI document lists no `required` fields for it, so the catalogue marks neither as required and the card lets the person confirm without them; the API's validator then refuses with a 400 the card shows. Seen on the card for `POST /api/v1/customers` in a component test, not in a browser. Cause unconfirmed: the document generator may need the `required` keyword or a schema transformer.
+
 ### Found in use (20 November 2026)
 
 Each was seen where an app built on this template was used or shown, and is fixed here the same day.
