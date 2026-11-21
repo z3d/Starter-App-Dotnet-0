@@ -16,7 +16,7 @@ public sealed class HookScriptTests : IDisposable
         _fakeBin = Directory.CreateDirectory(Path.Combine(_scratch, "bin")).FullName;
         _toolLog = Path.Combine(_scratch, "tools.log");
         foreach (var tool in new[] { "dotnet", "npm" })
-            WriteExecutable(Path.Combine(_fakeBin, tool), $"#!/usr/bin/env bash\necho \"{tool} $*\" >> '{_toolLog}'\nexit 0\n");
+            WriteExecutable(Path.Combine(_fakeBin, tool), $"#!/usr/bin/env bash\necho \"{tool} $*\" >> '{ForBash(_toolLog)}'\nexit 0\n");
     }
 
     public void Dispose()
@@ -221,14 +221,14 @@ public sealed class HookScriptTests : IDisposable
               "workflow list") printf 'CI Build\nCodeQL\n' ;;
               "run list")
                 while [ $# -gt 0 ]; do [ "$1" = --workflow ] && name=$2; shift; done
-                python3 -c 'import json,sys; print(json.dumps([r for r in json.load(open(sys.argv[1])) if r["workflowName"] == sys.argv[2]][:1]))' '{{Path.Combine(_scratch, "runs.json")}}' "$name" ;;
+                python3 -c 'import json,sys; print(json.dumps([r for r in json.load(open(sys.argv[1])) if r["workflowName"] == sys.argv[2]][:1]))' '{{ForBash(Path.Combine(_scratch, "runs.json"))}}' "$name" ;;
               "run view")
                 if [ "$3" = 1 ]; then echo "X The job was not started because recent account payments have failed or your spending limit needs to be increased."
                 else echo "X Unit tests failed"; fi ;;
             esac
             """);
 
-        var result = Run("bash", [Path.Combine(HooksDirectory, "ci-status.sh")], repo, "{}", ("CLAUDE_PROJECT_DIR", repo));
+        var result = Run(Bash, [Path.Combine(HooksDirectory, "ci-status.sh")], repo, "{}", ("CLAUDE_PROJECT_DIR", repo));
 
         Assert.Equal(0, result.ExitCode);
         var message = JsonDocument.Parse(result.Output).RootElement.GetProperty("systemMessage").GetString()!;
@@ -241,20 +241,20 @@ public sealed class HookScriptTests : IDisposable
     private ProcessResult RunGuard(string command, params (string Name, string Value)[] environment)
     {
         var payload = JsonSerializer.Serialize(new { tool_input = new { command } });
-        return Run("bash", [Path.Combine(HooksDirectory, "shared-machine-guard.sh")], _scratch, payload,
+        return Run(Bash, [Path.Combine(HooksDirectory, "shared-machine-guard.sh")], _scratch, payload,
             [("CLAUDE_PROJECT_DIR", _scratch), .. environment]);
     }
 
     private ProcessResult RunPreCommit(string repo, string command)
     {
         var payload = JsonSerializer.Serialize(new { tool_input = new { command }, cwd = repo });
-        return Run("bash", [Path.Combine(HooksDirectory, "pre-commit.sh")], repo, payload);
+        return Run(Bash, [Path.Combine(HooksDirectory, "pre-commit.sh")], repo, payload);
     }
 
     private ProcessResult RunPrePush(string repo, string remoteSha)
     {
         var head = Git(repo, "rev-parse", "HEAD").Trim();
-        return Run("bash", [Path.Combine(GitHooksDirectory, "pre-push"), "origin", "https://example/repo.git"], repo,
+        return Run(Bash, [Path.Combine(GitHooksDirectory, "pre-push"), "origin", "https://example/repo.git"], repo,
             $"refs/heads/main {head} refs/heads/main {remoteSha}\n");
     }
 
@@ -308,7 +308,7 @@ public sealed class HookScriptTests : IDisposable
             start.ArgumentList.Add(arg);
         foreach (var inherited in start.Environment.Keys.Where(key => key.StartsWith("GIT_", StringComparison.Ordinal)).ToList())
             start.Environment.Remove(inherited);
-        start.Environment["PATH"] = $"{_fakeBin}:{Environment.GetEnvironmentVariable("PATH")}";
+        start.Environment["PATH"] = $"{_fakeBin}{Path.PathSeparator}{Environment.GetEnvironmentVariable("PATH")}";
         start.Environment["GIT_CONFIG_NOSYSTEM"] = "1";
         start.Environment["HOME"] = _scratch;
         start.Environment.Remove("CLAUDECODE");
@@ -328,6 +328,22 @@ public sealed class HookScriptTests : IDisposable
 
         return new ProcessResult(process.ExitCode, output.Result, error.Result);
     }
+
+    // On Windows, "bash" on PATH can be WSL's launcher, which cannot see these paths; Git for Windows ships its own beside git.
+    private static readonly string Bash = OperatingSystem.IsWindows() ? FindGitBash() ?? "bash" : "bash";
+
+    private static string? FindGitBash()
+    {
+        var git = (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator)
+            .Select(directory => Path.Combine(directory, "git.exe"))
+            .FirstOrDefault(File.Exists);
+        if (git is null)
+            return null;
+        var root = Path.GetDirectoryName(Path.GetDirectoryName(git))!;
+        return new[] { Path.Combine(root, "bin", "bash.exe"), Path.Combine(root, "usr", "bin", "bash.exe") }.FirstOrDefault(File.Exists);
+    }
+
+    private static string ForBash(string path) => path.Replace('\\', '/');
 
     private sealed record ProcessResult(int ExitCode, string Output, string Error);
 }

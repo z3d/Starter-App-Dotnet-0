@@ -23,6 +23,8 @@ tests/StarterApp.Tests/Contracts/snapshots/*.json text eol=lf
 
 # Declare files that will always have LF line endings on checkout
 *.sh text eol=lf
+# Git's hooks have no extension, so *.sh misses them; bash refuses a CRLF script on a Windows checkout.
+.githooks/* text eol=lf
 
 # Denote all files that should not have line endings normalized
 *.png binary
