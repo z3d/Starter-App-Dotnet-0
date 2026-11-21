@@ -272,6 +272,13 @@ var functions = builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Fun
        .WaitFor(serviceBus)
        .WaitFor(payloadArchive);
 
+// The end-to-end tests switch the timers off, so none fires mid-test; a test that needs one runs it itself.
+if (bool.TryParse(builder.Configuration["EndToEnd:TimersOff"], out var timersOff) && timersOff)
+{
+    foreach (var timer in new[] { "IdempotencyRecordCleanupFunction", "JobWatchFunction", "PayloadArchiveCleanupFunction" })
+        functions.WithEnvironment($"AzureWebJobs.{timer}.Disabled", "true");
+}
+
 // The emulator only accepts a keyed connection string, which the Functions host reads from the bare
 // servicebus setting. When published, ApplyAzureFunctionsConfiguration sets
 // servicebus__fullyQualifiedNamespace for the managed identity instead, and a bare servicebus

@@ -72,6 +72,13 @@ cleanup() {
     kill "$API_PID" 2>/dev/null || true
     wait "$API_PID" 2>/dev/null || true
   fi
+  # A failed or cancelled run keeps the containers' logs beside the API's before they are removed.
+  if [[ "$code" != 0 ]]; then
+    mkdir -p "$LOG_DIR"
+    for container in "$PG_CONTAINER" "$IDP_CONTAINER" "$WEB_CONTAINER"; do
+      "$CONTAINER_CLI" logs "$container" >"$LOG_DIR/$container.log" 2>&1 || rm -f "$LOG_DIR/$container.log"
+    done
+  fi
   if [[ "$SKIP_BOOT" != "1" ]]; then
     log "Removing the PostgreSQL and Keycloak containers"
     "$CONTAINER_CLI" rm -f "$PG_CONTAINER" "$IDP_CONTAINER" >/dev/null 2>&1 || true

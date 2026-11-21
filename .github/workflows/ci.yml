@@ -139,8 +139,8 @@ jobs:
         E2E_DEPLOYED: "1"
       run: web/e2e/run-e2e.sh
 
-    - name: Upload the report on failure
-      if: failure() && !env.ACT
+    - name: Upload the report on failure or cancellation
+      if: (failure() || cancelled()) && !env.ACT
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: playwright-report
@@ -186,7 +186,26 @@ jobs:
     - name: Aspire tests
       env:
         STARTERAPP_ASPIRE_TESTS: "true"
-      run: dotnet test tests/StarterApp.AppHost.Tests --no-build --configuration Release --verbosity normal
+      run: dotnet test tests/StarterApp.AppHost.Tests --no-build --configuration Release --verbosity normal --blame-hang-timeout 20m
+
+    # Kept when the run fails or is cancelled at the job's time limit, which is when they are needed most.
+    - name: Keep the containers' logs
+      if: (failure() || cancelled()) && !env.ACT
+      run: |
+        mkdir -p aspire-logs
+        for id in $(docker ps -aq); do
+          docker logs "$id" > "aspire-logs/$(docker inspect -f '{{.Name}}' "$id" | tr -d /).log" 2>&1 || true
+        done
+
+    - name: Upload the containers' logs
+      if: (failure() || cancelled()) && !env.ACT
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: aspire-logs
+        path: |
+          aspire-logs
+          tests/StarterApp.AppHost.Tests/TestResults
+        retention-days: 7
 
   docker-build:
     runs-on: ubuntu-latest

@@ -2,7 +2,9 @@ using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Aspire.Hosting;
+using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace StarterApp.AppHost.Tests;
 
@@ -34,7 +36,7 @@ public sealed class AspireE2EFixture : IAsyncLifetime
             return;
 
         var appHost = await DistributedApplicationTestingBuilder
-            .CreateAsync<Projects.StarterApp_AppHost>();
+            .CreateAsync<Projects.StarterApp_AppHost>(["--EndToEnd:TimersOff=true"]);
         App = await appHost.BuildAsync();
         await App.StartAsync();
 
@@ -52,7 +54,7 @@ public sealed class AspireE2EFixture : IAsyncLifetime
         await WaitForHttpOkAsync(functionsClient, "/", "functions", FunctionsBootTimeout);
     }
 
-    private static async Task WaitForHttpOkAsync(HttpClient client, string path, string resourceName, TimeSpan timeout)
+    private async Task WaitForHttpOkAsync(HttpClient client, string path, string resourceName, TimeSpan timeout)
     {
         var stopwatch = Stopwatch.StartNew();
         string lastOutcome = "no response yet";
@@ -77,7 +79,26 @@ public sealed class AspireE2EFixture : IAsyncLifetime
         }
 
         throw new TimeoutException(
-            $"Resource '{resourceName}' did not answer 2xx on '{path}' within {timeout} (last outcome: {lastOutcome}).");
+            $"Resource '{resourceName}' did not answer 2xx on '{path}' within {timeout} (last outcome: {lastOutcome}).\n" +
+            "Every resource in the stack:\n" + DescribeResources());
+    }
+
+    // The resource that never became ready is often not the one being waited on, so the timeout names them all.
+    internal string DescribeResources()
+    {
+        var notifications = App.Services.GetRequiredService<ResourceNotificationService>();
+        var lines = App.Services.GetRequiredService<DistributedApplicationModel>().Resources
+            .OrderBy(resource => resource.Name, StringComparer.Ordinal)
+            .Select(resource =>
+            {
+                if (!notifications.TryGetCurrentState(resource.Name, out var current))
+                    return $"  {resource.Name}: no state reported";
+                var snapshot = current.Snapshot;
+                var health = snapshot.HealthStatus is { } status ? $", health {status}" : string.Empty;
+                var exit = snapshot.ExitCode is { } code ? $", exit code {code}" : string.Empty;
+                return $"  {resource.Name}: {snapshot.State?.Text ?? "unknown"}{health}{exit}";
+            });
+        return string.Join("\n", lines);
     }
 
     public async Task DisposeAsync()
