@@ -11,7 +11,9 @@ WORKDIR /src
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY web/ ./
-RUN npm run build
+# The commit the image is built from; the bundle sends it on every call, so the API can tell a stale tab to reload.
+ARG BUILD=dev
+RUN VITE_BUILD="$BUILD" npm run build
 
 # The unprivileged variant runs every process as uid 101, not only the workers. The bundle stays root-owned,
 # so nginx can read it but never rewrite it; config.js, the one file rendered at start-up, gets its own directory.

@@ -14,11 +14,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
-      retry: (count, error) => {
-        // Never retry a 4xx: the request is wrong, not the network.
-        const status = (error as { status?: number }).status
-        return status === undefined || status >= 500 ? count < 2 : false
-      },
+      // The API client already tries a failed read once more before it reports an outage.
+      retry: false,
     },
   },
 })

@@ -33,6 +33,7 @@ builder.Services.AddMediator(Assembly.GetExecutingAssembly());
 builder.Services.AddApiCors(builder.Configuration, builder.Environment);
 builder.Services.AddJwtIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddApiRateLimiting();
+builder.Services.AddOptions<ClientOptions>().BindConfiguration(ClientOptions.SectionName);
 builder.Services.AddApiHealthChecks(builder.Configuration);
 builder.Services.AddServiceBusPublisher(builder.Configuration, builder.Environment);
 builder.AddPayloadCapture();
@@ -63,6 +64,7 @@ try
     app.UseMiddleware<PayloadCaptureMiddleware>();
     app.UseExceptionHandling();
     app.UseSecurityHeaders();
+    app.UseMiddleware<ClientBuildMiddleware>();
     app.UseHttpsRedirection();
     app.UseCors();
     app.UseRouting();

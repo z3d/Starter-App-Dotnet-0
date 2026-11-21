@@ -63,3 +63,5 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          BUILD=${{ github.event.workflow_run.head_sha || github.sha }}

@@ -88,7 +88,7 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    internal static readonly string[] ExposedResponseHeaders = ["WWW-Authenticate", "X-Correlation-ID", "Retry-After"];
+    internal static readonly string[] ExposedResponseHeaders = ["WWW-Authenticate", "X-Correlation-ID", "Retry-After", "X-Client-Reload", "X-Service-Notice"];
 
     public static IServiceCollection AddApiCors(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
@@ -102,7 +102,7 @@ public static class ServiceCollectionExtensions
                     policy.WithOrigins(configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
                           .WithMethods("GET", "POST", "PUT", "DELETE")
                           // Without X-Correlation-ID in this list, a browser cannot send its own correlation id.
-                          .WithHeaders("Authorization", "Content-Type", "X-Correlation-ID");
+                          .WithHeaders("Authorization", "Content-Type", "X-Correlation-ID", "X-Client-Build");
 
                 // A browser hides custom response headers from cross-origin scripts unless they are listed here.
                 policy.WithExposedHeaders(ExposedResponseHeaders);

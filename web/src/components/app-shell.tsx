@@ -5,6 +5,7 @@ import { type ReactNode, useState } from 'react'
 import { useAuth } from 'react-oidc-context'
 import { AppearanceMenu } from '@/components/appearance-menu'
 import { CommandPalette } from '@/components/command-palette'
+import { ConnectionBanner } from '@/components/connection-banner'
 import { useCanAdminister, useTenantAppearance } from '@/lib/appearance'
 import { cn } from '@/lib/utils'
 
@@ -134,6 +135,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Menu className="size-5" />
           </button>
         </header>
+
+        <ConnectionBanner />
 
         <main key={pathname} className="rise mx-auto w-full max-w-6xl flex-1 px-4 py-5 md:px-8 md:py-8">
           {children}
