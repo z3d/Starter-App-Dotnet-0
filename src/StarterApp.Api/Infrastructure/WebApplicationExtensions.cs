@@ -79,6 +79,7 @@ public static class WebApplicationExtensions
             BadHttpRequestException => StatusCodes.Status400BadRequest,
             EntityNotFoundException => StatusCodes.Status404NotFound,
             FeatureToggles.FeatureDisabledException => StatusCodes.Status503ServiceUnavailable,
+            Assistant.AssistantUnavailableException assistantUnavailable => assistantUnavailable.StatusCode,
             DomainRuleException => StatusCodes.Status409Conflict,
             Idempotency.IdempotencyKeyReusedException => StatusCodes.Status422UnprocessableEntity,
             // A plain .NET exception is a server bug. It falls through to a 500 so alerting sees it.

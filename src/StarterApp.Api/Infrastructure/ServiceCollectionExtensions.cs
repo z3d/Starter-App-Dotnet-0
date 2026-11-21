@@ -31,9 +31,13 @@ public static class ServiceCollectionExtensions
                                 group => group.Select(error => error.ErrorMessage).ToArray(),
                                 StringComparer.Ordinal);
                         break;
-                    // Only these two are written for the caller; any other message may name a table or a bug.
+                    // Only these are written for the caller; any other message may name a table or a bug.
                     case DomainRuleException or EntityNotFoundException:
                         context.ProblemDetails.Detail = exception.Message;
+                        break;
+                    case Assistant.AssistantUnavailableException assistantUnavailable:
+                        context.ProblemDetails.Title = assistantUnavailable.Title;
+                        context.ProblemDetails.Detail = assistantUnavailable.Message;
                         break;
                 }
             };

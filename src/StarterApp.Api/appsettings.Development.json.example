@@ -2,6 +2,10 @@
   "ConnectionStrings": {
     "database": "Host=localhost;Port=5432;Database=starterapp;Username=postgres;Password=Your_password123"
   },
+  "Assistant": {
+    "Enabled": false,
+    "ApiKey": ""
+  },
   "Logging": {
     "LogLevel": {
       "Default": "Debug",

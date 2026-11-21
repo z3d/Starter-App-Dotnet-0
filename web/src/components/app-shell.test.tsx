@@ -21,6 +21,12 @@ vi.mock('@/lib/appearance', async (original) => ({
   useTenantAppearance: () => {},
 }))
 vi.mock('@/components/command-palette', () => ({ CommandPalette: () => null }))
+vi.mock('@/components/assistant-dock', () => ({ AssistantDock: () => null }))
+const dock = vi.hoisted(() => ({ available: false }))
+vi.mock('@/lib/interface', () => ({
+  openAssistant: vi.fn(),
+  useAssistantDock: () => ({ available: dock.available, open: false, question: null }),
+}))
 
 describe('AppShell', () => {
   it('puts the side menu behind a menu button in the phone header, closing when a page is chosen', () => {

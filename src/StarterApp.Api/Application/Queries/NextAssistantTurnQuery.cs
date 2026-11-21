@@ -1,3 +1,4 @@
+using Anthropic.Exceptions;
 using Anthropic.Models.Messages;
 using Microsoft.Extensions.Options;
 
@@ -40,6 +41,8 @@ public class NextAssistantTurnQueryHandler : IRequestHandler<NextAssistantTurnQu
         var owner = _ownerOnlyPolicy.GetRequiredScope();
         var area = query.Area ?? AssistantAreas.App;
         AssistantAreas.EnsureAdmitted(area, _currentUser);
+        if (!_options.IsConfigured)
+            throw AssistantUnavailableException.TurnedOff();
 
         var parameters = new MessageCreateParams
         {
@@ -57,7 +60,17 @@ public class NextAssistantTurnQueryHandler : IRequestHandler<NextAssistantTurnQu
             Messages = query.Messages.Select(AssistantTurnMapper.ToMessageParam).ToList(),
         };
 
-        var message = await _model.CreateAsync(parameters, cancellationToken);
+        Message message;
+        try
+        {
+            message = await _model.CreateAsync(parameters, cancellationToken);
+        }
+        catch (AnthropicApiException ex)
+        {
+            _logger.LogWarning(ex, "The assistant's model did not answer");
+            throw AssistantUnavailableException.NoAnswer(ex);
+        }
+
         var turn = AssistantTurnMapper.ToDto(message);
         foreach (var block in turn.Blocks.Where(block => block.Name is AssistantPrompt.Read or AssistantPrompt.Propose))
         {

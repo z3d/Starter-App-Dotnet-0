@@ -1,4 +1,3 @@
-using Anthropic.Exceptions;
 
 namespace StarterApp.Api.Endpoints;
 
@@ -23,7 +22,7 @@ public class AssistantEndpoints : IEndpointDefinition
             .RequireScope(AssistantAreas.Scope)
             .SecuredBy2Fa()
             .WithName("NextAssistantTurn").WithSummary("Ask the assistant for its next turn: a question, a read for the browser to run, or an action for the person to confirm")
-            .WithDescription("The browser holds the conversation and sends all of it each time, with the area the person is working in, which they must hold a role for. The reads run in the browser through this API as the person; a proposal changes nothing until the person confirms it through the route it names. 503 when no model is configured.")
+            .WithDescription("The browser holds the conversation and sends all of it each time, with the area the person is working in, which they must hold a role for. The reads run in the browser through this API as the person; a proposal changes nothing until the person confirms it through the route it names. 503 when no model is configured here, and 502 when the model does not answer; neither changes anything.")
             .Accepts<NextAssistantTurnQuery>("application/json")
             .Produces<AssistantTurnDto>(200, "application/json").ProducesProblem(400).ProducesProblem(502).ProducesProblem(503);
     }
@@ -34,16 +33,6 @@ public class AssistantEndpoints : IEndpointDefinition
     private static async Task<IResult> GetRoutes(IMediator mediator, CancellationToken cancellationToken, string? area = null) =>
         Results.Ok(await mediator.SendAsync(new GetAssistantRoutesQuery { Area = area }, cancellationToken));
 
-    private static async Task<IResult> NextTurn(NextAssistantTurnQuery query, IMediator mediator, ILogger<AssistantEndpoints> logger, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return Results.Ok(await mediator.SendAsync(query, cancellationToken));
-        }
-        catch (AnthropicApiException ex)
-        {
-            logger.LogWarning(ex, "The assistant's model did not answer");
-            return Results.Problem(statusCode: StatusCodes.Status502BadGateway, title: "The assistant did not answer", detail: "The assistant's model could not be reached or refused the request. Nothing was changed; try again, or do it by hand.");
-        }
-    }
+    private static async Task<IResult> NextTurn(NextAssistantTurnQuery query, IMediator mediator, CancellationToken cancellationToken) =>
+        Results.Ok(await mediator.SendAsync(query, cancellationToken));
 }
