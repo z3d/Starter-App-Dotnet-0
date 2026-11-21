@@ -2,7 +2,7 @@ using Anthropic;
 using Anthropic.Models.Messages;
 using Microsoft.Extensions.Options;
 
-namespace StarterApp.Api.Modules.Assistant.Application;
+namespace StarterApp.Api.Infrastructure.Assistant;
 
 public sealed class ClaudeAssistantModel : IAssistantModel, IDisposable
 {

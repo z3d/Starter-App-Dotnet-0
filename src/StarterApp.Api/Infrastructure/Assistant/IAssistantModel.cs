@@ -1,6 +1,6 @@
 using Anthropic.Models.Messages;
 
-namespace StarterApp.Api.Modules.Assistant.Application;
+namespace StarterApp.Api.Infrastructure.Assistant;
 
 public interface IAssistantModel
 {

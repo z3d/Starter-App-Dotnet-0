@@ -34,6 +34,7 @@ builder.Services.AddJwtIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddApiRateLimiting();
 builder.Services.AddApiHealthChecks(builder.Configuration);
 builder.Services.AddServiceBusPublisher(builder.Configuration, builder.Environment);
+builder.Services.AddAssistant(builder.Configuration);
 builder.AddPayloadCapture();
 builder.AddJobRunRecording();
 

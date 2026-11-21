@@ -1,4 +1,4 @@
-namespace StarterApp.Api.Modules.Assistant.Application;
+namespace StarterApp.Api.Infrastructure.Assistant;
 
 // The fields a person picks a value for, and the values: a card offers them as a choice, the same ones every time.
 // The lists are held to the enums the API parses by AssistantVocabularyTests; a field name that means different things

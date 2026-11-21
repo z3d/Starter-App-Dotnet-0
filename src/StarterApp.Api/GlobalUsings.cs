@@ -15,6 +15,7 @@ global using StarterApp.Api.Application.Queries;
 global using StarterApp.Api.Application.ReadModels;
 global using StarterApp.Api.Data;
 global using StarterApp.Api.Infrastructure;
+global using StarterApp.Api.Infrastructure.Assistant;
 global using StarterApp.Api.Infrastructure.Caching;
 global using StarterApp.Api.Infrastructure.Identity;
 global using StarterApp.Api.Infrastructure.Mediator;

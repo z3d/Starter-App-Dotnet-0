@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Anthropic.Models.Messages;
 
-namespace StarterApp.Api.Modules.Assistant.Application;
+namespace StarterApp.Api.Infrastructure.Assistant;
 
 // The prompt and the tools are reviewed like code (AGENTS.md, "A specified mechanism is not swapped for a cheaper one").
 public static class AssistantPrompt

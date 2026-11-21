@@ -1,4 +1,4 @@
-namespace StarterApp.Api.Modules.Assistant.Application;
+namespace StarterApp.Api.Infrastructure.Assistant;
 
 public sealed record AssistantRoute(string Method, string Path, string Summary, string Fields, IReadOnlyList<string> Admits, IReadOnlyList<AssistantField>? Body = null)
 {

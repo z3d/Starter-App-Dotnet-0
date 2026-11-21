@@ -1,4 +1,4 @@
-namespace StarterApp.Api.Modules.Assistant.Application;
+namespace StarterApp.Api.Infrastructure.Assistant;
 
 public sealed class AssistantOptions
 {

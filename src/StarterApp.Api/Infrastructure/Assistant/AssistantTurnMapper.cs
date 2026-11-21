@@ -1,7 +1,6 @@
 using Anthropic.Models.Messages;
-using StarterApp.Api.Modules.Assistant.Application.DTOs;
 
-namespace StarterApp.Api.Modules.Assistant.Application;
+namespace StarterApp.Api.Infrastructure.Assistant;
 
 public static class AssistantTurnMapper
 {

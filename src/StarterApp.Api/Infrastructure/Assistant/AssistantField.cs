@@ -1,4 +1,4 @@
-namespace StarterApp.Api.Modules.Assistant.Application;
+namespace StarterApp.Api.Infrastructure.Assistant;
 
 // One field of a write's body, as the product asks a person for it: the same field, kind and choices every time.
 // Label is what a person is asked where the field's own name would not tell them.

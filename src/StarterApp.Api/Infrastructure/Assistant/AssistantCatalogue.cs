@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
 
-namespace StarterApp.Api.Modules.Assistant.Application;
+namespace StarterApp.Api.Infrastructure.Assistant;
 
 // Every route a person may call, read once from the API's own OpenAPI document and endpoint metadata, so a new route is the assistant's without a line here.
 public sealed partial class AssistantCatalogue

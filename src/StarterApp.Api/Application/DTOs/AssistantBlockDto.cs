@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace StarterApp.Api.Modules.Assistant.Application.DTOs;
+namespace StarterApp.Api.Application.DTOs;
 
 public class AssistantBlockDto
 {
