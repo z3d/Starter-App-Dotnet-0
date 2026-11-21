@@ -54,6 +54,10 @@
   --ai: oklch(0.55 0.13 300);
   --ai-soft: oklch(0.95 0.03 300);
   --ai-strong: oklch(from var(--ai) 0.53 c h);
+  /* What a graph is drawn in, in this order; checked for colour-blind separation on this surface. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
   --focus: oklch(0.6 0.17 35 / 0.45);
   --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236f6a65' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>"); /* the select's arrow, in ink-tertiary */
   --glow-rail: oklch(from var(--accent) 0.5 c h / 0.32); /* the rail's light from the accent's corner */
@@ -107,6 +111,9 @@
     --ai: oklch(0.74 0.12 300);
     --ai-soft: oklch(0.3 0.06 300);
     --ai-strong: var(--ai);
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-3: #199e70;
     --focus: oklch(0.72 0.15 40 / 0.5);
     --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a39e98' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>"); /* the select's arrow, in ink-tertiary */
   }
@@ -158,6 +165,9 @@
   --ai: oklch(0.74 0.12 300);
   --ai-soft: oklch(0.3 0.06 300);
   --ai-strong: var(--ai);
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
   --focus: oklch(0.72 0.15 40 / 0.5);
   --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a39e98' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>"); /* the select's arrow, in ink-tertiary */
 }
