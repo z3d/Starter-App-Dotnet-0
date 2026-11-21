@@ -183,7 +183,7 @@ public class PayloadCaptureMiddlewareTests
         var middleware = new PayloadCaptureMiddleware(async context =>
         {
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsync("""{"id":7,"secretOutcome":"approved"}""");
+            await context.Response.WriteAsync("""{"id":7,"outcome":"approved"}""");
             await abortSource.CancelAsync();
             abortSource.Token.ThrowIfCancellationRequested();
         }, sink, new PayloadCaptureTests.FixedTimeProvider(timestamp), Microsoft.Extensions.Options.Options.Create(new PayloadCaptureOptions()), new LoggerFactory().CreateLogger<PayloadCaptureMiddleware>());

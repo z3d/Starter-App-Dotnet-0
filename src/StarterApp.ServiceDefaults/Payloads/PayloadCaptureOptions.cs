@@ -100,4 +100,7 @@ public class PayloadCaptureOptions
 
     // Configured names are appended to these defaults by the binder, never in place of them.
     public string[] SensitivePropertyNames { get; set; } = DefaultSensitivePropertyNames;
+
+    // The fields whose values a log line may show; every other field is masked. Defaults to the "keep" lines of payload-log-fields.txt.
+    public string[] LogKeptFieldNames { get; set; } = PayloadLogFields.Kept;
 }

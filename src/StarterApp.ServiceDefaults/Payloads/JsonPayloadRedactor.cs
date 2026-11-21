@@ -9,11 +9,16 @@ public sealed partial class JsonPayloadRedactor : IPayloadRedactor
 {
     private const string Mask = "***REDACTED***";
     private readonly HashSet<string> _sensitiveNames;
+    private readonly HashSet<string> _keptNames;
 
     public JsonPayloadRedactor(IOptions<PayloadCaptureOptions> options)
     {
         _sensitiveNames = options.Value.SensitivePropertyNames
             .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(NormalizeName)
+            .Where(name => name.Length > 0)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        _keptNames = options.Value.LogKeptFieldNames
             .Select(NormalizeName)
             .Where(name => name.Length > 0)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -61,7 +66,7 @@ public sealed partial class JsonPayloadRedactor : IPayloadRedactor
         {
             foreach (var property in jsonObject.ToList())
             {
-                if (IsSensitivePropertyName(property.Key))
+                if (!IsKept(property.Key))
                 {
                     jsonObject[property.Key] = Mask;
                     continue;
@@ -85,6 +90,10 @@ public sealed partial class JsonPayloadRedactor : IPayloadRedactor
             }
         }
     }
+
+    // A field reaches the log only when it is on the kept list and matches no sensitive name.
+    private bool IsKept(string propertyName) =>
+        _keptNames.Contains(NormalizeName(propertyName)) && !IsSensitivePropertyName(propertyName);
 
     private bool IsSensitivePropertyName(string propertyName)
     {

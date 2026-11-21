@@ -5,6 +5,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="StarterApp.Tests" />
+    <EmbeddedResource Include="Payloads/payload-log-fields.txt" LogicalName="StarterApp.ServiceDefaults.Payloads.payload-log-fields.txt" />
   </ItemGroup>
 
   <ItemGroup>

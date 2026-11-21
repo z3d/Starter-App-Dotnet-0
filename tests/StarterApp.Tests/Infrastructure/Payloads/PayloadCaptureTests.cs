@@ -189,7 +189,7 @@ public class PayloadCaptureTests
     [Fact]
     public void JsonPayloadRedactor_ShouldMaskSensitiveJsonFieldsAndKeepOtherValues()
     {
-        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions()));
+        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions { LogKeptFieldNames = ["total"] }));
 
         var redacted = redactor.Redact("""{"name":"Ada","email":"ada@example.com","total":42}""", "application/json");
 
@@ -209,7 +209,8 @@ public class PayloadCaptureTests
     [InlineData("bankAccount", "062000 12345678")]
     public void JsonPayloadRedactor_MasksPersonalAndFinancialFieldsByDefault(string field, string value)
     {
-        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions()));
+        // Listed as kept by mistake, a sensitive name is still masked.
+        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions { LogKeptFieldNames = ["total", field] }));
 
         var redacted = redactor.Redact($$"""{"{{field}}":"{{value}}","total":42}""", "application/json");
 
@@ -236,7 +237,7 @@ public class PayloadCaptureTests
     [Fact]
     public void JsonPayloadRedactor_ShouldMaskSensitiveSubstringFieldsAndEmailsInsideJsonStrings()
     {
-        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions()));
+        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions { LogKeptFieldNames = ["customerEmail", "notes", "profile", "ownerName", "total"] }));
 
         var redacted = redactor.Redact(
             """{"customerEmail":"ada@example.com","notes":"Contact ada@example.com today","profile":{"ownerName":"Ada"},"total":42}""",
@@ -250,7 +251,7 @@ public class PayloadCaptureTests
     [Fact]
     public void JsonPayloadRedactor_ShouldWalkJsonArraysWithoutReparentingNodes()
     {
-        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions()));
+        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions { LogKeptFieldNames = ["items", "productId", "notes"] }));
 
         var redacted = redactor.Redact(
             """{"items":[{"productId":12,"notes":"email ops@example.com"},{"productId":13}]}""",

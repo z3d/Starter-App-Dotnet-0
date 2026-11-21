@@ -1,0 +1,53 @@
+# Every field the API or the worker sends in a payload, and whether its value may reach a log line.
+#   keep <field>  the value is logged (an email address inside it is still masked)
+#   mask <field>  the value is logged as ***REDACTED***
+# A field not listed here is masked at run time, and PayloadLogFieldConventionTests fails until it is listed.
+# A kept field that matches PayloadCaptureOptions.SensitivePropertyNames or a secret name fails the same tests.
+# Names compare without case or punctuation, so customerId covers CustomerId on an event.
+# This decides logs only. The payload archive keeps full bodies apart from secrets (docs/DECISIONS.md).
+
+keep currency
+keep customerId
+keep data
+keep dateCreated
+keep detail
+keep errors
+keep eventType
+keep gstRate
+keep hasMore
+keep id
+keep instance
+keep isActive
+keep items
+keep lastUpdated
+keep lineItemCount
+keep newStatus
+keep occurredOnUtc
+keep orderDate
+keep orderId
+keep palette
+keep previousStatus
+keep price
+keep priceAmount
+keep priceCurrency
+keep productId
+keep quantity
+keep status
+keep stock
+keep title
+keep totalExcludingGst
+keep totalGstAmount
+keep totalIncludingGst
+keep totalPriceExcludingGst
+keep totalPriceIncludingGst
+keep totalQuantity
+keep traceId
+keep type
+keep unitPriceExcludingGst
+keep unitPriceIncludingGst
+
+mask description
+mask email
+mask name
+mask productName
+mask updatedBy

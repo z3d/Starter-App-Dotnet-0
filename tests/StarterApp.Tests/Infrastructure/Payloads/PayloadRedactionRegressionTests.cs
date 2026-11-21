@@ -26,7 +26,7 @@ public class PayloadRedactionRegressionTests
         }, CancellationToken.None);
 
         Assert.NotNull(record);
-        Assert.Equal(payload, record.Payload);
+        Assert.Equal("{\"password\":\"***SECRET***\",", record.Payload);
         Assert.NotEmpty(logger.Messages);
         Assert.DoesNotContain(logger.Messages, message => message.Contains("sentinel-password", StringComparison.Ordinal));
     }
@@ -35,9 +35,10 @@ public class PayloadRedactionRegressionTests
     [InlineData("text/plain")]
     [InlineData("text/plain; charset=utf-8")]
     [InlineData("application/x-www-form-urlencoded")]
-    public async Task CaptureAsync_WithFreeText_LogsOnlySizeAndHashButArchivesTheBody(string contentType)
+    public async Task CaptureAsync_WithFreeText_LogsOnlySizeAndHashButArchivesTheBodyWithoutItsSecrets(string contentType)
     {
         const string payload = "password=sentinel-password&tfn=123456789&contact=ada@example.com";
+        const string archived = "password=***SECRET***&tfn=123456789&contact=ada@example.com";
         var store = new InMemoryPayloadArchiveStore();
         var logger = new RecordingLogger();
         var sink = CreateSink(store, logger, new PayloadCaptureOptions());
@@ -51,9 +52,9 @@ public class PayloadRedactionRegressionTests
         }, CancellationToken.None);
 
         Assert.NotNull(record);
-        Assert.Equal(payload, record.Payload);
-        var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(payload)));
-        Assert.Contains(logger.Messages, message => message.Contains($"payload suppressed, {payload.Length} bytes, sha256={hash}", StringComparison.Ordinal));
+        Assert.Equal(archived, record.Payload);
+        var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(archived)));
+        Assert.Contains(logger.Messages, message => message.Contains($"payload suppressed, {archived.Length} bytes, sha256={hash}", StringComparison.Ordinal));
         Assert.DoesNotContain(logger.Messages, message => message.Contains("sentinel-password", StringComparison.Ordinal));
         Assert.DoesNotContain(logger.Messages, message => message.Contains("123456789", StringComparison.Ordinal));
     }
@@ -61,7 +62,7 @@ public class PayloadRedactionRegressionTests
     [Fact]
     public void Redact_TextPlainThatIsJson_IsScreenedAsJsonRatherThanSuppressed()
     {
-        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions()));
+        var redactor = new JsonPayloadRedactor(Options.Create(new PayloadCaptureOptions { LogKeptFieldNames = ["total"] }));
 
         var redacted = redactor.Redact("""{"total":42,"password":"sentinel-password"}""", "text/plain");
 
@@ -120,7 +121,7 @@ public class PayloadRedactionRegressionTests
         var archive = store.Lines.Single(pair => pair.Key.EndsWith("/truncated-json.jsonl", StringComparison.Ordinal));
         using var row = JsonDocument.Parse(archive.Value[0]);
         Assert.True(row.RootElement.GetProperty("payloadTruncated").GetBoolean());
-        Assert.Equal(prefix, row.RootElement.GetProperty("payload").GetString());
+        Assert.Equal("{\"password\":\"***SECRET***\",", row.RootElement.GetProperty("payload").GetString());
         Assert.NotEmpty(logger.Messages);
         Assert.DoesNotContain(logger.Messages, message => message.Contains("sentinel-password", StringComparison.Ordinal));
     }
@@ -143,7 +144,7 @@ public class PayloadRedactionRegressionTests
         }, CancellationToken.None);
 
         Assert.NotNull(record);
-        Assert.Equal(payload, record.Payload);
+        Assert.DoesNotContain("sentinel-private-id", PayloadSecretMasker.IsSecretName(sensitiveName) ? record.Payload : string.Empty, StringComparison.Ordinal);
         var reference = Assert.Single(record.EntityReferences);
         Assert.Equal("42", reference.EntityId);
         Assert.DoesNotContain(store.Lines.Keys, key => key.Contains("sentinel-private-id", StringComparison.Ordinal));

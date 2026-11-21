@@ -59,6 +59,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
             return null;
         }
 
+        request = MaskSecrets(request);
         var timestampUtc = (request.TimestampUtc ?? _timeProvider.GetUtcNow()).ToUniversalTime();
         var correlationId = CorrelationContext.Sanitize(request.CorrelationId ?? CorrelationContext.GetOrCreate());
         var archiveBlobName = PayloadBlobNaming.BuildArchiveBlobName(timestampUtc, correlationId, _options.ArchivePrefix);
@@ -213,6 +214,36 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
                 request.Channel,
                 request.Operation);
         }
+    }
+
+    // A base64 artifact is not text, and a run of its characters could pass for a card number.
+    private static PayloadCaptureRequest MaskSecrets(PayloadCaptureRequest request)
+    {
+        if (request.Metadata.TryGetValue("encoding", out var encoding) && encoding == "base64")
+            return request;
+
+        var masked = PayloadSecretMasker.MaskPayload(request.Payload);
+        if (masked == request.Payload)
+            return request;
+
+        return new PayloadCaptureRequest
+        {
+            CorrelationId = request.CorrelationId,
+            TimestampUtc = request.TimestampUtc,
+            Direction = request.Direction,
+            Channel = request.Channel,
+            Operation = request.Operation,
+            ContentType = request.ContentType,
+            Payload = masked,
+            PayloadTruncated = request.PayloadTruncated,
+            PayloadSizeBytes = request.PayloadSizeBytes ?? (request.CapturedPayloadBytes == 0 ? Encoding.UTF8.GetByteCount(request.Payload) : request.CapturedPayloadBytes),
+            CapturedPayloadBytes = request.CapturedPayloadBytes == 0 ? Encoding.UTF8.GetByteCount(masked) : request.CapturedPayloadBytes,
+            PayloadSkipReason = request.PayloadSkipReason,
+            StatusCode = request.StatusCode,
+            Metadata = request.Metadata,
+            EntityReferences = request.EntityReferences,
+            DeferEntityIndex = request.DeferEntityIndex
+        };
     }
 
     private string RedactForLog(PayloadCaptureRequest request)
