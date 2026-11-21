@@ -14,7 +14,6 @@ public class NextAssistantTurnQuery : IQuery<AssistantTurnDto>, IOwnerScopedRequ
     public string? Area { get; set; }
 }
 
-// One turn of the model. The browser holds the conversation and runs the find tools through the API as the person; nothing here reads or writes a record.
 public class NextAssistantTurnQueryHandler : IRequestHandler<NextAssistantTurnQuery, AssistantTurnDto>
 {
     private readonly IAssistantModel _model;

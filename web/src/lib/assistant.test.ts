@@ -19,7 +19,6 @@ function json(body: unknown, status = 200) {
 const toolUse = (id: string, name: string, input: Record<string, unknown>) =>
   ({ type: 'tool_use', id, name, input }) as AssistantBlock
 
-// The model's turns in order, as the API returns them; every other request is a read of the customers below.
 function stubApi(turns: unknown[]) {
   const sentTurns: {
     messages: { role: string; results?: { toolUseId: string; content: string; isError: boolean }[] }[]

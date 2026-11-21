@@ -3,7 +3,6 @@ import { call, client } from '@/lib/api'
 import type { AssistantArea, AssistantRoute, Proposal } from '@/lib/assistant'
 import { type Context, type Step, filled } from '@/lib/journeys'
 
-// The changes a person in this area may make, each with the fields its card asks for.
 export function useAssistantRoutes(area: AssistantArea) {
   return useQuery({
     queryKey: ['assistant', 'routes', area],
@@ -13,7 +12,6 @@ export function useAssistantRoutes(area: AssistantArea) {
   })
 }
 
-// The card for a step the person picked: built by the product from its own list, with no model involved.
 export function proposalFor(
   step: Step,
   routes: AssistantRoute[],

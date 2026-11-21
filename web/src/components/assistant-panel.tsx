@@ -10,14 +10,11 @@ import { type AssistantArea, pageFor, type Proposal, send } from '@/lib/assistan
 import { day, money } from '@/lib/format'
 import { useAuth } from 'react-oidc-context'
 
-// What a confirmed card did, for a caller that keeps the conversation going: what to show, what to tell the model, and
-// how to open the record. A caller that gives no onConfirmed gets the card's own behaviour, which opens the record.
 export interface Confirmed {
   said: string
   happened: string
   refused?: boolean
   open?: () => void
-  // The change as it was sent and the id of what it made, for the steps that follow it.
   made?: {
     method: string
     path: string
@@ -73,7 +70,6 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 const CANCEL_SCOPE = 'orders:write'
 
-// The order is shown from the records themselves, not from what the model said about it.
 function CancelOrderCard({
   proposal,
   onDone,
@@ -163,7 +159,6 @@ function RequestCard({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const allowed = useScopes().includes(proposal.scope)
-  // What will be sent: what the assistant or an earlier step filled in, as the person has since changed it.
   const [values, setValues] = useState<Record<string, unknown>>(proposal.body ?? {})
   const body = () => {
     return proposal.fields.length === 0 && proposal.body === null ? null : sendable(proposal.fields, values)
@@ -189,7 +184,6 @@ function RequestCard({
     },
   })
   const named = Object.entries(proposal.pathParams)
-  // A route the product has no field list for shows what the assistant gave, as it gave it.
   const loose =
     proposal.fields.length === 0 ? Object.entries(proposal.body ?? {}).filter(([, value]) => value != null) : []
   const waiting = missing(fields, values)

@@ -1,6 +1,5 @@
 import { createElement, type ReactNode } from 'react'
 
-// What the assistant may draw with: shapes and text. Anything else in its SVG is dropped before it reaches the page.
 const ELEMENTS = new Set([
   'svg',
   'g',
@@ -58,7 +57,6 @@ export const MAX_SVG_LENGTH = 30_000
 
 const camel = (name: string) => name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase())
 
-// Reads the assistant's SVG into React elements, keeping only the shapes, text and attributes above. Null when it is not a drawing.
 export function readSvg(source: string): ReactNode | null {
   if (source.length > MAX_SVG_LENGTH) return null
   const parsed = new DOMParser().parseFromString(source, 'image/svg+xml')

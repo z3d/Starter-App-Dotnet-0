@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { useSyncExternalStore } from 'react'
 import { call, client } from '@/lib/api'
 
-// The stored values predate the dock: 'assistant' means the panel was left open, 'traditional' that it was closed.
 const KEY = 'starterapp.interface'
 const listeners = new Set<() => void>()
 

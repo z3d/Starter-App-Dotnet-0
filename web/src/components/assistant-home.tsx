@@ -26,7 +26,6 @@ interface Exchange {
   closed?: boolean
   setAside?: boolean
   done?: Confirmed
-  // What the product offers after a confirmed step: the same steps, in the same order, every time.
   next?: Step[]
 }
 
@@ -44,7 +43,6 @@ export function AssistantHome({
   const asking = useMutation({ mutationFn: (messages: AssistantMessage[]) => ask(messages, area) })
   const listed = useAssistantRoutes(area).data
   const routes = useMemo(() => listed ?? [], [listed])
-  // The records this conversation has made or named, so a later step can be about them.
   const [context, setContext] = useState<Context>({})
   const end = useRef<HTMLDivElement>(null)
   const opener = openers[area]
@@ -54,7 +52,6 @@ export function AssistantHome({
     end.current?.scrollIntoView?.({ block: 'nearest' })
   }, [thread, asking.isPending])
 
-  // One more turn of the conversation: what the person said (or nothing, when the assistant carries on) and the messages to send.
   const setAside = (exchanges: Exchange[]) =>
     exchanges.map((exchange) =>
       exchange.outcome?.proposal && !exchange.closed ? { ...exchange, closed: true, setAside: true } : exchange,
@@ -81,7 +78,6 @@ export function AssistantHome({
   const say = (words: string) => {
     const said = words.trim()
     if (!said || asking.isPending) return
-    // A reply to a question carries the conversation on; anything else starts a new one.
     const carriesOn = last?.outcome && !last.outcome.proposal && !last.closed
     setText('')
     turn(said, carriesOn && last?.outcome ? reply(last.outcome, said) : [{ role: 'user', text: said }])
@@ -92,7 +88,6 @@ export function AssistantHome({
       exchanges.map((exchange, i) => (i === index ? { ...exchange, closed: true, done, next } : exchange)),
     )
 
-  // A step the person picked: the product builds its card from its own list, and no model is asked.
   const take = (step: Step, said: string, known: Context = context) => {
     const proposal = proposalFor(step, routes, known)
     if (!proposal) return say(said)
@@ -102,14 +97,12 @@ export function AssistantHome({
   const begin = (start: { label: string; step?: Step }) =>
     start.step ? take(start.step, start.label, {}) : say(start.label)
 
-  // A confirmed card stays in the conversation, with what usually follows it offered underneath.
   const confirm = (index: number, done: Confirmed) => {
     const known = done.made ? learn(context, done.made, done.made.id) : context
     setContext(known)
     close(index, done, done.made ? nextSteps(done.made, known) : [])
   }
 
-  // The form's answers go back to the assistant by field; "nothing" to what comes next ends it here.
   const answer = (index: number, outcome: AssistantOutcome, answers: Record<string, string>, said: string) => {
     if (asking.isPending) return
     close(index)
@@ -266,7 +259,6 @@ export function AssistantHome({
         ))}
       </ol>
       <div ref={end} />
-      {/* The box follows the conversation down the page, but stays out of the way of a card being filled in. */}
       <div
         className={`space-y-2 ${last?.outcome?.proposal && !last.closed ? '' : compact ? 'sticky bottom-0 bg-canvas pt-2 pb-4' : 'sticky bottom-4'}`}
       >

@@ -4,10 +4,8 @@ import { list } from '@/lib/assistant-routes'
 
 const control =
   'h-10 w-full rounded-md border border-line bg-surface-raised px-3 text-ink outline-none focus:border-accent disabled:opacity-60'
-// A pick-list drawn like the product's own forms, not the browser's: one chevron, the same padding.
 const picker = `${control} select-chevron`
 
-// A field's name as a person reads it: "firstName" is "First name", "customerId" is "Customer".
 export const words = (name: string) => {
   const spaced = name
     .replace(/Id$/, '')
@@ -16,12 +14,10 @@ export const words = (name: string) => {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
-// A value the API takes, as a person reads it: "InProgress" is "In progress".
 export const plain = (value: string) => (/^[A-Z]{2,3}$/.test(value) ? value : words(value))
 
 type Values = Record<string, unknown>
 
-// Which records a field picks from, by its name; the list comes from the same API the rest of the product reads.
 function source(
   field: string,
 ): { path: string; params?: Record<string, string>; label: (record: Record<string, unknown>) => string } | null {
@@ -59,8 +55,6 @@ function RecordPicker({
   )
 }
 
-// The body of a change, as a form: every field the route takes, in the route's own order, the same every time.
-// What was already said or known arrives filled in and stays editable; nothing is sent until the person confirms.
 export function RouteFields({
   fields,
   values,
@@ -154,8 +148,6 @@ export function RouteFields({
   )
 }
 
-// A field that applies only for some values of another is asked for once that other field holds one of them, and is
-// needed then.
 export function applies(field: RouteField, values: Values) {
   if (!field.whenField) return true
   const chosen = values[field.whenField]
@@ -164,7 +156,6 @@ export function applies(field: RouteField, values: Values) {
 
 const needed = (field: RouteField) => field.required === true || Boolean(field.whenField)
 
-// A needed field with nothing in it; Confirm waits on these.
 export function missing(fields: RouteField[], values: Values) {
   return fields.filter((field) => {
     const value = values[field.name ?? '']
@@ -178,7 +169,6 @@ export function missing(fields: RouteField[], values: Values) {
   })
 }
 
-// What is sent: every value given, less any for a field that no longer applies.
 export function sendable(fields: RouteField[], values: Values) {
   const dropped = new Set(fields.filter((field) => !applies(field, values)).map((field) => field.name ?? ''))
   return Object.fromEntries(

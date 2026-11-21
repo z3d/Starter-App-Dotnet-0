@@ -17,7 +17,6 @@ export type Proposal =
       scope: string
       pathParams: Record<string, string>
       body: Record<string, unknown> | null
-      // The route's body fields as the product lists them: what the card asks for, in this order, every time.
       fields: RouteField[]
     }
 
@@ -46,7 +45,6 @@ export interface QuestionField {
   optional: boolean
 }
 
-// What the assistant needs from the person, as a form to click through and not a sentence to answer.
 export interface AssistantQuestion {
   question: string
   fields: QuestionField[]
@@ -76,7 +74,6 @@ const MAX_ROWS = 50
 const MAX_READ_RECORDS = 20
 const MAX_RESULT_LENGTH = 7500
 
-// A find and its answer are one round; a request that needs more than this many is not one the assistant can resolve.
 const MAX_ROUNDS = 6
 const MAX_MATCHES = 10
 const MAX_FIND_PAGES = 5
@@ -90,7 +87,6 @@ const inputOf = (block: AssistantBlock) => (block.input ?? {}) as Record<string,
 
 const isId = (value: unknown): value is string => typeof value === 'string' && UUID.test(value)
 
-// What the model put in a proposal is checked here before a person sees it; the reason goes back to the model so it can correct itself.
 export function readProposal(block: AssistantBlock): Proposal | string {
   const input = inputOf(block)
   if (block.name === PROPOSE_CANCEL_ORDER) {
@@ -121,7 +117,6 @@ export function readProposal(block: AssistantBlock): Proposal | string {
   return `There is no tool called ${block.name ?? 'that'}.`
 }
 
-// A table the model asks to show is checked like a proposal: a heading for each column and a value in every cell.
 export function readTable(block: AssistantBlock): AssistantTable | string {
   const input = inputOf(block)
   const columns = input.columns
@@ -145,7 +140,6 @@ export function readTable(block: AssistantBlock): AssistantTable | string {
   }
 }
 
-// A form the model asks to show is checked like a proposal: every field named, and a choice with something to choose from.
 export function readQuestion(block: AssistantBlock): AssistantQuestion | string {
   const input = inputOf(block)
   if (typeof input.question !== 'string' || !input.question.trim()) return 'question must say what you need.'
@@ -178,7 +172,6 @@ export function readQuestion(block: AssistantBlock): AssistantQuestion | string 
   return { question: input.question.trim(), fields }
 }
 
-// A graph the model draws is shown only when it is a drawing the page can read, and always with the figures it was drawn from.
 export function readGraphic(block: AssistantBlock): AssistantGraphic | string {
   const input = inputOf(block)
   if (typeof input.title !== 'string' || !input.title.trim()) return 'title must say what the graph shows.'
@@ -200,7 +193,6 @@ export function readGraphic(block: AssistantBlock): AssistantGraphic | string {
   }
 }
 
-// A value for every name in braces in the path, each one text with no slash in it.
 function paramsFor(path: string, given: unknown): Record<string, string> | string {
   const values = (given && typeof given === 'object' ? given : {}) as Record<string, unknown>
   const params: Record<string, string> = {}
@@ -303,7 +295,6 @@ function textOf(blocks: AssistantBlock[]) {
     .trim()
 }
 
-// Asks the model, runs the finds it asks for, and stops at the first thing for the person: a question, or one action to confirm.
 export type AssistantArea = 'app'
 
 export async function ask(messages: AssistantMessage[], area: AssistantArea = 'app'): Promise<AssistantOutcome> {
@@ -373,9 +364,7 @@ const openCalls = (outcome: AssistantOutcome) => {
   return last?.role === 'assistant' ? (last.blocks ?? []).filter((block) => block.type === 'tool_use') : []
 }
 
-// What the person says next, added to the conversation so far. A turn that ended on a tool call has to have that call
-// answered before anything else is said (the model's API refuses the conversation otherwise): a form is answered with
-// what the person said, and a table or a graph as shown, followed by their words.
+// The model's API refuses a conversation whose last tool call is unanswered, so a form, table or graph is answered first.
 export function reply(outcome: AssistantOutcome, text: string): AssistantMessage[] {
   const open = openCalls(outcome)
   if (open.length === 0) return [...outcome.messages, { role: 'user', text }]
@@ -391,8 +380,6 @@ export function reply(outcome: AssistantOutcome, text: string): AssistantMessage
   return asked ? [...outcome.messages, answered] : [...outcome.messages, answered, { role: 'user', text }]
 }
 
-// What happened when the person confirmed a proposal, told to the model so it can say so and lead on, or correct a
-// request the system refused.
 export function confirmed(outcome: AssistantOutcome, happened: string, refused = false): AssistantMessage[] {
   return [
     ...outcome.messages,
@@ -403,7 +390,6 @@ export function confirmed(outcome: AssistantOutcome, happened: string, refused =
   ]
 }
 
-// Sends a confirmed request as the person, through the same client as every other call.
 export function send(proposal: Extract<Proposal, { kind: 'request' }>) {
   const request = client[proposal.method] as unknown as (
     path: string,
@@ -416,7 +402,6 @@ export function send(proposal: Extract<Proposal, { kind: 'request' }>) {
   } | null>
 }
 
-// Where a record made by a general request opens, when the route that made it has a page of its own in that area.
 const PAGES = {
   app: {},
 } as const

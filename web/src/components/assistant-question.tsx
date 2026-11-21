@@ -5,7 +5,6 @@ import type { AssistantQuestion as Question, QuestionField } from '@/lib/assista
 const control =
   'h-10 w-full rounded-md border border-line bg-surface-raised px-3 text-ink outline-none focus:border-accent'
 
-// How an answer reads back in the conversation: the label the person picked, not the id behind it.
 function shown(field: QuestionField, value: string) {
   if (field.kind === 'choice') return field.options.find((option) => option.value === value)?.label ?? value
   if (field.kind === 'yesno') return value === 'yes' ? 'Yes' : 'No'
@@ -13,8 +12,6 @@ function shown(field: QuestionField, value: string) {
   return value
 }
 
-// What the assistant needs, as something to click through. One choice on its own is a row of buttons; anything more
-// is a short form. The answers go back keyed by field, and the words shown are the ones the person saw.
 export function AssistantQuestion({
   question,
   onAnswer,

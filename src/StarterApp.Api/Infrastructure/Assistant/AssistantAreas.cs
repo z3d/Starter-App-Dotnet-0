@@ -1,6 +1,5 @@
 namespace StarterApp.Api.Infrastructure.Assistant;
 
-// The places a person works in, as the web app has them, and the scope that admits a person to each. The starter has one.
 public static class AssistantAreas
 {
     public const string Scope = "assistant:use";

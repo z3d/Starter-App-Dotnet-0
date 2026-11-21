@@ -11,7 +11,6 @@ export function AssistantDock({ area }: { area: AssistantArea }) {
   const dock = useAssistantDock()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const shown = useRef(pathname)
-  // On a phone the panel covers the page, so a page opened from it closes it.
   useEffect(() => {
     if (shown.current === pathname) return
     shown.current = pathname

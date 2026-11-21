@@ -1,8 +1,6 @@
 namespace StarterApp.Api.Infrastructure.Assistant;
 
-// The fields a person picks a value for, and the values: a card offers them as a choice, the same ones every time.
-// The lists are held to the enums the API parses by AssistantPromptTests; a field name that means different things
-// on different routes names its path.
+// AssistantPromptTests holds these lists to the enums the API parses.
 public static class AssistantVocabulary
 {
     public static readonly IReadOnlyList<(string Field, string? PathHas, string[] Values)> Fields =
@@ -10,8 +8,6 @@ public static class AssistantVocabulary
         ("status", "/orders", ["Pending", "Confirmed", "Processing", "Shipped", "Delivered", "Cancelled"]),
     ];
 
-    // Fields a person is asked for under a plainer name, and fields that apply only for some values of another field
-    // of the same body.
     public static readonly IReadOnlyList<(string Field, string PathHas, string Label, string WhenField, string[] WhenValues)> Asks = [];
 
     public static (string Label, string WhenField, string[] WhenValues)? AskFor(string path, string field)
