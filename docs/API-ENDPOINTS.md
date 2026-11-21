@@ -94,6 +94,16 @@ Base path: `/api/v1/settings`. One record per tenant (the token's `tid`), read b
 
 The API accepts any well-formed name; the web app shows the default theme for one it does not declare (`web/src/palettes.ts`). Who changed it and when are on the record (`updated_by`, `last_updated`) and in the payload archive.
 
+## Assistant
+
+Base path: `/api/v1/assistant`. Every route needs the `assistant:use` scope, which a token request asks for beside the others. Off by default: it is on only where `Assistant:Enabled` is true and `Assistant:ApiKey` and `Assistant:Model` are set. The routes are mapped either way. The API holds the model key and makes one model call a turn; the browser holds the conversation, runs the reads the model asks for through the other routes as the person, and shows a proposal as a card that changes nothing until the person confirms it through the route it names.
+
+| Method | Endpoint | Scope | MFA | Response |
+|--------|----------|-------|-----|----------|
+| `GET` | `/api/v1/assistant` | `assistant:use` | No | `200 OK` with `{ "enabled", "primary" }`; `primary` is true only where it is on and `Assistant:PrimaryInterface` is true |
+| `GET` | `/api/v1/assistant/routes?area=app` | `assistant:use` | No | `200 OK` with the write routes the token's scopes admit, each with its scope and the fields its card asks for; `400` for an unknown area |
+| `POST` | `/api/v1/assistant/turns` | `assistant:use` | Yes | `200 OK` with the model's blocks and stop reason, a `read` or `propose` block carrying the listed route it names; `400` for a malformed conversation or an unknown area, `502` when the model does not answer, `503` when the assistant is off |
+
 ## Order Management
 
 Base path: `/api/v1/orders`

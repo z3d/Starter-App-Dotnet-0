@@ -6,6 +6,8 @@ The API is called only through `src/lib/api.ts`: `call(client.GET('/api/v1/order
 
 `src/sample/` is the sample page over the Customer/Product/Order sample: it creates each through the API and shows what the API answers, so the identity seam can be seen end to end. A derived project removes it with the sample domain (`docs/DERIVATION-PRUNING.md`) and keeps the shell, the identity helper, the API client, the primitives and the fixtures.
 
+The assistant is off unless the API says it is on (`GET /api/v1/assistant`; `docs/DECISIONS.md`, "The assistant is optional, proposes and never writes"). When it is on, the shell shows a button and a rail item that open the dock (`src/components/assistant-dock.tsx`), and `src/lib/interface.ts` remembers whether the person left it open. `src/lib/assistant.ts` is the browser half of a turn: it sends the conversation to the API, runs the reads the model asks for through `client` as the person, and stops at a question, a table or graph, or one proposal, which `assistant-panel.tsx` shows as a card that sends nothing until it is confirmed. A card's fields come from `GET /api/v1/assistant/routes`, the jobs a person can start from `src/lib/journeys.ts`, and a drawing the model makes passes `src/lib/graphic.ts`, which keeps only shapes and text in the app's palette.
+
 ```bash
 npm run dev            # the dev server alone, proxying /api to VITE_API_URL (default https://localhost:7286)
 npm run typecheck && npm run lint && npm run format:check && npm run build
