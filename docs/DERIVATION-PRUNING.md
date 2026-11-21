@@ -10,7 +10,8 @@ the project: they copy its shapes, keep its rules, and route new work through it
 - **At the first module, the sample goes, whole.** The day a derived project's first real module
   lands under `Api/Modules/`, the Customer/Product/Order sample is removed end to end in one
   change: entities, events, handlers, endpoints, EF configurations, Functions and their
-  subscriptions, tests, k6 and DAST seeds, reporting SQL, a migration dropping its tables, and
+  subscriptions, tests, k6 and DAST seeds, the sample sections of `scripts/smoke-test.sh`, reporting
+  SQL, a migration dropping its tables, and
   every rule, skill and doc that described only the sample. It is not "replaced module by
   module" and it is not kept as a reference: the template is the reference. The
   `<App>.Domain` project goes with it, whole: the base types it built on are in
@@ -70,6 +71,7 @@ applicable (no modules), and in a derived project it fails from the first module
 |-----------|------------------------------|----------------------|
 | Sample domain (Customer/Product/Order) and the `<App>.Domain` project that holds it | required at the first module — it exists to be replaced; `<App>.SharedKernel` stays | n/a (it never comes back) |
 | The web app's sample page (`web/src/sample`) and the `Sample` rail item | with the sample domain it drives; the shell, `src/lib/auth.ts`, `src/lib/api.ts`, the generated client, the primitives, the image and the browser-test fixtures stay | n/a (the project's own screens take its place) |
+| The smoke test's Products, Customers and Orders sections (`scripts/smoke-test.sh`) | with the sample domain whose routes they call; the token, TLS and health parts stay, and the project's own first read and write take the sections' place | n/a (the project's own routes take their place) |
 | Owner/tenant scoping | no module scopes a row to the person who created it | a second tenant/brand, or external exposure of per-caller data |
 | Distributed caching | the slice has no cacheable reads | first read endpoint with measurable repeat traffic |
 | Feature toggles | the fork deploys continuously with instant rollback | first change that needs dark-launch or a kill switch |
