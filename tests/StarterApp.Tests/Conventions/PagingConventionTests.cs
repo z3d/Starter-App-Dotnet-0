@@ -6,6 +6,15 @@ public class PagingConventionTests : ConventionTestBase
     private static readonly Dictionary<string, string> BoundedLists = new()
     {
         ["GetOrderByIdQuery.Items"] = "Order.MaxItems caps an order at 50 items in the domain",
+        ["GetAssistantRoutesQuery.Routes"] = "the API's own write routes, read once from its OpenAPI document",
+        ["GetAssistantRoutesQuery.Routes.Fields"] = "one route's body fields, fixed by its request type",
+        ["GetAssistantRoutesQuery.Routes.Fields.Options"] = "one enum's values, listed in AssistantVocabulary",
+        ["GetAssistantRoutesQuery.Routes.Fields.WhenValues"] = "one condition's values, listed in AssistantVocabulary.Asks",
+        ["NextAssistantTurnQuery.Blocks"] = "the blocks of one model reply, which Assistant:MaxTokens caps",
+        ["NextAssistantTurnQuery.Blocks.Input"] = "one tool call's input, inside the same capped reply",
+        ["NextAssistantTurnQuery.Blocks.Route.Fields"] = "one route's body fields, fixed by its request type",
+        ["NextAssistantTurnQuery.Blocks.Route.Fields.Options"] = "one enum's values, listed in AssistantVocabulary",
+        ["NextAssistantTurnQuery.Blocks.Route.Fields.WhenValues"] = "one condition's values, listed in AssistantVocabulary.Asks",
     };
 
     private static readonly Dictionary<string, string> FixedBatches = new()

@@ -169,8 +169,10 @@ public class FeatureDivergenceReportTests
         Assert.Empty(report.First(r => r.FeatureName == "HasPagination").DivergentMembers);
         // The cache is keyed per subject with no pattern delete, so one administrator's change could not evict a colleague's copy.
         string[] tenantWideReads = ["GetTenantSettingsQueryHandler"];
+        // Configuration and the API's own route table, not rows: nothing to cache.
+        string[] notRecords = ["GetAssistantStatusQueryHandler", "GetAssistantRoutesQueryHandler"];
         Assert.DoesNotContain(report.First(r => r.FeatureName == "IsCacheable").DivergentMembers,
-            m => !tenantWideReads.Contains(m.TypeName));
+            m => !tenantWideReads.Contains(m.TypeName) && !notRecords.Contains(m.TypeName));
         Assert.Empty(report.First(r => r.FeatureName == "ReturnsList").DivergentMembers);
     }
 }
