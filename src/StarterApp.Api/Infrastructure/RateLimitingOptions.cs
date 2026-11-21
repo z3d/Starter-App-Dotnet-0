@@ -16,4 +16,8 @@ public class RateLimitingOptions
     // A queue of zero rejected the bursts that the integration tests and real clients send. Keep this in step with appsettings.json.
     [Range(0, 10_000)]
     public int QueueLimit { get; set; } = 5;
+
+    // Per client address, on the one anonymous write route (browser errors and events).
+    [Range(1, 100_000)]
+    public int ClientEventsPermitLimit { get; set; } = 30;
 }

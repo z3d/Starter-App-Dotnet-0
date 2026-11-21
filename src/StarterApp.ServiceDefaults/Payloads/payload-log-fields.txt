@@ -6,12 +6,15 @@
 # Names compare without case or punctuation, so customerId covers CustomerId on an event.
 # This decides logs only. The payload archive keeps full bodies apart from secrets (docs/DECISIONS.md).
 
+keep build
 keep currency
 keep customerId
 keep data
 keep dateCreated
 keep detail
+keep elapsedMs
 keep errors
+keep events
 keep eventType
 keep gstRate
 keep hasMore
@@ -19,6 +22,7 @@ keep id
 keep instance
 keep isActive
 keep items
+keep kind
 keep lastUpdated
 keep lineItemCount
 keep newStatus
@@ -32,6 +36,7 @@ keep priceAmount
 keep priceCurrency
 keep productId
 keep quantity
+keep route
 keep status
 keep stock
 keep title
@@ -48,6 +53,7 @@ keep unitPriceIncludingGst
 
 mask description
 mask email
+mask message
 mask name
 mask productName
 mask updatedBy

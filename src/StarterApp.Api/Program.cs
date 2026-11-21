@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Scalar.AspNetCore;
 using StarterApp.Api.Endpoints;
+using StarterApp.Api.Infrastructure.ClientEvents;
 using StarterApp.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -71,6 +72,7 @@ try
     app.MapApiEndpoints();
 
     app.MapProbeEndpoints();
+    app.MapClientEventIntake();
 
     app.Run();
 }

@@ -79,6 +79,7 @@ public class PayloadLogFieldConventionTests : ConventionTestBase
         builder.Services.AddSingleton(TimeProvider.System);
         var app = builder.Build();
         app.MapApiEndpoints();
+        StarterApp.Api.Infrastructure.ClientEvents.ClientEventIntake.MapClientEventIntake(app);
 
         foreach (var endpoint in ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints))
         {

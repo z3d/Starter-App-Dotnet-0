@@ -37,6 +37,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/client-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record errors and events from the browser */
+        post: operations["RecordClientEvents"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/customers": {
         parameters: {
             query?: never;
@@ -235,6 +252,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ClientEvent: {
+            kind?: null | string;
+            name?: null | string;
+            message?: null | string;
+            route?: null | string;
+            build?: null | string;
+            /** Format: int64 */
+            elapsedMs?: null | number | string;
+        };
+        ClientEventBatch: {
+            events?: null | components["schemas"]["ClientEvent"][];
+        };
         CreateCustomerCommand: {
             name?: string;
             email?: string;
@@ -465,6 +494,46 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    RecordClientEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientEventBatch"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetCustomers: {
         parameters: {
             query?: {

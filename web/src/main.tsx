@@ -4,7 +4,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { AuthProvider, useAuth } from 'react-oidc-context'
 import { Toaster } from 'sonner'
+import { RouteError } from '@/components/route-error'
 import { oidcSettings, onSigninCallback } from '@/lib/auth'
+import { installErrorReporting } from '@/lib/client-events'
 import { routeTree } from './routeTree.gen'
 import './index.css'
 
@@ -25,8 +27,11 @@ const router = createRouter({
   routeTree,
   context: { auth: undefined!, queryClient },
   defaultPreload: 'intent',
+  defaultErrorComponent: RouteError,
   scrollRestoration: true,
 })
+
+installErrorReporting()
 
 declare module '@tanstack/react-router' {
   interface Register {

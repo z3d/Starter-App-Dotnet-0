@@ -196,6 +196,20 @@ public static class ServiceCollectionExtensions
                 });
             });
 
+            options.AddPolicy(ClientEvents.ClientEventIntake.RateLimitPolicy, httpContext =>
+            {
+                var limits = httpContext.RequestServices
+                    .GetRequiredService<Microsoft.Extensions.Options.IOptions<RateLimitingOptions>>().Value;
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    $"client-events:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = limits.ClientEventsPermitLimit,
+                        Window = TimeSpan.FromSeconds(limits.WindowSeconds),
+                        QueueLimit = 0
+                    });
+            });
+
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = (rejection, _) =>
             {
