@@ -28,7 +28,7 @@ export function proposalFor(
     method: step.method,
     path: step.path,
     summary: route.summary ?? '',
-    roles: route.roles ?? [],
+    scope: route.scope ?? '',
     pathParams,
     body,
     fields: route.fields ?? [],

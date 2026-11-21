@@ -4,7 +4,7 @@ public class NextAssistantTurnQueryValidator : IValidator<NextAssistantTurnQuery
 {
     public IEnumerable<ValidationError> Validate(NextAssistantTurnQuery request)
     {
-        if (request.Area is not null && AssistantAreas.RolesOf(request.Area) is null)
+        if (request.Area is not null && AssistantAreas.ScopeOf(request.Area) is null)
             yield return new ValidationError(nameof(request.Area), "There is no such area.");
 
         var messages = request.Messages;

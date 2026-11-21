@@ -22,7 +22,7 @@ export interface Start {
 }
 
 export const starts: Record<AssistantArea, Start[]> = {
-  staff: [],
+  app: [],
 }
 
 const key = (method: string, path: string) => `${method} ${path}`

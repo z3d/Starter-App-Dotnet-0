@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/primitives'
 import { type AssistantArea, pageFor, type Proposal, send } from '@/lib/assistant'
 import { day } from '@/lib/format'
-import { type Role, useRoles } from '@/lib/roles'
+import { useAuth } from 'react-oidc-context'
 
 // What a confirmed card did, for a caller that keeps the conversation going: what to show, what to tell the model, and
 // how to open the record. A caller that gives no onConfirmed gets the card's own behaviour, which opens the record.
@@ -29,7 +29,7 @@ type AfterConfirm = ((done: Confirmed) => void) | undefined
 
 export function ProposalCard({
   proposal,
-  area = 'staff',
+  area = 'app',
   onDone,
   onConfirmed,
 }: {
@@ -84,8 +84,10 @@ function RequestCard({
 }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const roles = useRoles()
-  const allowed = roles.some((role) => proposal.roles.includes(role as Role))
+  const auth = useAuth()
+  const allowed = String(auth.user?.scope ?? '')
+    .split(' ')
+    .includes(proposal.scope)
   // What will be sent: what the assistant or an earlier step filled in, as the person has since changed it.
   const [values, setValues] = useState<Record<string, unknown>>(proposal.body ?? {})
   const body = () => {
@@ -136,17 +138,15 @@ function RequestCard({
         area={area}
         onChange={(name, value) => setValues((current) => ({ ...current, [name]: value }))}
       />
-      {area === 'staff' ? (
-        <p className="font-mono text-2xs text-ink-tertiary">
-          {proposal.method} {proposal.path}
-        </p>
-      ) : null}
+      <p className="font-mono text-2xs text-ink-tertiary">
+        {proposal.method} {proposal.path}
+      </p>
       {request.isError ? (
         <Callout tone="negative">{`${request.error.message} Nothing was changed.`}</Callout>
       ) : null}
       {allowed ? null : (
         <Callout tone="caution">
-          This needs the {proposal.roles.join(' or ')} role, which your sign-in does not have.
+          This needs the {proposal.scope} scope, which your sign-in does not have.
         </Callout>
       )}
       <div className="flex flex-wrap items-center gap-2">

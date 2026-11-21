@@ -39,7 +39,7 @@ public static class AssistantTurnMapper
         Method = route.Method,
         Path = route.Path,
         Summary = route.Summary,
-        Roles = route.Roles.ToList(),
+        Scope = route.Scope,
         Fields = route.BodyFields.Select(field => new AssistantFieldDto { Name = field.Name, Required = field.Required, Kind = field.Kind, Options = field.Options.ToList(), Label = field.Label, WhenField = field.WhenField, WhenValues = field.WhenValues?.ToList() }).ToList(),
     };
 

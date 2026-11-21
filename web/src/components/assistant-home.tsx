@@ -13,7 +13,7 @@ import { proposalFor, useAssistantRoutes } from '@/lib/assistant-routes'
 import { type Context, type Step, learn, nextSteps, starts } from '@/lib/journeys'
 
 const openers: Record<AssistantArea, { heading: string; hint: string }> = {
-  staff: {
+  app: {
     heading: 'What do you need done?',
     hint: 'Pick what has happened, or say it in your own words. You are asked for what is needed, and nothing changes until you confirm it.',
   },

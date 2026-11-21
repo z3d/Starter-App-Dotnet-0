@@ -12,7 +12,7 @@ export type Proposal = {
       method: 'POST' | 'PUT' | 'DELETE'
       path: string
       summary: string
-      roles: string[]
+      scope: string
       pathParams: Record<string, string>
       body: Record<string, unknown> | null
       // The route's body fields as the product lists them: what the card asks for, in this order, every time.
@@ -111,7 +111,7 @@ export function readProposal(block: AssistantBlock): Proposal | string {
       method: route.method as 'POST' | 'PUT' | 'DELETE',
       path: route.path ?? '',
       summary: route.summary ?? '',
-      roles: route.roles ?? [],
+      scope: route.scope ?? '',
       pathParams,
       body: (input.body as Record<string, unknown> | undefined) ?? null,
       fields: route.fields ?? [],
@@ -275,9 +275,9 @@ function textOf(blocks: AssistantBlock[]) {
 }
 
 // Asks the model, runs the finds it asks for, and stops at the first thing for the person: a question, or one action to confirm.
-export type AssistantArea = 'staff'
+export type AssistantArea = 'app'
 
-export async function ask(messages: AssistantMessage[], area: AssistantArea = 'staff'): Promise<AssistantOutcome> {
+export async function ask(messages: AssistantMessage[], area: AssistantArea = 'app'): Promise<AssistantOutcome> {
   let conversation = messages
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const turn = await call(client.POST('/api/v1/assistant/turns', { body: { messages: conversation, area } }))
@@ -388,7 +388,7 @@ export function send(proposal: Extract<Proposal, { kind: 'request' }>) {
 
 // Where a record made by a general request opens, when the route that made it has a page of its own in that area.
 const PAGES = {
-  staff: {},
+  app: {},
 } as const
 
 export function pageFor(proposal: Extract<Proposal, { kind: 'request' }>, area: AssistantArea) {

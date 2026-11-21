@@ -22,6 +22,7 @@ export const resourceScopes = [
   'orders:write',
   'settings:read',
   'settings:write',
+  'assistant:use',
 ] as const
 const scope = `openid ${resourceScopes.join(' ')}`
 

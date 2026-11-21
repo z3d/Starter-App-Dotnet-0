@@ -13,7 +13,7 @@ DEV_IDP_IMAGE="quay.io/keycloak/keycloak:26.4@sha256:9409c59bdfb65dbffa20b11e6f1
 DEV_IDP_REALM="starterapp"
 DEV_IDP_CLIENT_ID="starterapp-dev"
 DEV_IDP_CLIENT_SECRET="local-dev-client-secret-not-a-secret"
-DEV_IDP_SCOPES="customers:read customers:write orders:read orders:write products:read products:write settings:read settings:write"
+DEV_IDP_SCOPES="customers:read customers:write orders:read orders:write products:read products:write settings:read settings:write assistant:use"
 
 # idp_start <container-name> <host-port> <repo-root>
 # Boots Keycloak with the committed realm imported and waits for the realm

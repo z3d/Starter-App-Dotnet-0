@@ -21,22 +21,25 @@ public class NextAssistantTurnQueryHandler : IRequestHandler<NextAssistantTurnQu
     private readonly AssistantOptions _options;
     private readonly TimeProvider _time;
     private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ICurrentUser _currentUser;
     private readonly ILogger<NextAssistantTurnQueryHandler> _logger;
 
-    public NextAssistantTurnQueryHandler(IAssistantModel model, AssistantCatalogue catalogue, IOptions<AssistantOptions> options, TimeProvider time, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<NextAssistantTurnQueryHandler> logger)
+    public NextAssistantTurnQueryHandler(IAssistantModel model, AssistantCatalogue catalogue, IOptions<AssistantOptions> options, TimeProvider time, IOwnerOnlyPolicy ownerOnlyPolicy, ICurrentUser currentUser, ILogger<NextAssistantTurnQueryHandler> logger)
     {
         _model = model;
         _catalogue = catalogue;
         _options = options.Value;
         _time = time;
         _ownerOnlyPolicy = ownerOnlyPolicy;
+        _currentUser = currentUser;
         _logger = logger;
     }
 
     public async Task<AssistantTurnDto> HandleAsync(NextAssistantTurnQuery query, CancellationToken cancellationToken)
     {
         var owner = _ownerOnlyPolicy.GetRequiredScope();
-        var area = query.Area ?? AssistantAreas.Staff;
+        var area = query.Area ?? AssistantAreas.App;
+        AssistantAreas.EnsureAdmitted(area, _currentUser);
 
         var parameters = new MessageCreateParams
         {
@@ -47,7 +50,7 @@ public class NextAssistantTurnQueryHandler : IRequestHandler<NextAssistantTurnQu
             {
                 new() { Text = AssistantPrompt.SystemFor(area) },
                 new() { Text = AssistantPrompt.NotesFor(area) },
-                new() { Text = await _catalogue.TextAsync(area, cancellationToken), CacheControl = new CacheControlEphemeral() },
+                new() { Text = await _catalogue.TextAsync(_currentUser.Scopes, cancellationToken), CacheControl = new CacheControlEphemeral() },
                 new() { Text = AssistantPrompt.Today(DateOnly.FromDateTime(_time.GetUtcNow().UtcDateTime)) },
             },
             Tools = AssistantPrompt.ToolsFor(area).ToList(),
@@ -59,7 +62,7 @@ public class NextAssistantTurnQueryHandler : IRequestHandler<NextAssistantTurnQu
         foreach (var block in turn.Blocks.Where(block => block.Name is AssistantPrompt.Read or AssistantPrompt.Propose))
         {
             var method = block.Name == AssistantPrompt.Read ? "GET" : Text(block, "method");
-            if (await _catalogue.FindAsync(area, method, Text(block, "path"), cancellationToken) is { } route)
+            if (await _catalogue.FindAsync(_currentUser.Scopes, method, Text(block, "path"), cancellationToken) is { } route)
                 block.Route = AssistantTurnMapper.ToDto(route);
         }
 

@@ -5,7 +5,7 @@ public class AssistantRouteDto
     public string Method { get; set; } = string.Empty;
     public string Path { get; set; } = string.Empty;
     public string Summary { get; set; } = string.Empty;
-    public List<string> Roles { get; set; } = [];
+    public string Scope { get; set; } = string.Empty;
     public List<AssistantFieldDto> Fields { get; set; } = [];
 }
 

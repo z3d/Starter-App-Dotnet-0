@@ -26,26 +26,24 @@ public sealed partial class AssistantCatalogue
 
     public Task<IReadOnlyList<AssistantRoute>> RoutesAsync() => _routes.Value;
 
-    public async Task<IReadOnlyList<AssistantRoute>> RoutesForAsync(string area, CancellationToken cancellationToken)
-    {
-        var roles = AssistantAreas.RolesOf(area) ?? [];
-        return (await RoutesAsync().WaitAsync(cancellationToken)).Where(route => route.Admits.Any(roles.Contains)).ToList();
-    }
+    public async Task<IReadOnlyList<AssistantRoute>> RoutesForAsync(IReadOnlySet<string> scopes, CancellationToken cancellationToken) =>
+        (await RoutesAsync().WaitAsync(cancellationToken)).Where(route => scopes.Contains(route.Scope)).ToList();
 
-    public async Task<AssistantRoute?> FindAsync(string area, string? method, string? path, CancellationToken cancellationToken)
+    public async Task<AssistantRoute?> FindAsync(IReadOnlySet<string> scopes, string? method, string? path, CancellationToken cancellationToken)
     {
-        var routes = await RoutesForAsync(area, cancellationToken);
+        var routes = await RoutesForAsync(scopes, cancellationToken);
         return routes.FirstOrDefault(route => string.Equals(route.Method, method, StringComparison.OrdinalIgnoreCase) && route.Path == path?.TrimEnd('/'));
     }
 
-    public async Task<string> TextAsync(string area, CancellationToken cancellationToken)
+    public async Task<string> TextAsync(IReadOnlySet<string> scopes, CancellationToken cancellationToken)
     {
-        if (_text.TryGetValue(area, out var held))
+        var key = string.Join(' ', scopes.Order(StringComparer.Ordinal));
+        if (_text.TryGetValue(key, out var held))
             return held;
 
-        var routes = await RoutesForAsync(area, cancellationToken);
+        var routes = await RoutesForAsync(scopes, cancellationToken);
         var text = new StringBuilder();
-        text.AppendLine("The routes of this system that this person may call. A name in braces in a path is a path parameter. After \"?\" are a read's query parameters; in braces after a write's path are its body fields, a star marking the ones that must be given. In square brackets are the roles that may call a write.");
+        text.AppendLine("The routes of this system that this person may call. A name in braces in a path is a path parameter. After \"?\" are a read's query parameters; in braces after a write's path are its body fields, a star marking the ones that must be given. In square brackets is the scope a write needs.");
         text.AppendLine();
         text.AppendLine("Reads, for the read tool:");
         foreach (var route in routes.Where(route => route.IsRead))
@@ -53,17 +51,18 @@ public sealed partial class AssistantCatalogue
         text.AppendLine();
         text.AppendLine("Writes, for the propose tool:");
         foreach (var route in routes.Where(route => !route.IsRead))
-            text.AppendLine(CultureInfo.InvariantCulture, $"{route.Method} {route.Path}{(route.Fields.Length > 0 ? " { " + route.Fields + " }" : "")} : {route.Summary} [{string.Join(", ", route.Roles)}]");
-        return _text.GetOrAdd(area, text.ToString());
+            text.AppendLine(CultureInfo.InvariantCulture, $"{route.Method} {route.Path}{(route.Fields.Length > 0 ? " { " + route.Fields + " }" : "")} : {route.Summary} [{route.Scope}]");
+        return _text.GetOrAdd(key, text.ToString());
     }
 
     private async Task<IReadOnlyList<AssistantRoute>> BuildAsync(CancellationToken cancellationToken)
     {
-        var roles = _endpoints.Endpoints.OfType<RouteEndpoint>()
+        var scopes = _endpoints.Endpoints.OfType<RouteEndpoint>()
             .SelectMany(endpoint => (endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? [])
-                .Select(method => (Key: $"{method} {Normalise(endpoint.RoutePattern.RawText)}", Roles: endpoint.Metadata.GetMetadata<RoleRequiredMetadata>()?.Roles ?? [])))
+                .Select(method => (Key: $"{method} {Normalise(endpoint.RoutePattern.RawText)}", endpoint.Metadata.GetMetadata<ScopeRequiredMetadata>()?.Scope)))
+            .Where(entry => entry.Scope is not null)
             .GroupBy(entry => entry.Key, StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.First().Roles, StringComparer.Ordinal);
+            .ToDictionary(group => group.Key, group => group.First().Scope!, StringComparer.Ordinal);
 
         var document = await _services.GetRequiredKeyedService<IOpenApiDocumentProvider>("v1").GetOpenApiDocumentAsync(cancellationToken);
         using var stream = new MemoryStream();
@@ -80,7 +79,7 @@ public sealed partial class AssistantCatalogue
                 if (method is not ("GET" or "POST" or "PUT" or "DELETE") || operation is null)
                     continue;
                 var template = path.TrimEnd('/');
-                if (!roles.TryGetValue($"{method} {template}", out var admitted) || admitted.All(role => role == Roles.Worker))
+                if (!scopes.TryGetValue($"{method} {template}", out var scope))
                     continue;
                 if (template.StartsWith("/api/v1/assistant", StringComparison.Ordinal) || template.EndsWith("/content", StringComparison.Ordinal) || template.EndsWith("/export", StringComparison.Ordinal))
                     continue;
@@ -95,7 +94,7 @@ public sealed partial class AssistantCatalogue
                         .Select(parameter => parameter!["name"]!.GetValue<string>())
                         .Where(name => !Paging.Contains(name)))
                     : string.Join(", ", body.Select(field => $"{field.Name}{(field.Required ? "*" : string.Empty)}{(field.Kind is "text" or "choice" ? string.Empty : ":" + field.Kind)}"));
-                routes.Add(new AssistantRoute(method, template, operation["summary"]?.GetValue<string>() ?? string.Empty, fields, admitted.Where(role => role != Roles.Worker).ToList(), body));
+                routes.Add(new AssistantRoute(method, template, operation["summary"]?.GetValue<string>() ?? string.Empty, fields, scope, body));
             }
         }
 
