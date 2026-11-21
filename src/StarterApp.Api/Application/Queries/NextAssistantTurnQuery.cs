@@ -48,12 +48,12 @@ public class NextAssistantTurnQueryHandler : IRequestHandler<NextAssistantTurnQu
             OutputConfig = new OutputConfig { Effort = AssistantTurnMapper.ToEffort(_options.Effort) },
             System = new List<TextBlockParam>
             {
-                new() { Text = AssistantPrompt.SystemFor(area) },
-                new() { Text = AssistantPrompt.NotesFor(area) },
+                new() { Text = AssistantPrompt.Instructions },
+                new() { Text = AssistantPrompt.Notes },
                 new() { Text = await _catalogue.TextAsync(_currentUser.Scopes, cancellationToken), CacheControl = new CacheControlEphemeral() },
                 new() { Text = AssistantPrompt.Today(DateOnly.FromDateTime(_time.GetUtcNow().UtcDateTime)) },
             },
-            Tools = AssistantPrompt.ToolsFor(area).ToList(),
+            Tools = AssistantPrompt.Tools.ToList(),
             Messages = query.Messages.Select(AssistantTurnMapper.ToMessageParam).ToList(),
         };
 

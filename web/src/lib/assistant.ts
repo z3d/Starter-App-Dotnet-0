@@ -6,7 +6,9 @@ export type AssistantBlock = components['schemas']['AssistantBlockDto']
 export type AssistantMessage = components['schemas']['AssistantMessageDto']
 type ToolResult = components['schemas']['AssistantToolResultDto']
 
-export type Proposal = {
+export type Proposal =
+  | { kind: 'cancel-order'; orderId: string }
+  | {
       kind: 'request'
       title: string
       method: 'POST' | 'PUT' | 'DELETE'
@@ -17,7 +19,7 @@ export type Proposal = {
       body: Record<string, unknown> | null
       // The route's body fields as the product lists them: what the card asks for, in this order, every time.
       fields: RouteField[]
-}
+    }
 
 export type RouteField = components['schemas']['AssistantFieldDto']
 export type AssistantRoute = components['schemas']['AssistantRouteDto']
@@ -59,6 +61,8 @@ export interface AssistantOutcome {
   graphic?: AssistantGraphic | null
 }
 
+const FIND_CUSTOMERS = 'find_customers'
+const PROPOSE_CANCEL_ORDER = 'propose_cancel_order'
 const READ = 'read'
 const PROPOSE = 'propose'
 const SHOW_TABLE = 'show_table'
@@ -75,18 +79,11 @@ const MAX_RESULT_LENGTH = 7500
 // A find and its answer are one round; a request that needs more than this many is not one the assistant can resolve.
 const MAX_ROUNDS = 6
 const MAX_MATCHES = 10
+const MAX_FIND_PAGES = 5
 const GAVE_UP =
   'I could not work that out in a few steps. Nothing was changed; try saying it another way, or do it by hand.'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-function isDay(value: unknown): value is string {
-  const parts = typeof value === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value) : null
-  if (!parts) return false
-  const [year, month, dayOfMonth] = [Number(parts[1]), Number(parts[2]), Number(parts[3])]
-  const date = new Date(year, month - 1, dayOfMonth)
-  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === dayOfMonth
-}
 
 // The generated type calls a tool's input an empty record; it is whatever the tool's schema allows.
 const inputOf = (block: AssistantBlock) => (block.input ?? {}) as Record<string, unknown>
@@ -96,6 +93,10 @@ const isId = (value: unknown): value is string => typeof value === 'string' && U
 // What the model put in a proposal is checked here before a person sees it; the reason goes back to the model so it can correct itself.
 export function readProposal(block: AssistantBlock): Proposal | string {
   const input = inputOf(block)
+  if (block.name === PROPOSE_CANCEL_ORDER) {
+    if (!isId(input.orderId)) return 'orderId must be an order id returned by a read.'
+    return { kind: 'cancel-order', orderId: input.orderId }
+  }
   if (block.name === PROPOSE) {
     const route = block.route
     if (!route || route.method === 'GET')
@@ -264,7 +265,35 @@ async function runRead(block: AssistantBlock): Promise<ToolResult> {
   }
 }
 
-const isFind = (block: AssistantBlock) => block.name === READ
+// The find runs through the API as the person, and sends the model only what it needs to tell customers apart: no email.
+async function findCustomers(search: string) {
+  const wanted = search.toLowerCase()
+  const found: { id: number; name: string }[] = []
+  for (let page = 1; page <= MAX_FIND_PAGES && found.length < MAX_MATCHES; page++) {
+    const customers = await call(client.GET('/api/v1/customers', { params: { query: { page, pageSize: 100 } } }))
+    for (const customer of customers.data ?? []) {
+      const name = customer.name ?? ''
+      if (`${name} ${customer.email ?? ''}`.toLowerCase().includes(wanted) && found.length < MAX_MATCHES)
+        found.push({ id: Number(customer.id), name })
+    }
+    if (!customers.hasMore) break
+  }
+  return found
+}
+
+async function runFind(block: AssistantBlock): Promise<ToolResult> {
+  const toolUseId = block.id ?? ''
+  const search = inputOf(block).search
+  if (typeof search !== 'string' || !search.trim())
+    return { toolUseId, content: 'search must be some text.', isError: true }
+  try {
+    return { toolUseId, content: JSON.stringify(await findCustomers(search.trim())), isError: false }
+  } catch (failure) {
+    return { toolUseId, content: failure instanceof Error ? failure.message : 'The search failed.', isError: true }
+  }
+}
+
+const isFind = (block: AssistantBlock) => block.name === FIND_CUSTOMERS || block.name === READ
 
 function textOf(blocks: AssistantBlock[]) {
   return blocks
@@ -323,6 +352,7 @@ export async function ask(messages: AssistantMessage[], area: AssistantArea = 'a
     const results = await Promise.all(
       read.map(({ block, proposal }): Promise<ToolResult> | ToolResult => {
         if (block.name === READ) return runRead(block)
+        if (isFind(block)) return runFind(block)
         return {
           toolUseId: block.id ?? '',
           content:

@@ -1,12 +1,13 @@
 import { RouteFields, missing, sendable, words } from '@/components/assistant-form'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { type ReactNode, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Callout } from '@/components/ui/primitives'
+import { call, client } from '@/lib/api'
 import { type AssistantArea, pageFor, type Proposal, send } from '@/lib/assistant'
-import { day } from '@/lib/format'
+import { day, money } from '@/lib/format'
 import { useAuth } from 'react-oidc-context'
 
 // What a confirmed card did, for a caller that keeps the conversation going: what to show, what to tell the model, and
@@ -38,7 +39,14 @@ export function ProposalCard({
   onDone: () => void
   onConfirmed?: (done: Confirmed) => void
 }) {
+  if (proposal.kind === 'cancel-order')
+    return <CancelOrderCard proposal={proposal} onDone={onDone} onConfirmed={onConfirmed} />
   return <RequestCard proposal={proposal} area={area} onDone={onDone} onConfirmed={onConfirmed} />
+}
+
+function useScopes() {
+  const auth = useAuth()
+  return String(auth.user?.scope ?? '').split(' ')
 }
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
@@ -63,6 +71,76 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
+const CANCEL_SCOPE = 'orders:write'
+
+// The order is shown from the records themselves, not from what the model said about it.
+function CancelOrderCard({
+  proposal,
+  onDone,
+  onConfirmed,
+}: {
+  proposal: Extract<Proposal, { kind: 'cancel-order' }>
+  onDone: () => void
+  onConfirmed: AfterConfirm
+}) {
+  const queryClient = useQueryClient()
+  const allowed = useScopes().includes(CANCEL_SCOPE)
+  const order = useQuery({
+    queryKey: ['orders', proposal.orderId],
+    queryFn: () => call(client.GET('/api/v1/orders/{id}', { params: { path: { id: proposal.orderId } } })),
+  })
+  const customerId = Number(order.data?.customerId ?? 0)
+  const customer = useQuery({
+    queryKey: ['customers', customerId],
+    queryFn: () => call(client.GET('/api/v1/customers/{id}', { params: { path: { id: customerId } } })),
+    enabled: customerId > 0,
+  })
+  const cancel = useMutation({
+    mutationFn: () => call(client.POST('/api/v1/orders/{id}/cancel', { params: { path: { id: proposal.orderId } } })),
+    onSuccess: () => {
+      void queryClient.invalidateQueries()
+      if (onConfirmed)
+        return onConfirmed({
+          said: 'Order cancelled.',
+          happened: `Confirmed and done: order ${proposal.orderId} was cancelled and its stock put back.`,
+        })
+      toast.success('Order cancelled')
+      onDone()
+    },
+  })
+
+  if (order.isError)
+    return <Callout tone="negative">The assistant named an order that could not be found. Nothing was changed.</Callout>
+  if (!order.data) return <p className="text-ink-tertiary">Loading the order…</p>
+
+  return (
+    <Card title="Cancel an order">
+      <dl className="space-y-1.5">
+        <Row label="Customer">{customer.data?.name ?? '…'}</Row>
+        <Row label="Placed">{day(order.data.orderDate)}</Row>
+        <Row label="Status">{words(order.data.status ?? '')}</Row>
+        <Row label="Items">
+          {(order.data.items ?? []).map((item) => `${item.quantity} × ${item.productName}`).join(', ') || '—'}
+        </Row>
+        <Row label="Total">{money(order.data.totalIncludingGst, { cents: true })}</Row>
+      </dl>
+      <p className="text-ink-secondary">The order is cancelled and its stock is put back.</p>
+      {cancel.isError ? <Callout tone="negative">{`${cancel.error.message} Nothing was changed.`}</Callout> : null}
+      {allowed ? null : (
+        <Callout tone="caution">This needs the {CANCEL_SCOPE} scope, which your sign-in does not have.</Callout>
+      )}
+      <div className="flex gap-2">
+        <Button type="button" variant="accent" disabled={!allowed || cancel.isPending} onClick={() => cancel.mutate()}>
+          Confirm cancelling
+        </Button>
+        <Button type="button" variant="ghost" onClick={onDone}>
+          Cancel
+        </Button>
+      </div>
+    </Card>
+  )
+}
+
 function shown(value: unknown) {
   if (value === true) return 'Yes'
   if (value === false) return 'No'
@@ -84,10 +162,7 @@ function RequestCard({
 }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const auth = useAuth()
-  const allowed = String(auth.user?.scope ?? '')
-    .split(' ')
-    .includes(proposal.scope)
+  const allowed = useScopes().includes(proposal.scope)
   // What will be sent: what the assistant or an earlier step filled in, as the person has since changed it.
   const [values, setValues] = useState<Record<string, unknown>>(proposal.body ?? {})
   const body = () => {
@@ -134,20 +209,14 @@ function RequestCard({
       <RouteFields
         fields={fields}
         values={values}
-        pathParams={proposal.pathParams}
-        area={area}
         onChange={(name, value) => setValues((current) => ({ ...current, [name]: value }))}
       />
       <p className="font-mono text-2xs text-ink-tertiary">
         {proposal.method} {proposal.path}
       </p>
-      {request.isError ? (
-        <Callout tone="negative">{`${request.error.message} Nothing was changed.`}</Callout>
-      ) : null}
+      {request.isError ? <Callout tone="negative">{`${request.error.message} Nothing was changed.`}</Callout> : null}
       {allowed ? null : (
-        <Callout tone="caution">
-          This needs the {proposal.scope} scope, which your sign-in does not have.
-        </Callout>
+        <Callout tone="caution">This needs the {proposal.scope} scope, which your sign-in does not have.</Callout>
       )}
       <div className="flex flex-wrap items-center gap-2">
         <Button

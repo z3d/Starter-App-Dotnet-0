@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import type { AssistantArea, RouteField } from '@/lib/assistant'
+import type { RouteField } from '@/lib/assistant'
 import { list } from '@/lib/assistant-routes'
 
 const control =
   'h-10 w-full rounded-md border border-line bg-surface-raised px-3 text-ink outline-none focus:border-accent disabled:opacity-60'
-// A pick-list drawn like the product's own forms, not the browser's: one chevron, the same padding (`.picker` in index.css).
-const picker = `${control} picker`
+// A pick-list drawn like the product's own forms, not the browser's: one chevron, the same padding.
+const picker = `${control} select-chevron`
 
 // A field's name as a person reads it: "firstName" is "First name", "customerId" is "Customer".
 export const words = (name: string) => {
@@ -23,10 +23,11 @@ type Values = Record<string, unknown>
 
 // Which records a field picks from, by its name; the list comes from the same API the rest of the product reads.
 function source(
-  _field: string,
-  _values: Values,
-  _pathParams: Record<string, string>,
+  field: string,
 ): { path: string; params?: Record<string, string>; label: (record: Record<string, unknown>) => string } | null {
+  const text = (value: unknown) => (typeof value === 'string' || typeof value === 'number' ? String(value) : '')
+  if (field === 'customerId') return { path: '/api/v1/customers', label: (record) => text(record.name) }
+  if (field === 'productId') return { path: '/api/v1/products', label: (record) => text(record.name) }
   return null
 }
 
@@ -63,14 +64,10 @@ function RecordPicker({
 export function RouteFields({
   fields,
   values,
-  pathParams,
-  area,
   onChange,
 }: {
   fields: RouteField[]
   values: Values
-  pathParams: Record<string, string>
-  area: AssistantArea
   onChange: (name: string, value: unknown) => void
 }) {
   return (
@@ -82,7 +79,7 @@ export function RouteFields({
           const id = `field-${name}`
           const value = values[name]
           const text = value == null ? '' : String(value)
-          const from = field.kind === 'uuid' ? source(name, values, pathParams) : null
+          const from = field.kind === 'uuid' || field.kind === 'integer' ? source(name) : null
           return (
             <div key={name} className="space-y-1">
               <label htmlFor={id} className="block text-sm font-medium text-ink-secondary">
@@ -117,7 +114,14 @@ export function RouteFields({
                   <option value="no">No</option>
                 </select>
               ) : from ? (
-                <RecordPicker id={id} from={from} value={text} onChange={(picked) => onChange(name, picked)} />
+                <RecordPicker
+                  id={id}
+                  from={from}
+                  value={text}
+                  onChange={(picked) =>
+                    onChange(name, field.kind === 'integer' && picked !== '' ? Number(picked) : picked)
+                  }
+                />
               ) : (
                 <input
                   id={id}

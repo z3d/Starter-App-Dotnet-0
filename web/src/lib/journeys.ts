@@ -21,8 +21,18 @@ export interface Start {
   step?: Step
 }
 
+const steps = {
+  addCustomer: { label: 'Add a customer', method: 'POST', path: '/api/v1/customers' },
+  addProduct: { label: 'Add a product', method: 'POST', path: '/api/v1/products' },
+} satisfies Record<string, Step>
+
 export const starts: Record<AssistantArea, Start[]> = {
-  app: [],
+  app: [
+    { label: 'A new customer', step: steps.addCustomer },
+    { label: 'A new product', step: steps.addProduct },
+    { label: 'A customer wants to cancel an order' },
+    { label: 'Show me our products' },
+  ],
 }
 
 const key = (method: string, path: string) => `${method} ${path}`
