@@ -19,6 +19,7 @@ env:
         - __ZAP_API_REGEX__
         - __ZAP_HEALTH_REGEX__
         - __ZAP_ALIVE_REGEX__
+        - __ZAP_LIVENESS_REGEX__
       excludePaths:
         # Static docs surfaces — no value in actively scanning them.
         - __ZAP_SCALAR_REGEX__
@@ -42,23 +43,9 @@ jobs:
         replacementString: __DAST_AUTH_HEADER__
         tokenProcessing: false
 
-  # 2. Suppress false positives on the OpenAPI document itself.
-  #    The generated /openapi/v1.json declares ProblemDetails 500 responses, so its
-  #    body literally contains the reason phrase "Internal Server Error". ZAP's passive
-  #    rules 90022 (Application Error Disclosure) and 10023 (Debug Error Messages)
-  #    string-match that text and flag the API *documentation* as if it were a runtime
-  #    error — it is not (the endpoint returns 200). The filter is scoped to that one
-  #    URL only, so these rules still fire on every real endpoint (e.g. a genuine 500).
+  # 2. Suppress false positives.
   - type: alertFilter
     alertFilters:
-      - ruleId: 90022
-        newRisk: "False Positive"
-        url: __ZAP_OPENAPI_URL__
-        urlRegex: false
-      - ruleId: 10023
-        newRisk: "False Positive"
-        url: __ZAP_OPENAPI_URL__
-        urlRegex: false
       # Path Traversal (rule 6) on the `page`/`pageSize` pagination params is a
       # false positive: both are strongly-typed `int` minimal-API parameters, so
       # ASP.NET model binding rejects any non-numeric (traversal) payload with a 400
@@ -77,10 +64,11 @@ jobs:
         url: __ZAP_PAGINATION_REGEX__
         urlRegex: true
 
-  # 3. Seed the site tree from the live OpenAPI document.
+  # 3. Seed the site tree from the OpenAPI document run-dast.sh exported: the
+  #    scanned API runs as Testing, which does not serve it.
   - type: openapi
     parameters:
-      apiUrl: __ZAP_OPENAPI_URL__
+      apiFile: /zap/wrk/reports/openapi.json
       targetUrl: __ZAP_BASE_URL__
       context: starterapp-api
 

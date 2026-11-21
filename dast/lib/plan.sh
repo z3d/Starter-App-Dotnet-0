@@ -32,10 +32,10 @@ dast_render_plan() {
         or . == "^" or . == "$" or . == "|" then "\\" + . else . end) | join("");
     ($base | regex_literal) as $regex
     | {"__ZAP_BASE_URL__": $base,
-       "__ZAP_OPENAPI_URL__": ($base + "/openapi/v1.json"),
        "__ZAP_API_REGEX__": ("^" + $regex + "/api/.*$"),
        "__ZAP_HEALTH_REGEX__": ("^" + $regex + "/health.*$"),
        "__ZAP_ALIVE_REGEX__": ("^" + $regex + "/alive$"),
+       "__ZAP_LIVENESS_REGEX__": ("^" + $regex + "/liveness$"),
        "__ZAP_SCALAR_REGEX__": ("^" + $regex + "/scalar.*$"),
        "__ZAP_OPENAPI_REGEX__": ("^" + $regex + "/openapi.*$"),
        "__ZAP_PAGINATION_REGEX__": ("^" + $regex + "/api/v1/(products|customers|orders/customer/[^/?]+|orders/status/[^/?]+)/?(\\?.*)?$"),

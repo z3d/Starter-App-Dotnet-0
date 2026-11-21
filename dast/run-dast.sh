@@ -2,8 +2,9 @@
 #
 # DAST runner for the StarterApp API using OWASP ZAP.
 #
-# Boots a throwaway PostgreSQL + dev Keycloak, runs DbUp migrations, starts the
-# API in Development validating tokens from the Keycloak realm, mints a
+# Boots a throwaway PostgreSQL + dev Keycloak, runs DbUp migrations, exports the
+# OpenAPI document from a short Development start, starts the API as Testing
+# validating tokens from the Keycloak realm, mints a
 # dast-user-01 access token, then runs the ZAP Automation Framework plan in
 # dast/automation.yaml against it. Fails the build if any alert at or above the
 # configured risk threshold is found.
@@ -13,6 +14,8 @@
 #   FAIL_RISK=High dast/run-dast.sh      # only fail on High-risk alerts
 #   TARGET_URL=http://localhost:5164 SKIP_BOOT=1 dast/run-dast.sh
 #                                        # scan an already-running instance
+#                                        # (OPENAPI_FILE=<path> when it does not serve
+#                                        # /openapi/v1.json, as only Development does)
 #
 # Requirements: Docker or Podman, .NET 10 SDK, jq (also used for token parsing; python3 is not required).
 set -euo pipefail
@@ -46,6 +49,7 @@ CONN="Host=localhost;Port=${PG_PORT};Database=${PG_DB};Username=postgres;Passwor
 
 API_PID=""
 API_LOG="$SCRIPT_DIR/reports/api.log"
+OPENAPI_DOC="$SCRIPT_DIR/reports/openapi.json"
 
 # Container CLI: prefer docker, fall back to podman (identical CLI surface for the
 # subcommands used here; podman >= 4.1 honours --add-host host-gateway, which keeps
@@ -127,8 +131,6 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
   log "Building the API before timing its readiness"
   dotnet build "$REPO_ROOT/src/StarterApp.Api" -c Release
 
-  log "Starting API on port $API_PORT (Development, validating tokens from the dev Keycloak)"
-  : > "$API_LOG"
   # Bind all interfaces (0.0.0.0), not just loopback: ZAP runs inside a Docker
   # container and reaches the API via host.docker.internal (the bridge gateway,
   # e.g. 172.17.0.1 on Linux runners). A localhost-only bind answers the host
@@ -140,30 +142,76 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
   # per 60s window, everything after ~100 requests is 429'd before reaching a
   # handler, gutting active-scan coverage. The k6 perf gate lifts it the same way
   # (tests/k6/run-perf.sh) for the same single-identity reason.
-  ASPNETCORE_ENVIRONMENT=Development \
-  ASPNETCORE_URLS="http://0.0.0.0:${API_PORT}" \
-  ConnectionStrings__database="$CONN" \
-  Identity__Authority="http://localhost:${IDP_PORT}/realms/starterapp" \
-  Identity__RequireHttpsMetadata=false \
-  RateLimiting__PermitLimit=1000000 \
-    dotnet run --project "$REPO_ROOT/src/StarterApp.Api" -c Release --no-build --no-restore --no-launch-profile \
-    >"$API_LOG" 2>&1 &
-  API_PID=$!
+  start_api() {
+    : > "$API_LOG"
+    ASPNETCORE_ENVIRONMENT="$1" \
+    ASPNETCORE_URLS="http://0.0.0.0:${API_PORT}" \
+    ConnectionStrings__database="$CONN" \
+    Identity__Authority="http://localhost:${IDP_PORT}/realms/starterapp" \
+    Identity__RequireHttpsMetadata=false \
+    RateLimiting__PermitLimit=1000000 \
+      bash -c 'cd "$1" && exec dotnet bin/Release/net10.0/StarterApp.Api.dll' _ "$REPO_ROOT/src/StarterApp.Api" \
+      >"$API_LOG" 2>&1 &
+    API_PID=$!
 
-  log "Waiting for API readiness at ${TARGET_URL}/health/ready"
-  ready=0
-  for _ in $(seq 1 60); do
-    if curl -fsS "${TARGET_URL}/health/ready" >/dev/null 2>&1 || curl -fsS "${TARGET_URL}/alive" >/dev/null 2>&1; then
-      ready=1; break
-    fi
-    if ! kill -0 "$API_PID" 2>/dev/null; then err "API process exited early. Tail of $API_LOG:"; tail -n 40 "$API_LOG" >&2; exit 1; fi
-    sleep 2
-  done
-  [[ "$ready" == "1" ]] || { err "API did not become ready. Tail of $API_LOG:"; tail -n 40 "$API_LOG" >&2; exit 1; }
+    log "Waiting for API readiness at ${TARGET_URL}/health/ready"
+    local ready=0
+    for _ in $(seq 1 60); do
+      if curl -fsS "${TARGET_URL}/health/ready" >/dev/null 2>&1 || curl -fsS "${TARGET_URL}/alive" >/dev/null 2>&1; then
+        ready=1; break
+      fi
+      if ! kill -0 "$API_PID" 2>/dev/null; then err "API process exited early. Tail of $API_LOG:"; tail -n 40 "$API_LOG" >&2; exit 1; fi
+      sleep 2
+    done
+    [[ "$ready" == "1" ]] || { err "API did not become ready. Tail of $API_LOG:"; tail -n 40 "$API_LOG" >&2; exit 1; }
+  }
+  # The API runs as its own process (not under `dotnet run`), so this PID is the one holding the port.
+  stop_api() {
+    kill "$API_PID" 2>/dev/null || true
+    wait "$API_PID" 2>/dev/null || true
+    API_PID=""
+    for _ in $(seq 1 30); do
+      curl -fsS "${TARGET_URL}/alive" >/dev/null 2>&1 || return 0
+      sleep 1
+    done
+    err "Something still answers on ${TARGET_URL} after the API stopped."; exit 1
+  }
+
+  # Only Development serves the OpenAPI document, so a short Development start exports
+  # it, and the scan itself runs as Testing: the headers and error text a deployed
+  # environment sends, not the looser Development ones.
+  log "Exporting the OpenAPI document from a Development start on port $API_PORT"
+  start_api Development
+  curl -fsS "${TARGET_URL}/openapi/v1.json" -o "$OPENAPI_DOC" \
+    || { err "Could not fetch ${TARGET_URL}/openapi/v1.json from the Development start."; exit 1; }
+  stop_api
+
+  log "Starting API on port $API_PORT (Testing, validating tokens from the dev Keycloak)"
+  start_api Testing
   log "API is ready."
 else
   log "SKIP_BOOT=1 — scanning existing instance at $TARGET_URL"
+  if [[ -n "${OPENAPI_FILE:-}" ]]; then
+    cp "$OPENAPI_FILE" "$OPENAPI_DOC"
+  else
+    curl -fsS "${TARGET_URL}/openapi/v1.json" -o "$OPENAPI_DOC" \
+      || { err "${TARGET_URL}/openapi/v1.json is not served (only Development serves it); set OPENAPI_FILE."; exit 2; }
+  fi
 fi
+
+# Every route the API serves must sit under a path the plan's context includes, or
+# the scan skips it and still passes. The context includes /api/, /health, /alive and /liveness.
+unscanned=$(jq -r '.paths // {} | keys[] | select(test("^/(api/|health|alive$|liveness$)") | not)' "$OPENAPI_DOC") \
+  || { err "$OPENAPI_DOC is not an OpenAPI document."; exit 1; }
+if [[ -n "$unscanned" ]]; then
+  err "These routes are outside the scan's include paths, so ZAP would not reach them:"
+  err "$unscanned"
+  err "Add a path to the context in dast/automation.yaml and dast/lib/plan.sh."
+  exit 1
+fi
+api_routes=$(jq '[.paths // {} | keys[] | select(startswith("/api/"))] | length' "$OPENAPI_DOC")
+[[ "$api_routes" -gt 0 ]] || { err "$OPENAPI_DOC lists no /api/ route; the scan would reach nothing."; exit 1; }
+log "OpenAPI document lists $api_routes /api/ route(s), all inside the scan's include paths"
 
 # --- run ZAP ------------------------------------------------------------------
 log "Running OWASP ZAP ($ZAP_IMAGE)"

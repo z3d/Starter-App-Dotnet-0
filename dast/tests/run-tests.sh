@@ -48,8 +48,9 @@ check() {
     failures=$((failures + 1))
   fi
 }
+printf '{"paths":{"/api/v1/products":{},"/health":{},"/alive":{}}}' > "$TEST_DIR/openapi.json"
 render_target() {
-  SKIP_BOOT=1 TARGET_URL="$1" DAST_TOKEN='test-token' CONTAINER_CLI=container-stub \
+  SKIP_BOOT=1 TARGET_URL="$1" DAST_TOKEN='test-token' CONTAINER_CLI=container-stub OPENAPI_FILE="${2:-$TEST_DIR/openapi.json}" \
     bash "$TEST_DIR/dast/run-dast.sh" > "$TEST_DIR/runner.log" 2>&1
 }
 plan_contains_json() {
@@ -58,7 +59,7 @@ plan_contains_json() {
   grep -Fq -- "$quoted" "$TEST_DIR/dast/reports/automation.rendered.yaml"
 }
 url_case() {
-  render_target "$1" && plan_contains_json "$2" && plan_contains_json "$2/openapi/v1.json"
+  render_target "$1" && plan_contains_json "$2" && grep -Fq 'apiFile: /zap/wrk/reports/openapi.json' "$TEST_DIR/dast/reports/automation.rendered.yaml"
 }
 check url_case 'http://localhost:5164' 'http://host.docker.internal:5164'
 check url_case 'https://review.invalid:8443/custompath/' 'https://review.invalid:8443/custompath'
@@ -86,6 +87,18 @@ unknown_placeholder() {
   ! grep -q null "$TEST_DIR/typo.rendered"
 }
 check unknown_placeholder
+# A route outside the scan's include paths, or a document with no /api/ route, fails before ZAP runs.
+unreached_route() {
+  printf '{"paths":{"/api/v1/products":{},"/webhooks/payment":{}}}' > "$TEST_DIR/outside.json"
+  if render_target 'http://localhost:5164' "$TEST_DIR/outside.json"; then return 1; fi
+  grep -q '/webhooks/payment' "$TEST_DIR/runner.log"
+}
+check unreached_route
+no_api_route() {
+  printf '{"paths":{"/health":{}}}' > "$TEST_DIR/empty.json"
+  if render_target 'http://localhost:5164' "$TEST_DIR/empty.json"; then return 1; fi
+}
+check no_api_route
 for target in 'ftp://review.invalid' 'https://user:pass@review.invalid' 'https://review.invalid/base?x=1' 'https://review.invalid/#fragment' 'https://review.invalid:0' 'https://review.invalid:65536' 'https://review.invalid/a b'; do
   check invalid_target "$target"
 done

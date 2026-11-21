@@ -14,9 +14,11 @@ static convention/security tests in `StarterApp.Tests`.
 3. Seeds owner-scoped data (`seed/dast-seed.sql`) for the scanned identity
    (`dast-user-01`) plus a second owner (`dast-user-02`) used by the cross-owner
    probe — so by-id/list endpoints return real rows instead of empty results.
-4. Starts the API in `Development` (so OpenAPI is exposed and
-   tokens are validated against a throwaway dev Keycloak), with the per-identity
-   rate limit lifted (`RateLimiting__PermitLimit=1000000`).
+4. Starts the API once in `Development` only to export its OpenAPI document
+   (`reports/openapi.json`), checks every route in it sits under the scan's include
+   paths (`/api/`, `/health`, `/alive`, `/liveness`), then starts it again as
+   `Testing` for the scan: tokens validated against a throwaway dev Keycloak, the
+   per-identity rate limit lifted (`RateLimiting__PermitLimit=1000000`).
 5. Runs the ZAP Automation Framework plan (`automation.yaml`): inject a bearer token
    headers → import OpenAPI → spider → passive scan → active scan → reports.
 6. Fails the run if any alert is at/above the risk threshold (default `Medium`),
@@ -120,11 +122,19 @@ uploaded as the `dast-reports` artifact every run. The active scan is bounded
 (`maxRuleDurationInMins`, `maxScanDurationInMins` in `automation.yaml`). Tune
 `FAIL_RISK` to set how strict the gate is.
 
-## Scope: Development posture only (by design)
+## Scope: the Testing posture, over plain HTTP
 
-This scan runs the API over plain HTTP with a dev-realm token, not the shipped
-production posture (https with `RequireHttpsMetadata`, HSTS, a production IdP).
-That is an intentional scope decision, not an oversight:
+The scanned API runs as `Testing`, not `Development`. Development turns on looser
+headers (no Content-Security-Policy), CORS for any origin, the API reference page and
+the OpenAPI document, so a scan of it reports findings no deployed environment has and
+misses the headers a deployed one sends. Testing sends the deployed headers and
+serves neither document, which is why the runner exports the OpenAPI document from a
+short Development start first and ZAP reads it from a file. With `SKIP_BOOT=1`,
+pass `OPENAPI_FILE` when the target does not serve `/openapi/v1.json`.
+
+Testing still differs from a deployed environment in two ways: it uses a dev-realm
+token over plain HTTP (no `RequireHttpsMetadata`, no HSTS), and it accepts a
+per-process cache in place of Redis. That is deliberate:
 
 - Token *validation* is identical to production — same JwtBearer handler, same
   issuer/audience/signature/expiry checks, asymmetric keys via JWKS. Only the
