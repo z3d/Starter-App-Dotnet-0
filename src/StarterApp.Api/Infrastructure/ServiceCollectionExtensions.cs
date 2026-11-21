@@ -149,6 +149,9 @@ public static class ServiceCollectionExtensions
                 bearer.TokenValidationParameters.ValidateIssuer = true;
                 bearer.TokenValidationParameters.ClockSkew = TimeSpan.FromSeconds(identity.ClockSkewSeconds);
                 bearer.TokenValidationParameters.NameClaimType = "sub";
+                bearer.Events ??= new JwtBearerEvents();
+                bearer.Events.OnAuthenticationFailed = IdentityProviderOutage.OnAuthenticationFailed;
+                bearer.Events.OnChallenge = IdentityProviderOutage.OnChallenge;
             });
 
         // Catches a route mapped outside /api/v1, which the convention tests cannot see.
