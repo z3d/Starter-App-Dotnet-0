@@ -38,14 +38,20 @@ export const starts: Record<AssistantArea, Start[]> = {
 const key = (method: string, path: string) => `${method} ${path}`
 
 // What usually follows each step, in the order it is done.
-const after: Record<string, Step[]> = {}
+const after: Record<string, Step[]> = {
+  [key('POST', steps.addCustomer.path)]: [{ ...steps.addCustomer, label: 'Add another customer' }],
+  [key('POST', steps.addProduct.path)]: [{ ...steps.addProduct, label: 'Add another product' }],
+}
 
 // What a confirmed step made, kept by the kind of record so a later step can name it.
-const made: Record<string, ContextKey> = {}
+const made: Record<string, ContextKey> = {
+  [key('POST', steps.addCustomer.path)]: 'customerId',
+  [key('POST', steps.addProduct.path)]: 'productId',
+}
 
 const carried: [string, ContextKey][] = []
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const ID = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[1-9][0-9]*)$/i
 
 // What the conversation knows after a step: the record it made and the records it named.
 export function learn(
@@ -56,10 +62,10 @@ export function learn(
   const next = { ...context }
   for (const [field, as] of carried) {
     const value = done.body?.[field] ?? done.pathParams[field]
-    if (typeof value === 'string' && UUID.test(value)) next[as] = value
+    if ((typeof value === 'string' || typeof value === 'number') && ID.test(String(value))) next[as] = String(value)
   }
   const kind = made[key(done.method, done.path)]
-  if (kind && id) next[kind] = id
+  if (kind && id != null) next[kind] = String(id)
   return next
 }
 
