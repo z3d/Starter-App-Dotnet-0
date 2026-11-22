@@ -26,6 +26,8 @@ RUN dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Relea
 FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0@sha256:6990da543e1dc1c7bb8d8d32c702c87a525db7b8ea621e645b479c822ed72c6d
 # The base still ships apt 2.8.3 (CVE-2026-109518); drop this once its digest carries 2.8.4ubuntu0.1.
 RUN apt-get update && apt-get install -y --no-install-recommends --only-upgrade apt libapt-pkg6.0t64 && rm -rf /var/lib/apt/lists/*
+# The base ships C build headers (libc6-dev pulls in linux-libc-dev, whose kernel CVEs fail the scan); nothing at runtime uses them.
+RUN apt-get purge -y linux-libc-dev libc6-dev libc-dev-bin libcrypt-dev rpcsvc-proto
 WORKDIR /home/site/wwwroot
 # Baked-in default for the cleanup timer schedule (hourly). The TimerTrigger's
 # %PayloadCapture:CleanupCron% lookup fails function indexing when the setting is absent,
