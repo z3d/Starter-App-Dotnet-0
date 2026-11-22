@@ -7,7 +7,7 @@ Customer, Product, and Order are owner-scoped resources. The validated JWT estab
 1. **`CommandHandlers_MustInjectOwnerOnlyPolicy` / `QueryHandlers_MustInjectOwnerOnlyPolicy`** — checks the constructor.
 2. **`CommandHandlers_MustInvokeOwnerOnlyPolicy` / `QueryHandlers_MustInvokeOwnerOnlyPolicy`** — IL-scans (including async state machines) for an actual call to `GetRequiredScope()` or `Authorize(...)`. Injecting without invoking fails.
 3. **`ResourceQueries_MustBeOwnerScoped`** — a query reading an owner-scoped table must implement `IOwnerScopedRequest`.
-4. **`QueryHandlers_FilterEveryTenantAndOwnerTableByTheCallersScope`** — over every query handler, each `SELECT` over a table the migrations give a `tenant_id` carries `tenant_id = @TenantId`, and over one they give an `owner_subject` carries `owner_subject = @OwnerSubject`. The tables come from the scripts, not a list, so a derived project's own tables are held to it from their first migration.
+4. **`QueryHandlers_FilterEveryOwnedTableByTheCallersSubject`** — over every query handler, each `SELECT` over a table the migrations give an `owner_subject` carries `owner_subject = @OwnerSubject`. The tables come from the scripts, not a list, so a derived project's own owned tables are held to it from their first migration. A tenant's rows are kept apart by row-level security under the API's own login, which `TenantRowSecurityTests` holds; the sample's queries still name the tenant too, and nothing requires it.
 
 Rules 2 and 4 exist because rules 1 and 3 are presence checks, and presence does not imply behaviour. That gap is the recurring finding class in this codebase — see `architecture-review`.
 
