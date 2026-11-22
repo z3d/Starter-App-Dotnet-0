@@ -98,15 +98,16 @@ product_count AS (
     SELECT count(*) AS cnt FROM seed_products
 ),
 seed_orders AS (
-    SELECT o.id, row_number() OVER (ORDER BY o.id) AS rn
+    SELECT o.id, o.tenant_id, row_number() OVER (ORDER BY o.id) AS rn
     FROM orders o
     JOIN customers c ON c.id = o.customer_id
     WHERE o.owner_subject = 'dast-user-01'
       AND c.email LIKE 'dast-seed-%'
       AND NOT EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = o.id)
 )
-INSERT INTO order_items (order_id, product_id, product_name, quantity, unit_price_excluding_gst, currency, gst_rate)
+INSERT INTO order_items (order_id, tenant_id, product_id, product_name, quantity, unit_price_excluding_gst, currency, gst_rate)
 SELECT so.id,
+       so.tenant_id,
        sp.id,
        sp.name,
        1 + (so.rn % 3),

@@ -13,6 +13,7 @@ public static class DatabaseServiceCollectionExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 
         services.TryAddSingleton(_ => DatabaseAuthentication.CreateDataSource(connectionString));
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, DatabaseLoginGuardService>());
         return services;
     }
 }

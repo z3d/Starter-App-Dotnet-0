@@ -71,6 +71,7 @@ public class Order : AggregateRoot
             throw new DomainRuleException($"An order cannot contain more than {MaxItems} items");
         }
 
+        item.TakeTenantOf(this);
         _items.Add(item);
     }
 
@@ -92,6 +93,7 @@ public class Order : AggregateRoot
         else if (_items.Count >= MaxItems)
             throw new DomainRuleException($"An order cannot contain more than {MaxItems} items");
 
+        item.TakeTenantOf(this);
         _items.Add(item);
         return item;
     }

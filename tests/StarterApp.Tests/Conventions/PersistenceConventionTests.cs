@@ -323,6 +323,17 @@ public class PersistenceConventionTests : ConventionTestBase
             string.Join("\n", violations));
     }
 
+    [Theory]
+    [InlineData("CREATE POLICY tenant_isolation_t ON t USING (tenant_id = 'a') WITH CHECK (tenant_id = 'a');", 0)]
+    [InlineData("ALTER TABLE t ADD CHECK (quantity > 0);", 1)]
+    [InlineData("ALTER TABLE t ADD CONSTRAINT ck_t_quantity CHECK (quantity > 0);", 0)]
+    public void TheConstraintNamingCheck_TellsAPolicysCheckFromAnAnonymousConstraint(string sql, int expected)
+    {
+        var violations = new List<string>();
+        CheckForAnonymousConstraints("synthetic.sql", sql, violations);
+        Assert.Equal(expected, violations.Count);
+    }
+
     private static void CheckForAnonymousConstraints(string fileName, string sql, List<string> violations)
     {
         // Strip SQL comments (-- line comments and /* block comments */)
@@ -377,9 +388,9 @@ public class PersistenceConventionTests : ConventionTestBase
             }
         }
 
-        // Anonymous inline CHECK (not preceded by CONSTRAINT keyword)
+        // Anonymous inline CHECK (not preceded by CONSTRAINT keyword); a policy's WITH CHECK is not a constraint
         if (System.Text.RegularExpressions.Regex.IsMatch(stripped,
-            @"(?<!\bCONSTRAINT\s+\w+\s+)CHECK\s*\(",
+            @"(?<!\bCONSTRAINT\s+\w+\s+)(?<!\bWITH\s+)CHECK\s*\(",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase))
         {
             violations.Add($"  {fileName}: anonymous CHECK — use CONSTRAINT CK_Table_Description CHECK (...)");

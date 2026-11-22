@@ -89,8 +89,7 @@ public class OwnerOnlyPolicyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task Products_ShouldTreatTheSameSubjectInAnotherTenantAsADifferentOwner()
     {
-        // The owner is subject plus tenant. The same subject string issued by another tenant
-        // must not see or change the row.
+        // The same subject string issued by another tenant finds no such row, as if it did not exist.
         var product = await CreateProductAsync();
 
         using var otherTenantClient = _fixture.CreateUnauthenticatedClient();
@@ -108,11 +107,11 @@ public class OwnerOnlyPolicyIntegrationTests : IAsyncLifetime
             Currency = "USD",
             Stock = 5
         }, subject: TestJwtIdentity.DefaultSubject, tenantId: OtherTenantId);
-        Assert.Equal(HttpStatusCode.Forbidden, updateResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, updateResponse.StatusCode);
 
         var deleteResponse = await SendAsAsync(otherTenantClient, HttpMethod.Delete, $"/api/v1/products/{product.Id}",
             subject: TestJwtIdentity.DefaultSubject, tenantId: OtherTenantId);
-        Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, deleteResponse.StatusCode);
     }
 
     [Fact]

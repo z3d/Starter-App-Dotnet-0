@@ -70,8 +70,16 @@ happens automatically. Standalone, the migrator reads the same `ConnectionString
 the API, from configuration or the command line:
 
 ```bash
-dotnet run --project src/StarterApp.DbMigrator -- --ConnectionStrings:database "<postgres-connection-string>"
+dotnet run --project src/StarterApp.DbMigrator -- --ConnectionStrings:database "<administrator-connection-string>" \
+  --DatabaseLogins:Api:Name starterapp_api --DatabaseLogins:Api:Password "<a-local-password>"
 ```
+
+The migrator signs in as the server's administrator and owns the schema. After the scripts it grants
+the application roles and creates the logins it is given (`DatabaseLogins:Api` and
+`DatabaseLogins:Functions`). The API and the worker then sign in as those logins, never as the
+administrator: each refuses to start on a login that is a superuser, can bypass row-level security, can
+create roles, or can act as the tables' owner (`DatabaseLoginGuard`), because tenant isolation holds only
+against a login that cannot switch it off. `appsettings.Development.json.example` names the API's login.
 
 Real deployments run the migrator to completion (a job, init container, or release step) before
 rolling out the new API and Functions revisions; the previous revision keeps serving against the new

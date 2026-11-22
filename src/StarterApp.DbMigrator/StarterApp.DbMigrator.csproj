@@ -30,6 +30,7 @@
          its minimal package closure. -->
     <Compile Include="..\StarterApp.ServiceDefaults\ConnectionStringDescriptor.cs" Link="ConnectionStringDescriptor.cs" />
     <Compile Include="..\StarterApp.ServiceDefaults\DatabaseAuthentication.cs" Link="DatabaseAuthentication.cs" />
+    <Compile Include="..\StarterApp.ServiceDefaults\DatabaseLoginGuard.cs" Link="DatabaseLoginGuard.cs" />
   </ItemGroup>
 
   <ItemGroup>

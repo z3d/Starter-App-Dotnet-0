@@ -30,6 +30,9 @@ public sealed class PostgresMessageInbox : IMessageInbox
         await PurgeIfDueAsync(connection, cancellationToken);
 
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await using (var unbind = new NpgsqlCommand("SELECT set_config('app.tenant_id', '', true)", connection, transaction))
+            await unbind.ExecuteNonQueryAsync(cancellationToken);
+
         await using (var claim = new NpgsqlCommand(
             "INSERT INTO inbox_messages (consumer, message_id) VALUES (@consumer, @messageId) ON CONFLICT DO NOTHING", connection, transaction))
         {

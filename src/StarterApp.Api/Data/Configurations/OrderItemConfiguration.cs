@@ -26,6 +26,11 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
         builder.Property(oi => oi.Quantity)
             .HasColumnName("quantity");
 
+        builder.Property(oi => oi.TenantId)
+            .HasColumnName("tenant_id")
+            .HasMaxLength(OwnershipDefaults.MaxTenantIdLength)
+            .IsRequired();
+
         builder.Property(oi => oi.GstRate)
             .HasColumnName("gst_rate")
             .HasPrecision(5, 4);

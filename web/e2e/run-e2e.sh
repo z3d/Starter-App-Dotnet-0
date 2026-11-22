@@ -100,7 +100,7 @@ start_api() {
   : > "$API_LOG"
   ASPNETCORE_ENVIRONMENT=Development \
   ASPNETCORE_URLS="http://${bind}:${API_PORT}" \
-  ConnectionStrings__database="$CONN" \
+  ConnectionStrings__database="$APP_CONN" \
   RateLimiting__PermitLimit="${PERMIT_LIMIT-1000000}" \
   Identity__Authority="${IDP_URL}/realms/starterapp" \
   Identity__RequireHttpsMetadata=false \
@@ -127,6 +127,9 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
   export WEB_PORT
   unset BASE_URL
   CONN="Host=localhost;Port=${PG_PORT};Database=${PG_DB};Username=postgres;Password=postgres"
+  # The API signs in as its own login, which the migrator creates; it cannot switch row-level security off.
+  APP_DB_PASSWORD="${APP_DB_PASSWORD:-api-local-password}"
+  APP_CONN="Host=localhost;Port=${PG_PORT};Database=${PG_DB};Username=starterapp_api;Password=${APP_DB_PASSWORD}"
 
   log "Starting PostgreSQL ($PG_IMAGE) on port $PG_PORT"
   "$CONTAINER_CLI" run -d --name "$PG_CONTAINER" -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB="$PG_DB" -p "${PG_PORT}:5432" "$PG_IMAGE" >/dev/null
@@ -139,7 +142,7 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
   idp_start "$IDP_CONTAINER" "$IDP_PORT" "$REPO_ROOT" || { err "Keycloak did not become ready within ${IDP_WAIT_SECONDS:-120}s (IDP_WAIT_SECONDS)."; exit 1; }
 
   log "Running database migrations (DbMigrator)"
-  ConnectionStrings__database="$CONN" dotnet run --project "$REPO_ROOT/src/StarterApp.DbMigrator" -c Release
+  ConnectionStrings__database="$CONN" DatabaseLogins__Api__Name=starterapp_api DatabaseLogins__Api__Password="$APP_DB_PASSWORD" dotnet run --project "$REPO_ROOT/src/StarterApp.DbMigrator" -c Release
 
   # The specs sign in and write a handful of times; the deployed shape keeps the normal limit.
   if [[ "$E2E_DEPLOYED" == "1" ]]; then PERMIT_LIMIT=100 start_api "the normal rate limit"; else start_api; fi
@@ -205,7 +208,7 @@ if [[ "$MODE" == "walkthrough" || "$MODE" == "present" ]]; then
       kill "$API_PID" 2>/dev/null || true
       wait "$API_PID" 2>/dev/null || true
       "$CONTAINER_CLI" exec "$PG_CONTAINER" psql -q -U postgres -d postgres -c "DROP DATABASE \"$PG_DB\" WITH (FORCE)" -c "CREATE DATABASE \"$PG_DB\""
-      ConnectionStrings__database="$CONN" dotnet run --project "$REPO_ROOT/src/StarterApp.DbMigrator" -c Release >/dev/null
+      ConnectionStrings__database="$CONN" DatabaseLogins__Api__Name=starterapp_api DatabaseLogins__Api__Password="$APP_DB_PASSWORD" dotnet run --project "$REPO_ROOT/src/StarterApp.DbMigrator" -c Release >/dev/null
       start_api "a fresh process for the recreated database"
     done
   fi

@@ -12,6 +12,7 @@ public class MigrationCompatibilityConventionTests
     private static readonly Regex CreatedTable = new(@"\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?<table>[\w.]+)", RegexOptions.IgnoreCase);
     private static readonly Regex AddedConstraint = new(@"\bALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?(?<table>[\w.]+)\s+ADD\s+CONSTRAINT\s+\w+\s+(?<kind>UNIQUE|CHECK|PRIMARY\s+KEY)", RegexOptions.IgnoreCase);
     private static readonly Regex UniqueIndex = new(@"\bCREATE\s+UNIQUE\s+INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?\w+\s+ON\s+(?<table>[\w.]+)", RegexOptions.IgnoreCase);
+    private static readonly Regex RowSecurityOn = new(@"\bALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?(?<table>[\w.]+)\s[^;]*?\b(?:ENABLE|FORCE)\s+ROW\s+LEVEL\s+SECURITY", RegexOptions.IgnoreCase);
     private static readonly Regex AddedColumn = new(@"\bADD\s+(?:COLUMN\s+)?(?:IF\s+NOT\s+EXISTS\s+)?(?!CONSTRAINT\b)(?<definition>[^,;]+)", RegexOptions.IgnoreCase);
 
     private static readonly (Regex Pattern, string Statement)[] Forbidden =
@@ -87,6 +88,9 @@ public class MigrationCompatibilityConventionTests
     [InlineData("ALTER TABLE customers ADD CONSTRAINT uq_customers_phone UNIQUE (phone);", "UNIQUE")]
     [InlineData("ALTER TABLE customers ADD CONSTRAINT ck_customers_phone CHECK (phone <> '');", "CHECK")]
     [InlineData("CREATE UNIQUE INDEX ix_customers_phone ON customers (phone);", "UNIQUE")]
+    [InlineData("ALTER TABLE customers ENABLE ROW LEVEL SECURITY;", "row-level security")]
+    [InlineData("ALTER TABLE customers ENABLE ROW LEVEL SECURITY, FORCE ROW LEVEL SECURITY;", "row-level security")]
+    [InlineData("ALTER TABLE ONLY customers FORCE ROW LEVEL SECURITY;", "row-level security")]
     public void AnExpandScript_RefusesWhatThePreviousBuildCannotSurvive(string sql, string expected)
     {
         var failures = Check("Expand", sql, _ => true);
@@ -106,6 +110,8 @@ public class MigrationCompatibilityConventionTests
     [InlineData("ALTER TABLE customers ALTER COLUMN phone DROP NOT NULL;")]
     [InlineData("ALTER TABLE customers DROP CONSTRAINT uq_customers_phone;")]
     [InlineData("-- DROP TABLE customers; is only a comment\nCREATE INDEX ix_customers_phone ON customers (phone);")]
+    [InlineData("CREATE TABLE invoices (tenant_id varchar(100) NOT NULL);\nALTER TABLE invoices ENABLE ROW LEVEL SECURITY, FORCE ROW LEVEL SECURITY;")]
+    [InlineData("CREATE POLICY tenant_isolation_customers ON customers USING (tenant_id = 'a') WITH CHECK (tenant_id = 'a');")]
     public void AnExpandScript_AllowsWhatThePreviousBuildSurvives(string sql)
     {
         Assert.Empty(Check("Expand", sql, _ => true));
@@ -243,6 +249,10 @@ public class MigrationCompatibilityConventionTests
         failures.AddRange(AddedConstraint.Matches(body)
             .Where(match => !created.Contains(match.Groups["table"].Value.ToLowerInvariant()))
             .Select(match => $"a new {match.Groups["kind"].Value.ToUpperInvariant()} constraint on {match.Groups["table"].Value}, which the previous build still writes."));
+
+        failures.AddRange(RowSecurityOn.Matches(body)
+            .Where(match => !created.Contains(match.Groups["table"].Value.ToLowerInvariant()))
+            .Select(match => $"row-level security switched on for {match.Groups["table"].Value}, which the previous build still reads without binding a tenant."));
 
         failures.AddRange(UniqueIndex.Matches(body)
             .Where(match => !created.Contains(match.Groups["table"].Value.ToLowerInvariant()))

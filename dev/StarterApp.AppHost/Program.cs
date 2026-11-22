@@ -49,6 +49,31 @@ var postgres = builder.AddAzurePostgresFlexibleServer("postgres")
 
 var db = postgres.AddDatabase("database");
 
+// The migrator owns the schema; the API and the worker sign in as logins of their own that cannot bypass row-level security (docs/DECISIONS.md).
+const string ApiDatabaseLogin = "starterapp_api";
+const string FunctionsDatabaseLogin = "starterapp_functions";
+IResourceBuilder<ParameterResource>? apiDatabasePassword = null;
+IResourceBuilder<ParameterResource>? functionsDatabasePassword = null;
+IResourceBuilder<AzureUserAssignedIdentityResource>? apiIdentity = null;
+IResourceBuilder<AzureUserAssignedIdentityResource>? functionsIdentity = null;
+if (builder.ExecutionContext.IsRunMode)
+{
+    apiDatabasePassword = builder.AddParameter("api-database-password", new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+    functionsDatabasePassword = builder.AddParameter("functions-database-password", new GenerateParameterDefault { MinLength = 32, Special = false }, secret: true, persist: true);
+}
+else
+{
+    // Referencing the server would make every app an administrator; only the migrator is made one, below.
+    postgres.ClearDefaultRoleAssignments();
+    apiIdentity = builder.AddAzureUserAssignedIdentity("api-identity");
+    functionsIdentity = builder.AddAzureUserAssignedIdentity("functions-identity");
+}
+
+ReferenceExpression ApplicationConnectionString(string login, IResourceBuilder<ParameterResource>? password, IResourceBuilder<AzureUserAssignedIdentityResource>? identity) =>
+    password is not null
+        ? ReferenceExpression.Create($"Host={postgres.Resource.Host};Port={postgres.Resource.Port};Database={db.Resource.DatabaseName};Username={login};Password={password}")
+        : ReferenceExpression.Create($"Host={postgres.Resource.HostName};Database={db.Resource.DatabaseName};Username={identity!.Resource.PrincipalName}");
+
 // Redis for the distributed cache: a container locally, Azure Managed Redis when published. The
 // Azure one uses Entra. Each app's managed identity gets an access policy and there is no access
 // key. The Aspire client integration in the API exchanges the token.
@@ -188,9 +213,26 @@ var migrator = builder.AddProject<Projects.StarterApp_DbMigrator>("migrator")
        .WithReference(db)
        .WaitFor(db);
 
+if (builder.ExecutionContext.IsRunMode)
+{
+    migrator.WithEnvironment("DatabaseLogins__Api__Name", ApiDatabaseLogin)
+            .WithEnvironment("DatabaseLogins__Api__Password", apiDatabasePassword!)
+            .WithEnvironment("DatabaseLogins__Functions__Name", FunctionsDatabaseLogin)
+            .WithEnvironment("DatabaseLogins__Functions__Password", functionsDatabasePassword!);
+}
+else
+{
+    migrator.WithAnnotation(new RoleAssignmentAnnotation(postgres.Resource, new HashSet<RoleDefinition>()))
+            .WithEnvironment("DatabaseLogins__Api__Name", apiIdentity!.Resource.PrincipalName)
+            .WithEnvironment("DatabaseLogins__Api__PrincipalId", apiIdentity.Resource.PrincipalId)
+            .WithEnvironment("DatabaseLogins__Functions__Name", functionsIdentity!.Resource.PrincipalName)
+            .WithEnvironment("DatabaseLogins__Functions__PrincipalId", functionsIdentity.Resource.PrincipalId);
+}
+
+// No WithReference(db): that would make the API's identity a server administrator, and an administrator can switch row-level security off.
 var api = builder.AddProject<Projects.StarterApp_Api>("api")
        .PublishAsDockerFile(container => container.WithDockerfile(repoRoot, "src/StarterApp.Api/Dockerfile"))
-       .WithReference(db)
+       .WithEnvironment("ConnectionStrings__database", ApplicationConnectionString(ApiDatabaseLogin, apiDatabasePassword, apiIdentity))
        .WithReference(redis)
        .WithReference(payloadArchive)
        .WithReference(serviceBus)
@@ -262,15 +304,22 @@ var functions = builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Fun
            ((IResourceWithAzureFunctionsConfig)storage.Resource).ApplyAzureFunctionsConfiguration(context.EnvironmentVariables, "AzureWebJobsStorage");
        })
        .WithEnvironment("ConnectionStrings__payloadarchive", payloadArchive.Resource.ConnectionStringExpression)
-       // The cleanup function records its runs in the job_runs table.
-       .WithEnvironment("ConnectionStrings__database", db.Resource.ConnectionStringExpression)
+       // The worker's own login: the inbox, the job runs and the expired idempotency keys of every tenant, and nothing else of a tenant's.
+       .WithEnvironment("ConnectionStrings__database", ApplicationConnectionString(FunctionsDatabaseLogin, functionsDatabasePassword, functionsIdentity))
        .WithEnvironment("PayloadCapture__RequireArchiveStore", "true")
        .WithEnvironment("PayloadCapture__ServiceBusFailureMode", "FailClosed")
        .WithEnvironment("PayloadCapture__CleanupCron", "0 0 * * * *")
        .WithEnvironment("JobWatch__Cron", "0 */15 * * * *")
        .WithEnvironment("Idempotency__CleanupCron", "0 30 3 * * *")
        .WaitFor(serviceBus)
-       .WaitFor(payloadArchive);
+       .WaitFor(payloadArchive)
+       .WaitForCompletion(migrator);
+
+if (apiIdentity is not null && functionsIdentity is not null)
+{
+    api.WithAzureUserAssignedIdentity(apiIdentity);
+    functions.WithAzureUserAssignedIdentity(functionsIdentity);
+}
 
 // The end-to-end tests switch the timers off, so none fires mid-test; a test that needs one runs it itself.
 if (bool.TryParse(builder.Configuration["EndToEnd:TimersOff"], out var timersOff) && timersOff)

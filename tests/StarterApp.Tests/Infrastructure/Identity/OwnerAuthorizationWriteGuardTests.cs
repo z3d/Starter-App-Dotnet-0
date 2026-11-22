@@ -10,20 +10,93 @@ public class OwnerAuthorizationWriteGuardTests
         public string Value { get; set; } = string.Empty;
     }
 
+    private sealed class OwnedRow
+    {
+        public int Id { get; set; }
+        public string Value { get; set; } = string.Empty;
+        public string OwnerSubject { get; set; } = string.Empty;
+        public string TenantId { get; set; } = string.Empty;
+    }
+
     private sealed class RowContext : DbContext
     {
         public RowContext(DbContextOptions<RowContext> options) : base(options) { }
 
         public DbSet<Row> Rows => Set<Row>();
+
+        public DbSet<OwnedRow> OwnedRows => Set<OwnedRow>();
     }
 
-    private static RowContext CreateContext(OwnerPolicyEvaluationTracker tracker)
+    private static readonly CurrentUser Caller = new("caller", AuthenticatedPrincipalType.User, "tenant-a", []);
+
+    private static RowContext CreateContext(OwnerPolicyEvaluationTracker tracker, string? database = null) =>
+        new(new DbContextOptionsBuilder<RowContext>()
+            .UseInMemoryDatabase(database ?? Guid.NewGuid().ToString("N"))
+            .AddInterceptors(new OwnerAuthorizationWriteGuard(tracker, Caller))
+            .Options);
+
+    private static OwnerPolicyEvaluationTracker Authorized()
     {
-        var options = new DbContextOptionsBuilder<RowContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
-            .AddInterceptors(new OwnerAuthorizationWriteGuard(tracker))
-            .Options;
-        return new RowContext(options);
+        var tracker = new OwnerPolicyEvaluationTracker();
+        tracker.RequireEvaluation();
+        tracker.MarkEvaluated();
+        return tracker;
+    }
+
+    private static async Task<(string Database, int Mine, int Theirs)> SeedAsync()
+    {
+        var database = Guid.NewGuid().ToString("N");
+        await using var seed = CreateContext(new OwnerPolicyEvaluationTracker(), database);
+        var mine = new OwnedRow { Value = "mine", OwnerSubject = Caller.Subject, TenantId = Caller.TenantId };
+        var theirs = new OwnedRow { Value = "theirs", OwnerSubject = "someone-else", TenantId = Caller.TenantId };
+        seed.OwnedRows.AddRange(mine, theirs);
+        await seed.SaveChangesAsync();
+        return (database, mine.Id, theirs.Id);
+    }
+
+    [Fact]
+    public async Task SaveChanges_AfterAuthorizingOneRow_RefusesAChangeToAnotherOwnersRow()
+    {
+        var (database, mine, theirs) = await SeedAsync();
+        await using var context = CreateContext(Authorized(), database);
+
+        (await context.OwnedRows.SingleAsync(row => row.Id == mine)).Value = "changed";
+        (await context.OwnedRows.SingleAsync(row => row.Id == theirs)).Value = "changed too";
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => context.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task SaveChanges_AfterAuthorizing_RefusesDeletingAnotherOwnersRow()
+    {
+        var (database, _, theirs) = await SeedAsync();
+        await using var context = CreateContext(Authorized(), database);
+
+        context.OwnedRows.Remove(await context.OwnedRows.SingleAsync(row => row.Id == theirs));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => context.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task SaveChanges_AfterAuthorizing_RefusesHandingTheCallersRowToAnotherOwner()
+    {
+        var (database, mine, _) = await SeedAsync();
+        await using var context = CreateContext(Authorized(), database);
+
+        (await context.OwnedRows.SingleAsync(row => row.Id == mine)).OwnerSubject = "someone-else";
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => context.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task SaveChanges_AfterAuthorizing_WritesTheCallersOwnRows()
+    {
+        var (database, mine, _) = await SeedAsync();
+        await using var context = CreateContext(Authorized(), database);
+
+        (await context.OwnedRows.SingleAsync(row => row.Id == mine)).Value = "changed";
+
+        Assert.Equal(1, await context.SaveChangesAsync());
     }
 
     [Fact]

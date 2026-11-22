@@ -83,11 +83,14 @@ public static class ServiceCollectionExtensions
             options.UseNpgsql(provider.GetRequiredService<NpgsqlDataSource>(), postgres =>
                 postgres.EnableRetryOnFailure(maxRetryCount: 6, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: null))
                    .EnableSensitiveDataLogging(false)
-                   .AddInterceptors(new DomainEventsInterceptor(provider.GetRequiredService<TimeProvider>()), provider.GetRequiredService<OwnerAuthorizationWriteGuard>()));
+                   .AddInterceptors(
+                       new Tenancy.TenantConnectionInterceptor(provider.GetService<ICurrentUser>()),
+                       new DomainEventsInterceptor(provider.GetRequiredService<TimeProvider>()),
+                       provider.GetRequiredService<OwnerAuthorizationWriteGuard>()));
 
         // Transient, not scoped. Npgsql cannot run two queries on one connection at the same time.
         services.AddTransient<System.Data.IDbConnection>(provider =>
-            provider.GetRequiredService<NpgsqlDataSource>().CreateConnection());
+            Tenancy.TenantDbConnection.Create(provider.GetRequiredService<NpgsqlDataSource>(), provider.GetService<ICurrentUser>()));
 
         return services;
     }

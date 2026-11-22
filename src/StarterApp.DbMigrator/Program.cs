@@ -54,6 +54,9 @@ try
 
     if (DatabaseMigrationEngine.Migrate(connectionString, MigrationSessionOptions.From(configuration)))
     {
+        var logins = ApplicationLogin.From(configuration);
+        await ApplicationRoleSetup.ApplyAsync(connectionString, logins);
+        Log.Information("Application roles granted; logins {Logins}", logins.Select(login => login.ToString()));
         Log.Information("Database migration completed successfully in {Elapsed}", elapsed.Elapsed);
         return 0;
     }

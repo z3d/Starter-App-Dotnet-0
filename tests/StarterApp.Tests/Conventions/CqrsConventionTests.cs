@@ -88,39 +88,79 @@ public partial class CqrsConventionTests : ConventionTestBase
             "cross-owner caller gets null before this executes, so keying by order_id alone cannot leak rows."),
     ];
 
+    // Selected by a rule read from the migrations (every table with a tenant_id or an owner_subject column) and over every query handler, so a derived project's own tables are held to it once the sample is gone.
     [Fact]
-    public void OwnerScopedQueryHandlers_MustFilterSqlByOwnerScope()
+    public void QueryHandlers_FilterEveryTenantAndOwnerTableByTheCallersScope()
     {
-        var handlers = GetOwnerScopedQueryHandlers().ToList();
-        Assert.NotEmpty(handlers);
+        var scripts = Directory.GetFiles(Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.DbMigrator", "Scripts"), "*.sql").Select(File.ReadAllText).ToList();
+        var tenantTables = MigrationColumns.TablesWithColumn(scripts, "tenant_id");
+        Assert.NotEmpty(tenantTables);
+
+        var failures = QueryHandlerScopeFailures(
+            ApiAssembly.GetTypes().Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("QueryHandler", StringComparison.Ordinal)),
+            tenantTables,
+            MigrationColumns.TablesWithColumn(scripts, "owner_subject"));
+
+        Assert.True(failures.Count == 0,
+            "Every SELECT over a tenant table filters tenant_id = @TenantId, and over an owned table owner_subject = @OwnerSubject, " +
+            "in each SELECT of the string; row-level security is the net under this, not a substitute:\n" + string.Join("\n", failures));
+    }
+
+    [Fact]
+    public void TheScopeRule_FindsTheTablesFromTheMigrations_AndAnUnscopedSelectOverThem()
+    {
+        string[] scripts =
+        [
+            "CREATE TABLE billing.invoices (id int NOT NULL, tenant_id varchar(100) NOT NULL, owner_subject varchar(200) NOT NULL);",
+            "CREATE TABLE billing.rates (id int NOT NULL);\nALTER TABLE billing.rates ADD COLUMN tenant_id varchar(100) NULL;",
+            "CREATE TABLE billing.currencies (code char(3) NOT NULL);",
+        ];
+        var tenantTables = MigrationColumns.TablesWithColumn(scripts, "tenant_id");
+        var ownedTables = MigrationColumns.TablesWithColumn(scripts, "owner_subject");
+
+        Assert.Equal(["invoices", "rates"], tenantTables.Order(StringComparer.Ordinal));
+        Assert.Equal(["invoices"], ownedTables);
+        Assert.Equal(2, SqlSelectBlocks.Unscoped("SELECT id FROM billing.rates; SELECT code FROM billing.currencies; SELECT id FROM billing.invoices WHERE owner_subject = @OwnerSubject", TableRegex(tenantTables), sql => TenantPredicateRegex().IsMatch(sql)).Count);
+        Assert.Single(QueryHandlerScopeFailures([typeof(SyntheticUnscopedQueryHandler)], tenantTables, ownedTables));
+    }
+
+    private sealed class SyntheticUnscopedQueryHandler
+    {
+        public static string Sql() => "SELECT id FROM billing.invoices WHERE tenant_id = @TenantId";
+    }
+
+    private static List<string> QueryHandlerScopeFailures(IEnumerable<Type> handlers, IReadOnlyCollection<string> tenantTables, IReadOnlyCollection<string> ownedTables)
+    {
+        var checks = new List<(Regex Tables, Func<string, bool> IsScoped, string Predicate)>();
+        if (tenantTables.Count > 0)
+            checks.Add((TableRegex(tenantTables), sql => TenantPredicateRegex().IsMatch(sql), "tenant_id = @TenantId"));
+        if (ownedTables.Count > 0)
+            checks.Add((TableRegex(ownedTables), sql => OwnerSubjectPredicateRegex().IsMatch(sql), "owner_subject = @OwnerSubject"));
 
         var failures = new List<string>();
         foreach (var handler in handlers)
         {
-            var ownedTableSelects = ExtractStringLiterals(handler)
-                .Where(literal => literal.Contains("SELECT", StringComparison.OrdinalIgnoreCase)
-                    && OwnedTableRegex().IsMatch(literal));
-
-            foreach (var select in ownedTableSelects.SelectMany(literal => SqlSelectBlocks.Unscoped(literal, OwnedTableRegex(), IsOwnerScoped)))
+            foreach (var literal in ExtractStringLiterals(handler).Where(literal => literal.Contains("SELECT", StringComparison.OrdinalIgnoreCase)))
             {
-                var exempt = GatedSubQueryExemptions.Any(e =>
-                    string.Equals(handler.FullName, e.HandlerFullName, StringComparison.Ordinal) &&
-                    select.Contains(e.SqlFragment, StringComparison.Ordinal));
-                if (exempt)
-                    continue;
-
-                failures.Add($"{handler.FullName} has a SELECT over an owner-scoped table " +
-                    "(customers/products/orders/order_items) that omits owner_subject = @OwnerSubject and/or " +
-                    $"tenant_id = @TenantId and is not a documented gated-subquery exemption: {select}");
+                foreach (var (tables, isScoped, predicate) in checks)
+                {
+                    foreach (var select in SqlSelectBlocks.Unscoped(literal, tables, isScoped))
+                    {
+                        var exempt = GatedSubQueryExemptions.Any(e =>
+                            string.Equals(handler.FullName, e.HandlerFullName, StringComparison.Ordinal) &&
+                            select.Contains(e.SqlFragment, StringComparison.Ordinal));
+                        if (!exempt)
+                            failures.Add($"{handler.FullName} has a SELECT without {predicate} that is not a documented gated-subquery exemption: {select}");
+                    }
+                }
             }
         }
 
-        failures = failures.Distinct().OrderBy(message => message).ToList();
-
-        Assert.True(failures.Count == 0,
-            "Owner-scoped query handlers must enforce owner filters in every SELECT, not just one per string:\n" +
-            string.Join("\n", failures));
+        return failures.Distinct().OrderBy(message => message, StringComparer.Ordinal).ToList();
     }
+
+    private static Regex TableRegex(IEnumerable<string> tables) =>
+        new($@"\b(?:{string.Join("|", tables.Select(Regex.Escape))})\b", RegexOptions.IgnoreCase);
 
     [Theory]
     [InlineData("SELECT id FROM orders WHERE owner_subject = @OwnerSubject AND tenant_id = @TenantId", 0)]

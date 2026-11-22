@@ -59,6 +59,9 @@ IDP_CONTAINER="${RUN_ID}-idp"
 CONTAINER_CLI=docker
 source "$REPO_ROOT/scripts/lib/dev-idp.sh"
 CONN="Host=localhost;Port=${PG_PORT};Database=${PG_DB};Username=postgres;Password=postgres"
+# The API signs in as its own login, which the migrator creates; it cannot switch row-level security off.
+APP_DB_PASSWORD="${APP_DB_PASSWORD:-api-local-password}"
+APP_CONN="Host=localhost;Port=${PG_PORT};Database=${PG_DB};Username=starterapp_api;Password=${APP_DB_PASSWORD}"
 # StackExchange.Redis (via Aspire AddRedisDistributedCache("redis")) reads
 # ConnectionStrings:redis as a host:port endpoint. The API only wires Redis when
 # this connection string is present (Program.cs); otherwise it falls back to an
@@ -145,7 +148,7 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
     || { err "Keycloak did not become ready."; exit 1; }
 
   log "Running database migrations (DbMigrator)"
-  ConnectionStrings__database="$CONN" \
+  ConnectionStrings__database="$CONN" DatabaseLogins__Api__Name=starterapp_api DatabaseLogins__Api__Password="$APP_DB_PASSWORD" \
     dotnet run --project "$REPO_ROOT/src/StarterApp.DbMigrator" -c Release
 
   if [[ "$SKIP_SEED" != "1" ]]; then
@@ -174,7 +177,7 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
   env \
   ASPNETCORE_ENVIRONMENT=Development \
   ASPNETCORE_URLS="http://0.0.0.0:${API_PORT}" \
-  ConnectionStrings__database="$CONN" \
+  ConnectionStrings__database="$APP_CONN" \
   Identity__Authority="http://localhost:${IDP_PORT}/realms/starterapp" \
   Identity__RequireHttpsMetadata=false \
   RateLimiting__PermitLimit=1000000 \

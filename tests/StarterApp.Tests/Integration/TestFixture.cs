@@ -16,6 +16,19 @@ public class TestDatabaseFixture : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _postgresContainer;
     public string ConnectionString { get; private set; } = null!;
+
+    // The logins the API and the worker sign in as, made by the migrator's role setup as when deployed.
+    public const string ApplicationLogin = "starterapp_api";
+    public const string WorkerLogin = "starterapp_functions";
+    private const string ApplicationPassword = "application-test-password";
+    private const string WorkerPassword = "worker-test-password";
+
+    public string ApplicationConnectionString => LoginConnectionString(ApplicationLogin, ApplicationPassword);
+
+    public string WorkerConnectionString => LoginConnectionString(WorkerLogin, WorkerPassword);
+
+    private string LoginConnectionString(string login, string password) =>
+        new NpgsqlConnectionStringBuilder(ConnectionString) { Username = login, Password = password }.ConnectionString;
     private Respawner _respawner = null!;
     private const string DbName = "starterapp_tests";
     private const string DbUsername = "postgres";
@@ -46,6 +59,12 @@ public class TestDatabaseFixture : IAsyncLifetime
                 throw new InvalidOperationException("Failed to apply database migrations");
             }
             Console.WriteLine("Database migrations applied successfully");
+
+            await StarterApp.DbMigrator.ApplicationRoleSetup.ApplyAsync(ConnectionString,
+            [
+                new StarterApp.DbMigrator.ApplicationLogin(StarterApp.DbMigrator.ApplicationRoleSetup.ApplicationRole, ApplicationLogin, ApplicationPassword, null),
+                new StarterApp.DbMigrator.ApplicationLogin(StarterApp.DbMigrator.ApplicationRoleSetup.WorkerRole, WorkerLogin, WorkerPassword, null),
+            ]);
 
             // Initialize Respawner for cleaning database between tests
             await InitializeRespawner();
@@ -146,8 +165,12 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
     public InMemoryPayloadArchiveStore PayloadArchiveStore { get; } = new();
     public HttpClient Client { get; private set; } = null!;
 
-    // Expose the connection string from the database fixture
+    // The administrator's: setup and checks that see every tenant.
     public string ConnectionString => _dbFixture.ConnectionString;
+
+    public string ApplicationConnectionString => _dbFixture.ApplicationConnectionString;
+
+    public string WorkerConnectionString => _dbFixture.WorkerConnectionString;
 
     // Parameterless constructor for xUnit collection fixture
     public ApiTestFixture()
@@ -196,8 +219,7 @@ public class ApiTestFixture : WebApplicationFactory<IApiMarker>, IAsyncLifetime
 
             // Set the connection string as environment variable before creating the client
             // This ensures Program.cs can find it during WebApplicationFactory host creation
-            Environment.SetEnvironmentVariable("ConnectionStrings__database", _dbFixture.ConnectionString);
-            Log.Information($"Set connection string environment variable: {_dbFixture.ConnectionString}");
+            Environment.SetEnvironmentVariable("ConnectionStrings__database", _dbFixture.ApplicationConnectionString);
 
             // Then create the client with the configured web host
             ClientOptions.AllowAutoRedirect = false;

@@ -15,6 +15,10 @@ public static class MessageInboxExtensions
         var connectionString = builder.Configuration.GetConnectionString("database");
         if (string.IsNullOrEmpty(connectionString))
         {
+            // Without the inbox a redelivered message runs its work twice, so only a developer's own run may go without it.
+            if (!builder.Environment.IsDevelopment())
+                throw new InvalidOperationException("ConnectionStrings:database is required outside Development: without it the message inbox cannot deduplicate redeliveries.");
+
             builder.Services.AddSingleton<IMessageInbox, NullMessageInbox>();
             return builder;
         }

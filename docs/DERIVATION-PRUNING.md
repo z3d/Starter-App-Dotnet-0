@@ -19,7 +19,8 @@ the project: they copy its shapes, keep its rules, and route new work through it
   vestigial to the next reader.
 - **In the same change, every support capability is decided.** Owner scoping, the distributed
   cache and Redis, feature toggles and the rest either have a module consumer or are removed
-  with a re-add trigger. None is left in place waiting for a use.
+  with a re-add trigger. None is left in place waiting for a use. Tenant isolation is not one of
+  them (below).
 - **The decision record stops calling the project a layered monolith.** `docs/DECISIONS.md`
   carries "Layered monolith, not a modular monolith (design on file, not adopted)", which is
   true of the template and its sample. The first module meets its re-add trigger, so in the same
@@ -73,10 +74,31 @@ applicable (no modules), and in a derived project it fails from the first module
 | The web app's sample page (`web/src/sample`) and the `Sample` rail item | with the sample domain it drives; the shell, `src/lib/auth.ts`, `src/lib/api.ts`, the generated client, the primitives, the image and the browser-test fixtures stay | n/a (the project's own screens take its place) |
 | The smoke test's Products, Customers and Orders sections (`scripts/smoke-test.sh`) | with the sample domain whose routes they call; the token, TLS and health parts stay, and the project's own first read and write take the sections' place | n/a (the project's own routes take their place) |
 | Tests that borrow the sample's routes or fields to test shared code: `IdentityProviderOutageTests` (`/api/v1/products`), `PayloadSecretMaskerTests` (`orderId`), `web/src/lib/resilient-fetch.test.ts` (`/api/v1/customers`), the assistant's example find and proposal, their prompt notes and recorded responses, and the sample entries in `payload-log-fields.txt` | moved onto the project's own routes and fields in the same change, not deleted: they test shared code | n/a |
-| Owner/tenant scoping | no module scopes a row to the person who created it | a second tenant/brand, or external exposure of per-caller data |
+| Per-person owner scoping (`owner_subject`, `IOwnerOnlyPolicy`, `IOwnerAuthorizedMutation`) | no module scopes a row to the person who created it, inside a tenant | a module whose rows belong to one person and must be hidden from that person's colleagues |
 | Distributed caching | the slice has no cacheable reads | first read endpoint with measurable repeat traffic |
 | Feature toggles | the fork deploys continuously with instant rollback | first change that needs dark-launch or a kill switch |
 | Perf gate thresholds | the fork's SLOs differ | recalibrate, don't delete — a red gate found a real defect here on its first night |
+
+## Tenant isolation is never pruned in a multi-tenant product
+
+Tenant isolation and per-person owner scoping are two different things, and only the second is a prune
+candidate. Tenant isolation is the database's: every table of a module that holds a tenant's rows has a
+`tenant_id`, a policy whose `USING` and `WITH CHECK` compare it with the session's `app.tenant_id`, and
+`ENABLE` and `FORCE ROW LEVEL SECURITY`, made in the same Expand script that creates the table. The API and
+the worker sign in as logins that cannot switch it off, and bind the tenant from the validated token (or,
+in the worker, from the event) whenever a connection opens. `TenantRowSecurityTests` reads every table from
+the catalog and fails one with a `tenant_id` and no forced policy, and one with neither a `tenant_id` nor a
+stated reason in `TenantRowSecurityRules.PlatformTables`; it keeps checking after the sample is gone,
+because it selects by the rule, not by the sample's names. Removing the sample removes its policies with
+its tables; nothing else of this goes.
+
+A derived project that will only ever serve one business still keeps it. The tenant is then the one
+business, bound from the token's tenant claim like any other: the columns, policies and logins cost a
+module nothing, and taking a second business later would otherwise mean a migration of every table with
+rows in it. The single-tenant decision, if it is ever made, is recorded in the project's
+`docs/DECISIONS.md` with its date, who made it, and the re-add trigger (a second business, a reseller, or a
+second brand on the same deployment), and the policies stay: what changes is only that one tenant exists.
+"Not multi-tenant" is never a reason to drop a policy or to list a table with rows in `PlatformTables`.
 
 What is **not** prunable without a recorded decision: the payload capture/audit posture, the
 outbox (publish-after-write is how events get lost), validator coverage, and the convention

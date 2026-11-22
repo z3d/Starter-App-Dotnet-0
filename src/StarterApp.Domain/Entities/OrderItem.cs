@@ -11,6 +11,7 @@ public class OrderItem
     public int Quantity { get; private set; }
     public Money UnitPriceExcludingGst { get; private set; } = null!;
     public decimal GstRate { get; private set; }
+    public string TenantId { get; private set; } = string.Empty;
 
     protected OrderItem()
     {
@@ -44,6 +45,8 @@ public class OrderItem
         UnitPriceExcludingGst = unitPriceExcludingGst;
         GstRate = gstRate;
     }
+
+    internal void TakeTenantOf(Order order) => TenantId = order.TenantId;
 
     public Money GetUnitPriceIncludingGst()
     {
