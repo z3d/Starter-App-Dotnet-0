@@ -1,5 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Home, LogOut, Menu, Search, Settings, ShieldCheck, Sparkles, X } from 'lucide-react'
+import { Home, LogOut, Menu, Search, Settings, Sparkles, X } from 'lucide-react'
 import { Dialog as RadixDialog } from 'radix-ui'
 import { type ReactNode, useState } from 'react'
 import { useAuth } from 'react-oidc-context'
@@ -91,13 +91,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           )
         })}
       </nav>
-
-      <div className="mx-3 mt-6 rounded-lg border border-rail-line bg-gradient-to-br from-rail-active/70 to-transparent p-3 text-xs text-rail-ink-muted">
-        <div className="flex items-center gap-1.5 text-rail-ink">
-          <ShieldCheck className="size-3.5 text-highlight" /> Zero trust
-        </div>
-        <p className="mt-1">The API verifies every token itself; this app only holds it.</p>
-      </div>
 
       <div className="mt-auto border-t border-rail-line p-3">
         <div className="flex items-center gap-2.5">
