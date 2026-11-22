@@ -158,6 +158,16 @@ public class TenantRowSecurityTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TheLoginGuard_SeesTheLoginBehindARoleSetAtConnect()
+    {
+        var masked = new NpgsqlConnectionStringBuilder(_fixture.ConnectionString) { Options = "-c role=starterapp_app" }.ConnectionString;
+        await using var dataSource = NpgsqlDataSource.Create(masked);
+
+        var refusal = await Assert.ThrowsAsync<InvalidOperationException>(() => new StarterApp.ServiceDefaults.DatabaseLoginGuardService(dataSource).StartAsync(CancellationToken.None));
+        Assert.Contains("is a superuser", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task TheApplicationLogin_BoundToOneTenant_CannotReadChangeOrPlantAnothersRows()
     {
         var (customerA, _) = await SeedTwoTenantsAsync();

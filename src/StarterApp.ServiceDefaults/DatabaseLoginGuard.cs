@@ -7,11 +7,11 @@ namespace StarterApp.DbMigrator;
 namespace StarterApp.ServiceDefaults;
 #endif
 
-// Row-level security holds only against a login that cannot switch it off. A login is refused when it, or any role it can act as, could.
+// Row-level security holds only against a login that cannot switch it off. A login is refused when it, or any role it can act as, could; with no login named, both the session's login and its current role are read, since a role set at connect hides the login behind it.
 public static class DatabaseLoginGuard
 {
     public const string ViolationsSql = """
-        WITH login AS (SELECT oid, rolname, rolsuper, rolbypassrls, rolcreaterole FROM pg_roles WHERE rolname = COALESCE(@login, current_user))
+        WITH login AS (SELECT oid, rolname, rolsuper, rolbypassrls, rolcreaterole FROM pg_roles WHERE rolname IN (COALESCE(@login, session_user), COALESCE(@login, current_user)))
         SELECT 'is a superuser' FROM login WHERE rolsuper
         UNION ALL
         SELECT 'may bypass row-level security' FROM login WHERE rolbypassrls
