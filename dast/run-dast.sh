@@ -341,26 +341,32 @@ log "DAST PASSED: no alerts at or above risk '$FAIL_RISK'."
 # The ZAP scan injects a SINGLE fully-authorized identity (dast-user-01), so a
 # handler that dropped its IOwnerOnlyPolicy check is structurally invisible to it
 # — every request it makes is in-scope by construction. This scripted probe fills
-# that gap directly: dast-seed.sql planted owner-02 resources at fixed, known ids;
-# here we ask for them while presenting OWNER-01's identity headers (the same set
-# automation.yaml injects) and assert the API hides or forbids them.
+# that gap directly: dast-seed.sql planted rows at fixed, known ids for owner-02 (another
+# tenant) and owner-03 (owner-01's tenant, another owner); here we ask for them while
+# presenting OWNER-01's identity (the same token automation.yaml injects) and assert the
+# API hides or forbids them.
 #
-# Expected (owner-scoping intact):
-#   * cross-owner GET by-id        -> 404 (read hidden as not-found)
-#   * cross-owner GET list-by-fk   -> 200 with an empty data array (owner-filtered)
-#   * cross-owner DELETE (mutation)-> 403 (owner policy rejects on a loaded row)
-# Any other outcome (200 with the row, a 2xx delete) is an IDOR leak -> fail.
+# Expected:
+#   * GET by-id, either owner            -> 404 (read hidden as not-found)
+#   * GET list-by-fk, other tenant       -> 200 with an empty data array
+#   * DELETE, other tenant               -> 404 and the row still present (the database's
+#                                           tenant policy hides it; no 403 to confirm the id)
+#   * DELETE, same tenant, other owner   -> 403 (owner policy rejects on a loaded row)
+# Any other outcome (200 with the row, a 2xx delete, a missing row) is a leak -> fail.
 #
 # Only runs in the boot+seed path: SKIP_BOOT means we don't know the target's
 # data, and SKIP_SEED means the owner-02 fixtures are absent.
 if [[ "$SKIP_BOOT" != "1" && "$SKIP_SEED" != "1" ]]; then
   echo
-  log "Running cross-owner IDOR probe (owner-01 identity vs owner-02 resources)"
+  log "Running cross-owner IDOR probe (owner-01 identity vs owner-02 and owner-03 resources)"
 
   # Owner-02 fixtures (fixed ids from dast/seed/dast-seed.sql).
   XO_CUSTOMER_ID=900001
   XO_PRODUCT_ID=900001
   XO_ORDER_GUID="00000000-0000-0000-0000-0000dad70002"
+  # Owner-03 fixtures: owner-01's own tenant, another owner.
+  SO_CUSTOMER_ID=900002
+  SO_PRODUCT_ID=900002
 
   # Owner-01 identity — the same dast-user-01 token the ZAP replacer injects.
   idem_headers=(
@@ -422,32 +428,57 @@ if [[ "$SKIP_BOOT" != "1" && "$SKIP_SEED" != "1" ]]; then
     idor_fail=1
   fi
 
-  # 5. Cross-owner DELETE customer (mutation) -> must be 403. The handler loads the
-  #    row then calls IOwnerOnlyPolicy.Authorize, which throws ForbiddenAccessException
-  #    (mapped to 403) for a foreign owner. A 2xx here means the mutation went through.
-  code=$(xo_status DELETE "/api/v1/customers/${XO_CUSTOMER_ID}")
-  if [[ "$code" == "403" ]]; then
-    log "  OK DELETE customer/${XO_CUSTOMER_ID} -> 403 (forbidden)"
+  # 5-6. DELETE of another TENANT's row -> must be 404, and the row must still be there.
+  #      The database's tenant policy hides the row from this connection, so the handler
+  #      finds nothing: another tenant's row is indistinguishable from a missing id (a 403
+  #      would confirm the id exists). The row count is read as the database owner, which
+  #      the policy does not bind.
+  xo_rows() {
+    local table="$1" id="$2"
+    "$CONTAINER_CLI" exec "$PG_CONTAINER" psql -U postgres -d "$PG_DB" -tAc \
+      "SELECT count(*) FROM ${table} WHERE id = ${id}" | tr -d '[:space:]'
+  }
+  for target in "customers:${XO_CUSTOMER_ID}" "products:${XO_PRODUCT_ID}"; do
+    table="${target%%:*}"; id="${target##*:}"
+    code=$(xo_status DELETE "/api/v1/${table}/${id}")
+    rows=$(xo_rows "$table" "$id")
+    if [[ "$code" == "404" && "$rows" == "1" ]]; then
+      log "  OK DELETE ${table}/${id} (other tenant) -> 404, row still present"
+    else
+      err "  IDOR DELETE ${table}/${id} (other tenant) -> $code with ${rows:-?} row(s) left (expected 404 and 1 — cross-tenant mutation not blocked)"
+      idor_fail=1
+    fi
+  done
+
+  # 7. GET of a row in the SAME tenant held by another owner -> must be 404 (owner-filtered read).
+  code=$(xo_status GET "/api/v1/customers/${SO_CUSTOMER_ID}")
+  if [[ "$code" == "404" ]]; then
+    log "  OK customers/${SO_CUSTOMER_ID} (same tenant, other owner) -> 404 (hidden)"
   else
-    err "  IDOR DELETE customer/${XO_CUSTOMER_ID} -> $code (expected 403 — cross-owner mutation not blocked)"
+    err "  IDOR customers/${SO_CUSTOMER_ID} (same tenant, other owner) -> $code (expected 404 — owner-03's customer leaked to owner-01)"
     idor_fail=1
   fi
 
-  # 6. Cross-owner DELETE product (mutation) -> must be 403 (same rationale).
-  code=$(xo_status DELETE "/api/v1/products/${XO_PRODUCT_ID}")
-  if [[ "$code" == "403" ]]; then
-    log "  OK DELETE product/${XO_PRODUCT_ID} -> 403 (forbidden)"
-  else
-    err "  IDOR DELETE product/${XO_PRODUCT_ID} -> $code (expected 403 — cross-owner mutation not blocked)"
-    idor_fail=1
-  fi
+  # 8-9. DELETE of a row in the SAME tenant held by another owner -> must be 403. The tenant
+  #      policy lets the row load; IOwnerOnlyPolicy.Authorize then throws
+  #      ForbiddenAccessException (mapped to 403). A 2xx here means the mutation went through.
+  for target in "customers:${SO_CUSTOMER_ID}" "products:${SO_PRODUCT_ID}"; do
+    table="${target%%:*}"; id="${target##*:}"
+    code=$(xo_status DELETE "/api/v1/${table}/${id}")
+    if [[ "$code" == "403" ]]; then
+      log "  OK DELETE ${table}/${id} (same tenant, other owner) -> 403 (forbidden)"
+    else
+      err "  IDOR DELETE ${table}/${id} (same tenant, other owner) -> $code (expected 403 — cross-owner mutation not blocked)"
+      idor_fail=1
+    fi
+  done
 
   echo
   if [[ "$idor_fail" != "0" ]]; then
     err "DAST FAILED: cross-owner IDOR probe detected an owner-scope regression (see above)."
     exit 1
   fi
-  log "IDOR PROBE PASSED: owner-02 resources stay hidden/forbidden under owner-01 identity."
+  log "IDOR PROBE PASSED: owner-02 and owner-03 resources stay hidden/forbidden under owner-01 identity."
 else
   log "Skipping cross-owner IDOR probe (requires the boot+seed path; SKIP_BOOT/SKIP_SEED set)."
 fi

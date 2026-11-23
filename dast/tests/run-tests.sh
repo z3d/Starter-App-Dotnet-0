@@ -35,9 +35,15 @@ done
 if [[ "$url" == */orders/customer/* ]]; then
   printf '%s' "$PROBE_BODY"
   if [[ "$write_status" == 1 ]]; then printf '\n%s' "$PROBE_CODE"; fi
-elif [[ "$method" == DELETE ]]; then printf '%s' "${PROBE_DELETE_CODE:-403}"
+elif [[ "$method" == DELETE && "$url" == */900002 ]]; then printf '%s' "${PROBE_OWNER_DELETE_CODE:-403}"
+elif [[ "$method" == DELETE ]]; then printf '%s' "${PROBE_DELETE_CODE:-404}"
 else printf '%s' "${PROBE_BYID_CODE:-404}"
 fi
+STUB
+# Stands in for the container CLI's psql call that counts the other tenant's row after a delete.
+cat > "$TEST_DIR/bin/probe-db-stub" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "${PROBE_ROWS-1}"
 STUB
 chmod +x "$TEST_DIR/bin/"*
 export PATH="$TEST_DIR/bin:$PATH"
@@ -105,6 +111,7 @@ done
 # Execute the production probe independently of boot/scan, using controlled HTTP responses.
 {
   printf 'set -euo pipefail\nSKIP_BOOT=0\nSKIP_SEED=0\nTARGET_URL=http://localhost\nDAST_TOKEN=test-token\n'
+  printf 'CONTAINER_CLI=probe-db-stub\nPG_CONTAINER=probe-pg\nPG_DB=probe\n'
   printf 'log() { echo "$*"; }; err() { echo "$*" >&2; }\n'
   sed -n '/^# --- cross-owner IDOR/,$p' "$DAST_DIR/run-dast.sh"
 } > "$TEST_DIR/probe.sh"
@@ -129,6 +136,10 @@ leak_case() {
   [[ "$status" != 0 ]]
 }
 for code in 200 403 500; do check leak_case PROBE_BYID_CODE "$code"; done
-for code in 204 404 500; do check leak_case PROBE_DELETE_CODE "$code"; done
+# Another tenant's row: anything but 404 fails (403 would confirm the id), and so does a row gone.
+for code in 204 403 500; do check leak_case PROBE_DELETE_CODE "$code"; done
+for rows in 0 2 ''; do check leak_case PROBE_ROWS "$rows"; done
+# Same tenant, another owner: anything but 403 fails.
+for code in 204 404 500; do check leak_case PROBE_OWNER_DELETE_CODE "$code"; done
 printf '%s regression(s) failed\n' "$failures"
 [[ "$failures" == 0 ]]

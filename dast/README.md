@@ -24,8 +24,9 @@ static convention/security tests in `StarterApp.Tests`.
 6. Fails the run if any alert is at/above the risk threshold (default `Medium`),
    if ZAP itself failed/hung (non-zero/non-WARN exit), or if the scan discovered
    fewer than `DAST_MIN_URLS` URLs (a dead/throttled scan can't pass green).
-7. Runs a scripted cross-owner IDOR probe (`curl`) asserting owner-02's resources
-   stay hidden (404/empty) or forbidden (403) under owner-01's identity.
+7. Runs a scripted cross-owner IDOR probe (`curl`) under owner-01's identity: another
+   tenant's rows read and delete as missing (404, row left in place), and another
+   owner's rows in the same tenant read as missing (404) and refuse a delete (403).
 8. Tears everything down.
 
 ### Why the rate limit is lifted

@@ -13,7 +13,7 @@
 -- of rows at FIXED, KNOWN ids so run-dast.sh can run a scripted IDOR / owner-
 -- scope regression probe: fetch/mutate owner-02's resources while presenting
 -- owner-01's identity and assert the API hides them (404/empty) or forbids the
--- mutation (403). A handler that dropped its IOwnerOnlyPolicy check would leak
+-- mutation (404 across tenants, 403 within one). A handler that dropped its IOwnerOnlyPolicy check would leak
 -- the row or accept the mutation, which the probe turns into a build failure.
 --
 -- Idempotent: every block is guarded (ON CONFLICT / sentinel NOT EXISTS / fixed
@@ -128,8 +128,9 @@ JOIN seed_products sp ON sp.rn = 1 + (so.rn % pc.cnt);
 -- a scan, so there is no collision with owner-01's auto-assigned ids. The order
 -- uses a fixed sentinel guid so the by-id order probe has a deterministic target.
 --
--- These rows must stay INVISIBLE to owner-01: the probe asserts a cross-owner
--- GET returns 404/empty and a cross-owner DELETE returns 403.
+-- These rows must stay INVISIBLE to owner-01: the probe asserts a GET returns
+-- 404/empty and a DELETE returns 404 with the row left in place. Another tenant's
+-- row is hidden by the database's tenant policy, so it reads as a missing id.
 -- ============================================================================
 
 -- Fixed-id customer owned by owner-02.
@@ -147,6 +148,23 @@ ON CONFLICT (id) DO NOTHING;
 -- Fixed-guid order owned by owner-02, attached to owner-02's customer.
 INSERT INTO orders (id, customer_id, order_date, status, owner_subject, tenant_id)
 VALUES ('00000000-0000-0000-0000-0000dad70002', 900001, now(), 'Pending', 'dast-user-02', 'dast-tenant-02')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================================
+-- Owner 3 (dast-user-03 / dast-tenant-01) — another owner in owner-01's tenant.
+--
+-- The tenant policy lets owner-01's connection load these rows, so they test the
+-- owner rule alone: the probe asserts a GET returns 404 and a DELETE returns 403.
+-- ============================================================================
+
+INSERT INTO customers (id, name, email, owner_subject, tenant_id)
+OVERRIDING SYSTEM VALUE
+VALUES (900002, 'DAST Same-Tenant Customer', 'dast-sametenant@zap.test', 'dast-user-03', 'dast-tenant-01')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO products (id, name, description, price_amount, price_currency, stock, owner_subject, tenant_id)
+OVERRIDING SYSTEM VALUE
+VALUES (900002, 'DAST Same-Tenant Product', 'Owner-03 product — owner-01 may not delete it', 42.00, 'USD', 100, 'dast-user-03', 'dast-tenant-01')
 ON CONFLICT (id) DO NOTHING;
 
 -- Row-count summary so the seeding step's output shows what the scan sees.
