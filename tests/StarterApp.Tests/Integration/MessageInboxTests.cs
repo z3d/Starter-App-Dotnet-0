@@ -7,6 +7,7 @@ public class MessageInboxTests : IAsyncLifetime
 {
     private readonly ApiTestFixture _fixture;
     private NpgsqlDataSource _dataSource = null!;
+    private NpgsqlDataSource _worker = null!;
 
     public MessageInboxTests(ApiTestFixture fixture)
     {
@@ -17,9 +18,14 @@ public class MessageInboxTests : IAsyncLifetime
     {
         await _fixture.ResetDatabaseAsync();
         _dataSource = NpgsqlDataSource.Create(_fixture.ConnectionString);
+        _worker = NpgsqlDataSource.Create(_fixture.WorkerConnectionString);
     }
 
-    public async Task DisposeAsync() => await _dataSource.DisposeAsync();
+    public async Task DisposeAsync()
+    {
+        await _dataSource.DisposeAsync();
+        await _worker.DisposeAsync();
+    }
 
     [Fact]
     public async Task ProcessOnce_ARedeliveredMessage_RunsTheWorkOnce()
@@ -90,5 +96,5 @@ public class MessageInboxTests : IAsyncLifetime
     }
 
     private PostgresMessageInbox CreateInbox() =>
-        new(_dataSource, retentionDays: 7, TimeProvider.System, NullLogger<PostgresMessageInbox>.Instance);
+        new(_worker, retentionDays: 7, TimeProvider.System, NullLogger<PostgresMessageInbox>.Instance);
 }

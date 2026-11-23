@@ -14,6 +14,8 @@ public class MigrationCompatibilityConventionTests
     private static readonly Regex UniqueIndex = new(@"\bCREATE\s+UNIQUE\s+INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?\w+\s+ON\s+(?<table>[\w.]+)", RegexOptions.IgnoreCase);
     private static readonly Regex RowSecurityOn = new(@"\bALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?(?<table>[\w.]+)\s[^;]*?\b(?:ENABLE|FORCE)\s+ROW\s+LEVEL\s+SECURITY", RegexOptions.IgnoreCase);
     private static readonly Regex AddedColumn = new(@"\bADD\s+(?:COLUMN\s+)?(?:IF\s+NOT\s+EXISTS\s+)?(?!CONSTRAINT\b)(?<definition>[^,;]+)", RegexOptions.IgnoreCase);
+    // A function's body runs when something calls it, not when the migration creates it; a DO block's runs now and is still checked.
+    private static readonly Regex FunctionBody = new(@"(?<=\bCREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\b[^$]*?)\bAS\s+(?<tag>\$\w*\$)[\s\S]*?\k<tag>", RegexOptions.IgnoreCase);
 
     private static readonly (Regex Pattern, string Statement)[] Forbidden =
     [
@@ -83,6 +85,8 @@ public class MigrationCompatibilityConventionTests
     [InlineData("TRUNCATE customers;", "TRUNCATE")]
     [InlineData("SELECT 1;\nTRUNCATE TABLE customers;", "TRUNCATE")]
     [InlineData("DELETE FROM customers WHERE phone IS NULL;", "DELETE FROM")]
+    [InlineData("DO $$ BEGIN DELETE FROM customers WHERE phone IS NULL; END $$;", "DELETE FROM")]
+    [InlineData("CREATE FUNCTION f() RETURNS void LANGUAGE sql AS $fn$ SELECT 1 $fn$;\nDROP TABLE customers;", "DROP TABLE")]
     [InlineData("ALTER TABLE customers ADD COLUMN phone varchar(32) NOT NULL;", "NOT NULL without DEFAULT")]
     [InlineData("ALTER TABLE customers ADD phone varchar(32) NOT NULL;", "NOT NULL without DEFAULT")]
     [InlineData("ALTER TABLE customers ADD CONSTRAINT uq_customers_phone UNIQUE (phone);", "UNIQUE")]
@@ -110,6 +114,8 @@ public class MigrationCompatibilityConventionTests
     [InlineData("ALTER TABLE customers ALTER COLUMN phone DROP NOT NULL;")]
     [InlineData("ALTER TABLE customers DROP CONSTRAINT uq_customers_phone;")]
     [InlineData("-- DROP TABLE customers; is only a comment\nCREATE INDEX ix_customers_phone ON customers (phone);")]
+    [InlineData("CREATE FUNCTION s.drop_old(months integer) RETURNS integer LANGUAGE plpgsql AS $fn$\nBEGIN\n    EXECUTE format('DROP TABLE %s', 's.t_old');\n    RETURN 1;\nEND\n$fn$;")]
+    [InlineData("CREATE OR REPLACE FUNCTION s.f() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN DELETE FROM s.t; RETURN NULL; END $$;")]
     [InlineData("CREATE TABLE invoices (tenant_id varchar(100) NOT NULL);\nALTER TABLE invoices ENABLE ROW LEVEL SECURITY, FORCE ROW LEVEL SECURITY;")]
     [InlineData("CREATE POLICY tenant_isolation_customers ON customers USING (tenant_id = 'a') WITH CHECK (tenant_id = 'a');")]
     public void AnExpandScript_AllowsWhatThePreviousBuildSurvives(string sql)
@@ -198,7 +204,7 @@ public class MigrationCompatibilityConventionTests
 
     internal static IReadOnlyList<string> BlockingIndexFailures(string sql)
     {
-        var body = Regex.Replace(Regex.Replace(sql, @"--[^\r\n]*", ""), @"/\*[\s\S]*?\*/", "").Replace("\"", "");
+        var body = FunctionBody.Replace(Regex.Replace(Regex.Replace(sql, @"--[^\r\n]*", ""), @"/\*[\s\S]*?\*/", "").Replace("\"", ""), "AS '' ");
         var created = CreatedTable.Matches(body).Select(match => match.Groups["table"].Value.ToLowerInvariant()).ToHashSet(StringComparer.Ordinal);
         return AnyIndex.Matches(body)
             .Where(match => !match.Groups["concurrently"].Success && !created.Contains(match.Groups["table"].Value.ToLowerInvariant()))
@@ -234,7 +240,7 @@ public class MigrationCompatibilityConventionTests
             return failures;
         }
 
-        var body = Regex.Replace(Regex.Replace(sql, @"--[^\r\n]*", ""), @"/\*[\s\S]*?\*/", "").Replace("\"", "");
+        var body = FunctionBody.Replace(Regex.Replace(Regex.Replace(sql, @"--[^\r\n]*", ""), @"/\*[\s\S]*?\*/", "").Replace("\"", ""), "AS '' ");
         var created = CreatedTable.Matches(body).Select(match => match.Groups["table"].Value.ToLowerInvariant()).ToHashSet(StringComparer.Ordinal);
 
         failures.AddRange(Forbidden

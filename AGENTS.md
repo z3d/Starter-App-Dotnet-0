@@ -143,6 +143,7 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Outbox / eventing / OIDC identity / payload capture internals | `docs/DECISIONS.md` |
 | Replaying a stuck or dead-lettered event | `docs/runbooks/event-replay.md` |
 | A scheduled job failed or didn't run; the alert queries | `docs/runbooks/scheduled-jobs.md` |
+| A deployment that forces a tenant policy or moves the API and worker to their own logins (not a rolling one) | `docs/runbooks/deployment.md` |
 | Recurring async-failure patterns and known defects | `docs/investigations/README.md` |
 | Perf gate, security scan | `tests/k6/README.md`, `dast/README.md` |
 | Running the stack for the first time (human onboarding) | `docs/GETTING-STARTED.md` |

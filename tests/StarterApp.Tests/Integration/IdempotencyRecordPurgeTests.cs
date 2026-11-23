@@ -7,6 +7,7 @@ public class IdempotencyRecordPurgeTests : IAsyncLifetime
 {
     private readonly ApiTestFixture _fixture;
     private NpgsqlDataSource _dataSource = null!;
+    private NpgsqlDataSource _worker = null!;
 
     public IdempotencyRecordPurgeTests(ApiTestFixture fixture)
     {
@@ -17,9 +18,14 @@ public class IdempotencyRecordPurgeTests : IAsyncLifetime
     {
         await _fixture.ResetDatabaseAsync();
         _dataSource = NpgsqlDataSource.Create(_fixture.ConnectionString);
+        _worker = NpgsqlDataSource.Create(_fixture.WorkerConnectionString);
     }
 
-    public async Task DisposeAsync() => await _dataSource.DisposeAsync();
+    public async Task DisposeAsync()
+    {
+        await _dataSource.DisposeAsync();
+        await _worker.DisposeAsync();
+    }
 
     [Fact]
     public async Task RecordsOlderThanTheCutoffGo_AndNewerOnesStay()
@@ -36,7 +42,7 @@ public class IdempotencyRecordPurgeTests : IAsyncLifetime
             await insert.ExecuteNonQueryAsync();
         }
 
-        var result = await new IdempotencyRecordPurge(_dataSource).DeleteOlderThanAsync(now.AddDays(-30), TimeSpan.FromMinutes(1), TimeProvider.System, CancellationToken.None);
+        var result = await new IdempotencyRecordPurge(_worker).DeleteOlderThanAsync(now.AddDays(-30), TimeSpan.FromMinutes(1), TimeProvider.System, CancellationToken.None);
 
         Assert.Equal(2, result.Deleted);
         Assert.False(result.BudgetExhausted);

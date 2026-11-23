@@ -30,8 +30,11 @@ public class DbUpApiTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        // No additional cleanup needed for each test
-        await Task.CompletedTask;
+        // The catalog tests read every table in this shared database, so the journal these tests make must not outlive them.
+        await using var connection = new NpgsqlConnection(_fixture.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand("DROP TABLE IF EXISTS public.custom_schema_versions, public.test_table", connection);
+        await command.ExecuteNonQueryAsync();
     }
 
     [Fact]

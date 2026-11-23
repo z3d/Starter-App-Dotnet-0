@@ -92,6 +92,10 @@ stated reason in `TenantRowSecurityRules.PlatformTables`; it keeps checking afte
 because it selects by the rule, not by the sample's names. Removing the sample removes its policies with
 its tables; nothing else of this goes.
 
+A project that already had tenant policies written with `USING` alone needs no new policies to take this:
+`ALTER POLICY ... WITH CHECK (<the same expression>)` in an Expand script gives the catalog rule the shape
+it reads and changes nothing for a caller, since PostgreSQL already applied `USING` to a written row.
+
 A derived project that will only ever serve one business still keeps it. The tenant is then the one
 business, bound from the token's tenant claim like any other: the columns, policies and logins cost a
 module nothing, and taking a second business later would otherwise mean a migration of every table with

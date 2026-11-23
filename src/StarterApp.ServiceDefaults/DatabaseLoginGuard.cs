@@ -11,7 +11,7 @@ namespace StarterApp.ServiceDefaults;
 public static class DatabaseLoginGuard
 {
     public const string ViolationsSql = """
-        WITH login AS (SELECT oid, rolname, rolsuper, rolbypassrls, rolcreaterole FROM pg_roles WHERE rolname IN (COALESCE(@login, session_user), COALESCE(@login, current_user)))
+        WITH login AS (SELECT oid, rolname, rolsuper, rolbypassrls, rolcreaterole FROM pg_roles WHERE rolname = @login OR (@login IS NULL AND rolname IN (session_user, current_user)))
         SELECT 'is a superuser' FROM login WHERE rolsuper
         UNION ALL
         SELECT 'may bypass row-level security' FROM login WHERE rolbypassrls

@@ -17,7 +17,7 @@ public class JobRunRecorderTests : IAsyncLifetime
     public async Task DisposeAsync() => await Task.CompletedTask;
 
     private NpgsqlJobRunRecorder CreateRecorder(int retentionDays = 30) =>
-        new(NpgsqlDataSource.Create(_fixture.ConnectionString), retentionDays, new LoggerFactory().CreateLogger<NpgsqlJobRunRecorder>(), TimeProvider.System);
+        new(NpgsqlDataSource.Create(_fixture.WorkerConnectionString), retentionDays, new LoggerFactory().CreateLogger<NpgsqlJobRunRecorder>(), TimeProvider.System);
 
     [Fact]
     public async Task StartAndComplete_PersistsTheFullRunRecord()
@@ -102,7 +102,7 @@ public class JobRunRecorderTests : IAsyncLifetime
         await recorder.StartRunAsync("payload-archive-cleanup", at.AddMinutes(10), CancellationToken.None);
         await recorder.RecordRunAsync("nightly-report", at, at.AddMinutes(1), "Degraded", "{}", CancellationToken.None);
         await recorder.RecordRunAsync("outbox-processor", at, at, "Succeeded", "{}", CancellationToken.None);
-        var history = new NpgsqlJobRunHistory(NpgsqlDataSource.Create(_fixture.ConnectionString));
+        var history = new NpgsqlJobRunHistory(NpgsqlDataSource.Create(_fixture.WorkerConnectionString));
 
         var runs = await history.LastRunsAsync(["payload-archive-cleanup", "nightly-report", "never-run"], CancellationToken.None);
 
@@ -125,7 +125,7 @@ public class JobRunRecorderTests : IAsyncLifetime
         await recorder.StartRunAsync("fine-then-killed", at.AddHours(2), CancellationToken.None);
         await recorder.StartRunAsync("always-killed", at.AddHours(1), CancellationToken.None);
         await recorder.StartRunAsync("always-killed", at.AddHours(2), CancellationToken.None);
-        var history = new NpgsqlJobRunHistory(NpgsqlDataSource.Create(_fixture.ConnectionString));
+        var history = new NpgsqlJobRunHistory(NpgsqlDataSource.Create(_fixture.WorkerConnectionString));
 
         var runs = await history.LastRunsAsync(["killed-then-fine", "fine-then-killed", "always-killed"], CancellationToken.None);
 
@@ -141,8 +141,8 @@ public class JobRunRecorderTests : IAsyncLifetime
         var now = DateTimeOffset.UtcNow;
         var first = now.AddTicks(-(now.Ticks % TimeSpan.TicksPerSecond)).AddHours(-3);
 
-        var seen = await new NpgsqlJobRunHistory(NpgsqlDataSource.Create(_fixture.ConnectionString)).WatchedSinceAsync(["nightly-report"], first, CancellationToken.None);
-        var afterARestart = await new NpgsqlJobRunHistory(NpgsqlDataSource.Create(_fixture.ConnectionString)).WatchedSinceAsync(["nightly-report", "added-later"], first.AddHours(2), CancellationToken.None);
+        var seen = await new NpgsqlJobRunHistory(NpgsqlDataSource.Create(_fixture.WorkerConnectionString)).WatchedSinceAsync(["nightly-report"], first, CancellationToken.None);
+        var afterARestart = await new NpgsqlJobRunHistory(NpgsqlDataSource.Create(_fixture.WorkerConnectionString)).WatchedSinceAsync(["nightly-report", "added-later"], first.AddHours(2), CancellationToken.None);
 
         Assert.Equal(first, seen["nightly-report"]);
         Assert.Equal(first, afterARestart["nightly-report"]);
