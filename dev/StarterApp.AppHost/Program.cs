@@ -289,10 +289,11 @@ web.WithEnvironment("VITE_OIDC_AUTHORITY", ReferenceExpression.Create($"{keycloa
 // The Service Bus subscribers run in the Functions base image locally too, so they behave the same
 // as the deployed worker.
 var functions = builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Functions/Dockerfile")
-       // The Functions host serves a landing page on port 8080 once the worker is up. Exposing it lets the
-       // end-to-end tests and the dashboard see that the slowest resource is really ready. The API's
-       // readiness probe says nothing about this container.
+       // The worker answers /api/health on port 8080 once it can read each of its subscriptions and reach the
+       // database. Exposing it lets the end-to-end tests and the dashboard see that the slowest resource is
+       // really ready. The API's readiness probe says nothing about this container.
        .WithHttpEndpoint(targetPort: 8080)
+       .WithHttpHealthCheck("/api/health")
        .WithReference(payloadArchive)
        .WithEnvironment("FUNCTIONS_WORKER_RUNTIME", "dotnet-isolated")
        // The Functions image only writes the host's own lines (start-up, trigger listeners, invocations)

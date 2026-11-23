@@ -189,7 +189,9 @@ public class HousekeepingConventionTests : ConventionTestBase
         Assert.Contains("AzureWebJobsStorage", appHostProgram);
         Assert.Contains("servicebus", appHostProgram);
         Assert.Contains("ConnectionStrings__payloadarchive", appHostProgram);
-        Assert.Contains("FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0", functionsDockerfile);
+        Assert.Contains("FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0", functionsDockerfile);
+        // A registry build that scans the file for base images cannot read a FROM with options, and fails.
+        Assert.DoesNotContain("FROM --platform", functionsDockerfile);
         Assert.Contains("dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Release -o /app/publish", functionsDockerfile);
         Assert.DoesNotContain("--no-restore", functionsDockerfile);
     }

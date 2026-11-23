@@ -36,7 +36,8 @@ health, logs, traces, and endpoints. The Scalar API reference is at `/scalar` on
 endpoint in Development.
 
 The Functions image is published for `linux/amd64`; on Apple Silicon it runs under emulation and
-starts slowly. If the Service Bus emulator crash-loops or a container is stuck, follow
+starts slowly. It is ready when its `/api/health` answers 200; a 503 names the subscription or the
+database it cannot reach. If the Service Bus emulator crash-loops or a container is stuck, follow
 `.claude/skills/development-workflow/SKILL.md`.
 
 Pass `--devtunnel` (or set `ENABLE_DEV_TUNNEL=true`) to expose the API through a dev tunnel for

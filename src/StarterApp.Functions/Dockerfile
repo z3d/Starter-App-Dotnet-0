@@ -23,7 +23,8 @@ COPY src/StarterApp.ServiceDefaults/ src/StarterApp.ServiceDefaults/
 # same tree passes locally), so a Windows clone cannot build the image the E2E suite boots.
 RUN dotnet publish src/StarterApp.Functions/StarterApp.Functions.csproj -c Release -o /app/publish -p:EnforceCodeStyleInBuild=false
 
-FROM --platform=linux/amd64 mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0@sha256:6990da543e1dc1c7bb8d8d32c702c87a525db7b8ea621e645b479c822ed72c6d
+# The digest is the linux/amd64 build itself, the only one published, not the index over it: an ARM host then needs no --platform, which a registry build that scans this file for base images cannot read.
+FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0@sha256:5ce2817102f23cb37eb4e49948d5b61fc959873caa4897048430ad15ce019ccb
 # The base still ships apt 2.8.3 (CVE-2026-109518); drop this once its digest carries 2.8.4ubuntu0.1.
 RUN apt-get update && apt-get install -y --no-install-recommends --only-upgrade apt libapt-pkg6.0t64 && rm -rf /var/lib/apt/lists/*
 # The base ships C build headers (libc6-dev pulls in linux-libc-dev, whose kernel CVEs fail the scan); nothing at runtime uses them.

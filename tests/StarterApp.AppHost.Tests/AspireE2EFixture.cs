@@ -51,7 +51,7 @@ public sealed class AspireE2EFixture : IAsyncLifetime
     private async Task WaitForFunctionsAsync()
     {
         using var functionsClient = App.CreateHttpClient("functions");
-        await WaitForHttpOkAsync(functionsClient, "/", "functions", FunctionsBootTimeout);
+        await WaitForHttpOkAsync(functionsClient, "/api/health", "functions", FunctionsBootTimeout);
     }
 
     private async Task WaitForHttpOkAsync(HttpClient client, string path, string resourceName, TimeSpan timeout)
