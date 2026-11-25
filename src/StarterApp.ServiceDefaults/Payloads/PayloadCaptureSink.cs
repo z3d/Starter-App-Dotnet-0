@@ -48,7 +48,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
                 "Skipped {Direction} {Channel} payload capture for {Operation} with correlation {CorrelationId}: no payload archive store is configured",
                 request.Direction,
                 request.Channel,
-                request.Operation,
+                OneLine(request.Operation),
                 CorrelationContext.Sanitize(request.CorrelationId ?? CorrelationContext.GetOrCreate()));
 
             // A missing store must not quietly fail open. RequireArchiveStore checks this at start-up too, but the two settings can disagree.
@@ -117,13 +117,13 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
                 "Captured {Direction} {Channel} payload for {Operation} with correlation {CorrelationId}. ArchiveBlob: {ArchiveBlobName}. AuditBlob: {AuditBlobName}. EntityIndexBlobs: {EntityIndexBlobNames}. Truncated: {PayloadTruncated}. SkipReason: {PayloadSkipReason}. Payload: {RedactedPayload}",
                 request.Direction,
                 request.Channel,
-                request.Operation,
+                OneLine(request.Operation),
                 correlationId,
                 archiveBlobName,
                 auditBlobName,
                 entityIndexBlobNames.Count == 0 ? "(none)" : string.Join(",", entityIndexBlobNames),
                 request.PayloadTruncated,
-                request.PayloadSkipReason ?? "(none)",
+                OneLine(request.PayloadSkipReason ?? "(none)"),
                 redactedPayload);
         }
         catch (Exception ex) when (ex is not OperationCanceledException && _options.FailureModeFor(request.Channel) == PayloadCaptureFailureMode.FailOpen)
@@ -132,7 +132,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
                 "Payload capture failed for {Direction} {Channel} {Operation} with correlation {CorrelationId}; continuing because FailureMode is FailOpen",
                 request.Direction,
                 request.Channel,
-                request.Operation,
+                OneLine(request.Operation),
                 correlationId);
             return null;
         }
@@ -156,7 +156,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
                 "Deferred entity-index write failed for {Direction} {Channel} {Operation} with correlation {CorrelationId}; continuing because FailureMode is FailOpen",
                 record.Direction,
                 record.Channel,
-                record.Operation,
+                OneLine(record.Operation),
                 record.CorrelationId);
         }
     }
@@ -212,7 +212,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
                 auditBlobName,
                 request.Direction,
                 request.Channel,
-                request.Operation);
+                OneLine(request.Operation));
         }
     }
 
@@ -258,7 +258,7 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
                 "Payload redaction failed for {Direction} {Channel} {Operation}; suppressing payload in operational logs",
                 request.Direction,
                 request.Channel,
-                request.Operation);
+                OneLine(request.Operation));
             return "[payload redaction failed]";
         }
     }
@@ -327,4 +327,8 @@ public sealed class PayloadCaptureSink : IPayloadCaptureSink
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
+
+    // An operation is a request's method and path, which a caller writes; a line break in it would start a false log line.
+    private static string OneLine(string value) =>
+        value.Replace("\r", string.Empty, StringComparison.Ordinal).Replace("\n", string.Empty, StringComparison.Ordinal);
 }

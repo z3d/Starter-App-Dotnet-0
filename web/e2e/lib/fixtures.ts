@@ -107,7 +107,8 @@ export async function signInAtKeycloak(page: Page, user: { username: string; pas
 
 // The API directly, as a person, for setting up and tidying after a test. The dev API serves
 // HTTPS with the development certificate, which Node does not trust by itself.
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+// Only for an API on this machine: a certificate anywhere else is checked.
+if (/^https:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(apiUrl)) process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 export async function apiAs(user: DevUser) {
   const { access_token } = await tokensFor(user)
   const call = async (method: string, path: string, body?: unknown, tolerated: number[] = []) => {

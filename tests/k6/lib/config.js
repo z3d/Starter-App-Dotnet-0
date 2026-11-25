@@ -1,3 +1,5 @@
+import { randomBytes } from 'k6/crypto';
+
 export const BASE_URL = __ENV.K6_BASE_URL || 'http://localhost:8080';
 
 // Volume floor for list-endpoint checks: a fast-but-empty response must not
@@ -52,10 +54,15 @@ export function uniqueSuffix() {
   return `${__VU}-${__ITER}-${Date.now()}`;
 }
 
+// From the system's random source, not Math.random: these values reach names, emails and amounts the API is sent.
+function random() {
+  return new Uint32Array(randomBytes(4))[0] / 4294967296;
+}
+
 export function randomItem(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
+  return arr[Math.floor(random() * arr.length)];
 }
 
 export function randomInt(min, max) {
-  return min + Math.floor(Math.random() * (max - min + 1));
+  return min + Math.floor(random() * (max - min + 1));
 }
