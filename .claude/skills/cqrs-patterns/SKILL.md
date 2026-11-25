@@ -19,7 +19,9 @@ Read a real handler before writing one. `docs/exemplars/command-handlers/` and `
 - **Inject `IOwnerOnlyPolicy` and actually invoke it.** Convention tests IL-scan through async state machines for a real call — injecting without calling fails the build. → [reference/owner-scoping.md](reference/owner-scoping.md)
 - **Every command and every query needs an `IValidator<T>`**, including trivial ones. This is deliberate for an agent-maintained codebase: it removes the judgment call about which requests "need" validation. Validators shadow domain guards, so when you change one, check the other — the guard throws as a last defense, the validator returns structured multi-error output for API UX.
 
-Registration is one line — `builder.Services.AddMediator(Assembly.GetExecutingAssembly())` — and discovers every handler.
+- **The worker reaches a handler only through `IWorkerOperations`** (`Infrastructure/Worker`), which sends the request through the mediator in the worker's process. A request the worker sends goes in `WorkerConventionTests.WorkerRequests`, its tables in `ApplicationRoleSetup.WorkerGrants`, and a case in `WorkerOperationsTests`.
+
+Handlers live in `src/StarterApp.Application`, which both hosts run. Registration is `builder.AddApplication(connectionString)`, whose `AddMediator(typeof(IApplicationMarker).Assembly)` discovers every handler; the web host's own assembly holds none.
 
 ## Depth
 

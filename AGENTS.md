@@ -122,6 +122,7 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | The `Consistency/` test suite is advisory and human-read; builds never gate on a distance | Two consecutive dated reviews record that no report line informed a finding |
 | Managed identity everywhere when published: Seq is not published, Redis becomes Azure Managed Redis (keys disabled), Keycloak's admin password is a generated secret | None — a dependency that cannot take a managed identity is replaced or dropped, never given a key |
 | One OIDC issuer: `Identity:Authority`, plus `Identity:MetadataAddress` when discovery is fetched over another hostname | One API must accept tokens from a second issuer — an `Authentication:Issuers[]` list and a policy scheme that forwards on the token's issuer, never a second `AddJwtBearer` |
+| The worker sends the application's requests through the mediator in its own process (`IWorkerOperations`), never over HTTP to the API and never with SQL of its own on the application's tables; `src/StarterApp.Application` holds what both hosts run, the web host keeps `Program.cs` and the endpoints, and the worker's login holds only `WorkerGrants` | None — a request the worker needs is a method on `IWorkerOperations`, an entry in `WorkerRequests` and `WorkerGrants`, and a case in `WorkerOperationsTests` |
 | Tenant isolation is the database's: forced row-level security on every table with a `tenant_id`, the API and worker on logins that cannot bypass it, the tenant bound on every connection open; never pruned in a multi-tenant product | None — a deployment that cannot give the API a login of its own is not supported |
 | The Entra token is the database credential in every process; a password-less connection string means the hosting identity (the named user, or the token's own principal when none is named), and raw `new NpgsqlConnection` / `UseNpgsql(string)` are banned | A PostgreSQL host with no Entra support (self-hosted) — already handled: a string with a password is used as given; never add a second credential mechanism |
 
@@ -143,6 +144,7 @@ Each of these was chosen against a reasonable alternative and carries a **re-add
 | Outbox / eventing / OIDC identity / payload capture internals | `docs/DECISIONS.md` |
 | Replaying a stuck or dead-lettered event | `docs/runbooks/event-replay.md` |
 | A scheduled job failed or didn't run; the alert queries | `docs/runbooks/scheduled-jobs.md` |
+| A derived project taking the in-process worker: what moves, the three quiet breaks, removing a worker that calls the API | `docs/runbooks/worker-in-process.md` |
 | A deployment that forces a tenant policy or moves the API and worker to their own logins (not a rolling one) | `docs/runbooks/deployment.md` |
 | Recurring async-failure patterns and known defects | `docs/investigations/README.md` |
 | Perf gate, security scan | `tests/k6/README.md`, `dast/README.md` |

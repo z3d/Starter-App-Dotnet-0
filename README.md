@@ -56,7 +56,7 @@ starterapp/
 │   ├── StarterApp.Application/      # What the API and the worker both run: handlers, mediator, EF and Dapper, outbox, identity, payload capture
 │   ├── StarterApp.SharedKernel/     # AggregateRoot, IDomainEvent, domain exceptions, Email and Money
 │   ├── StarterApp.Domain/           # The Customer/Product/Order sample: aggregates and domain events
-│   ├── StarterApp.Functions/        # Service Bus subscribers, archive cleanup, job watch
+│   ├── StarterApp.Functions/        # Service Bus subscribers (calling the application in process), archive cleanup, job watch
 │   ├── StarterApp.DbMigrator/       # DbUp migrations and the replay-outbox verb
 │   └── StarterApp.ServiceDefaults/  # Shared Aspire wiring, database authentication, job-run recording
 ├── dev/

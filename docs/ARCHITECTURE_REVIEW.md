@@ -183,6 +183,13 @@ Each was seen where an app built on this template was used or shown, and is fixe
 - **FIXED 2026-11-23: one owner check let a handler change any owned row in the request.** `OwnerAuthorizationWriteGuard` now refuses, at `SaveChanges`, an added, changed or deleted row with an owner and a tenant that are not the caller's. `ExecuteUpdate`/`ExecuteDelete` still rely on the single mark, since they bypass the change tracker.
 - **FIXED 2026-11-23: deployed, the worker had no database identity and a missing connection string turned deduplication off silently.** The worker has its own identity and login, waits for the migrator, and refuses to start outside Development with no `ConnectionStrings:database`.
 - **OPEN: the deployed logins are unproven against a live server.** Publish mode now makes only the migrator an Entra administrator and gives the API and the worker identities the migrator turns into principals with `pgaadauth_create_principal_with_oid`; that the administrator may call it and grant the roles, and that the identity's token signs in as that principal, is checked at the first deployment, not here. `DatabaseLoginGuard` refuses to start a process whose login could bypass the policies.
+### Found while moving the worker in process (25 November 2026)
+
+- **FIXED 2026-11-25: the worker could reach the application's handlers only by calling the API over HTTP or by writing tables itself**, because everything both hosts run lived in the web project. Now `StarterApp.Application` holds it and the worker sends requests through `IWorkerOperations` in its own process (`docs/DECISIONS.md`, "The worker calls the application's handlers in its own process").
+- **FIXED 2026-11-25: the worker's login was granted every table.** It now holds only `ApplicationRoleSetup.WorkerGrants`, and `TenantRowSecurityTests` holds it there.
+- **FIXED 2026-11-25: after the move, `AddMediator(Assembly.GetExecutingAssembly())` in the API's `Program.cs` would have registered no handler**, and the conventions that read `typeof(IApiMarker).Assembly` would have checked the host, which holds none. Both read the application's assembly; `ProjectLayoutConventionTests` fails a stale `InternalsVisibleTo` and a literal test path into the solution that does not exist.
+- **OPEN: the published worker's access to Azure Managed Redis is unproven.** The AppHost gives the worker `WithReference(redis)` as it gives the API, which in publish mode should assign its identity a role on the cache; it was not deployed or read in the generated Bicep here.
+
 ## Accepted with a trigger
 
 - **Folder-only Clean Architecture (2026-06-09).** `Domain` is compiler-enforced; the handlers
