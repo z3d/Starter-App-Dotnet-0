@@ -1,0 +1,22 @@
+namespace StarterApp.Application.Validators;
+
+public class UpdateCustomerCommandValidator : IValidator<UpdateCustomerCommand>
+{
+    public IEnumerable<ValidationError> Validate(UpdateCustomerCommand request)
+    {
+        if (request.Id <= 0)
+            yield return new ValidationError(nameof(request.Id), "Id must be a positive integer");
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+            yield return new ValidationError(nameof(request.Name), "Name is required");
+        else if (request.Name.Length > Customer.MaxNameLength)
+            yield return new ValidationError(nameof(request.Name), $"Name must not exceed {Customer.MaxNameLength} characters");
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+            yield return new ValidationError(nameof(request.Email), "Email is required");
+        else if (request.Email.Length > Email.MaxEmailLength)
+            yield return new ValidationError(nameof(request.Email), $"Email must not exceed {Email.MaxEmailLength} characters");
+        else if (!Email.IsValidAddress(request.Email))
+            yield return new ValidationError(nameof(request.Email), "Email must be a valid email address");
+    }
+}

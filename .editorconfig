@@ -87,7 +87,7 @@ dotnet_diagnostic.CA1873.severity = suggestion
 dotnet_diagnostic.CA2007.severity = none
 dotnet_diagnostic.CA2227.severity = none
 
-[src/StarterApp.Api/Infrastructure/Payloads/PayloadCaptureMiddleware.cs]
+[src/StarterApp.Application/Infrastructure/Payloads/PayloadCaptureMiddleware.cs]
 # BoundedCaptureStream forwards to the ASP.NET response body but does not own it.
 dotnet_diagnostic.CA2213.severity = none
 
@@ -106,7 +106,7 @@ dotnet_diagnostic.RS0030.severity = none
 # A console tool with no container; its Serilog logger is built in Program.cs.
 dotnet_diagnostic.RS0030.severity = none
 
-[src/StarterApp.Api/Infrastructure/DbUpdateExceptionExtensions.cs]
+[src/StarterApp.Application/Infrastructure/DbUpdateExceptionExtensions.cs]
 # CA1034 reads a C# 14 extension block as a nested type; there is no nested type to un-nest.
 dotnet_diagnostic.CA1034.severity = none
 

@@ -1,4 +1,4 @@
-using StarterApp.Api.Infrastructure.Persistence;
+using StarterApp.Application.Infrastructure.Persistence;
 
 namespace StarterApp.Tests.Infrastructure.Persistence;
 

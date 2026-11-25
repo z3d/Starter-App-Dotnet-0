@@ -9,7 +9,7 @@ public class CommandHandlerGovernanceTests : CohortGovernanceTestBase<HandlerFin
 {
     protected override ICohortDefinition<HandlerFingerprint> Cohort { get; } = new CommandHandlerCohort();
     protected override string ExemplarDocsFolder => "command-handlers";
-    protected override string SourceTreeRelativePath => Path.Combine("src", "StarterApp.Api", "Application");
+    protected override string SourceTreeRelativePath => Path.Combine("src", "StarterApp.Application");
     protected override string SourceFileGlob => "*Command.cs";
     protected override string SourceFileNameToTypeName(string fileNameWithoutExtension) =>
         fileNameWithoutExtension + "Handler";

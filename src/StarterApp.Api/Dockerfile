@@ -13,6 +13,8 @@ COPY ["NuGet.config", "NuGet.config"]
 # Copy csproj + packages.lock.json files first for better layer caching
 COPY ["src/StarterApp.Api/StarterApp.Api.csproj", "src/StarterApp.Api/"]
 COPY ["src/StarterApp.Api/packages.lock.json", "src/StarterApp.Api/"]
+COPY ["src/StarterApp.Application/StarterApp.Application.csproj", "src/StarterApp.Application/"]
+COPY ["src/StarterApp.Application/packages.lock.json", "src/StarterApp.Application/"]
 COPY ["src/StarterApp.Domain/StarterApp.Domain.csproj", "src/StarterApp.Domain/"]
 COPY ["src/StarterApp.Domain/packages.lock.json", "src/StarterApp.Domain/"]
 COPY ["src/StarterApp.SharedKernel/StarterApp.SharedKernel.csproj", "src/StarterApp.SharedKernel/"]

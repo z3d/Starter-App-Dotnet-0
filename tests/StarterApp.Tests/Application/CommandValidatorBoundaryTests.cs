@@ -1,4 +1,4 @@
-using StarterApp.Api.Application.Validators;
+using StarterApp.Application.Validators;
 
 namespace StarterApp.Tests.Application;
 

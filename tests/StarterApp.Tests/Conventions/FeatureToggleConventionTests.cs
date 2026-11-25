@@ -5,7 +5,7 @@ public class FeatureToggleConventionTests : ConventionTestBase
     [Fact]
     public void FeatureToggles_MustBeOnRequestTypes_NeverOnHandlers()
     {
-        var violations = ApiAssembly.GetTypes()
+        var violations = ApplicationTypes()
             .Where(t => t.GetCustomAttribute<FeatureToggleAttribute>(inherit: false) is not null)
             .Where(t => !t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>)))
             .Select(t => t.FullName ?? t.Name)
@@ -20,7 +20,7 @@ public class FeatureToggleConventionTests : ConventionTestBase
     [Fact]
     public void FeatureToggleNames_MustBeUnique()
     {
-        var duplicates = ApiAssembly.GetTypes()
+        var duplicates = ApplicationTypes()
             .Select(t => (Type: t, Attribute: t.GetCustomAttribute<FeatureToggleAttribute>(inherit: false)))
             .Where(x => x.Attribute is not null)
             .GroupBy(x => x.Attribute!.Name, StringComparer.Ordinal)
@@ -36,7 +36,7 @@ public class FeatureToggleConventionTests : ConventionTestBase
     [Fact]
     public void FeatureToggleNames_MustHaveExplicitConfigurationEntries()
     {
-        var declared = ApiAssembly.GetTypes()
+        var declared = ApplicationTypes()
             .Select(t => t.GetCustomAttribute<FeatureToggleAttribute>(inherit: false))
             .Where(a => a is not null)
             .Select(a => a!.Name)

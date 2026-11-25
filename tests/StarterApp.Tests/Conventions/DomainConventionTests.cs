@@ -57,7 +57,7 @@ public class DomainConventionTests : ConventionTestBase
     [Fact]
     public void DTOs_ShouldHavePublicGetters()
     {
-        var dtoTypes = ApiAssembly.GetTypes()
+        var dtoTypes = ApplicationTypes()
             .Where(t => t.Name.EndsWith("Dto") || t.Name.EndsWith("ReadModel"));
         dtoTypes
             .MustConformTo(Convention.PropertiesMustHavePublicGetters)

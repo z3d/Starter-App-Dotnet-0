@@ -1,7 +1,7 @@
 ---
 paths:
-  - "src/StarterApp.Api/**/Commands/**"
-  - "src/StarterApp.Api/**/Queries/**"
+  - "src/StarterApp.Application/Commands/**"
+  - "src/StarterApp.Application/Queries/**"
   - "docs/exemplars/**"
 ---
 # Handler exemplars

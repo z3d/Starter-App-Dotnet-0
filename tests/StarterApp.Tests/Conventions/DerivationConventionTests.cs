@@ -31,7 +31,7 @@ public class DerivationConventionTests : ConventionTestBase
     internal static List<string> SamplePageLeftovers(string repoRoot) =>
         Directory.Exists(Path.Combine(repoRoot, SamplePage)) ? [SamplePage] : [];
 
-    private static string AppPrefix => ApiAssembly.GetName().Name!.Split('.')[0];
+    private static string AppPrefix => ApplicationAssembly.GetName().Name!.Split('.')[0];
 
     internal static List<string> SampleDomainProjectLeftovers(string repoRoot, string appPrefix)
     {
@@ -52,7 +52,7 @@ public class DerivationConventionTests : ConventionTestBase
     [DerivedProjectFact]
     public void DerivedProject_WithAModule_MustNotKeepSupportNoModuleUses()
     {
-        var unused = SupportNoModuleUses(ApiAssembly.GetTypes());
+        var unused = SupportNoModuleUses(ApplicationTypes().ToList());
 
         Assert.True(unused.Count == 0,
             "These support capabilities have no module consumer. Use them from a module, or remove the capability " +
@@ -132,10 +132,10 @@ public class DerivationConventionTests : ConventionTestBase
 public sealed class DerivedProjectFactAttribute : FactAttribute
 {
     public const string NotApplicable =
-        "Not applicable in the template: no module under Api/Modules yet, so there is nothing to prune (docs/DERIVATION-PRUNING.md).";
+        "Not applicable in the template: no module under Application/Modules yet, so there is nothing to prune (docs/DERIVATION-PRUNING.md).";
 
     public static bool HasModules { get; } =
-        typeof(IApiMarker).Assembly.GetTypes().Any(type => type.Namespace?.Split('.').Contains("Modules") == true);
+        typeof(StarterApp.Application.IApplicationMarker).Assembly.GetTypes().Concat(typeof(IApiMarker).Assembly.GetTypes()).Any(type => type.Namespace?.Split('.').Contains("Modules") == true);
 
     public DerivedProjectFactAttribute()
     {

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Options;
-using StarterApp.Api.Infrastructure.ClientEvents;
+using StarterApp.Application.Infrastructure.ClientEvents;
 
 namespace StarterApp.Tests.Infrastructure;
 

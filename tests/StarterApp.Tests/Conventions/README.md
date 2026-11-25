@@ -11,7 +11,7 @@ Architectural convention tests using [Best.Conventional](https://github.com/andr
 | `CachingConventionTests.cs` | `ICacheable` key/duration rules, deterministic same-id keys, different-id collision prevention, by-id-only caching, and mutation invalidation coverage |
 | `ConventionTestBase.cs` | Shared production assembly refs and compiler-generated type filtering |
 | `CqrsConventionTests.cs` | CQRS data-access separation, command/query handler wiring, validator coverage, marker/request interface pairing, and every query handler's SQL filtering each owned table (read from the migrations) by the caller's subject |
-| `DerivationConventionTests.cs` | Passes in the template; in a derived project, fails from the first `Api/Modules` type until the sample domain and any `ICacheable`/owner-scoping marker no module implements are removed |
+| `DerivationConventionTests.cs` | Passes in the template; in a derived project, fails from the first `Application/Modules` type until the sample domain and any `ICacheable`/owner-scoping marker no module implements are removed |
 | `DapperConventionTests.cs` | SQL literal inspection for `SELECT *` prevention and Dapper retry-policy usage |
 | `DomainConventionTests.cs` | Domain encapsulation, constructors, value-object equality, async safety, `DateTimeOffset` property types, aggregate creation-event rules |
 | `HousekeepingConventionTests.cs` | GlobalUsings reuse; no direct `bin`/`obj` project references; no regions/XML docs/historical workaround comments or commented-out code in production code; no `#pragma warning disable` or `SuppressMessage` in production code |

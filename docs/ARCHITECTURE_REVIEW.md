@@ -185,8 +185,9 @@ Each was seen where an app built on this template was used or shown, and is fixe
 - **OPEN: the deployed logins are unproven against a live server.** Publish mode now makes only the migrator an Entra administrator and gives the API and the worker identities the migrator turns into principals with `pgaadauth_create_principal_with_oid`; that the administrator may call it and grant the roles, and that the identity's token signs in as that principal, is checked at the first deployment, not here. `DatabaseLoginGuard` refuses to start a process whose login could bypass the policies.
 ## Accepted with a trigger
 
-- **Folder-only Clean Architecture (2026-06-09).** `Domain` is compiler-enforced; `Application`
-  and `Infrastructure` are folders inside `StarterApp.Api`, so that boundary is
+- **Folder-only Clean Architecture (2026-06-09).** `Domain` is compiler-enforced; the handlers
+  and `Infrastructure` are folders inside one project, `StarterApp.Application` (apart from the
+  web host since 2026-11-25, so the worker can run them), and that boundary is
   convention-enforced. A full assembly split was designed and deferred as a large refactor for
   marginal gain at three aggregates. The modular-monolith target it would grow into is recorded in
   `DECISIONS.md`. Revisit if the domain grows or a compiler-enforced guarantee is required.

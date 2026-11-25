@@ -9,7 +9,7 @@ namespace StarterApp.Tests.Consistency;
 /// </summary>
 public class EfConfigurationCohort : ICohortDefinition<EfConfigurationFingerprint>
 {
-    private static readonly Assembly ApiAssembly = typeof(StarterApp.Api.Infrastructure.IApiMarker).Assembly;
+    private static readonly Assembly ApplicationAssembly = typeof(StarterApp.Application.IApplicationMarker).Assembly;
 
     public string CohortName => "EfConfigurations";
 
@@ -25,7 +25,7 @@ public class EfConfigurationCohort : ICohortDefinition<EfConfigurationFingerprin
 
     public IReadOnlyList<Type> DiscoverTypes()
     {
-        return ApiAssembly.GetTypes()
+        return ApplicationAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("Configuration"))
             .Where(t => t.GetInterfaces().Any(i =>
                 i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEntityTypeConfiguration<>)))

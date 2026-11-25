@@ -291,7 +291,7 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<StarterApp.Api.Infrastructure.Validation.ValidationException>(
+        await Assert.ThrowsAsync<StarterApp.Application.Infrastructure.Validation.ValidationException>(
             () => handler.HandleAsync(command, CancellationToken.None));
     }
 
@@ -306,7 +306,7 @@ public class CreateOrderCommandHandlerTests : PostgresCommandHandlerTestBase
             Items = [new() { ProductId = 1, Quantity = 1 }, null!]
         };
 
-        var exception = await Assert.ThrowsAsync<StarterApp.Api.Infrastructure.Validation.ValidationException>(
+        var exception = await Assert.ThrowsAsync<StarterApp.Application.Infrastructure.Validation.ValidationException>(
             () => handler.HandleAsync(command, CancellationToken.None));
 
         Assert.Contains(exception.Errors, error => error.PropertyName == nameof(command.Items));

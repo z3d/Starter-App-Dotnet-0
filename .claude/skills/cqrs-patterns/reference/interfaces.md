@@ -1,9 +1,9 @@
 # Mediator Interfaces and Marker Pairings
 
-There is a SINGLE dispatch path. Every request is `IRequest<TResponse>` and every handler implements `IRequestHandler<TRequest, TResponse>` (`src/StarterApp.Api/Infrastructure/Mediator/IMediator.cs`). There is **no** `ICommandHandler` and **no** `IQueryHandler` — convention tests discover handlers via `IRequestHandler<,>`.
+There is a SINGLE dispatch path. Every request is `IRequest<TResponse>` and every handler implements `IRequestHandler<TRequest, TResponse>` (`src/StarterApp.Application/Infrastructure/Mediator/IMediator.cs`). There is **no** `ICommandHandler` and **no** `IQueryHandler` — convention tests discover handlers via `IRequestHandler<,>`.
 
 ```csharp
-// src/StarterApp.Api/Infrastructure/Mediator/IMediator.cs
+// src/StarterApp.Application/Infrastructure/Mediator/IMediator.cs
 public interface IRequest<out TResponse> { }
 
 public interface IRequestHandler<in TRequest, TResponse> where TRequest : IRequest<TResponse>
@@ -11,7 +11,7 @@ public interface IRequestHandler<in TRequest, TResponse> where TRequest : IReque
     Task<TResponse> HandleAsync(TRequest request, CancellationToken cancellationToken);
 }
 
-// src/StarterApp.Api/Application/Interfaces/ICQRSInterfaces.cs
+// src/StarterApp.Application/Interfaces/ICQRSInterfaces.cs
 public interface ICommand { }                                  // bare marker
 public interface IQuery<TResult> : IRequest<TResult> { }       // extends IRequest — dispatchability is a compiler guarantee
 public interface IOwnerScopedRequest { }                       // marks owner-scoped reads (and the cache-key seam)

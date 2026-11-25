@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using StarterApp.Api.Infrastructure.HealthChecks;
+using StarterApp.Application.Infrastructure.HealthChecks;
 
 namespace StarterApp.Tests.Integration;
 
@@ -24,7 +24,7 @@ public class DatabaseSchemaHealthCheckTests
             .ToList();
 
         Assert.NotEmpty(shipped);
-        Assert.Equal(shipped, DatabaseSchemaHealthCheck.EmbeddedScriptNames(typeof(IApiMarker).Assembly));
+        Assert.Equal(shipped, DatabaseSchemaHealthCheck.EmbeddedScriptNames(typeof(StarterApp.Application.IApplicationMarker).Assembly));
     }
 
     [Fact]

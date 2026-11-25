@@ -7,13 +7,13 @@ public class ApiConventionTests : ConventionTestBase
     [Fact]
     public void EndpointDefinitions_MustNotDependOnDbContext()
     {
-        var endpointTypes = ApiAssembly.GetTypes()
+        var endpointTypes = ApplicationTypes()
             .Where(t => t.GetInterfaces().Any(i => i.Name == "IEndpointDefinition") &&
                    t.IsClass && !t.IsAbstract);
 
         endpointTypes
             .MustConformTo(Convention.MustNotTakeADependencyOn(
-                typeof(StarterApp.Api.Data.ApplicationDbContext),
+                typeof(StarterApp.Application.Data.ApplicationDbContext),
                 "Endpoints must dispatch through the mediator, not access DbContext directly"))
             .WithFailureAssertion(Assert.Fail);
     }
@@ -21,7 +21,7 @@ public class ApiConventionTests : ConventionTestBase
     [Fact]
     public void EndpointDefinitions_MustNotDependOnIDbConnection()
     {
-        var endpointTypes = ApiAssembly.GetTypes()
+        var endpointTypes = ApplicationTypes()
             .Where(t => t.GetInterfaces().Any(i => i.Name == "IEndpointDefinition") &&
                    t.IsClass && !t.IsAbstract);
 
@@ -74,7 +74,7 @@ public class ApiConventionTests : ConventionTestBase
     private static readonly HashSet<string> AnonymousProbePaths = new(StringComparer.Ordinal)
     {
         "/health", "/health/ready", "/health/live", "/alive", "/liveness", "/healthiness",
-        StarterApp.Api.Infrastructure.ClientEvents.ClientEventIntake.Path,
+        StarterApp.Application.Infrastructure.ClientEvents.ClientEventIntake.Path,
     };
 
     [Fact]
@@ -150,7 +150,7 @@ public class ApiConventionTests : ConventionTestBase
         // `context.User.FindFirstValue("tid")` never mentions ClaimsPrincipal in IL: the getter
         // belongs to HttpContext and FindFirstValue to PrincipalExtensions, so both are listed.
         // GetTokenAsync is the door to the raw bearer token.
-        var claimsPrincipalFailures = ApiAssembly.GetTypes()
+        var claimsPrincipalFailures = ApplicationTypes()
             .Where(t => t.IsClass && !IsCompilerGenerated(t) && !IsIdentityInfrastructure(t))
             .SelectMany(type => GetAllMethodsIncludingStateMachines(type)
                 .SelectMany(method => PrincipalAccessTypes
@@ -166,7 +166,7 @@ public class ApiConventionTests : ConventionTestBase
             .ToList();
 
         // The retired gateway header contract must not resurface outside the identity layer.
-        var legacyHeaderLiteralFailures = ApiAssembly.GetTypes()
+        var legacyHeaderLiteralFailures = ApplicationTypes()
             .Where(t => t.IsClass && !IsCompilerGenerated(t) && !IsIdentityInfrastructure(t))
             .SelectMany(type => ExtractStringLiterals(type)
                 .Where(IsGatewayIdentityHeaderLiteral)
@@ -177,7 +177,7 @@ public class ApiConventionTests : ConventionTestBase
         // the HeaderNames.Authorization constant, or the literal. The composition root is exempt
         // from the literal clause only — its CORS allow-list names the request header without
         // reading it — and still fails on an actual header read.
-        var authorizationHeaderFailures = ApiAssembly.GetTypes()
+        var authorizationHeaderFailures = ApplicationTypes()
             .Where(t => t.IsClass && !IsCompilerGenerated(t) && !IsIdentityInfrastructure(t))
             .Where(type =>
                 GetAllMethodsIncludingStateMachines(type).Any(method =>
@@ -203,14 +203,14 @@ public class ApiConventionTests : ConventionTestBase
     [Fact]
     public void Validators_MustNotDependOnDbContext()
     {
-        var validatorTypes = ApiAssembly.GetTypes()
+        var validatorTypes = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.GetInterfaces().Any(i =>
                        i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IValidator<>)));
 
         validatorTypes
             .MustConformTo(Convention.MustNotTakeADependencyOn(
-                typeof(StarterApp.Api.Data.ApplicationDbContext),
+                typeof(StarterApp.Application.Data.ApplicationDbContext),
                 "Validators must be pure - no database access"))
             .WithFailureAssertion(Assert.Fail);
     }
@@ -218,7 +218,7 @@ public class ApiConventionTests : ConventionTestBase
     [Fact]
     public void Validators_MustNotDependOnIDbConnection()
     {
-        var validatorTypes = ApiAssembly.GetTypes()
+        var validatorTypes = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.GetInterfaces().Any(i =>
                        i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IValidator<>)));
@@ -289,7 +289,7 @@ public class ApiConventionTests : ConventionTestBase
     [Fact]
     public void Mappers_ShouldBeStaticClasses()
     {
-        var mapperTypes = ApiAssembly.GetTypes()
+        var mapperTypes = ApplicationTypes()
             .Where(t => t.Name.EndsWith("Mapper") &&
                    t.IsClass && !IsCompilerGenerated(t));
 
@@ -303,7 +303,7 @@ public class ApiConventionTests : ConventionTestBase
     [Fact]
     public void Handlers_MustNotDependOnIMediator()
     {
-        var handlerTypes = ApiAssembly.GetTypes()
+        var handlerTypes = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    (t.Name.EndsWith("CommandHandler") || t.Name.EndsWith("QueryHandler")) &&
                    !IsCompilerGenerated(t));
@@ -320,7 +320,7 @@ public class ApiConventionTests : ConventionTestBase
     [Fact]
     public void ApiTypes_MustUseDateTimeOffsetNotDateTime()
     {
-        var apiTypes = ApiAssembly.GetTypes()
+        var apiTypes = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t) &&
                    (t.Name.EndsWith("Dto") || t.Name.EndsWith("ReadModel") ||
                     t.Name.EndsWith("Command") || t.Name.EndsWith("Query") ||
@@ -341,7 +341,11 @@ public class ApiConventionTests : ConventionTestBase
             .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t));
 
         domainTypes
-            .MustConformTo(new MustNotReferenceAssemblyConvention(ApiAssembly))
+            .MustConformTo(new MustNotReferenceAssemblyConvention(ApplicationAssembly))
+            .WithFailureAssertion(Assert.Fail);
+
+        domainTypes
+            .MustConformTo(new MustNotReferenceAssemblyConvention(HostAssembly))
             .WithFailureAssertion(Assert.Fail);
     }
 
@@ -373,7 +377,7 @@ public class ApiConventionTests : ConventionTestBase
 
     private static IEnumerable<Type> GetApiContractTypes()
     {
-        return ApiAssembly.GetTypes()
+        return ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t))
             .Where(t =>
                 t.Name.EndsWith("Dto") ||
@@ -408,12 +412,12 @@ public class ApiConventionTests : ConventionTestBase
 
     private static bool IsCompositionRoot(Type type)
     {
-        return type == typeof(StarterApp.Api.Infrastructure.ServiceCollectionExtensions);
+        return type == typeof(StarterApp.Application.Infrastructure.ServiceCollectionExtensions);
     }
 
     private static bool IsIdentityInfrastructure(Type type)
     {
-        return type.Namespace?.StartsWith("StarterApp.Api.Infrastructure.Identity", StringComparison.Ordinal) == true;
+        return type.Namespace?.StartsWith("StarterApp.Application.Infrastructure.Identity", StringComparison.Ordinal) == true;
     }
 
     private static bool IsGatewayIdentityHeaderLiteral(string literal)
@@ -443,7 +447,7 @@ public class ApiConventionTests : ConventionTestBase
         if (includeProbes)
         {
             app.MapProbeEndpoints();
-            StarterApp.Api.Infrastructure.ClientEvents.ClientEventIntake.MapClientEventIntake(app);
+            StarterApp.Application.Infrastructure.ClientEvents.ClientEventIntake.MapClientEventIntake(app);
         }
         return app;
     }

@@ -10,7 +10,7 @@ public class DapperConventionTests : ConventionTestBase
     [Fact]
     public void QueryHandlers_MustNotUseSelectStar()
     {
-        var queryHandlers = ApiAssembly.GetTypes()
+        var queryHandlers = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.Name.EndsWith("QueryHandler") &&
                    !IsCompilerGenerated(t))
@@ -31,7 +31,7 @@ public class DapperConventionTests : ConventionTestBase
     {
         // Dapper reads must go through PostgresRetryPolicy.ExecuteAsync so transient
         // PostgreSQL faults are retried symmetrically with EF writes.
-        var queryHandlers = ApiAssembly.GetTypes()
+        var queryHandlers = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.Name.EndsWith("QueryHandler") &&
                    !IsCompilerGenerated(t))

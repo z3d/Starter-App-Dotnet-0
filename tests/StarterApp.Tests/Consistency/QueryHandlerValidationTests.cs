@@ -7,7 +7,7 @@ public class QueryHandlerValidationTests : CohortValidationTestBase<QueryHandler
 
     protected override ICohortDefinition<QueryHandlerFingerprint> Cohort => _cohort;
     protected override string ExemplarDocsFolder => "query-handlers";
-    protected override string SourceTreeRelativePath => Path.Combine("src", "StarterApp.Api", "Application");
+    protected override string SourceTreeRelativePath => Path.Combine("src", "StarterApp.Application");
     protected override string SourceFileGlob => "*Query.cs";
     protected override string ExemplarNameSuffix => "QueryHandler";
     protected override string SourceFileNameToTypeName(string fileNameWithoutExtension) =>

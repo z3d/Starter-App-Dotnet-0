@@ -48,7 +48,7 @@ public class ExceptionStatusCodeMappingTests
     [Fact]
     public void ResolveExceptionStatusCode_WithReusedIdempotencyKey_ShouldReturnUnprocessableEntity()
     {
-        var exception = new StarterApp.Api.Infrastructure.Idempotency.IdempotencyKeyReusedException("key reused for a different request");
+        var exception = new StarterApp.Application.Infrastructure.Idempotency.IdempotencyKeyReusedException("key reused for a different request");
 
         var statusCode = WebApplicationExtensions.ResolveExceptionStatusCode(exception);
 
@@ -93,7 +93,7 @@ public class ExceptionStatusCodeMappingTests
     [InlineData(true, StatusCodes.Status500InternalServerError)]
     public void ResolveExceptionStatusCode_WithUpstreamFailure_ShouldReturnBadGatewayOnlyWhenItMayClear(bool isPermanent, int expected)
     {
-        var exception = new StarterApp.Api.Infrastructure.Upstream.UpstreamServiceException("rates", isPermanent, "failed");
+        var exception = new StarterApp.Application.Infrastructure.Upstream.UpstreamServiceException("rates", isPermanent, "failed");
 
         Assert.Equal(expected, WebApplicationExtensions.ResolveExceptionStatusCode(exception));
     }

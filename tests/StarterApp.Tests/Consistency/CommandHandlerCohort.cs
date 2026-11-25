@@ -7,7 +7,7 @@ namespace StarterApp.Tests.Consistency;
 /// </summary>
 public class CommandHandlerCohort : ICohortDefinition<HandlerFingerprint>
 {
-    private static readonly Assembly ApiAssembly = typeof(StarterApp.Api.Infrastructure.IApiMarker).Assembly;
+    private static readonly Assembly ApplicationAssembly = typeof(StarterApp.Application.IApplicationMarker).Assembly;
 
     public string CohortName => "CommandHandlers";
 
@@ -24,7 +24,7 @@ public class CommandHandlerCohort : ICohortDefinition<HandlerFingerprint>
 
     public IReadOnlyList<Type> DiscoverTypes()
     {
-        return ApiAssembly.GetTypes()
+        return ApplicationAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler"))
             .Where(t => t.GetInterfaces().Any(i =>
                 i.IsGenericType &&

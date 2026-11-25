@@ -1235,6 +1235,13 @@
       "starterapp.api": {
         "type": "Project",
         "dependencies": {
+          "Scalar.AspNetCore": "[2.11.3, )",
+          "StarterApp.Application": "[1.0.0, )"
+        }
+      },
+      "starterapp.application": {
+        "type": "Project",
+        "dependencies": {
           "Anthropic": "[13.8.0, )",
           "Aspire.StackExchange.Redis.DistributedCaching": "[13.6.5, )",
           "Azure.Identity": "[1.21.0, )",
@@ -1245,7 +1252,6 @@
           "Microsoft.EntityFrameworkCore": "[10.0.8, )",
           "Npgsql": "[10.0.3, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.2, )",
-          "Scalar.AspNetCore": "[2.11.3, )",
           "Serilog.AspNetCore": "[10.0.0, )",
           "Serilog.Enrichers.Sensitive": "[2.1.0, )",
           "Serilog.Sinks.OpenTelemetry": "[4.1.0, )",

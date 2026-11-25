@@ -7,7 +7,7 @@ public class CommandHandlerValidationTests : CohortValidationTestBase<HandlerFin
 
     protected override ICohortDefinition<HandlerFingerprint> Cohort => _cohort;
     protected override string ExemplarDocsFolder => "command-handlers";
-    protected override string SourceTreeRelativePath => Path.Combine("src", "StarterApp.Api", "Application");
+    protected override string SourceTreeRelativePath => Path.Combine("src", "StarterApp.Application");
     protected override string SourceFileGlob => "*Command.cs";
     protected override string ExemplarNameSuffix => "CommandHandler";
     protected override string SourceFileNameToTypeName(string fileNameWithoutExtension) =>

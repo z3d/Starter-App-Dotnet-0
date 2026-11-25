@@ -8,6 +8,6 @@ public class EfConfigurationGovernanceTests : CohortGovernanceTestBase<EfConfigu
 {
     protected override ICohortDefinition<EfConfigurationFingerprint> Cohort { get; } = new EfConfigurationCohort();
     protected override string ExemplarDocsFolder => "ef-configurations";
-    protected override string SourceTreeRelativePath => Path.Combine("src", "StarterApp.Api", "Data", "Configurations");
+    protected override string SourceTreeRelativePath => Path.Combine("src", "StarterApp.Application", "Data", "Configurations");
     protected override string SourceFileGlob => "*Configuration.cs";
 }

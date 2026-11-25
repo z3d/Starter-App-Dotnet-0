@@ -38,6 +38,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\StarterApp.Api\StarterApp.Api.csproj" />
+    <ProjectReference Include="..\..\src\StarterApp.Application\StarterApp.Application.csproj" />
     <ProjectReference Include="..\..\src\StarterApp.DbMigrator\StarterApp.DbMigrator.csproj" />
     <ProjectReference Include="..\..\src\StarterApp.Domain\StarterApp.Domain.csproj" />
     <ProjectReference Include="..\..\src\StarterApp.SharedKernel\StarterApp.SharedKernel.csproj" />

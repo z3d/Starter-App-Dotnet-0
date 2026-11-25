@@ -1,4 +1,4 @@
-using MediatorImpl = StarterApp.Api.Infrastructure.Mediator.Mediator;
+using MediatorImpl = StarterApp.Application.Infrastructure.Mediator.Mediator;
 
 namespace StarterApp.Tests.Infrastructure.Mediator;
 

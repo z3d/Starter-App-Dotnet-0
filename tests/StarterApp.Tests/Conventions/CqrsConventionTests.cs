@@ -7,7 +7,7 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void CommandHandlers_MustNotDependOnIDbConnection()
     {
-        var commandHandlers = ApiAssembly.GetTypes()
+        var commandHandlers = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.Name.EndsWith("CommandHandler") &&
                    !IsCompilerGenerated(t));
@@ -19,7 +19,7 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void QueryHandlers_MustNotDependOnDbContext()
     {
-        var queryHandlers = ApiAssembly.GetTypes()
+        var queryHandlers = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.Name.EndsWith("QueryHandler") &&
                    !IsCompilerGenerated(t));
@@ -34,7 +34,7 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void CommandHandlers_MustDependOnApplicationDbContext()
     {
-        var commandHandlers = ApiAssembly.GetTypes()
+        var commandHandlers = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.Name.EndsWith("CommandHandler", StringComparison.Ordinal) &&
                    !IsCompilerGenerated(t))
@@ -61,7 +61,7 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void ResourceQueries_MustBeOwnerScoped()
     {
-        var queryTypes = ApiAssembly.GetTypes()
+        var queryTypes = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>)))
             .Where(t => !typeof(IOwnerScopedRequest).IsAssignableFrom(t))
@@ -82,7 +82,7 @@ public partial class CqrsConventionTests : ConventionTestBase
     private static readonly (string HandlerFullName, string SqlFragment, string Reason)[] GatedSubQueryExemptions =
     [
         (
-            "StarterApp.Api.Application.Queries.GetOrderByIdQueryHandler",
+            "StarterApp.Application.Queries.GetOrderByIdQueryHandler",
             "WHERE order_id = @Id",
             "items fetch runs only after the owner-scoped order fetch (orderSql) returns non-null; a " +
             "cross-owner caller gets null before this executes, so keying by order_id alone cannot leak rows."),
@@ -95,7 +95,7 @@ public partial class CqrsConventionTests : ConventionTestBase
         var scripts = Directory.GetFiles(Path.Combine(TestPaths.RepoRoot, "src", "StarterApp.DbMigrator", "Scripts"), "*.sql").Select(File.ReadAllText).ToList();
 
         var failures = OwnerScopeFailures(
-            ApiAssembly.GetTypes().Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("QueryHandler", StringComparison.Ordinal)),
+            ApplicationTypes().Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("QueryHandler", StringComparison.Ordinal)),
             MigrationColumns.TablesWithColumn(scripts, "owner_subject"));
 
         Assert.True(failures.Count == 0,
@@ -181,7 +181,7 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void QueryHandlers_MustInjectOwnerOnlyPolicy()
     {
-        var violations = ApiAssembly.GetTypes()
+        var violations = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("QueryHandler", StringComparison.Ordinal))
             .Where(t => !t.GetConstructors().Any(ctor => ctor.GetParameters().Any(parameter => parameter.ParameterType == typeof(IOwnerOnlyPolicy))))
             .Select(t => t.FullName ?? t.Name)
@@ -196,7 +196,7 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void CommandHandlers_MustInjectOwnerOnlyPolicy()
     {
-        var violations = ApiAssembly
+        var violations = ApplicationAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
             .Where(t => !t.GetConstructors().Any(ctor => ctor.GetParameters().Any(parameter => parameter.ParameterType == typeof(IOwnerOnlyPolicy))))
@@ -214,7 +214,7 @@ public partial class CqrsConventionTests : ConventionTestBase
     {
         // The exemption is an explicit list, not a name prefix. CreateOrderCommand starts with
         // "Create" but touches an existing customer and existing product stock, so it is not here.
-        var violations = ApiAssembly.GetTypes()
+        var violations = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract && typeof(ICommand).IsAssignableFrom(t))
             .Where(t => t.Name.EndsWith("Command", StringComparison.Ordinal))
             .Where(t => !CommandsThatOnlyCreateANewAggregate.Contains(t))
@@ -246,7 +246,7 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void OwnerAuthorizedMutations_MustBeCommands()
     {
-        var violations = ApiAssembly.GetTypes()
+        var violations = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract && typeof(IOwnerAuthorizedMutation).IsAssignableFrom(t))
             .Where(t => !typeof(ICommand).IsAssignableFrom(t))
             .Select(t => t.FullName ?? t.Name)
@@ -267,7 +267,7 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void CommandHandlers_MustInvokeOwnerOnlyPolicy()
     {
-        var handlers = ApiAssembly
+        var handlers = ApplicationAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
             .Where(InjectsOwnerOnlyPolicy)
@@ -279,7 +279,7 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void QueryHandlers_MustInvokeOwnerOnlyPolicy()
     {
-        var handlers = ApiAssembly.GetTypes()
+        var handlers = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("QueryHandler", StringComparison.Ordinal))
             .Where(InjectsOwnerOnlyPolicy)
             .ToList();
@@ -323,7 +323,7 @@ public partial class CqrsConventionTests : ConventionTestBase
 
     private static IEnumerable<Type> GetOwnerScopedQueryHandlers()
     {
-        return ApiAssembly.GetTypes()
+        return ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("QueryHandler", StringComparison.Ordinal))
             .Where(handler => handler.GetInterfaces().Any(i =>
                 i.IsGenericType &&
@@ -345,11 +345,11 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void EveryCommand_MustHaveAHandler()
     {
-        var allHandlers = ApiAssembly
+        var allHandlers = ApplicationAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
             .Distinct().ToArray();
 
-        var commandsWithResponse = ApiAssembly.GetTypes()
+        var commandsWithResponse = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.GetInterfaces().Any(i => i == typeof(ICommand)) &&
                    t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequest<>)));
@@ -363,11 +363,11 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void EveryQuery_MustHaveAHandler()
     {
-        var allHandlers = ApiAssembly
+        var allHandlers = ApplicationAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
             .ToArray();
 
-        var queryTypes = ApiAssembly
+        var queryTypes = ApplicationAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IQuery<>));
 
         queryTypes
@@ -383,11 +383,11 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void EveryCommand_MustHaveAValidator()
     {
-        var validatorTypes = ApiAssembly.GetTypes()
+        var validatorTypes = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t))
             .ToArray();
 
-        var commandTypes = ApiAssembly.GetTypes()
+        var commandTypes = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.GetInterfaces().Any(i => i == typeof(ICommand)));
 
@@ -404,11 +404,11 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void EveryQuery_MustHaveAValidator()
     {
-        var validatorTypes = ApiAssembly.GetTypes()
+        var validatorTypes = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t))
             .ToArray();
 
-        var queryTypes = ApiAssembly.GetTypes()
+        var queryTypes = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.GetInterfaces().Any(i =>
                        i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>)));
@@ -428,14 +428,14 @@ public partial class CqrsConventionTests : ConventionTestBase
     [Fact]
     public void Commands_MustImplementBothICommandAndIRequest()
     {
-        var commandTypes = ApiAssembly.GetTypes()
+        var commandTypes = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.GetInterfaces().Any(i => i == typeof(ICommand)));
         commandTypes
             .MustConformTo(new MustImplementRequestInterfaceConvention())
             .WithFailureAssertion(Assert.Fail);
 
-        var requestsInCommandNs = ApiAssembly.GetTypes()
+        var requestsInCommandNs = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.Namespace != null && t.Namespace.Contains("Commands") &&
                    !t.Name.EndsWith("Handler") && !IsCompilerGenerated(t) &&
@@ -451,7 +451,7 @@ public partial class CqrsConventionTests : ConventionTestBase
     {
         // The other direction (every IQuery is dispatchable) is a compiler guarantee now:
         // IQuery<TResult> : IRequest<TResult>. Only the cohort-escape half needs a test.
-        var requestsInQueryNs = ApiAssembly.GetTypes()
+        var requestsInQueryNs = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
                    t.Namespace != null && t.Namespace.Contains("Queries") &&
                    !t.Name.EndsWith("Handler") && !IsCompilerGenerated(t) &&

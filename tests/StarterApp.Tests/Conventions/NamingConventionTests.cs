@@ -5,7 +5,7 @@ public class NamingConventionTests : ConventionTestBase
     [Fact]
     public void EndpointDefinitions_ShouldFollowNamingConvention()
     {
-        var endpointTypes = ApiAssembly.GetTypes()
+        var endpointTypes = ApplicationTypes()
             .Where(t => t.GetInterfaces().Any(i => i.Name == "IEndpointDefinition"));
 
         endpointTypes
@@ -16,7 +16,7 @@ public class NamingConventionTests : ConventionTestBase
     [Fact]
     public void DTOs_ShouldFollowNamingConventions()
     {
-        var dtoTypes = ApiAssembly.GetTypes()
+        var dtoTypes = ApplicationTypes()
             .Where(t => t.Namespace != null &&
                    (t.Namespace.Contains("DTOs") || t.Namespace.Contains("ReadModels")) &&
                    t.IsClass && !t.IsAbstract);
@@ -28,7 +28,7 @@ public class NamingConventionTests : ConventionTestBase
     [Fact]
     public void Commands_ShouldFollowNamingConventions()
     {
-        var commandTypes = ApiAssembly.GetTypes()
+        var commandTypes = ApplicationTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("Commands") &&
                    t.IsClass && !t.IsAbstract &&
                    !t.Name.EndsWith("Handler") && !t.Name.EndsWith("Service") &&
@@ -41,7 +41,7 @@ public class NamingConventionTests : ConventionTestBase
     [Fact]
     public void Queries_ShouldFollowNamingConventions()
     {
-        var queryTypes = ApiAssembly.GetTypes()
+        var queryTypes = ApplicationTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("Queries") &&
                    t.IsClass && !t.IsAbstract &&
                    !t.Name.EndsWith("Handler") && !t.Name.EndsWith("Service") &&
@@ -54,7 +54,7 @@ public class NamingConventionTests : ConventionTestBase
     [Fact]
     public void Services_ShouldFollowNamingConventions()
     {
-        var serviceTypes = ApiAssembly.GetTypes()
+        var serviceTypes = ApplicationTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("Services") &&
                    t.IsClass && !t.IsAbstract &&
                    !IsCompilerGenerated(t));
@@ -66,7 +66,7 @@ public class NamingConventionTests : ConventionTestBase
     [Fact]
     public void Validators_ShouldFollowNamingConventions()
     {
-        var validatorTypes = ApiAssembly.GetTypes()
+        var validatorTypes = ApplicationTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("Validators") &&
                    t.IsClass && !t.IsAbstract &&
                    !IsCompilerGenerated(t));
@@ -78,7 +78,7 @@ public class NamingConventionTests : ConventionTestBase
     [Fact]
     public void CommandHandlers_ShouldFollowNamingConventions()
     {
-        var handlerTypes = ApiAssembly.GetTypes()
+        var handlerTypes = ApplicationTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("Commands") &&
                    t.IsClass && !t.IsAbstract &&
                    t.Name.EndsWith("Handler") &&
@@ -91,7 +91,7 @@ public class NamingConventionTests : ConventionTestBase
     [Fact]
     public void QueryHandlers_ShouldFollowNamingConventions()
     {
-        var handlerTypes = ApiAssembly.GetTypes()
+        var handlerTypes = ApplicationTypes()
             .Where(t => t.Namespace != null && t.Namespace.Contains("Queries") &&
                    t.IsClass && !t.IsAbstract &&
                    t.Name.EndsWith("Handler") &&
@@ -124,28 +124,28 @@ public class NamingConventionTests : ConventionTestBase
 
         AddNamespaceFailures(
             failures,
-            ApiAssembly.GetTypes().Where(t => t.IsClass && !t.IsAbstract && t.GetInterfaces().Any(i => i == typeof(ICommand))),
-            "StarterApp.Api.Application.Commands");
+            ApplicationTypes().Where(t => t.IsClass && !t.IsAbstract && t.GetInterfaces().Any(i => i == typeof(ICommand))),
+            "StarterApp.Application.Commands");
 
         AddNamespaceFailures(
             failures,
-            ApiAssembly.GetTypes().Where(t => t.IsClass && !t.IsAbstract && t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>))),
-            "StarterApp.Api.Application.Queries");
+            ApplicationTypes().Where(t => t.IsClass && !t.IsAbstract && t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>))),
+            "StarterApp.Application.Queries");
 
         AddNamespaceFailures(
             failures,
-            ApiAssembly.GetTypes().Where(t => t.IsClass && !t.IsAbstract && t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IValidator<>))),
-            "StarterApp.Api.Application.Validators");
+            ApplicationTypes().Where(t => t.IsClass && !t.IsAbstract && t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IValidator<>))),
+            "StarterApp.Application.Validators");
 
         AddNamespaceFailures(
             failures,
-            ApiAssembly.GetTypes().Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("Dto")),
-            "StarterApp.Api.Application.DTOs");
+            ApplicationTypes().Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("Dto")),
+            "StarterApp.Application.DTOs");
 
         AddNamespaceFailures(
             failures,
-            ApiAssembly.GetTypes().Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("ReadModel")),
-            "StarterApp.Api.Application.ReadModels");
+            ApplicationTypes().Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("ReadModel")),
+            "StarterApp.Application.ReadModels");
 
         Assert.True(failures.Count == 0,
             "Application contracts must live in their mechanically discoverable namespaces:\n" +
@@ -157,7 +157,7 @@ public class NamingConventionTests : ConventionTestBase
     {
         var failures = new List<string>();
 
-        var handlerTypes = ApiAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
+        var handlerTypes = ApplicationAssembly.GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
             .Distinct();
 
         foreach (var handler in handlerTypes)
@@ -167,9 +167,9 @@ public class NamingConventionTests : ConventionTestBase
                 continue;
 
             var expectedNamespace = requestType.GetInterfaces().Any(i => i == typeof(ICommand))
-                ? "StarterApp.Api.Application.Commands"
+                ? "StarterApp.Application.Commands"
                 : requestType.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IQuery<>))
-                    ? "StarterApp.Api.Application.Queries"
+                    ? "StarterApp.Application.Queries"
                     : null;
 
             if (expectedNamespace != null && handler.Namespace != expectedNamespace)

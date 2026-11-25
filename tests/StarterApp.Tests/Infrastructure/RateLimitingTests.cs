@@ -15,7 +15,7 @@ public class RateLimitingTests
         using var provider = services.BuildServiceProvider();
         var context = new DefaultHttpContext { RequestServices = provider };
 
-        var key = StarterApp.Api.Infrastructure.ServiceCollectionExtensions.ResolveRateLimitPartitionKey(context);
+        var key = StarterApp.Application.Infrastructure.ServiceCollectionExtensions.ResolveRateLimitPartitionKey(context);
 
         Assert.Equal("identity:tenant-9:subject-9", key);
     }
@@ -29,7 +29,7 @@ public class RateLimitingTests
         var context = new DefaultHttpContext { RequestServices = provider };
         context.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("203.0.113.7");
 
-        var key = StarterApp.Api.Infrastructure.ServiceCollectionExtensions.ResolveRateLimitPartitionKey(context);
+        var key = StarterApp.Application.Infrastructure.ServiceCollectionExtensions.ResolveRateLimitPartitionKey(context);
 
         Assert.Equal("ip:203.0.113.7", key);
     }

@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Hosting.Internal;
 using Microsoft.Extensions.Options;
-using StarterApp.Api.Infrastructure.Upstream;
+using StarterApp.Application.Infrastructure.Upstream;
 
 namespace StarterApp.Tests.Infrastructure.Upstream;
 

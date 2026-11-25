@@ -1,0 +1,64 @@
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace StarterApp.Application.Data.Configurations;
+
+public class OrderConfiguration : IEntityTypeConfiguration<Order>
+{
+    public void Configure(EntityTypeBuilder<Order> builder)
+    {
+        builder.ToTable("orders");
+        builder.HasKey(o => o.Id);
+
+        // The Id is set in the aggregate's constructor. EF Core must not generate it.
+        builder.Property(o => o.Id)
+            .HasColumnName("id")
+            .ValueGeneratedNever();
+
+        builder.Property(o => o.CustomerId)
+            .HasColumnName("customer_id");
+
+        builder.Property(o => o.OrderDate)
+            .HasColumnName("order_date");
+
+        builder.Property(o => o.Status)
+            .HasColumnName("status")
+            .HasConversion<string>()
+            .HasMaxLength(50);
+
+        builder.Property(o => o.OwnerSubject)
+            .HasColumnName("owner_subject")
+            .HasMaxLength(OwnershipDefaults.MaxOwnerSubjectLength)
+            .IsRequired();
+
+        builder.Property(o => o.TenantId)
+            .HasColumnName("tenant_id")
+            .HasMaxLength(OwnershipDefaults.MaxTenantIdLength)
+            .IsRequired();
+
+        builder.Property(o => o.DateCreated)
+            .HasColumnName("date_created");
+
+        builder.Property(o => o.LastUpdated)
+            .HasColumnName("last_updated");
+
+        builder.Property(o => o.RowVersion)
+            .HasColumnName("xmin")
+            .IsRowVersion();
+
+        // No index on (tenant_id, owner_subject). The wider indexes below start with those columns and cover it.
+
+        builder.HasIndex(o => new { o.TenantId, o.OwnerSubject, o.CustomerId })
+            .HasDatabaseName("ix_orders_tenant_id_owner_subject_customer_id");
+
+        builder.HasIndex(o => new { o.TenantId, o.OwnerSubject, o.Status })
+            .HasDatabaseName("ix_orders_tenant_id_owner_subject_status");
+
+        builder.HasMany(o => o.Items)
+            .WithOne()
+            .HasForeignKey(oi => oi.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(o => o.Items)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}

@@ -8,7 +8,7 @@ What every domain in the solution builds on, and nothing else:
 
 No entity, no concrete event and nothing a database maps lives here. The business domain
 lives next door in `StarterApp.Domain` (the Customer/Product/Order sample in the template) or,
-in a derived project, inside each module under `src/<App>.Api/Modules/<Name>/Domain/`.
+in a derived project, inside each module under `src/<App>.Application/Modules/<Name>/Domain/`.
 `SharedKernelConventionTests` fails the build if a domain type is added here, and
 `DerivationConventionTests` fails a derived project that keeps the sample `Domain` project
 once it has a module.

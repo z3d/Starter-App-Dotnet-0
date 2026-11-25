@@ -28,8 +28,8 @@ public abstract class CohortGovernanceTestBase<TFingerprint>
 
     /// <summary>
     /// Path under the repo root where cohort members live on disk, e.g.
-    /// <c>src/StarterApp.Api/Application</c> for handlers or
-    /// <c>src/StarterApp.Api/Data/Configurations</c> for EF configurations.
+    /// <c>src/StarterApp.Application</c> for handlers or
+    /// <c>src/StarterApp.Application/Data/Configurations</c> for EF configurations.
     /// </summary>
     protected abstract string SourceTreeRelativePath { get; }
 

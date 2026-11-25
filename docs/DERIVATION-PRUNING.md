@@ -8,7 +8,7 @@ the project: they copy its shapes, keep its rules, and route new work through it
 ## When
 
 - **At the first module, the sample goes, whole.** The day a derived project's first real module
-  lands under `Api/Modules/`, the Customer/Product/Order sample is removed end to end in one
+  lands under `Application/Modules/`, the Customer/Product/Order sample is removed end to end in one
   change: entities, events, handlers, endpoints, EF configurations, Functions and their
   subscriptions, tests, k6 and DAST seeds, the sample sections of `scripts/smoke-test.sh`, reporting
   SQL, a migration dropping its tables, and

@@ -6,6 +6,7 @@
   </Configurations>
   <Folder Name="/src/">
     <Project Path="src/StarterApp.Api/StarterApp.Api.csproj" />
+    <Project Path="src/StarterApp.Application/StarterApp.Application.csproj" />
     <Project Path="src/StarterApp.DbMigrator/StarterApp.DbMigrator.csproj" />
     <Project Path="src/StarterApp.Domain/StarterApp.Domain.csproj" />
     <Project Path="src/StarterApp.SharedKernel/StarterApp.SharedKernel.csproj" />

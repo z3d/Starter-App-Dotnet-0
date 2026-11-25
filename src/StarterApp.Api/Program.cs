@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using Scalar.AspNetCore;
 using StarterApp.Api.Endpoints;
-using StarterApp.Api.Infrastructure.ClientEvents;
+using StarterApp.Application.Infrastructure.ClientEvents;
 using StarterApp.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,7 +29,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddApiOpenApi();
 builder.Services.AddPersistence(connectionString);
-builder.Services.AddMediator(Assembly.GetExecutingAssembly());
+builder.Services.AddMediator(typeof(StarterApp.Application.IApplicationMarker).Assembly);
 builder.Services.AddApiCors(builder.Configuration, builder.Environment);
 builder.Services.AddJwtIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddApiRateLimiting();

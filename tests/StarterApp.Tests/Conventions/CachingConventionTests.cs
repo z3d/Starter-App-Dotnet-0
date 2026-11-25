@@ -3,7 +3,7 @@ namespace StarterApp.Tests.Conventions;
 public class CachingConventionTests : ConventionTestBase
 {
     private static IEnumerable<Type> GetCacheableTypes() =>
-        ApiAssembly.GetTypes()
+        ApplicationTypes()
             .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(ICacheable).IsAssignableFrom(t));
 
     [Fact]
@@ -95,7 +95,7 @@ public class CachingConventionTests : ConventionTestBase
         // cacheable by-id query must inject ICacheInvalidator so stale entity reads are purged.
         var cacheableResources = GetCacheableResourceNames();
 
-        var mutationHandlers = ApiAssembly
+        var mutationHandlers = ApplicationAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
             .Where(t => t.IsClass && !t.IsAbstract)
             .Where(t => t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
@@ -122,7 +122,7 @@ public class CachingConventionTests : ConventionTestBase
         // never calls it leaves stale entity reads in the distributed cache after a write. Scan handler
         // IL (including async state machines) for an actual call to a member declared on ICacheInvalidator,
         // closing the gap where MustInjectCacheInvalidator passes for an inject-and-forget handler.
-        var handlers = ApiAssembly
+        var handlers = ApplicationAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
             .Where(InjectsCacheInvalidator)
@@ -151,7 +151,7 @@ public class CachingConventionTests : ConventionTestBase
         // rule above cannot see that, so this test looks for the stock write itself:
         // Product.UpdateStock or EF ExecuteUpdateAsync, in the handler or in an application
         // helper it calls, such as OrderCancellationService.
-        var handlers = ApiAssembly
+        var handlers = ApplicationAssembly
             .GetAllTypesImplementingOpenGenericType(typeof(IRequestHandler<,>))
             .Where(t => t.IsClass && !t.IsAbstract && t.Name.EndsWith("CommandHandler", StringComparison.Ordinal))
             .Where(MutatesProductStock)
@@ -175,7 +175,7 @@ public class CachingConventionTests : ConventionTestBase
     [Fact]
     public void ListQueries_MustNotBeCacheable()
     {
-        var violations = ApiAssembly.GetTypes()
+        var violations = ApplicationTypes()
             .Where(t => t.IsClass && !t.IsAbstract)
             .Select(t => (QueryType: t, ResponseType: ResolveQueryResponseType(t)))
             .Where(x => x.ResponseType is not null)
@@ -219,7 +219,7 @@ public class CachingConventionTests : ConventionTestBase
             foreach (var member in ResolveCalledMembers(method))
             {
                 var declaringType = member.DeclaringType;
-                if (declaringType is { Namespace: "StarterApp.Api.Application.Commands" }
+                if (declaringType is { Namespace: "StarterApp.Application.Commands" }
                     && !declaringType.Name.EndsWith("CommandHandler", StringComparison.Ordinal)
                     && !declaringType.Name.EndsWith("Command", StringComparison.Ordinal))
                 {

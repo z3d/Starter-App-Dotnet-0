@@ -1,5 +1,5 @@
-using StarterApp.Api.Application.Queries;
-using StarterApp.Api.Application.Validators;
+using StarterApp.Application.Queries;
+using StarterApp.Application.Validators;
 
 namespace StarterApp.Tests.Application;
 

@@ -101,7 +101,7 @@ public class OwnerAuthorizationBehaviorTests
         var services = new ServiceCollection();
         services.AddScoped<OwnerPolicyEvaluationTracker>();
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(OwnerAuthorizationBehavior<,>));
-        services.AddScoped<IMediator, StarterApp.Api.Infrastructure.Mediator.Mediator>();
+        services.AddScoped<IMediator, StarterApp.Application.Infrastructure.Mediator.Mediator>();
         services.AddScoped<IRequestHandler<MarkedCommand, string>, SkippingHandler>();
 
         await using var provider = services.BuildServiceProvider();
@@ -117,7 +117,7 @@ public class OwnerAuthorizationBehaviorTests
         var services = new ServiceCollection();
         services.AddScoped<OwnerPolicyEvaluationTracker>();
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(OwnerAuthorizationBehavior<,>));
-        services.AddScoped<IMediator, StarterApp.Api.Infrastructure.Mediator.Mediator>();
+        services.AddScoped<IMediator, StarterApp.Application.Infrastructure.Mediator.Mediator>();
         services.AddScoped<IRequestHandler<MarkedCommand, string>, AuthorizingHandler>();
 
         await using var provider = services.BuildServiceProvider();

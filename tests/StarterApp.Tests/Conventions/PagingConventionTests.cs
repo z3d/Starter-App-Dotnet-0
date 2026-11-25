@@ -35,7 +35,7 @@ public class PagingConventionTests : ConventionTestBase
         @"\b(?:LIMIT|FETCH\s+(?:FIRST|NEXT))\s*(?:$|(?!1\b)(?!@FetchSize\b)([0-9@:{(]\S*))",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
-    private static List<(Type Query, Type Result)> Queries() => ApiAssembly.GetTypes()
+    private static List<(Type Query, Type Result)> Queries() => ApplicationTypes()
         .Where(t => t.IsClass && !t.IsAbstract && !IsCompilerGenerated(t))
         .Select(t => (Query: t, Result: ResultOf(t)))
         .Where(q => q.Result != null)
@@ -130,7 +130,7 @@ public class PagingConventionTests : ConventionTestBase
         Assert.NotEmpty(paged);
 
         var failures = paged
-            .Select(query => (query, handler: ApiAssembly.GetType($"{query.FullName}Handler")))
+            .Select(query => (query, handler: ApplicationAssembly.GetType($"{query.FullName}Handler")))
             .Where(x => x.handler is null || !ExtractStringLiterals(x.handler).Any(sql => sql.Contains("LIMIT @FetchSize OFFSET @Offset", StringComparison.Ordinal)))
             .Select(x => x.query.Name)
             .ToList();

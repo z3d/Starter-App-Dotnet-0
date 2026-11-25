@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using StarterApp.Api.Infrastructure.HealthChecks;
+using StarterApp.Application.Infrastructure.HealthChecks;
 using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Tests.Infrastructure.HealthChecks;

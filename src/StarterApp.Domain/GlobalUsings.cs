@@ -6,5 +6,5 @@ global using StarterApp.SharedKernel.Abstractions;
 global using StarterApp.SharedKernel.Exceptions;
 global using StarterApp.SharedKernel.ValueObjects;
 
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("StarterApp.Api")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("StarterApp.Application")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("StarterApp.Tests")]

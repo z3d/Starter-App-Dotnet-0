@@ -33,9 +33,11 @@ public class ExceptionConventionTests : ConventionTestBase
     [Fact]
     public void ApplicationTypes_MustNotConstructBclControlFlowExceptions()
     {
-        var applicationTypes = ApiAssembly.GetTypes()
+        var applicationTypes = ApplicationTypes()
             .Where(t => t.IsClass && !IsCompilerGenerated(t) &&
-                   t.Namespace?.StartsWith("StarterApp.Api.Application") == true)
+                   t.Namespace?.StartsWith("StarterApp.Application", StringComparison.Ordinal) == true &&
+                   !t.Namespace.StartsWith("StarterApp.Application.Infrastructure", StringComparison.Ordinal) &&
+                   !t.Namespace.StartsWith("StarterApp.Application.Data", StringComparison.Ordinal))
             .ToList();
 
         Assert.NotEmpty(applicationTypes);

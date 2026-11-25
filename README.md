@@ -52,7 +52,8 @@ The sample domain is owner-scoped end to end: products, customers and orders bel
 ```
 starterapp/
 ├── src/                             # Only what ships
-│   ├── StarterApp.Api/              # Minimal API, mediator, outbox processor, payload capture
+│   ├── StarterApp.Api/              # The web host: Program.cs and the Minimal API endpoints
+│   ├── StarterApp.Application/      # What the API and the worker both run: handlers, mediator, EF and Dapper, outbox, identity, payload capture
 │   ├── StarterApp.SharedKernel/     # AggregateRoot, IDomainEvent, domain exceptions, Email and Money
 │   ├── StarterApp.Domain/           # The Customer/Product/Order sample: aggregates and domain events
 │   ├── StarterApp.Functions/        # Service Bus subscribers, archive cleanup, job watch

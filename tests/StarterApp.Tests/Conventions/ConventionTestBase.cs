@@ -4,14 +4,19 @@ public abstract class ConventionTestBase
 {
     protected static readonly Assembly SharedKernelAssembly = typeof(AggregateRoot).Assembly;
     protected static readonly Assembly DomainAssembly = typeof(Product).Assembly;
-    protected static readonly Assembly ApiAssembly = typeof(IApiMarker).Assembly;
+    protected static readonly Assembly ApplicationAssembly = typeof(StarterApp.Application.IApplicationMarker).Assembly;
+    protected static readonly Assembly HostAssembly = typeof(StarterApp.Api.IApiMarker).Assembly;
+
+    // Both hosts run the application project; the web host adds Program and the endpoints.
+    protected static IEnumerable<Type> ApplicationTypes() => ApplicationAssembly.GetTypes().Concat(HostAssembly.GetTypes());
     protected static readonly Assembly DbMigratorAssembly = typeof(DatabaseMigrationEngine).Assembly;
     protected static readonly Assembly FunctionsAssembly = typeof(StarterApp.Functions.OrderConfirmationEmailFunction).Assembly;
     protected static readonly Assembly ServiceDefaultsAssembly = typeof(Microsoft.Extensions.Hosting.Extensions).Assembly;
 
     protected static readonly Assembly[] CoreProductionAssemblies =
     [
-        ApiAssembly,
+        ApplicationAssembly,
+        HostAssembly,
         SharedKernelAssembly,
         DomainAssembly,
         DbMigratorAssembly,

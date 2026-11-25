@@ -228,7 +228,7 @@ public class TenantRowSecurityTests : IAsyncLifetime
         await using var dataSource = NpgsqlDataSource.Create(pooledOne);
 
         int backend;
-        await using (var tenantConnection = StarterApp.Api.Infrastructure.Tenancy.TenantDbConnection.Create(dataSource, User(TenantA)))
+        await using (var tenantConnection = StarterApp.Application.Infrastructure.Tenancy.TenantDbConnection.Create(dataSource, User(TenantA)))
         {
             Assert.Equal(1, await tenantConnection.ExecuteScalarAsync<int>($"SELECT count(*) FROM customers WHERE id = {customerA}"));
             backend = await tenantConnection.ExecuteScalarAsync<int>("SELECT pg_backend_pid()");

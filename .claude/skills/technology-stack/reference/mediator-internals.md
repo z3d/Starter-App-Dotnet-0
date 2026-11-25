@@ -1,6 +1,6 @@
 # Custom Mediator Internals
 
-`src/StarterApp.Api/Infrastructure/Mediator/`. Replaces MediatR — commercial licensing was the trigger, but owning it means the entire dispatch path is one readable file with no per-call reflection.
+`src/StarterApp.Application/Infrastructure/Mediator/`. Replaces MediatR — commercial licensing was the trigger, but owning it means the entire dispatch path is one readable file with no per-call reflection.
 
 ## The contract
 

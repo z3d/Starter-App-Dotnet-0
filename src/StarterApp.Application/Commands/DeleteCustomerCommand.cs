@@ -1,0 +1,53 @@
+namespace StarterApp.Application.Commands;
+
+public class DeleteCustomerCommand : ICommand, IRequest<Unit>, IOwnerAuthorizedMutation
+{
+    public int Id { get; set; }
+}
+
+public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerCommand, Unit>
+{
+    private readonly ApplicationDbContext _dbContext;
+    private readonly ICacheInvalidator _cacheInvalidator;
+    private readonly IOwnerOnlyPolicy _ownerOnlyPolicy;
+    private readonly ILogger<DeleteCustomerCommandHandler> _logger;
+
+    public DeleteCustomerCommandHandler(ApplicationDbContext dbContext, ICacheInvalidator cacheInvalidator, IOwnerOnlyPolicy ownerOnlyPolicy, ILogger<DeleteCustomerCommandHandler> logger)
+    {
+        _dbContext = dbContext;
+        _cacheInvalidator = cacheInvalidator;
+        _ownerOnlyPolicy = ownerOnlyPolicy;
+        _logger = logger;
+    }
+
+    public async Task<Unit> HandleAsync(DeleteCustomerCommand command, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Handling DeleteCustomerCommand for Customer {CustomerId}", command.Id);
+
+        _logger.LogInformation("Deleting customer {Id} with EF Core", command.Id);
+
+        var customer = await _dbContext.Customers.FindAsync([command.Id], cancellationToken);
+        if (customer == null)
+        {
+            _logger.LogWarning("Customer {Id} not found for deletion", command.Id);
+            throw new EntityNotFoundException($"Customer with ID {command.Id} not found");
+        }
+
+        _ownerOnlyPolicy.Authorize(customer.OwnerSubject, customer.TenantId);
+
+        var hasOrders = await _dbContext.Orders.AnyAsync(o => o.CustomerId == command.Id, cancellationToken);
+        if (hasOrders)
+        {
+            _logger.LogWarning("Customer {Id} cannot be deleted because they have existing orders", command.Id);
+            throw new DomainRuleException("Cannot delete customer because they have existing orders");
+        }
+
+        _dbContext.Customers.Remove(customer);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _cacheInvalidator.InvalidateCustomerAsync(command.Id, cancellationToken);
+
+        _logger.LogInformation("Deleted customer with ID: {CustomerId}", command.Id);
+        return Unit.Value;
+    }
+}
+

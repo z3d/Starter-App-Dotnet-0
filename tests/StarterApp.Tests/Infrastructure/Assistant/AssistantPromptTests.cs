@@ -1,4 +1,4 @@
-using StarterApp.Api.Infrastructure.Assistant;
+using StarterApp.Application.Infrastructure.Assistant;
 
 namespace StarterApp.Tests.Infrastructure.Assistant;
 
