@@ -180,6 +180,40 @@ public class OutboxToServiceBusIntegrationTests
         Assert.Contains("\"channel\":\"servicebus\"", subscriberCaptureContent);
         Assert.Contains("\"operation\":\"OrderConfirmationEmailFunction\"", subscriberCaptureContent);
         Assert.Contains("\"operation\":\"InventoryReservationFunction\"", subscriberCaptureContent);
+
+        // The capture is written before the inbox; the claim commits only when the worker's own read of the order, on its own login, succeeded.
+        Assert.True(await PollForInboxClaimAsync(connectionString, "OrderConfirmationEmailFunction", orderId, maxAttempts: 30, delayMs: 2000),
+            $"The confirmation email subscriber never completed order {orderId}: its read through IWorkerOperations failed or the message dead-lettered (see the functions container's log).");
+    }
+
+    private static async Task<bool> PollForInboxClaimAsync(string connectionString, string consumer, Guid orderId, int maxAttempts, int delayMs)
+    {
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                await using var connection = new NpgsqlConnection(connectionString);
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    SELECT count(*)
+                    FROM inbox_messages i
+                    JOIN outbox_messages o ON i.message_id = o.id::text
+                    WHERE i.consumer = @Consumer AND o.type = 'order.created.v1' AND o.payload LIKE '%' || @OrderId || '%'
+                    """;
+                command.Parameters.AddWithValue("Consumer", consumer);
+                command.Parameters.AddWithValue("OrderId", orderId.ToString());
+                if (Convert.ToInt64(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture) > 0)
+                    return true;
+            }
+            catch (NpgsqlException) when (attempt < maxAttempts)
+            {
+            }
+
+            await Task.Delay(delayMs);
+        }
+
+        return false;
     }
 
     [AspireFact]
