@@ -1,8 +1,6 @@
 using System.Globalization;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using StarterApp.Functions;
 
 namespace StarterApp.Tests.Infrastructure.Functions;
 

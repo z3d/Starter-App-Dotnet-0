@@ -1291,6 +1291,7 @@
           "Microsoft.Azure.Functions.Worker.Extensions.ServiceBus": "[5.22.0, )",
           "Microsoft.Azure.Functions.Worker.Extensions.Timer": "[4.3.1, )",
           "Microsoft.Azure.Functions.Worker.Sdk": "[2.0.7, )",
+          "StarterApp.Application": "[1.0.0, )",
           "StarterApp.ServiceDefaults": "[1.0.0, )"
         }
       },

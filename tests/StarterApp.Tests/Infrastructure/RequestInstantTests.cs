@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MediatorImpl = StarterApp.Application.Infrastructure.Mediator.Mediator;
 

@@ -12,14 +12,12 @@ public sealed partial class AssistantCatalogue
     private static readonly string[] Paging = ["page", "pageSize"];
 
     private readonly IServiceProvider _services;
-    private readonly EndpointDataSource _endpoints;
     private readonly Lazy<Task<IReadOnlyList<AssistantRoute>>> _routes;
     private readonly ConcurrentDictionary<string, string> _text = new(StringComparer.Ordinal);
 
-    public AssistantCatalogue(IServiceProvider services, EndpointDataSource endpoints)
+    public AssistantCatalogue(IServiceProvider services)
     {
         _services = services;
-        _endpoints = endpoints;
         _routes = new Lazy<Task<IReadOnlyList<AssistantRoute>>>(() => BuildAsync(CancellationToken.None));
     }
 
@@ -56,7 +54,8 @@ public sealed partial class AssistantCatalogue
 
     private async Task<IReadOnlyList<AssistantRoute>> BuildAsync(CancellationToken cancellationToken)
     {
-        var scopes = _endpoints.Endpoints.OfType<RouteEndpoint>()
+        // Read when first asked, not when built, so a host with no web server (the worker) can build the catalogue.
+        var scopes = _services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
             .SelectMany(endpoint => (endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? [])
                 .Select(method => (Key: $"{method} {Normalise(endpoint.RoutePattern.RawText)}", endpoint.Metadata.GetMetadata<ScopeRequiredMetadata>()?.Scope)))
             .Where(entry => entry.Scope is not null)

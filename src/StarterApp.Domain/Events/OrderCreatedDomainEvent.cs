@@ -12,6 +12,8 @@ public sealed class OrderCreatedDomainEvent : DomainEvent
 
         OrderId = order.Id;
         CustomerId = order.CustomerId;
+        TenantId = order.TenantId;
+        OwnerSubject = order.OwnerSubject;
         Status = order.Status.ToString();
         LineItemCount = order.Items.Count;
         TotalQuantity = order.Items.Sum(item => item.Quantity);
@@ -24,6 +26,9 @@ public sealed class OrderCreatedDomainEvent : DomainEvent
     public override string EventType => Contract;
     public Guid OrderId { get; }
     public int CustomerId { get; }
+    // The scope the change was made in, so a subscriber acts in the same one; opaque ids, no personal detail.
+    public string TenantId { get; }
+    public string OwnerSubject { get; }
     public string Status { get; }
     public int LineItemCount { get; }
     public int TotalQuantity { get; }

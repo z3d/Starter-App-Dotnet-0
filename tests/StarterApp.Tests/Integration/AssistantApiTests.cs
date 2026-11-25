@@ -1,9 +1,8 @@
 using System.Text;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Configuration;
-using StarterApp.Application.Queries;
 using StarterApp.Application.Infrastructure.Assistant;
+using StarterApp.Application.Queries;
 
 namespace StarterApp.Tests.Integration;
 

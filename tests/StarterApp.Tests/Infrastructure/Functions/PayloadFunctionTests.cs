@@ -1,7 +1,6 @@
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using StarterApp.Functions;
 using StarterApp.ServiceDefaults.Payloads;
 using StarterApp.Tests.Infrastructure.Payloads;
 using MessageSettlementTests = StarterApp.Tests.Functions.MessageSettlementTests;
@@ -19,7 +18,7 @@ public class PayloadFunctionTests
         var sink = PayloadCaptureTests.CreateSink(store, DateTimeOffset.UtcNow,
             new PayloadCaptureOptions { ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed });
         var message = ServiceBusModelFactory.ServiceBusReceivedMessage(
-            body: BinaryData.FromString("{}"), messageId: "retry-archive", correlationId: "retry-archive",
+            body: BinaryData.FromString(OrderEvent), messageId: "retry-archive", correlationId: "retry-archive",
             contentType: "application/json");
         var actions = new MessageSettlementTests.RecordingMessageActions();
 
@@ -28,7 +27,7 @@ public class PayloadFunctionTests
             await new InventoryReservationFunction(NullLogger<InventoryReservationFunction>.Instance, sink, time, new NullMessageInbox())
                 .RunAsync(message, actions, CancellationToken.None);
         else
-            await new OrderConfirmationEmailFunction(NullLogger<OrderConfirmationEmailFunction>.Instance, sink, time, new NullMessageInbox())
+            await new OrderConfirmationEmailFunction(NullLogger<OrderConfirmationEmailFunction>.Instance, sink, time, new NullMessageInbox(), new StubWorkerOperations())
                 .RunAsync(message, actions, CancellationToken.None);
 
         Assert.Equal(new[] { "complete" }, actions.Calls);
@@ -36,6 +35,53 @@ public class PayloadFunctionTests
         Assert.Single(archive.Value);
         Assert.Equal(1, store.Failures);
         Assert.Equal(new[] { TimeSpan.FromSeconds(5) }, time.Waits);
+    }
+
+    private const string OrderEvent = """{"OrderId":"0199a7f2-0000-7000-8000-000000000001","TenantId":"tenant-1","OwnerSubject":"owner-1"}""";
+
+    [Theory]
+    [InlineData("""{"OrderId":"0199a7f2-0000-7000-8000-000000000001","OwnerSubject":"owner-1"}""")]
+    [InlineData("""{"OrderId":"0199a7f2-0000-7000-8000-000000000001","TenantId":"tenant-1"}""")]
+    [InlineData("""{"TenantId":"tenant-1","OwnerSubject":"owner-1"}""")]
+    public async Task OrderConfirmation_AnEventNamingNoOrderTenantOrOwner_DeadLetters_WithoutAskingTheApplication(string body)
+    {
+        var operations = new StubWorkerOperations();
+        var message = ServiceBusModelFactory.ServiceBusReceivedMessage(body: BinaryData.FromString(body), messageId: "no-scope", contentType: "application/json");
+        var actions = new MessageSettlementTests.RecordingMessageActions();
+
+        await new OrderConfirmationEmailFunction(NullLogger<OrderConfirmationEmailFunction>.Instance, PayloadCaptureTests.CreateSink(new InMemoryPayloadArchiveStore(), DateTimeOffset.UtcNow), TimeProvider.System, new NullMessageInbox(), operations)
+            .RunAsync(message, actions, CancellationToken.None);
+
+        Assert.Equal(new[] { "deadletter" }, actions.Calls);
+        Assert.Equal(0, operations.Calls);
+    }
+
+    [Fact]
+    public async Task OrderConfirmation_ARefusalFromTheApplication_DeadLetters_AtOnce()
+    {
+        var operations = new StubWorkerOperations { Refuse = true };
+        var message = ServiceBusModelFactory.ServiceBusReceivedMessage(body: BinaryData.FromString(OrderEvent), messageId: "refused", contentType: "application/json");
+        var actions = new MessageSettlementTests.RecordingMessageActions();
+
+        await new OrderConfirmationEmailFunction(NullLogger<OrderConfirmationEmailFunction>.Instance, PayloadCaptureTests.CreateSink(new InMemoryPayloadArchiveStore(), DateTimeOffset.UtcNow), TimeProvider.System, new NullMessageInbox(), operations)
+            .RunAsync(message, actions, CancellationToken.None);
+
+        Assert.Equal(new[] { "deadletter" }, actions.Calls);
+        Assert.Equal(1, operations.Calls);
+    }
+
+    private sealed class StubWorkerOperations : IWorkerOperations
+    {
+        public bool Refuse { get; init; }
+        public int Calls { get; private set; }
+
+        public Task<OrderConfirmation> GetOrderConfirmationAsync(string tenantId, string ownerSubject, Guid orderId, CancellationToken cancellationToken)
+        {
+            Calls++;
+            return Refuse
+                ? throw new WorkerOperationRefusedException("refused")
+                : Task.FromResult(new OrderConfirmation(orderId, "Pending", 21.99m, "USD", "Ada", "ada@example.com"));
+        }
     }
 
     // Backoff waits go through the host TimeProvider. This one records each wait and fires its
@@ -82,9 +128,9 @@ public class PayloadFunctionTests
         var store = new InMemoryPayloadArchiveStore();
         var timestamp = new DateTimeOffset(2026, 5, 3, 4, 7, 0, TimeSpan.Zero);
         var sink = PayloadCaptureTests.CreateSink(store, timestamp);
-        var function = new OrderConfirmationEmailFunction(new LoggerFactory().CreateLogger<OrderConfirmationEmailFunction>(), sink, TimeProvider.System, new NullMessageInbox());
+        var function = new OrderConfirmationEmailFunction(new LoggerFactory().CreateLogger<OrderConfirmationEmailFunction>(), sink, TimeProvider.System, new NullMessageInbox(), new StubWorkerOperations());
         var message = ServiceBusModelFactory.ServiceBusReceivedMessage(
-            body: BinaryData.FromString("""{"email":"ada@example.com","orderId":"abc"}"""),
+            body: BinaryData.FromString("""{"email":"ada@example.com","orderId":"0199a7f2-0000-7000-8000-000000000abc","tenantId":"tenant-1","ownerSubject":"owner-1"}"""),
             messageId: "message-1",
             subject: "order.created.v1",
             contentType: "application/json",
@@ -97,7 +143,7 @@ public class PayloadFunctionTests
         Assert.Equal(new[] { "complete" }, messageActions.Calls);
 
         var archiveEntry = store.Lines.Single(pair => pair.Key == "archive/2026-05-03/04/07/case-789.jsonl");
-        var entityIndexEntry = store.Lines.Single(pair => pair.Key == "entity-index/order/abc/2026-05-03/04/07/case-789.jsonl");
+        var entityIndexEntry = store.Lines.Single(pair => pair.Key == "entity-index/order/0199a7f2-0000-7000-8000-000000000abc/2026-05-03/04/07/case-789.jsonl");
         Assert.Contains("\"channel\":\"servicebus\"", archiveEntry.Value.Single());
         Assert.Contains("ada@example.com", archiveEntry.Value.Single());
         Assert.Contains("\"archiveBlobName\":\"archive/2026-05-03/04/07/case-789.jsonl\"", entityIndexEntry.Value.Single());

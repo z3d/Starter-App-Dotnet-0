@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using Serilog.Core;
 
 namespace StarterApp.Tests.Infrastructure.Logging;

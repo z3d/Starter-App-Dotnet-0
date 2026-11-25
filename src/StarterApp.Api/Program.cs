@@ -2,7 +2,6 @@ using System.Text.Json.Serialization;
 using Scalar.AspNetCore;
 using StarterApp.Api.Endpoints;
 using StarterApp.Application.Infrastructure.ClientEvents;
-using StarterApp.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,29 +13,19 @@ builder.Host.UseSerilog((context, services, configuration) =>
 var connectionString = builder.Configuration.GetConnectionString("database")
     ?? throw new InvalidOperationException("Connection string 'database' not found. Ensure Aspire is configured correctly.");
 
-if (!string.IsNullOrEmpty(builder.Configuration.GetConnectionString("redis")))
-    builder.AddRedisDistributedCache("redis", configureOptions: options => AzureClientAuthentication.ConfigureRedis(options));
-else if (builder.Environment.IsDevelopment() || builder.Environment.EnvironmentName == "Testing")
-    builder.Services.AddDistributedMemoryCache();
-else
-    throw new InvalidOperationException(
-        "ConnectionStrings:redis is required outside Development/Testing environments. " +
-        "A per-process cache is invalidated only on the replica that took the write, so the others would serve stale rows.");
+builder.AddApplication(connectionString);
 
 builder.Services.AddApiProblemDetails();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddApiOpenApi();
-builder.Services.AddPersistence(connectionString);
-builder.Services.AddMediator(typeof(StarterApp.Application.IApplicationMarker).Assembly);
 builder.Services.AddApiCors(builder.Configuration, builder.Environment);
 builder.Services.AddJwtIdentity(builder.Configuration, builder.Environment);
 builder.Services.AddApiRateLimiting();
 builder.Services.AddOptions<ClientOptions>().BindConfiguration(ClientOptions.SectionName);
 builder.Services.AddApiHealthChecks(builder.Configuration);
 builder.Services.AddServiceBusPublisher(builder.Configuration, builder.Environment);
-builder.Services.AddAssistant(builder.Configuration);
 builder.AddPayloadCapture();
 builder.AddJobRunRecording();
 

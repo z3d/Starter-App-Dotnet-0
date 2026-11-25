@@ -38,6 +38,7 @@ keep occurredOnUtc
 keep options
 keep orderDate
 keep orderId
+keep ownerSubject
 keep palette
 keep path
 keep previousStatus
@@ -56,6 +57,7 @@ keep status
 keep stock
 keep stopReason
 keep summary
+keep tenantId
 keep title
 keep toolUseId
 keep totalExcludingGst

@@ -297,6 +297,8 @@ var functions = builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Fun
        .WithHttpEndpoint(targetPort: 8080)
        .WithHttpHealthCheck("/api/health")
        .WithReference(payloadArchive)
+       // The worker runs the application's handlers, so it shares the cache they invalidate (docs/DECISIONS.md).
+       .WithReference(redis)
        .WithEnvironment("FUNCTIONS_WORKER_RUNTIME", "dotnet-isolated")
        // The Functions image only writes the host's own lines (start-up, trigger listeners, invocations)
        // to the console when asked. Without this a deployed subscriber is a black box.
@@ -315,6 +317,7 @@ var functions = builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Fun
        .WithEnvironment("JobWatch__Cron", "0 */15 * * * *")
        .WithEnvironment("Idempotency__CleanupCron", "0 30 3 * * *")
        .WaitFor(serviceBus)
+       .WaitFor(redis)
        .WaitFor(payloadArchive)
        .WaitForCompletion(migrator);
 

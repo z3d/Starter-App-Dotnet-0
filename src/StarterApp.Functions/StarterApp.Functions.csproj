@@ -16,9 +16,14 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\StarterApp.Application\StarterApp.Application.csproj" />
     <ProjectReference Include="..\StarterApp.ServiceDefaults\StarterApp.ServiceDefaults.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\StarterApp.Api\appsettings.json" Link="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
     <None Update="host.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

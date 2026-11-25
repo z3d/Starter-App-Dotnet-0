@@ -1,6 +1,7 @@
 using Azure.Messaging.ServiceBus;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
+using StarterApp.Application.Infrastructure.Worker;
 using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Functions;
@@ -11,9 +12,11 @@ public class OrderConfirmationEmailFunction
     private readonly IPayloadCaptureSink _payloadCaptureSink;
     private readonly TimeProvider _timeProvider;
     private readonly IMessageInbox _inbox;
+    private readonly IWorkerOperations _operations;
 
-    public OrderConfirmationEmailFunction(ILogger<OrderConfirmationEmailFunction> logger, IPayloadCaptureSink payloadCaptureSink, TimeProvider timeProvider, IMessageInbox inbox)
+    public OrderConfirmationEmailFunction(ILogger<OrderConfirmationEmailFunction> logger, IPayloadCaptureSink payloadCaptureSink, TimeProvider timeProvider, IMessageInbox inbox, IWorkerOperations operations)
     {
+        _operations = operations;
         _logger = logger;
         _payloadCaptureSink = payloadCaptureSink;
         _timeProvider = timeProvider;
@@ -51,14 +54,17 @@ public class OrderConfirmationEmailFunction
             Metadata = MessageSettlement.BuildCaptureMetadata(message, "email-notifications")
         }, cancellationToken);
 
-        await _inbox.ProcessOnceAsync(nameof(OrderConfirmationEmailFunction), message.MessageId, (inbox, _) =>
-        {
-            _logger.LogInformation("Order confirmation email triggered. MessageId: {MessageId}, Subject: {Subject}, CorrelationId: {CorrelationId}",
-                message.MessageId, message.Subject, correlationId);
+        var order = OrderEventReference.Parse(body);
 
-            // TODO: send the confirmation email. Messages arrive out of order (16 at a time, no sessions), so a status change can land before the order-created event.
+        await _inbox.ProcessOnceAsync(nameof(OrderConfirmationEmailFunction), message.MessageId, async (_, token) =>
+        {
+            var confirmation = await _operations.GetOrderConfirmationAsync(order.TenantId, order.OwnerSubject, order.OrderId, token);
+
+            _logger.LogInformation("Order confirmation email triggered. MessageId: {MessageId}, Subject: {Subject}, OrderId: {OrderId}, Status: {Status}, CorrelationId: {CorrelationId}",
+                message.MessageId, message.Subject, confirmation.OrderId, confirmation.Status, correlationId);
+
+            // TODO: send the confirmation to confirmation.CustomerEmail. Messages arrive out of order (16 at a time, no sessions), so a status change can land before the order-created event.
             // An email cannot be part of the inbox transaction. If the send succeeds and the commit then fails, the redelivery sends it again.
-            return Task.CompletedTask;
         }, cancellationToken);
     }
 }

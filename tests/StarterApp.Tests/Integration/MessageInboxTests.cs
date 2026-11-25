@@ -1,5 +1,3 @@
-using StarterApp.Functions;
-
 namespace StarterApp.Tests.Integration;
 
 [Collection("Integration Tests")]

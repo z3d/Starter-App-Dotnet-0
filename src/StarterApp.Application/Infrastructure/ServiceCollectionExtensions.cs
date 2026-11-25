@@ -170,11 +170,7 @@ public static class ServiceCollectionExtensions
         services.AddAuthorizationBuilder()
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
-        services.TryAddSingleton(TimeProvider.System);
-        services.AddScoped<CurrentUserAccessor>();
-        services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<CurrentUserAccessor>());
-        services.TryAddScoped<OwnerPolicyEvaluationTracker>();
-        services.AddScoped<IOwnerOnlyPolicy, OwnerOnlyPolicy>();
+        services.AddCallerIdentity();
 
         return services;
     }

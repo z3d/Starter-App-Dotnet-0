@@ -1,6 +1,3 @@
-using Microsoft.Extensions.Hosting;
-
-
 namespace StarterApp.Tests.Infrastructure.Persistence;
 
 public class PersistenceRegistrationTests

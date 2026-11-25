@@ -1,5 +1,4 @@
 using DbUp.Engine;
-using Microsoft.Extensions.Configuration;
 
 namespace StarterApp.Tests.Integration;
 

@@ -1,6 +1,5 @@
 using System.Globalization;
 using Dapper;
-using StarterApp.Functions;
 using static StarterApp.Tests.Conventions.TenantRowSecurityRules;
 
 namespace StarterApp.Tests.Integration;

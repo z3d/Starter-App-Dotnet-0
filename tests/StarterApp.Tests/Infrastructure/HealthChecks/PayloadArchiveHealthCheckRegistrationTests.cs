@@ -1,6 +1,4 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using StarterApp.Application.Infrastructure.HealthChecks;
 using StarterApp.ServiceDefaults.Payloads;

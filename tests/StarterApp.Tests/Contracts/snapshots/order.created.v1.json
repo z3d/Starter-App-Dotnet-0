@@ -2,6 +2,8 @@
   "EventType": "order.created.v1",
   "OrderId": "00000000-0000-0000-0000-000000000001",
   "CustomerId": 42,
+  "TenantId": "snapshot-tenant",
+  "OwnerSubject": "snapshot-owner",
   "Status": "Pending",
   "LineItemCount": 1,
   "TotalQuantity": 2,

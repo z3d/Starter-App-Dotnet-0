@@ -2,6 +2,7 @@ using System.Text.Json;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
+using StarterApp.Application.Infrastructure.Worker;
 using StarterApp.ServiceDefaults.Payloads;
 
 namespace StarterApp.Functions;
@@ -100,9 +101,9 @@ public static class MessageSettlement
         await messageActions.CompleteMessageAsync(message, cancellationToken);
     }
 
-    // Redelivering the same message cannot fix these errors.
+    // Redelivering the same message cannot fix these errors; a refusal is one the application would have answered 400, 403, 404, 422 or with a domain rule.
     public static bool IsNonRetryable(Exception exception) =>
-        exception is JsonException or InvalidDataException;
+        exception is JsonException or InvalidDataException or WorkerOperationRefusedException;
 
     // The dead-letter reason is never redacted, and an exception message can quote the payload. Only the exception type and the correlation id go here.
     private static string DescribeFailure(Exception exception, ServiceBusReceivedMessage message) =>

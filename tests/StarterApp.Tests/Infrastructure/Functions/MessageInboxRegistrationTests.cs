@@ -1,6 +1,3 @@
-using Microsoft.Extensions.Hosting;
-using StarterApp.Functions;
-
 namespace StarterApp.Tests.Infrastructure.Functions;
 
 public class MessageInboxRegistrationTests

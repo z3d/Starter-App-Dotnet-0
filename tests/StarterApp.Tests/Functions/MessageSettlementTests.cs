@@ -1,7 +1,6 @@
 using Azure.Messaging.ServiceBus;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
-using StarterApp.Functions;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace StarterApp.Tests.Functions;

@@ -1,5 +1,4 @@
 using Microsoft.Azure.Functions.Worker;
-using StarterApp.Functions;
 
 namespace StarterApp.Tests.Infrastructure.Functions;
 

@@ -12,6 +12,8 @@ public sealed class OrderStatusChangedDomainEvent : DomainEvent
 
         OrderId = order.Id;
         CustomerId = order.CustomerId;
+        TenantId = order.TenantId;
+        OwnerSubject = order.OwnerSubject;
         PreviousStatus = previousStatus.ToString();
         NewStatus = newStatus.ToString();
     }
@@ -19,6 +21,8 @@ public sealed class OrderStatusChangedDomainEvent : DomainEvent
     public override string EventType => Contract;
     public Guid OrderId { get; }
     public int CustomerId { get; }
+    public string TenantId { get; }
+    public string OwnerSubject { get; }
     public string PreviousStatus { get; }
     public string NewStatus { get; }
 
