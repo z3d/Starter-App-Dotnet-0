@@ -238,6 +238,38 @@ public sealed class HookScriptTests : IDisposable
         Assert.DoesNotContain(lines, line => line.Contains("CI Build", StringComparison.Ordinal) && line.Contains("never started", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("{{.Server.OsArch}}", "linux/arm64")]
+    [InlineData("{{.Server.Os}}/{{.Server.Arch}}", "linux/amd64")]
+    public void DevIdp_RunsForTheEnginesOwnPlatform(string templateTheEngineAccepts, string platform)
+    {
+        Assert.Contains($"engine run -d --name idp --platform {platform} -e ", StartDevIdp(templateTheEngineAccepts, platform), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DevIdp_NamesNoPlatformWhenTheEngineDoesNotSay()
+    {
+        Assert.Contains("engine run -d --name idp -e ", StartDevIdp("none", string.Empty), StringComparison.Ordinal);
+    }
+
+    private string StartDevIdp(string templateTheEngineAccepts, string platform)
+    {
+        WriteExecutable(Path.Combine(_fakeBin, "engine"), $"""
+            #!/usr/bin/env bash
+            echo "engine $*" >> '{ForBash(_toolLog)}'
+            [ "$1" = version ] || exit 0
+            [ "$3" = '{templateTheEngineAccepts}' ] && echo '{platform}' && exit 0
+            printf 'linux/half/'
+            exit 125
+
+            """);
+        WriteExecutable(Path.Combine(_fakeBin, "curl"), "#!/usr/bin/env bash\nexit 0\n");
+        var script = ForBash(Path.Combine(TestPaths.RepoRoot, "scripts", "lib", "dev-idp.sh"));
+        var result = Run(Bash, ["-c", $"set -euo pipefail; source '{script}'; idp_start idp 8090 /repo"], _scratch, string.Empty, ("CONTAINER_CLI", "engine"));
+        Assert.True(result.ExitCode == 0, result.Error);
+        return File.ReadAllText(_toolLog);
+    }
+
     private ProcessResult RunGuard(string command, params (string Name, string Value)[] environment)
     {
         var payload = JsonSerializer.Serialize(new { tool_input = new { command } });

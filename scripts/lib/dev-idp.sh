@@ -15,15 +15,28 @@ DEV_IDP_CLIENT_ID="starterapp-dev"
 DEV_IDP_CLIENT_SECRET="local-dev-client-secret-not-a-secret"
 DEV_IDP_SCOPES="customers:read customers:write orders:read orders:write products:read products:write settings:read settings:write assistant:use"
 
+# idp_engine_platform
+# Prints the container engine's own platform, such as linux/arm64. Podman and Docker name the field differently.
+idp_engine_platform() {
+  local cli="${CONTAINER_CLI:-docker}" platform
+  platform=$("$cli" version --format '{{.Server.OsArch}}' 2>/dev/null) \
+    || platform=$("$cli" version --format '{{.Server.Os}}/{{.Server.Arch}}' 2>/dev/null) \
+    || return 0
+  printf '%s' "$platform"
+}
+
 # idp_start <container-name> <host-port> <repo-root>
 # Boots Keycloak with the committed realm imported and waits for the realm
 # endpoint to answer. Honors the caller's CONTAINER_CLI (run-dast.sh selects
 # docker or podman; run-perf.sh is docker-only), defaulting to docker. Caller
 # owns container cleanup ($CONTAINER_CLI rm -f <name>).
+# The platform is passed because the pin covers several: building the published image for another one
+# leaves that one cached under the pin, and a plain run would then emulate it.
 idp_start() {
-  local container="$1" port="$2" repo_root="$3"
+  local container="$1" port="$2" repo_root="$3" platform
+  platform=$(idp_engine_platform)
 
-  "${CONTAINER_CLI:-docker}" run -d --name "$container" \
+  "${CONTAINER_CLI:-docker}" run -d --name "$container" ${platform:+--platform "$platform"} \
     -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
     -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
     -v "${repo_root}/dev/StarterApp.AppHost/Realms:/opt/keycloak/data/import:ro" \

@@ -161,6 +161,8 @@ if (builder.ExecutionContext.IsRunMode)
         // curl -sI https://quay.io/v2/keycloak/keycloak/manifests/<tag> \
         //   -H "Accept: application/vnd.oci.image.index.v1+json"
         .WithImageSHA256("9409c59bdfb65dbffa20b11e6f18b8abb9281d480c7ca402f51ed3d5977e6007")
+        // The pin covers several platforms, and building Realms/Dockerfile for another one leaves that one cached under it.
+        .WithContainerRuntimeArgs(ContainerEngine.RequestOwnPlatformAsync)
         .WithHttpEndpoint(port: 8090, targetPort: 8080, name: "http")
         .WithHttpEndpoint(targetPort: 9000, name: "management")
         .WithEnvironment("KC_BOOTSTRAP_ADMIN_USERNAME", "admin")
