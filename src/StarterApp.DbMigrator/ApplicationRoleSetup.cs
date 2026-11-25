@@ -13,11 +13,27 @@ public static class ApplicationRoleSetup
 
     private const string LoginsSetting = "starterapp.application_logins";
 
+    // The worker holds only what it uses; a request added to IWorkerOperations adds the tables it reads or writes (a save also writes outbox_messages), and WorkerOperationsTests runs it on this login.
+    public static readonly IReadOnlyDictionary<string, string> WorkerGrants = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["public.inbox_messages"] = "SELECT, INSERT, DELETE",
+        ["public.job_runs"] = "SELECT, INSERT, UPDATE, DELETE",
+        ["public.watched_jobs"] = "SELECT, INSERT",
+        ["public.idempotency_records"] = "SELECT, DELETE",
+        ["public.orders"] = "SELECT",
+        ["public.order_items"] = "SELECT",
+        ["public.customers"] = "SELECT",
+    };
+
+    private const string WorkerGrantsSetting = "starterapp.worker_grants";
+
     public const string GrantSql = $$"""
         DO $grants$
         DECLARE
             target record;
             role_name text;
+            worker_grant record;
+            sequence_name text;
         BEGIN
             FOREACH role_name IN ARRAY ARRAY['{{ApplicationRole}}', '{{WorkerRole}}'] LOOP
                 IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
@@ -38,6 +54,28 @@ public static class ApplicationRoleSetup
 
                 IF to_regclass('public.schemaversions') IS NOT NULL THEN
                     EXECUTE format('REVOKE ALL ON public.schemaversions FROM %I', role_name);
+                END IF;
+            END LOOP;
+
+            -- The worker keeps only its listed tables; anything granted before, or by the loop above, is taken back first.
+            FOR target IN
+                SELECT n.nspname FROM pg_namespace n
+                WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\_%'
+            LOOP
+                EXECUTE format('REVOKE ALL ON ALL TABLES IN SCHEMA %I FROM {{WorkerRole}}', target.nspname);
+                EXECUTE format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA %I FROM {{WorkerRole}}', target.nspname);
+            END LOOP;
+
+            FOR worker_grant IN SELECT key AS table_name, value AS privileges FROM jsonb_each_text(current_setting('{{WorkerGrantsSetting}}')::jsonb) LOOP
+                IF to_regclass(worker_grant.table_name) IS NOT NULL THEN
+                    EXECUTE format('GRANT %s ON %s TO {{WorkerRole}}', worker_grant.privileges, worker_grant.table_name);
+                    FOR sequence_name IN
+                        SELECT s.oid::regclass::text FROM pg_class s
+                        JOIN pg_depend d ON d.objid = s.oid AND d.deptype IN ('a', 'i')
+                        WHERE s.relkind = 'S' AND d.refobjid = to_regclass(worker_grant.table_name)
+                    LOOP
+                        EXECUTE format('GRANT USAGE, SELECT ON SEQUENCE %s TO {{WorkerRole}}', sequence_name);
+                    END LOOP;
                 END IF;
             END LOOP;
 
@@ -85,6 +123,12 @@ public static class ApplicationRoleSetup
         await using var dataSource = NpgsqlDataSource.Create(connectionString);
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        await using (var list = new NpgsqlCommand($"SELECT set_config('{WorkerGrantsSetting}', @grants, true)", connection, transaction))
+        {
+            list.Parameters.AddWithValue("grants", JsonSerializer.Serialize(WorkerGrants));
+            await list.ExecuteNonQueryAsync(cancellationToken);
+        }
 
         await using (var grants = new NpgsqlCommand(GrantSql, connection, transaction))
             await grants.ExecuteNonQueryAsync(cancellationToken);

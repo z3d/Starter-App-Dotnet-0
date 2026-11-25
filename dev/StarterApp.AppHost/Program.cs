@@ -309,7 +309,7 @@ var functions = builder.AddDockerfile("functions", repoRoot, "src/StarterApp.Fun
            ((IResourceWithAzureFunctionsConfig)storage.Resource).ApplyAzureFunctionsConfiguration(context.EnvironmentVariables, "AzureWebJobsStorage");
        })
        .WithEnvironment("ConnectionStrings__payloadarchive", payloadArchive.Resource.ConnectionStringExpression)
-       // The worker's own login: the inbox, the job runs and the expired idempotency keys of every tenant, and nothing else of a tenant's.
+       // The worker's own login, holding only ApplicationRoleSetup.WorkerGrants: its inbox and job runs, every tenant's expired idempotency keys, and the order tables its requests read.
        .WithEnvironment("ConnectionStrings__database", ApplicationConnectionString(FunctionsDatabaseLogin, functionsDatabasePassword, functionsIdentity))
        .WithEnvironment("PayloadCapture__RequireArchiveStore", "true")
        .WithEnvironment("PayloadCapture__ServiceBusFailureMode", "FailClosed")

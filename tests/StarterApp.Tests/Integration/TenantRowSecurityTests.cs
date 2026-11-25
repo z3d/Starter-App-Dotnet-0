@@ -73,7 +73,7 @@ public class TenantRowSecurityTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task EveryTable_IsUsableByBothApplicationRoles_AndTheJournalOnlyReadByTheApi()
+    public async Task EveryTable_IsUsableByTheApi_TheWorkerHoldsOnlyItsGrants_AndTheJournalOnlyReadByTheApi()
     {
         await using var connection = await OpenAsync(_fixture.ConnectionString);
 
@@ -91,6 +91,19 @@ public class TenantRowSecurityTests : IAsyncLifetime
         var failures = await UnusableTablesAsync(connection, transaction);
 
         Assert.Contains(failures, failure => failure.Contains("public.made_up_ungranted", StringComparison.Ordinal));
+        await transaction.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task TheGrantRule_SeesTheWorkerHoldingATableItDoesNotList()
+    {
+        await using var connection = await OpenAsync(_fixture.ConnectionString);
+        await using var transaction = await connection.BeginTransactionAsync();
+        await ExecuteAsync(connection, $"GRANT UPDATE ON public.products TO {ApplicationRoleSetup.WorkerRole}", transaction);
+
+        var failures = await UnusableTablesAsync(connection, transaction);
+
+        Assert.Contains(failures, failure => failure.StartsWith($"{ApplicationRoleSetup.WorkerRole} holds", StringComparison.Ordinal) && failure.Contains("public.products", StringComparison.Ordinal));
         await transaction.RollbackAsync();
     }
 
@@ -347,18 +360,31 @@ public class TenantRowSecurityTests : IAsyncLifetime
             """, connection, transaction);
         command.Parameters.AddWithValue("roles", ApplicationRoleSetup.Roles.ToArray());
         var failures = new List<string>();
+        var tables = new HashSet<string>(StringComparer.Ordinal);
         await using var reader = await command.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
             var (table, role) = (reader.GetString(0), reader.GetString(1));
             var held = $"{reader.GetBoolean(2)}/{reader.GetBoolean(3)}/{reader.GetBoolean(4)}/{reader.GetBoolean(5)}";
-            var expected = table != "public.schemaversions" ? "True/True/True/True"
-                : role == ApplicationRoleSetup.ApplicationRole ? "True/False/False/False" : "False/False/False/False";
+            var expected = role == ApplicationRoleSetup.WorkerRole ? WorkerExpects(table)
+                : table != "public.schemaversions" ? "True/True/True/True" : "True/False/False/False";
             if (held != expected)
-                failures.Add($"{role} holds SELECT/INSERT/UPDATE/DELETE {held} on {table}, expected {expected}: the migrator's role setup grants every table on each run.");
+                failures.Add($"{role} holds SELECT/INSERT/UPDATE/DELETE {held} on {table}, expected {expected}: the migrator's role setup grants the API every table and the worker its WorkerGrants on each run.");
+            tables.Add(table);
         }
 
+        failures.AddRange(ApplicationRoleSetup.WorkerGrants.Keys.Where(table => !tables.Contains(table))
+            .Select(table => $"WorkerGrants names {table}, which does not exist; take it off the list."));
         return failures;
+    }
+
+    private static string WorkerExpects(string table)
+    {
+        if (!ApplicationRoleSetup.WorkerGrants.TryGetValue(table, out var privileges))
+            return "False/False/False/False";
+
+        var held = privileges.Split(',', StringSplitOptions.TrimEntries).ToHashSet(StringComparer.Ordinal);
+        return string.Join('/', new[] { "SELECT", "INSERT", "UPDATE", "DELETE" }.Select(privilege => held.Contains(privilege) ? "True" : "False"));
     }
 
     private static async Task<NpgsqlConnection> OpenAsync(string connectionString)
