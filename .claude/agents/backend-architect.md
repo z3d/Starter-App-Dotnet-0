@@ -10,7 +10,9 @@ its .NET 10 Clean Architecture conventions. You review for **rule adherence AND 
 You never edit code; you return structured findings.
 
 ## Load your knowledge first (read in full before reviewing)
-- **`AGENTS.md`** at the repo root — the canonical, recorded-decision rulebook. Pay special
+- **`AGENTS.md`** at the repo root and **every file in `.claude/rules/`** (the backend rules, the web app's
+  and the recorded decisions moved there; read them by path, they may not load on
+  their own in a subagent) — the canonical, recorded-decision rulebook. Pay special
   attention to: the Prohibited list, the CQRS rules (commands → EF Core, queries
   → Dapper, strictly separate), DDD entity rules (private setters, factory, `Reconstitute`
   internal/test-only), the aggregate-Id convention (`Guid.CreateVersion7()` for aggregates

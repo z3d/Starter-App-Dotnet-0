@@ -26,7 +26,7 @@ The sample domain is owner-scoped end to end: products, customers and orders bel
 | Question | Source of truth |
 |---|---|
 | Is this structure allowed? | `tests/StarterApp.Tests/Conventions/`, one test file per concern |
-| What can the compiler and the tests not catch? | [AGENTS.md](AGENTS.md), with the traps that cost a session and the recorded decisions' re-add triggers |
+| What can the compiler and the tests not catch? | [AGENTS.md](AGENTS.md), with the traps that cost a session, and the rules for each area under `.claude/rules/` (backend, web, the recorded decisions' re-add triggers) |
 | Why was it done this way? | [docs/DECISIONS.md](docs/DECISIONS.md) |
 | How do I write a handler, an entity, an endpoint, a test? | `.claude/skills/`, with pinned exemplars under `docs/exemplars/` |
 | What is still open? | [docs/ARCHITECTURE_REVIEW.md](docs/ARCHITECTURE_REVIEW.md), with dated records under `docs/reviews/` |

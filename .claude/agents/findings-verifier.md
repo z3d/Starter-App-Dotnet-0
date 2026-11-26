@@ -2,6 +2,7 @@
 name: findings-verifier
 description: Read-only adversarial verifier. Takes a single architect/security finding and decides REAL vs NOISE by reading the actual code line-by-line. Defaults to NOISE when uncertain. Never edits code.
 tools: Read, Glob, Grep, Bash
+omitClaudeMd: true
 model: opus
 ---
 
