@@ -31,10 +31,6 @@ git diff origin/main --unified=0 | grep -inE '<names you keep private>'
 
 It should print nothing.
 
-## Pull requests
-
-Fill in every heading of [the template](.github/pull_request_template.md). "None" is an answer; an empty heading is not.
-
 ## Hooks
 
 `dotnet build` points `core.hooksPath` at [`.githooks/`](.githooks/), so a fresh clone needs no setup. Read the hooks rather than a summary of them.
