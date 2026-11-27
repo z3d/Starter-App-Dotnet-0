@@ -62,15 +62,24 @@ describe('signInWithScopes', () => {
 })
 
 describe('signOut', () => {
-  it('posts a form to the API with the CSRF token and the reason, so the API can end the session at the provider', () => {
-    const submit = vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(() => {})
+  it('asks the API to end the session with the CSRF token and the reason, then goes where it says', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(Response.json({ location: 'https://idp.test/logout?id_token_hint=x' }))
     auth.setCsrfToken('csrf-abc')
-    auth.signOut('idle')
-    const form = submit.mock.contexts[0] as HTMLFormElement
-    expect(form.method).toBe('post')
-    expect(new URL(form.action).pathname).toBe('/api/auth/logout')
-    expect(new FormData(form).get('csrf')).toBe('csrf-abc')
-    expect(new FormData(form).get('reason')).toBe('idle')
+    await auth.signOut('idle')
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/auth/logout')
+    expect((init.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-abc')
+    expect((init.headers as Record<string, string>).Accept).toBe('application/json')
+    expect(new URLSearchParams(String(init.body)).get('reason')).toBe('idle')
+    expect(go).toHaveBeenCalledWith('https://idp.test/logout?id_token_hint=x')
+  })
+
+  it('still leaves when the API cannot be reached', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'))
+    await auth.signOut()
+    expect(go).toHaveBeenCalledWith('/signed-out?reason=signed-out')
   })
 })
 

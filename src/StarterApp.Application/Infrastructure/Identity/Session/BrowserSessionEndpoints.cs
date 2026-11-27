@@ -188,12 +188,12 @@ public static class BrowserSessionEndpoints
         var session = string.IsNullOrEmpty(cookie) ? null : await store.GetSessionAsync(cookie, cancellationToken);
 
         if (session is not null && session.EndedBecause is null
-            && !SameSecret(form?["csrf"].ToString() ?? context.Request.Headers[CsrfHeader].ToString(), session.CsrfToken))
+            && !SameSecret(form?["csrf"].ToString() is { Length: > 0 } fromForm ? fromForm : context.Request.Headers[CsrfHeader].ToString(), session.CsrfToken))
             return CsrfRefused();
 
         context.Response.Cookies.Delete(BrowserSessionCookies.Session, BrowserSessionCookies.ForSession());
         if (session is null)
-            return Results.Redirect(SignedOut(reason));
+            return Leave(context, SignedOut(reason));
 
         await store.RemoveSessionAsync(cookie!, cancellationToken);
         if (session.RefreshToken is { } refreshToken)
@@ -220,14 +220,14 @@ public static class BrowserSessionEndpoints
                 };
                 if (!string.IsNullOrEmpty(session.IdToken))
                     query["id_token_hint"] = session.IdToken;
-                return Results.Redirect(QueryHelpers.AddQueryString(configuration.EndSessionEndpoint, query));
+                return Leave(context, QueryHelpers.AddQueryString(configuration.EndSessionEndpoint, query));
             }
         }
         catch (InvalidOperationException)
         {
         }
 
-        return Results.Redirect(SignedOut(reason));
+        return Leave(context, SignedOut(reason));
     }
 
     private static IResult Describe(HttpContext context, IOptions<BrowserSessionOptions> sessionOptions)
@@ -249,6 +249,12 @@ public static class BrowserSessionEndpoints
             IdleMinutes = sessionOptions.Value.IdleMinutes,
         });
     }
+
+    // A fetch cannot read a redirect's address, and a form the API redirected off-site breaks the page's form-action 'self'.
+    private static IResult Leave(HttpContext context, string location) =>
+        context.Request.Headers.Accept.Any(value => value?.Contains("application/json", StringComparison.OrdinalIgnoreCase) == true)
+            ? Results.Json(new SignOutResponse { Location = location })
+            : Results.Redirect(location);
 
     internal static IResult CsrfRefused() =>
         Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Forbidden",

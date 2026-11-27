@@ -190,6 +190,39 @@ public class BrowserSessionTests
     }
 
     [Fact]
+    public async Task SignOut_AnswersAFetchWithWhereToGo_SoThePageNavigatesItself()
+    {
+        await using var rig = new Rig(_fixture);
+        await rig.SignInAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, BrowserSessionEndpoints.LogoutPath)
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string> { ["reason"] = "idle" }),
+        };
+        request.Headers.Add(BrowserSessionEndpoints.CsrfHeader, await rig.CsrfTokenAsync());
+        request.Headers.Accept.ParseAdd("application/json");
+        var response = await rig.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var location = (await response.Content.ReadFromJsonAsync<SignOutResponse>())!.Location;
+        Assert.StartsWith($"{ProviderOrigin}/logout?", location, StringComparison.Ordinal);
+        Assert.Equal($"{WebOrigin}{BrowserSessionEndpoints.SignedOutPage}?reason=idle", QueryHelpers.ParseQuery(new Uri(location).Query)["post_logout_redirect_uri"]);
+    }
+
+    [Fact]
+    public async Task AnEndedSession_SaysWhy_OnTheSessionCheckToo()
+    {
+        await using var rig = new Rig(_fixture);
+        await rig.SignInAsync();
+
+        rig.Clock.Advance(TimeSpan.FromMinutes(31));
+        var response = await rig.Client.GetAsync(BrowserSessionEndpoints.SessionPath);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("idle", response.Headers.GetValues(BrowserSessionEndpoints.EndedHeader).Single());
+    }
+
+    [Fact]
     public async Task ABearerToken_StillWins_OverACookie()
     {
         await using var rig = new Rig(_fixture);

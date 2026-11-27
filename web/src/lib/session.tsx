@@ -1,6 +1,6 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react'
 import { client } from './api'
-import { setCsrfToken, signIn, signOut } from './auth'
+import { isSignOutReason, sessionEndedHeader, setCsrfToken, signIn, signOut } from './auth'
 import type { components } from './api.generated'
 
 export type BrowserSession = components['schemas']['BrowserSessionResponse']
@@ -31,7 +31,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       } else {
         setCsrfToken(null)
         setSession(null)
-        setStatus(response.status === 401 ? 'signed-out' : 'unavailable')
+        const ended = response.headers.get(sessionEndedHeader)
+        if (isSignOutReason(ended)) void signOut(ended)
+        else setStatus(response.status === 401 ? 'signed-out' : 'unavailable')
       }
     } catch {
       setStatus('unavailable')
@@ -48,7 +50,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     scopes: (session?.scope ?? '').split(' ').filter(Boolean),
     displayName: session?.displayName || session?.subject || 'You',
     signIn: () => signIn(),
-    signOut: () => signOut(),
+    signOut: () => void signOut(),
     reload,
   }
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 // The provider's redirects are stood in for; the client's own behaviour is what is tested.
 const signInAgain = vi.fn()
 const stepUp = vi.fn(() => true)
-const signOut = vi.fn()
+const signOut = vi.fn(async () => {})
 vi.mock('./auth', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./auth')>()),
   signInAgain,

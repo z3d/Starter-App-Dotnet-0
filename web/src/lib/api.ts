@@ -59,7 +59,7 @@ export const identity: Middleware = {
   onResponse({ request, response }) {
     if (response.status === 401 && csrfToken() && new URL(request.url).pathname !== sessionPath) {
       const ended = response.headers.get(sessionEndedHeader)
-      if (isSignOutReason(ended)) signOut(ended)
+      if (isSignOutReason(ended)) void signOut(ended)
       else signInAgain()
     }
     if (response.status === 403) stepUp(response.headers.get('WWW-Authenticate'))

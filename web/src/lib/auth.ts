@@ -65,20 +65,30 @@ export function stepUp(challenge: string | null): boolean {
   return true
 }
 
-// A form post, not a fetch: the API ends the session, then sends the browser to the provider to end it there too.
-export function signOut(reason: SignOutReason = 'signed-out'): void {
-  const form = document.createElement('form')
-  form.method = 'POST'
-  form.action = '/api/auth/logout'
-  for (const [name, value] of Object.entries({ csrf: csrf ?? '', reason })) {
-    const input = document.createElement('input')
-    input.type = 'hidden'
-    input.name = name
-    input.value = value
-    form.appendChild(input)
+let signingOut = false
+
+// A fetch, then a navigation: a form post the API redirected to the provider would be blocked by the page's form-action 'self'.
+export async function signOut(reason: SignOutReason = 'signed-out'): Promise<void> {
+  if (signingOut) return
+  signingOut = true
+  try {
+    const response = await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        [csrfHeader]: csrf ?? '',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ reason }),
+    })
+    const location = response.ok ? ((await response.json()) as { location?: string }).location : undefined
+    setCsrfToken(null)
+    browser.go(location ?? `/signed-out?reason=${reason}`)
+  } catch {
+    browser.go(`/signed-out?reason=${reason}`)
+  } finally {
+    signingOut = false
   }
-  document.body.appendChild(form)
-  form.submit()
 }
 
 export function isSignOutReason(value: string | null): value is SignOutReason {
