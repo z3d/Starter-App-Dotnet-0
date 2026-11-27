@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useAuth } from 'react-oidc-context'
 import { Button } from '@/components/ui/button'
 import { Checkbox, Field, Input } from '@/components/ui/field'
 import { HeroFigure, SplitBar, Statement } from '@/components/ui/figures'
@@ -7,7 +6,8 @@ import { Card, EmptyState, PageHeader } from '@/components/ui/primitives'
 import { Queue, QueueRow, Waited } from '@/components/ui/queue'
 import { ApiError, call, client } from '@/lib/api'
 import { money } from '@/lib/format'
-import { claimsOf, resourceScopes, signInWithScopes } from '@/lib/auth'
+import { resourceScopes, signInWithScopes } from '@/lib/auth'
+import { useSession } from '@/lib/session'
 import type { Full, Schemas } from '@/lib/types'
 
 // A derived project removes this folder with the sample domain (docs/DERIVATION-PRUNING.md).
@@ -48,9 +48,7 @@ async function send<T>(method: string, path: string, run: () => Promise<T>): Pro
 }
 
 export function SamplePage() {
-  const auth = useAuth()
-  const profile = claimsOf(auth.user?.access_token)
-  const granted = String(profile.scope ?? '').split(' ')
+  const { session, scopes: granted } = useSession()
   const [scopes, setScopes] = useState<string[]>(resourceScopes.filter((s) => granted.includes(s)))
 
   const [productName, setProductName] = useState(`Demo Widget ${suffix.toUpperCase()}`)
@@ -144,12 +142,11 @@ export function SamplePage() {
         >
           {JSON.stringify(
             {
-              sub: profile.sub,
-              tid: profile.tid,
-              aud: profile.aud,
-              scope: profile.scope,
-              amr: profile.amr,
-              exp: profile.exp ? new Date(Number(profile.exp) * 1000).toISOString() : undefined,
+              sub: session?.subject,
+              tid: session?.tenantId,
+              scope: session?.scope,
+              amr: session?.authenticationMethods,
+              exp: session?.accessExpiresAt ?? undefined,
             },
             null,
             2,

@@ -5,7 +5,7 @@ import { CommandPalette } from './command-palette'
 const navigate = vi.fn()
 const signoutRedirect = vi.fn()
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }))
-vi.mock('react-oidc-context', () => ({ useAuth: () => ({ signoutRedirect }) }))
+vi.mock('@/lib/session', () => ({ useSession: () => ({ signOut: signoutRedirect }) }))
 
 describe('CommandPalette', () => {
   beforeAll(() => {

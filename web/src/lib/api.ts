@@ -1,7 +1,6 @@
 import createClient, { type Middleware } from 'openapi-fetch'
-import { User } from 'oidc-client-ts'
 import type { paths } from './api.generated'
-import { oidcSettings, signInAgain, stepUp } from './auth'
+import { csrfHeader, csrfToken, isSignOutReason, sessionEndedHeader, signInAgain, signOut, stepUp } from './auth'
 import { build } from './build'
 import { clearOutage, markStale, NetworkError, type Outage, reportOutage, setServiceNotice } from './connection'
 import type { Full } from './types'
@@ -42,28 +41,27 @@ export class ApiError extends Error {
   }
 }
 
-function currentAccessToken(): string | undefined {
-  const key = `oidc.user:${oidcSettings.authority}:${oidcSettings.client_id}`
-  const raw = window.sessionStorage.getItem(key)
-  if (!raw) return undefined
-  const user = User.fromStorageString(raw)
-  return user.expired ? undefined : user.access_token
-}
-
 export function newCorrelationId(): string {
   return crypto.randomUUID()
 }
 
+// Asked once at start-up to learn whether anyone is signed in; its 401 is an answer, not a lost session.
+const sessionPath = '/api/auth/session'
+
 export const identity: Middleware = {
   onRequest({ request }) {
-    const token = currentAccessToken()
-    if (token && !request.headers.has('Authorization')) request.headers.set('Authorization', `Bearer ${token}`)
+    const csrf = csrfToken()
+    if (csrf && request.method !== 'GET' && request.method !== 'HEAD') request.headers.set(csrfHeader, csrf)
     if (!request.headers.has('X-Correlation-ID')) request.headers.set('X-Correlation-ID', newCorrelationId())
     request.headers.set('X-Client-Build', build)
     return request
   },
   onResponse({ request, response }) {
-    if (response.status === 401 && request.headers.has('Authorization')) signInAgain()
+    if (response.status === 401 && csrfToken() && new URL(request.url).pathname !== sessionPath) {
+      const ended = response.headers.get(sessionEndedHeader)
+      if (isSignOutReason(ended)) signOut(ended)
+      else signInAgain()
+    }
     if (response.status === 403) stepUp(response.headers.get('WWW-Authenticate'))
     if (response.headers.get('X-Client-Reload') === 'true') markStale()
     const notice = response.headers.get('X-Service-Notice')
@@ -125,10 +123,7 @@ export async function call<T>(
 }
 
 export async function download(path: string): Promise<{ blob: Blob; fileName: string | null }> {
-  const token = currentAccessToken()
-  const response = await fetch(path, {
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'X-Correlation-ID': newCorrelationId() },
-  })
+  const response = await fetch(path, { headers: { 'X-Correlation-ID': newCorrelationId() } })
   if (!response.ok) throw new ApiError(response.status, undefined, response.headers.get('X-Correlation-ID'))
   const disposition = response.headers.get('Content-Disposition') ?? ''
   const fileName = /filename="?([^";]+)"?/.exec(disposition)?.[1] ?? null

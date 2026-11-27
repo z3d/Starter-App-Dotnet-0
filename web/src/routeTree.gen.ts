@@ -10,13 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as SignedOutRouteImport } from './routes/signed-out'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
-import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as AuthSilentRouteImport } from './routes/auth.silent'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignedOutRoute = SignedOutRouteImport.update({
+  id: '/signed-out',
+  path: '/signed-out',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -29,55 +33,35 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/auth/callback',
-  path: '/auth/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthSilentRoute = AuthSilentRouteImport.update({
-  id: '/auth/silent',
-  path: '/auth/silent',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/signed-out': typeof SignedOutRoute
   '/settings': typeof AppSettingsRoute
-  '/auth/callback': typeof AuthCallbackRoute
-  '/auth/silent': typeof AuthSilentRoute
 }
 export interface FileRoutesByTo {
+  '/signed-out': typeof SignedOutRoute
   '/settings': typeof AppSettingsRoute
-  '/auth/callback': typeof AuthCallbackRoute
-  '/auth/silent': typeof AuthSilentRoute
   '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/signed-out': typeof SignedOutRoute
   '/_app/settings': typeof AppSettingsRoute
-  '/auth/callback': typeof AuthCallbackRoute
-  '/auth/silent': typeof AuthSilentRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/settings' | '/auth/callback' | '/auth/silent'
+  fullPaths: '/' | '/signed-out' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/settings' | '/auth/callback' | '/auth/silent' | '/'
-  id:
-    | '__root__'
-    | '/_app'
-    | '/_app/settings'
-    | '/auth/callback'
-    | '/auth/silent'
-    | '/_app/'
+  to: '/signed-out' | '/settings' | '/'
+  id: '__root__' | '/_app' | '/signed-out' | '/_app/settings' | '/_app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
-  AuthCallbackRoute: typeof AuthCallbackRoute
-  AuthSilentRoute: typeof AuthSilentRoute
+  SignedOutRoute: typeof SignedOutRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -87,6 +71,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signed-out': {
+      id: '/signed-out'
+      path: '/signed-out'
+      fullPath: '/signed-out'
+      preLoaderRoute: typeof SignedOutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -102,20 +93,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
-    }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/silent': {
-      id: '/auth/silent'
-      path: '/auth/silent'
-      fullPath: '/auth/silent'
-      preLoaderRoute: typeof AuthSilentRouteImport
-      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -134,8 +111,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
-  AuthCallbackRoute: AuthCallbackRoute,
-  AuthSilentRoute: AuthSilentRoute,
+  SignedOutRoute: SignedOutRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

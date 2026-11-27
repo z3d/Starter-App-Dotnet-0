@@ -102,6 +102,11 @@ The first, second and last of the open items are in the sample domain, which a d
 
 - **OPEN: the published worker's access to Azure Managed Redis is unproven.** The AppHost gives the worker `WithReference(redis)` as it gives the API, which in publish mode should assign its identity a role on the cache; it was not deployed or read in the generated Bicep here.
 
+### Found while moving the browser to a cookie session (28 November 2026)
+
+- **OPEN: two requests can refresh one session at once.** `BrowserSessionMiddleware` has no lock around a refresh, so requests that arrive together near the token's expiry each call the token endpoint, and the last write to the cache wins. Keycloak accepts the old refresh token again, so nothing is seen locally. A provider that rotates refresh tokens and refuses a reused one would end the slower request's session (`X-Session-Ended: expired`). Not seen running; read from the code.
+- **OPEN: the step-up route passes `acr_values` only.** A future "recent second factor" filter (Deferred, below) needs `/api/auth/login` to pass `max_age` as well, checked against a configured value like `acr_values` is.
+
 ## Accepted with a trigger
 
 - **Folder-only Clean Architecture (2026-06-09).** `Domain` is compiler-enforced; the handlers

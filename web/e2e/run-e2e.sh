@@ -93,6 +93,9 @@ trap cleanup EXIT INT TERM
 
 # The web image reaches the API on the host: Docker on Linux through the host gateway, so the API
 # listens beyond loopback; Podman's host.containers.internal arrives on loopback.
+# The browser signs in through the API, which sends it back to the web app's own origin.
+if [[ "$E2E_DEPLOYED" == "1" ]]; then WEB_ORIGIN="http://localhost:${DEPLOYED_PORT}"; else WEB_ORIGIN="http://localhost:${WEB_PORT}"; fi
+
 start_api() {
   local bind=127.0.0.1
   [[ "$E2E_DEPLOYED" == "1" && "$CONTAINER_CLI" == "docker" ]] && bind=0.0.0.0
@@ -105,6 +108,10 @@ start_api() {
   Identity__Authority="${IDP_URL}/realms/starterapp" \
   Identity__RequireHttpsMetadata=false \
   Identity__StepUpAcrValues="$STEP_UP_ACR" \
+  Identity__Session__ClientId=starterapp-session \
+  Identity__Session__ClientSecret=local-dev-session-secret-not-a-secret \
+  Identity__Session__Scope="openid $DEV_IDP_SCOPES" \
+  Identity__Session__WebOrigin="$WEB_ORIGIN" \
     dotnet run --project "$REPO_ROOT/src/StarterApp.Api" -c Release --no-launch-profile >"$API_LOG" 2>&1 &
   API_PID=$!
   local ready=0 deadline=$((SECONDS + API_WAIT_SECONDS))
@@ -167,7 +174,6 @@ if [[ "$SKIP_BOOT" != "1" ]]; then
     log "Starting the web image on port $DEPLOYED_PORT (nginx, the API at http://${upstream_host}:${API_PORT})"
     "$CONTAINER_CLI" run -d --name "$WEB_CONTAINER" ${add_host[@]+"${add_host[@]}"} -p "${DEPLOYED_PORT}:8080" \
       -e API_UPSTREAM="http://${upstream_host}:${API_PORT}" \
-      -e OIDC_AUTHORITY="${IDP_URL}/realms/starterapp" \
       "$WEB_IMAGE" >/dev/null
     for _ in $(seq 1 30); do curl -fsS "http://localhost:${DEPLOYED_PORT}/healthz" >/dev/null 2>&1 && break; sleep 1; done
     curl -fsS "http://localhost:${DEPLOYED_PORT}/healthz" >/dev/null || { err "The web image did not answer. Its log:"; "$CONTAINER_CLI" logs "$WEB_CONTAINER" >&2; exit 1; }
@@ -182,7 +188,7 @@ if [[ "$MODE" == "walkthrough" || "$MODE" == "present" ]]; then
   # The recording drives the dev server itself, so it is started here rather than by Playwright.
   if [[ -z "${BASE_URL:-}" ]]; then
     log "Starting the dev server on port $WEB_PORT"
-    VITE_API_URL="$API_URL" VITE_OIDC_AUTHORITY="${IDP_URL}/realms/starterapp" npx vite --port "$WEB_PORT" --strictPort >"$LOG_DIR/vite.log" 2>&1 &
+    VITE_API_URL="$API_URL" npx vite --port "$WEB_PORT" --strictPort >"$LOG_DIR/vite.log" 2>&1 &
     WEB_PID=$!
     for _ in $(seq 1 60); do
       if curl -fsS "http://localhost:${WEB_PORT}" >/dev/null 2>&1; then break; fi

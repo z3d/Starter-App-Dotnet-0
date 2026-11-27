@@ -1,10 +1,11 @@
 // The browser tests' fixtures: who the person is and how they are signed in, and a way to read and
 // write the API directly for setting up and tidying after a test.
 //
-// A test signs in the way the app does: react-oidc-context keeps the session in sessionStorage
-// (oidc-client-ts), so the fixture mints the person's tokens from the dev Keycloak by the password
-// grant through the same public client and puts them where the app looks before the first page
-// loads. The redirect through Keycloak's own sign-in page is covered once, in sign-in.spec.ts.
+// A test signs in the way the app does, through the API: the fixture asks the API to start a sign-in,
+// fills the dev Keycloak's form over HTTP and follows the redirects back, so the browser context
+// ends up holding the API's session cookie. The redirect through Keycloak's own sign-in page in a
+// browser is covered once, in sign-in.spec.ts. The API is also called directly with a bearer token
+// minted by the password grant through the realm's public dev client, for setting up and tidying.
 import { type Browser, test as base, expect, type Page } from '@playwright/test'
 
 export const apiUrl = process.env.API_URL ?? 'https://localhost:7286'
@@ -76,28 +77,22 @@ const decode = (jwt: string) =>
   JSON.parse(Buffer.from(jwt.split('.')[1]!, 'base64url').toString()) as Record<string, unknown>
 
 export async function signInAs(page: Page, user: DevUser): Promise<void> {
-  const t = await tokensFor(user)
-  const stored = {
-    id_token: t.id_token,
-    session_state: t.session_state ?? null,
-    access_token: t.access_token,
-    refresh_token: t.refresh_token,
-    token_type: t.token_type,
-    scope: t.scope,
-    profile: decode(t.id_token ?? t.access_token),
-    expires_at: Math.floor(Date.now() / 1000) + t.expires_in,
-  }
-  await page.addInitScript(
-    ([key, value]) => {
-      try {
-        window.sessionStorage.setItem(key!, value!)
-      } catch {
-        // Keycloak's own pages run this too; they do not matter.
-      }
-    },
-    [`oidc.user:${authority}:${clientId}`, JSON.stringify(stored)],
-  )
+  const context = page.context()
+  const login = await context.request.get('/api/auth/login?returnTo=/')
+  const form = /<form[^>]*id="kc-form-login"[^>]*action="([^"]+)"/.exec(await login.text())
+  if (!form)
+    throw new Error(`signing in ${user.username}: the API did not lead to Keycloak's sign-in form (${login.url()})`)
+  const done = await context.request.post(form[1]!.replace(/&amp;/g, '&'), {
+    form: { username: user.username, password: user.password, credentialId: '' },
+  })
+  if (!done.ok()) throw new Error(`signing in ${user.username} ended at ${done.url()} with ${done.status()}`)
+  if (!(await context.cookies()).some((cookie) => cookie.name === sessionCookie))
+    throw new Error(`signing in ${user.username} ended at ${done.url()} without a session cookie`)
+  // Keycloak's own session is dropped, so a test that signs in again meets the form as a person would.
+  await context.clearCookies({ name: /^(?!__Host-starterapp)/ })
 }
+
+export const sessionCookie = '__Host-starterapp-session'
 
 export async function signInAtKeycloak(page: Page, user: { username: string; password: string }): Promise<void> {
   await page.locator('#username').fill(user.username)

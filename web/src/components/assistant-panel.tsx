@@ -8,7 +8,7 @@ import { Callout } from '@/components/ui/primitives'
 import { call, client } from '@/lib/api'
 import { type AssistantArea, pageFor, type Proposal, send } from '@/lib/assistant'
 import { day, money } from '@/lib/format'
-import { useAuth } from 'react-oidc-context'
+import { useSession } from '@/lib/session'
 
 export interface Confirmed {
   said: string
@@ -42,8 +42,7 @@ export function ProposalCard({
 }
 
 function useScopes() {
-  const auth = useAuth()
-  return String(auth.user?.scope ?? '').split(' ')
+  return useSession().scopes
 }
 
 function Card({ title, children }: { title: string; children: ReactNode }) {

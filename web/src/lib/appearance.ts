@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { useAuth } from 'react-oidc-context'
+import { useSession } from '@/lib/session'
 import { defaultPalette, type PaletteId, palettes } from '@/palettes'
 import { call, client } from './api'
 
@@ -59,10 +59,7 @@ export function applyPalette(id: string | null | undefined) {
 export const settingsWriteScope = 'settings:write'
 
 export function useCanAdminister(): boolean {
-  const auth = useAuth()
-  return String(auth.user?.scope ?? '')
-    .split(' ')
-    .includes(settingsWriteScope)
+  return useSession().scopes.includes(settingsWriteScope)
 }
 
 export function useTenantAppearance() {

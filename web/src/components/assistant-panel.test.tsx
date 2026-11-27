@@ -12,7 +12,13 @@ const state = vi.hoisted(() => ({
 }))
 
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => vi.fn() }))
-vi.mock('react-oidc-context', () => ({ useAuth: () => ({ user: { scope: state.scope } }) }))
+vi.mock('@/lib/session', () => ({
+  useSession: () => ({
+    scopes: String(state.scope ?? '')
+      .split(' ')
+      .filter(Boolean),
+  }),
+}))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/lib/assistant', () => ({
   pageFor: () => undefined,

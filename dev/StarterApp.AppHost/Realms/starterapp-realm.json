@@ -84,6 +84,43 @@
         "settings:write",
         "assistant:use"
       ]
+    },
+    {
+      "clientId": "starterapp-session",
+      "name": "StarterApp browser session (confidential client on the API host, authorization code with PKCE; well-known secret, dev only)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "local-dev-session-secret-not-a-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
+      "defaultClientScopes": [
+        "starterapp-api-audience",
+        "starterapp-claims",
+        "profile",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "customers:read",
+        "customers:write",
+        "orders:read",
+        "orders:write",
+        "products:read",
+        "products:write",
+        "settings:read",
+        "settings:write",
+        "assistant:use"
+      ]
     }
   ],
   "clientScopes": [

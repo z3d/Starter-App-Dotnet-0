@@ -283,10 +283,17 @@ var web = builder.AddViteApp("web", "../../web")
        .WithNpm()
        .WithReference(api)
        .WithEnvironment("VITE_API_URL", api.GetEndpoint("https"))
-       .WithEnvironment("VITE_OIDC_CLIENT_ID", "starterapp-web")
        .WaitFor(api);
-web.WithEnvironment("VITE_OIDC_AUTHORITY", ReferenceExpression.Create($"{keycloak.GetEndpoint("http")}/realms/starterapp"))
-   .WaitFor(keycloak);
+
+// Published, the web app is built and hosted from web/Dockerfile outside this AppHost, so its address is a parameter.
+var webOrigin = builder.ExecutionContext.IsPublishMode
+    ? ReferenceExpression.Create($"{builder.AddParameter("web-origin")}")
+    : ReferenceExpression.Create($"{web.GetEndpoint("http")}");
+api.WithEnvironment("Identity__Session__ClientId", builder.Configuration["Identity:Session:ClientId"] ?? "starterapp-session")
+   .WithEnvironment("Identity__Session__ClientSecret", builder.Configuration["Identity:Session:ClientSecret"] ?? "local-dev-session-secret-not-a-secret")
+   .WithEnvironment("Identity__Session__Scope", builder.Configuration["Identity:Session:Scope"]
+       ?? "openid products:read products:write customers:read customers:write orders:read orders:write settings:read settings:write assistant:use")
+   .WithEnvironment("Identity__Session__WebOrigin", webOrigin);
 
 // The Service Bus subscribers run in the Functions base image locally too, so they behave the same
 // as the deployed worker.

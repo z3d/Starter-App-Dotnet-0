@@ -2,13 +2,13 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { Home, LogOut, Menu, Search, Settings, Sparkles, X } from 'lucide-react'
 import { Dialog as RadixDialog } from 'radix-ui'
 import { type ReactNode, useState } from 'react'
-import { useAuth } from 'react-oidc-context'
 import { AppearanceMenu } from '@/components/appearance-menu'
 import { AssistantDock } from '@/components/assistant-dock'
 import { CommandPalette } from '@/components/command-palette'
 import { ConnectionBanner } from '@/components/connection-banner'
 import { useCanAdminister, useTenantAppearance } from '@/lib/appearance'
 import { openAssistant, useAssistantDock } from '@/lib/interface'
+import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
 
 // The rail. A derived project replaces the sample item with its own pages.
@@ -18,7 +18,7 @@ export const nav = [
 ] as const
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const auth = useAuth()
+  const auth = useSession()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const pathname = useRouterState({ select: (s) => s.location.pathname })
@@ -26,11 +26,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const dock = useAssistantDock()
   const shown = nav.filter((item) => !item.admin || canAdminister)
   useTenantAppearance()
-  const name =
-    (auth.user?.profile.name as string | undefined) ??
-    (auth.user?.profile.preferred_username as string | undefined) ??
-    (auth.user?.profile.sub as string | undefined) ??
-    'You'
+  const name = auth.displayName
   const initials = name
     .split(/[\s._-]+/)
     .slice(0, 2)
@@ -100,14 +96,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm text-rail-ink">{name}</p>
             <p className="truncate text-2xs text-rail-ink-muted" data-testid="tenant-id">
-              {auth.user?.profile.tid as string}
+              {auth.session?.tenantId}
             </p>
           </div>
           <AppearanceMenu className="rounded-md p-1.5 text-rail-ink-muted transition-colors hover:bg-rail-active hover:text-rail-ink" />
           <button
             type="button"
             aria-label="Sign out"
-            onClick={() => void auth.signoutRedirect()}
+            onClick={() => auth.signOut()}
             className="rounded-md p-1.5 text-rail-ink-muted transition-colors hover:bg-rail-active hover:text-rail-ink"
           >
             <LogOut className="size-4" />

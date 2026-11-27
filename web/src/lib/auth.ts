@@ -1,4 +1,5 @@
-import { UserManager, WebStorageStateStore, type UserManagerSettings } from 'oidc-client-ts'
+// The browser holds no token: the API signs the person in, keeps the tokens and gives this tab a cookie it cannot read.
+// What the tab keeps is the session's CSRF token, in memory only, which every change sends back.
 
 // The sample's resource scopes; a derived project replaces them with its modules' scopes.
 export const resourceScopes = [
@@ -12,85 +13,47 @@ export const resourceScopes = [
   'settings:write',
   'assistant:use',
 ] as const
-export const DEFAULT_SCOPES = `openid ${resourceScopes.join(' ')}`
 
-// A hosted instance renders /config.js at start-up (deploy/config.js.template) with the identity
-// provider's realm, so it is a deploy-time value, never baked into the bundle. The audience and
-// the organization are what an Auth0 tenant needs; a Keycloak realm needs neither.
-type RuntimeConfig = {
-  oidcAuthority?: string
-  oidcClientId?: string
-  oidcScope?: string
-  oidcAudience?: string
-  oidcOrganization?: string
-}
-const runtime = (window as unknown as { __STARTERAPP_CONFIG__?: RuntimeConfig }).__STARTERAPP_CONFIG__ ?? {}
-const present = (value: string | undefined): string | undefined =>
-  value && !value.startsWith('${') && !/replace-me/i.test(value) ? value : undefined
+export const csrfHeader = 'X-CSRF-Token'
+export const sessionEndedHeader = 'X-Session-Ended'
+export type SignOutReason = 'signed-out' | 'idle' | 'expired'
 
-const audience = present(runtime.oidcAudience) ?? present(import.meta.env.VITE_OIDC_AUDIENCE as string | undefined)
-const organization =
-  present(runtime.oidcOrganization) ?? present(import.meta.env.VITE_OIDC_ORGANIZATION as string | undefined)
-const extraQueryParams = { ...(audience ? { audience } : {}), ...(organization ? { organization } : {}) }
+let csrf: string | undefined
 
-export const oidcSettings: UserManagerSettings = {
-  authority:
-    present(runtime.oidcAuthority) ??
-    present(import.meta.env.VITE_OIDC_AUTHORITY as string | undefined) ??
-    'http://localhost:8090/realms/starterapp',
-  client_id: present(runtime.oidcClientId) ?? import.meta.env.VITE_OIDC_CLIENT_ID ?? 'starterapp-web',
-  redirect_uri: `${window.location.origin}/auth/callback`,
-  post_logout_redirect_uri: window.location.origin,
-  silent_redirect_uri: `${window.location.origin}/auth/silent`,
-  response_type: 'code',
-  // Keycloak rejects a scope it does not know, so the default names the API scopes the app uses.
-  scope: present(runtime.oidcScope) ?? import.meta.env.VITE_OIDC_SCOPES ?? DEFAULT_SCOPES,
-  automaticSilentRenew: true,
-  loadUserInfo: false,
-  userStore: new WebStorageStateStore({ store: window.sessionStorage }),
-  ...(Object.keys(extraQueryParams).length > 0 ? { extraQueryParams } : {}),
+export function csrfToken(): string | undefined {
+  return csrf
 }
 
-// After the provider bounces back to /auth/callback, return the user to where they started.
-export function onSigninCallback() {
-  const returnTo = window.sessionStorage.getItem('starterapp.returnTo') ?? '/'
-  window.sessionStorage.removeItem('starterapp.returnTo')
-  window.history.replaceState({}, document.title, returnTo)
+export function setCsrfToken(token: string | null | undefined): void {
+  csrf = token ?? undefined
 }
 
-export function rememberReturnTo() {
-  window.sessionStorage.setItem('starterapp.returnTo', window.location.pathname + window.location.search)
+// A seam so tests can watch the navigation; jsdom cannot replace window.location.assign.
+export const browser = {
+  go: (url: string) => window.location.assign(url),
 }
 
-// A second manager over the same settings and store, for the API client to send the person back
-// to the provider: the AuthProvider's own manager reads the same sessionStorage on the callback.
-let manager: UserManager | undefined
-function userManager() {
-  manager ??= new UserManager(oidcSettings)
-  return manager
+function here(): string {
+  return window.location.pathname + window.location.search
 }
 
-// The claims the API verifies are the access token's; the id token is for the app and may carry fewer.
-export function claimsOf(accessToken: string | undefined): Record<string, unknown> {
-  const payload = accessToken?.split('.')[1]
-  if (!payload) return {}
-  return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>
+export function signIn(returnTo: string = here(), extra: Record<string, string> = {}): void {
+  const query = new URLSearchParams({ returnTo, ...extra })
+  browser.go(`/api/auth/login?${query.toString()}`)
 }
 
 // The session is gone (a 401): sign in again, back to the same page.
 export function signInAgain(): void {
-  // A token the API keeps refusing (wrong audience, clock skew) would otherwise loop through the provider's live session forever.
+  // A session the API keeps refusing (wrong audience, clock skew) would otherwise loop through the provider's live session forever.
   const last = Number(window.sessionStorage.getItem('starterapp.signInAgainAt'))
   if (last && Date.now() - last < 30_000) return
   window.sessionStorage.setItem('starterapp.signInAgainAt', String(Date.now()))
-  rememberReturnTo()
-  void userManager().signinRedirect()
+  signIn()
 }
 
 // Sign in again asking for exactly these scopes, so the API's answer shows what the token decides.
 export function signInWithScopes(scopes: readonly string[]): void {
-  rememberReturnTo()
-  void userManager().signinRedirect({ scope: `openid ${scopes.join(' ')}`.trim() })
+  signIn(here(), { scope: `openid ${scopes.join(' ')}`.trim() })
 }
 
 // The API's step-up challenge (RFC 9470, a 403 with insufficient_user_authentication) names the
@@ -98,7 +61,26 @@ export function signInWithScopes(scopes: readonly string[]): void {
 export function stepUp(challenge: string | null): boolean {
   if (!challenge || !challenge.includes('insufficient_user_authentication')) return false
   const acr = /acr_values="([^"]+)"/.exec(challenge)?.[1]
-  rememberReturnTo()
-  void userManager().signinRedirect(acr ? { acr_values: acr } : undefined)
+  signIn(here(), acr ? { acr_values: acr } : {})
   return true
+}
+
+// A form post, not a fetch: the API ends the session, then sends the browser to the provider to end it there too.
+export function signOut(reason: SignOutReason = 'signed-out'): void {
+  const form = document.createElement('form')
+  form.method = 'POST'
+  form.action = '/api/auth/logout'
+  for (const [name, value] of Object.entries({ csrf: csrf ?? '', reason })) {
+    const input = document.createElement('input')
+    input.type = 'hidden'
+    input.name = name
+    input.value = value
+    form.appendChild(input)
+  }
+  document.body.appendChild(form)
+  form.submit()
+}
+
+export function isSignOutReason(value: string | null): value is SignOutReason {
+  return value === 'signed-out' || value === 'idle' || value === 'expired'
 }

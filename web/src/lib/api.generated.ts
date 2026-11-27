@@ -54,6 +54,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Who is signed in through this browser session, and the token a write must echo */
+        get: operations["GetBrowserSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/assistant": {
         parameters: {
             query?: never;
@@ -358,6 +375,18 @@ export interface components {
             blocks?: components["schemas"]["AssistantBlockDto"][];
             stopReason?: string;
         };
+        BrowserSessionResponse: {
+            subject?: string;
+            tenantId?: string;
+            displayName?: null | string;
+            scope?: string;
+            authenticationMethods?: string[];
+            /** Format: date-time */
+            accessExpiresAt?: null | string;
+            csrfToken?: null | string;
+            /** Format: int32 */
+            idleMinutes?: number | string;
+        };
         ClientEvent: {
             kind?: null | string;
             name?: null | string;
@@ -635,6 +664,35 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetBrowserSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrowserSessionResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

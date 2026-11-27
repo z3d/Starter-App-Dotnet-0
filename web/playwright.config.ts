@@ -45,6 +45,6 @@ export default defineConfig({
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
-        env: { VITE_API_URL: apiUrl, VITE_OIDC_AUTHORITY: `${idpUrl}/realms/starterapp` },
+        env: { VITE_API_URL: apiUrl },
       },
 })

@@ -12,8 +12,13 @@ vi.mock('@tanstack/react-router', () => ({
   ),
   useRouterState: () => '/',
 }))
-vi.mock('react-oidc-context', () => ({
-  useAuth: () => ({ user: { profile: { name: 'Dev User', tid: 'tenant' } }, signoutRedirect }),
+vi.mock('@/lib/session', () => ({
+  useSession: () => ({
+    displayName: 'Dev User',
+    session: { tenantId: 'tenant' },
+    scopes: [],
+    signOut: signoutRedirect,
+  }),
 }))
 vi.mock('@/lib/appearance', async (original) => ({
   ...(await original<typeof import('@/lib/appearance')>()),

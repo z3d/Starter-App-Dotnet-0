@@ -2,7 +2,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { Command } from 'cmdk'
 import { Home, LogOut } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
-import { useAuth } from 'react-oidc-context'
+import { useSession } from '@/lib/session'
 import { Dialog } from 'radix-ui'
 
 interface Action {
@@ -13,7 +13,7 @@ interface Action {
 
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const navigate = useNavigate()
-  const auth = useAuth()
+  const auth = useSession()
   const [query, setQuery] = useState('')
 
   const setOpen = (next: boolean) => {
@@ -38,9 +38,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   }
 
   const goTo: Action[] = [{ label: 'Sample', icon: <Home className="size-4" />, go: () => void navigate({ to: '/' }) }]
-  const account: Action[] = [
-    { label: 'Sign out', icon: <LogOut className="size-4" />, go: () => void auth.signoutRedirect() },
-  ]
+  const account: Action[] = [{ label: 'Sign out', icon: <LogOut className="size-4" />, go: () => auth.signOut() }]
 
   const needle = query.trim().toLowerCase()
   const matching = (actions: Action[]) => actions.filter((a) => a.label.toLowerCase().includes(needle))

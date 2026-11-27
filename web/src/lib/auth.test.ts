@@ -1,87 +1,83 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-// The identity helpers' own behaviour, with the OpenID Connect library stood in for.
-const signinRedirect = vi.fn(async () => {})
-vi.mock('oidc-client-ts', () => ({
-  UserManager: class {
-    signinRedirect = signinRedirect
-  },
-  WebStorageStateStore: class {},
-  User: class {},
-}))
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const auth = await import('./auth')
 
-describe('the return path', () => {
-  beforeEach(() => {
-    window.sessionStorage.clear()
-    signinRedirect.mockClear()
-  })
+let go: ReturnType<typeof vi.spyOn>
+beforeEach(() => {
+  window.sessionStorage.clear()
+  go = vi.spyOn(auth.browser, 'go').mockImplementation(() => {})
+})
+afterEach(() => {
+  vi.restoreAllMocks()
+  auth.setCsrfToken(null)
+})
 
-  it('remembers where the person was and takes them back after the callback', () => {
+const went = () => new URL(String(go.mock.calls.at(-1)?.[0]), 'https://app.test')
+
+describe('signIn', () => {
+  it('goes to the API to sign in, naming the page to come back to', () => {
     window.history.replaceState({}, '', '/orders/abc?tab=items')
-    auth.rememberReturnTo()
-    expect(window.sessionStorage.getItem('starterapp.returnTo')).toBe('/orders/abc?tab=items')
-    window.history.replaceState({}, '', '/auth/callback?code=x&state=y')
-    auth.onSigninCallback()
-    expect(window.location.pathname + window.location.search).toBe('/orders/abc?tab=items')
-    expect(window.sessionStorage.getItem('starterapp.returnTo')).toBeNull()
-  })
-
-  it('falls back to the front page when nothing was remembered', () => {
-    window.history.replaceState({}, '', '/auth/callback?code=x')
-    auth.onSigninCallback()
-    expect(window.location.pathname).toBe('/')
+    auth.signIn()
+    expect(went().pathname).toBe('/api/auth/login')
+    expect(went().searchParams.get('returnTo')).toBe('/orders/abc?tab=items')
   })
 })
 
 describe('stepUp', () => {
-  beforeEach(() => signinRedirect.mockClear())
-
   it('does nothing for an ordinary refusal', () => {
     expect(auth.stepUp(null)).toBe(false)
     expect(auth.stepUp('Bearer error="insufficient_scope", scope="orders:write"')).toBe(false)
-    expect(signinRedirect).not.toHaveBeenCalled()
+    expect(go).not.toHaveBeenCalled()
   })
 
-  it('sends the person back to sign in at the level the API asked for, and remembers where they were', () => {
+  it('signs in again at the level the API asked for, back to the same page', () => {
     window.history.replaceState({}, '', '/products/new')
     expect(auth.stepUp('Bearer error="insufficient_user_authentication", acr_values="urn:starterapp:loa:mfa"')).toBe(
       true,
     )
-    expect(signinRedirect).toHaveBeenCalledWith({ acr_values: 'urn:starterapp:loa:mfa' })
-    expect(window.sessionStorage.getItem('starterapp.returnTo')).toBe('/products/new')
+    expect(went().searchParams.get('acr_values')).toBe('urn:starterapp:loa:mfa')
+    expect(went().searchParams.get('returnTo')).toBe('/products/new')
   })
 
   it('still signs in again when the challenge names no level', () => {
     expect(auth.stepUp('Bearer error="insufficient_user_authentication"')).toBe(true)
-    expect(signinRedirect).toHaveBeenCalledWith(undefined)
+    expect(went().searchParams.has('acr_values')).toBe(false)
   })
 })
 
 describe('signInAgain', () => {
-  it('starts the redirect and remembers the page', () => {
-    window.history.replaceState({}, '', '/customers')
-    auth.signInAgain()
-    expect(signinRedirect).toHaveBeenCalled()
-    expect(window.sessionStorage.getItem('starterapp.returnTo')).toBe('/customers')
-  })
-
-  it('does not redirect a second time straight after the first, so a refused token cannot loop', () => {
-    window.sessionStorage.clear()
-    signinRedirect.mockClear()
+  it('does not go a second time straight after the first, so a refused session cannot loop', () => {
     auth.signInAgain()
     auth.signInAgain()
-    expect(signinRedirect).toHaveBeenCalledTimes(1)
+    expect(go).toHaveBeenCalledTimes(1)
   })
 })
 
 describe('signInWithScopes', () => {
-  it('asks the provider for exactly those scopes and remembers the page', async () => {
-    const auth = await import('./auth')
+  it('asks for exactly those scopes', () => {
     window.history.replaceState({}, '', '/')
     auth.signInWithScopes(['products:read', 'customers:read'])
-    expect(signinRedirect).toHaveBeenCalledWith({ scope: 'openid products:read customers:read' })
-    expect(window.sessionStorage.getItem('starterapp.returnTo')).toBe('/')
+    expect(went().searchParams.get('scope')).toBe('openid products:read customers:read')
+  })
+})
+
+describe('signOut', () => {
+  it('posts a form to the API with the CSRF token and the reason, so the API can end the session at the provider', () => {
+    const submit = vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(() => {})
+    auth.setCsrfToken('csrf-abc')
+    auth.signOut('idle')
+    const form = submit.mock.contexts[0] as HTMLFormElement
+    expect(form.method).toBe('post')
+    expect(new URL(form.action).pathname).toBe('/api/auth/logout')
+    expect(new FormData(form).get('csrf')).toBe('csrf-abc')
+    expect(new FormData(form).get('reason')).toBe('idle')
+  })
+})
+
+describe('the token', () => {
+  it('is never kept where a script on the page could read it', () => {
+    auth.setCsrfToken('csrf-abc')
+    expect(Object.keys(window.sessionStorage)).toEqual([])
+    expect(Object.keys(window.localStorage).filter((key) => /oidc|token/i.test(key))).toEqual([])
   })
 })

@@ -12,7 +12,7 @@ test('a write without the second factor sends the person back to sign in, and af
 
     await page.waitForURL(/\/realms\/starterapp\/protocol\/openid-connect\/auth/)
     const request = new URL(page.url())
-    expect(request.searchParams.get('client_id')).toBe('starterapp-web')
+    expect(request.searchParams.get('client_id')).toBe('starterapp-session')
     expect(request.searchParams.get('acr_values')).toBe(process.env.STEP_UP_ACR ?? 'urn:starterapp-dev:loa:mfa')
 
     await setAmr(users.passwordOnly.username, ['pwd', 'mfa'])

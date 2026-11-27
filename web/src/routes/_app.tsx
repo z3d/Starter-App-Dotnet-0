@@ -1,29 +1,33 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { useEffect } from 'react'
-import { useAuth } from 'react-oidc-context'
 import { AppShell } from '@/components/app-shell'
 import { FullPageStatus } from '@/components/full-page-status'
-import { rememberReturnTo } from '@/lib/auth'
+import { signIn } from '@/lib/auth'
+import { useSession } from '@/lib/session'
 
-// Every authenticated screen lives under this pathless layout route. Unauthenticated visitors are
-// sent to the identity provider; the API still validates every token itself, so this gate is UX,
+// Every authenticated screen lives under this pathless layout route. A visitor with no session is
+// sent to sign in through the API; the API still checks every call itself, so this gate is UX,
 // not security.
 export const Route = createFileRoute('/_app')({
   component: AuthenticatedLayout,
 })
 
 function AuthenticatedLayout() {
-  const auth = useAuth()
+  const { status, reload } = useSession()
 
   useEffect(() => {
-    if (!auth.isLoading && !auth.isAuthenticated && !auth.activeNavigator && !auth.error) {
-      rememberReturnTo()
-      void auth.signinRedirect()
-    }
-  }, [auth])
+    if (status === 'signed-out') signIn()
+  }, [status])
 
-  if (auth.error) return <FullPageStatus title="Sign-in failed" detail={auth.error.message} />
-  if (!auth.isAuthenticated) return <FullPageStatus title="Redirecting to sign in…" />
+  if (status === 'unavailable')
+    return (
+      <FullPageStatus
+        title="Sign-in is unavailable"
+        detail="The service could not say who is signed in. Try again shortly."
+        action={{ label: 'Try again', onClick: () => void reload() }}
+      />
+    )
+  if (status !== 'signed-in') return <FullPageStatus title="Redirecting to sign in…" />
 
   return (
     <AppShell>

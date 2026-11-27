@@ -2,10 +2,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { AuthProvider, useAuth } from 'react-oidc-context'
 import { Toaster } from 'sonner'
 import { RouteError } from '@/components/route-error'
-import { oidcSettings, onSigninCallback } from '@/lib/auth'
+import { SessionProvider, useSession } from '@/lib/session'
 import { installErrorReporting } from '@/lib/client-events'
 import { routeTree } from './routeTree.gen'
 import './index.css'
@@ -37,17 +36,17 @@ declare module '@tanstack/react-router' {
 }
 
 function App() {
-  const auth = useAuth()
+  const auth = useSession()
   return <RouterProvider router={router} context={{ auth, queryClient }} />
 }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider {...oidcSettings} onSigninCallback={onSigninCallback}>
+    <SessionProvider>
       <QueryClientProvider client={queryClient}>
         <App />
         <Toaster position="bottom-right" mobileOffset={{ bottom: 88 }} richColors closeButton />
       </QueryClientProvider>
-    </AuthProvider>
+    </SessionProvider>
   </StrictMode>,
 )

@@ -3,27 +3,20 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 // The provider's redirects are stood in for; the client's own behaviour is what is tested.
 const signInAgain = vi.fn()
 const stepUp = vi.fn(() => true)
+const signOut = vi.fn()
 vi.mock('./auth', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./auth')>()),
   signInAgain,
   stepUp,
+  signOut,
 }))
 const { ApiError, call, client } = await import('./api')
 type ApiError = InstanceType<typeof ApiError>
-const { oidcSettings } = await import('./auth')
+const { setCsrfToken } = await import('./auth')
 
-// A signed-in session, the way oidc-client-ts keeps one.
-function signIn(token = 'token-123') {
-  window.sessionStorage.setItem(
-    `oidc.user:${oidcSettings.authority}:${oidcSettings.client_id}`,
-    JSON.stringify({
-      access_token: token,
-      token_type: 'Bearer',
-      scope: 'openid',
-      profile: { sub: 'dev-user' },
-      expires_at: Math.floor(Date.now() / 1000) + 600,
-    }),
-  )
+// A signed-in tab: the session cookie is the browser's; the tab holds only the CSRF token.
+function signIn(csrf = 'csrf-123') {
+  setCsrfToken(csrf)
 }
 
 function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}) {
@@ -41,27 +34,38 @@ describe('API client', () => {
     vi.restoreAllMocks()
     signInAgain.mockClear()
     stepUp.mockClear()
+    signOut.mockClear()
+    setCsrfToken(null)
     window.sessionStorage.clear()
   })
 
-  it("sends the signed-in person's token, and not an expired one", async () => {
+  it('sends no token, and the CSRF token only on a change', async () => {
     signIn()
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => jsonResponse(200, []))
     await call(client.GET('/api/v1/customers'))
-    expect(sent(fetchMock).headers.get('Authorization')).toBe('Bearer token-123')
+    expect(sent(fetchMock).headers.get('Authorization')).toBeNull()
+    expect(sent(fetchMock).headers.get('X-CSRF-Token')).toBeNull()
 
-    window.sessionStorage.setItem(
-      `oidc.user:${oidcSettings.authority}:${oidcSettings.client_id}`,
-      JSON.stringify({
-        access_token: 'stale',
-        token_type: 'Bearer',
-        scope: 'openid',
-        profile: {},
-        expires_at: Math.floor(Date.now() / 1000) - 60,
-      }),
-    )
-    await call(client.GET('/api/v1/customers'))
+    await call(client.POST('/api/v1/customers', { body: { name: 'x', email: 'x@example.test' } }))
     expect(sent(fetchMock, 1).headers.get('Authorization')).toBeNull()
+    expect(sent(fetchMock, 1).headers.get('X-CSRF-Token')).toBe('csrf-123')
+  })
+
+  it('signs out through the API when the session ended for being idle, naming why', async () => {
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse(401, { title: 'Unauthorized' }, { 'X-Session-Ended': 'idle' }),
+    )
+    await expect(call(client.GET('/api/v1/customers'))).rejects.toBeInstanceOf(ApiError)
+    expect(signOut).toHaveBeenCalledWith('idle')
+    expect(signInAgain).not.toHaveBeenCalled()
+  })
+
+  it("treats the session probe's 401 as an answer, not a lost session", async () => {
+    signIn()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(401, { title: 'Unauthorized' }))
+    await client.GET('/api/auth/session')
+    expect(signInAgain).not.toHaveBeenCalled()
   })
 
   it('signs the person in again when their token is refused', async () => {
@@ -89,7 +93,7 @@ describe('API client', () => {
     expect(stepUp).toHaveBeenCalledWith(challenge)
   })
 
-  it('sends JSON, a correlation id, and no Authorization header when signed out', async () => {
+  it('sends JSON, a correlation id, and no Authorization or CSRF header when signed out', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(201, { id: 1, name: 'x' }))
 
     const result = await call(client.POST('/api/v1/customers', { body: { name: 'x', email: 'x@example.test' } }))
@@ -100,6 +104,7 @@ describe('API client', () => {
     expect(request.headers.get('X-Correlation-ID')).toMatch(/^[0-9a-f-]{36}$/)
     expect(request.headers.get('Content-Type')).toBe('application/json')
     expect(request.headers.get('Authorization')).toBeNull()
+    expect(request.headers.get('X-CSRF-Token')).toBeNull()
     expect(await request.json()).toEqual({ name: 'x', email: 'x@example.test' })
   })
 
