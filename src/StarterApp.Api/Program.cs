@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Scalar.AspNetCore;
 using StarterApp.Api.Endpoints;
 using StarterApp.Application.Infrastructure.ClientEvents;
+using StarterApp.Application.Infrastructure.Identity.Session;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,6 +66,7 @@ try
 
     app.MapProbeEndpoints();
     app.MapClientEventIntake();
+    app.MapBrowserSessionEndpoints();
 
     app.Run();
 }

@@ -80,6 +80,7 @@ public class PayloadLogFieldConventionTests : ConventionTestBase
         var app = builder.Build();
         app.MapApiEndpoints();
         StarterApp.Application.Infrastructure.ClientEvents.ClientEventIntake.MapClientEventIntake(app);
+        StarterApp.Application.Infrastructure.Identity.Session.BrowserSessionEndpoints.MapBrowserSessionEndpoints(app);
 
         foreach (var endpoint in ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints))
         {

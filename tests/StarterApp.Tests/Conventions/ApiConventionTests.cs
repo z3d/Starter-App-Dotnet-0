@@ -70,11 +70,14 @@ public class ApiConventionTests : ConventionTestBase
             "Every route is either an authorized API endpoint or a listed anonymous probe:\n" + string.Join("\n", failures));
     }
 
-    // The probes, and the browser's error and event intake, which must work before sign-in.
+    // The probes, the browser's error and event intake, and the browser session's sign-in and sign-out, which all work before sign-in.
     private static readonly HashSet<string> AnonymousProbePaths = new(StringComparer.Ordinal)
     {
         "/health", "/health/ready", "/health/live", "/alive", "/liveness", "/healthiness",
         StarterApp.Application.Infrastructure.ClientEvents.ClientEventIntake.Path,
+        StarterApp.Application.Infrastructure.Identity.Session.BrowserSessionEndpoints.LoginPath,
+        StarterApp.Application.Infrastructure.Identity.Session.BrowserSessionEndpoints.CallbackPath,
+        StarterApp.Application.Infrastructure.Identity.Session.BrowserSessionEndpoints.LogoutPath,
     };
 
     [Fact]
@@ -448,6 +451,7 @@ public class ApiConventionTests : ConventionTestBase
         {
             app.MapProbeEndpoints();
             StarterApp.Application.Infrastructure.ClientEvents.ClientEventIntake.MapClientEventIntake(app);
+            StarterApp.Application.Infrastructure.Identity.Session.BrowserSessionEndpoints.MapBrowserSessionEndpoints(app);
         }
         return app;
     }

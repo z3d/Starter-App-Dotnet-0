@@ -53,6 +53,7 @@ public static class WebApplicationExtensions
     public static WebApplication UseJwtIdentity(this WebApplication app)
     {
         // Must come after UseRouting, because the authorization metadata is on the endpoint, and before UseRateLimiter, which partitions on ICurrentUser.
+        app.UseMiddleware<Identity.Session.BrowserSessionMiddleware>();
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseMiddleware<JwtIdentityMiddleware>();

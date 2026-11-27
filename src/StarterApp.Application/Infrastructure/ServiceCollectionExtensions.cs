@@ -171,7 +171,27 @@ public static class ServiceCollectionExtensions
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
         services.AddCallerIdentity();
+        services.AddBrowserSessions(environment);
 
+        return services;
+    }
+
+    private static IServiceCollection AddBrowserSessions(this IServiceCollection services, IHostEnvironment environment)
+    {
+        services.AddOptions<Identity.Session.BrowserSessionOptions>()
+            .BindConfiguration(Identity.Session.BrowserSessionOptions.SectionName)
+            .ValidateDataAnnotations()
+            .Validate(options => !options.Enabled || Uri.TryCreate(options.WebOrigin, UriKind.Absolute, out var origin) && origin.AbsolutePath == "/"
+                    && (origin.Scheme == Uri.UriSchemeHttps || (IsDevelopmentLike(environment) && origin.IsLoopback)),
+                "Identity:Session:WebOrigin must be the web app's origin (https, or http on this machine in Development) when Identity:Session:ClientId is set.")
+            .Validate(options => !options.Enabled || options.Scopes.Contains("openid", StringComparer.Ordinal),
+                "Identity:Session:Scope must include openid.")
+            .Validate(HasNoPlaceholder,
+                "An Identity:Session setting still holds a REPLACE-ME placeholder; set it as an app setting before starting.")
+            .ValidateOnStart();
+        services.AddSingleton<Identity.Session.BrowserSessionStore>();
+        services.AddSingleton<Identity.Session.IdentityProviderClient>();
+        services.AddHttpClient(Identity.Session.IdentityProviderClient.HttpClientName);
         return services;
     }
 
@@ -261,6 +281,10 @@ public static class ServiceCollectionExtensions
         static bool IsPlaceholder(string? value) =>
             value is not null && value.Contains("REPLACE-ME", StringComparison.OrdinalIgnoreCase);
     }
+
+    internal static bool HasNoPlaceholder(Identity.Session.BrowserSessionOptions options) =>
+        new[] { options.ClientId, options.ClientSecret, options.WebOrigin, options.Audience, options.Organization }
+            .All(value => value is null || !value.Contains("REPLACE-ME", StringComparison.OrdinalIgnoreCase));
 
     private static bool IsDevelopmentLike(IHostEnvironment environment)
     {

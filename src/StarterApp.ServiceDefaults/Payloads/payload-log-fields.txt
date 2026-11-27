@@ -6,7 +6,9 @@
 # Names compare without case or punctuation, so customerId covers CustomerId on an event.
 # This decides logs only. The payload archive keeps full bodies apart from secrets (docs/DECISIONS.md).
 
+keep accessExpiresAt
 keep area
+keep authenticationMethods
 keep blocks
 keep build
 keep currency
@@ -23,6 +25,7 @@ keep fields
 keep gstRate
 keep hasMore
 keep id
+keep idleMinutes
 keep instance
 keep isActive
 keep isError
@@ -56,6 +59,7 @@ keep scope
 keep status
 keep stock
 keep stopReason
+keep subject
 keep summary
 keep tenantId
 keep title
@@ -75,7 +79,9 @@ keep whenField
 keep whenValues
 
 mask content
+mask csrfToken
 mask description
+mask displayName
 mask email
 mask input
 mask message
