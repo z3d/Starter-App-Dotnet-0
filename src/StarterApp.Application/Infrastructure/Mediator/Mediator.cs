@@ -4,8 +4,8 @@ namespace StarterApp.Application.Infrastructure.Mediator;
 
 public class Mediator : IMediator
 {
-    // One wrapper per request type, built the first time it is sent. Every later SendAsync is a dictionary lookup and a call.
-    private static readonly ConcurrentDictionary<Type, object> RequestHandlerWrappers = new();
+    // Keyed on the response type too: IRequest<out T> is covariant, so one request type can arrive under a wider TResponse.
+    private static readonly ConcurrentDictionary<(Type Request, Type Response), object> RequestHandlerWrappers = new();
     private static readonly ConcurrentDictionary<Type, ValidatorInvoker> ValidatorInvokers = new();
 
     private readonly IServiceProvider _serviceProvider;
@@ -23,10 +23,9 @@ public class Mediator : IMediator
         RunValidators(request);
 
         var wrapper = (RequestHandlerWrapper<TResponse>)RequestHandlerWrappers.GetOrAdd(
-            request.GetType(),
-            static (requestType, responseType) =>
-                Activator.CreateInstance(typeof(RequestHandlerWrapperImpl<,>).MakeGenericType(requestType, responseType))!,
-            typeof(TResponse));
+            (request.GetType(), typeof(TResponse)),
+            static key =>
+                Activator.CreateInstance(typeof(RequestHandlerWrapperImpl<,>).MakeGenericType(key.Request, key.Response))!);
 
         return wrapper.HandleAsync(request, _serviceProvider, cancellationToken);
     }
@@ -37,8 +36,8 @@ public class Mediator : IMediator
         if (toggle is null)
             return;
 
-        var featureToggles = _serviceProvider.GetService<FeatureToggles.IFeatureToggles>();
-        if (featureToggles is not null && !featureToggles.IsEnabled(toggle.Name))
+        var featureToggles = _serviceProvider.GetRequiredService<FeatureToggles.IFeatureToggles>();
+        if (!featureToggles.IsEnabled(toggle.Name))
             throw new FeatureToggles.FeatureDisabledException(toggle.Name);
     }
 

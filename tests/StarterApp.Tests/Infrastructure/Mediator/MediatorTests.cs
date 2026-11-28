@@ -98,6 +98,24 @@ public class MediatorTests
     }
 
     [Fact]
+    public async Task SendAsync_refuses_a_toggled_request_when_no_feature_toggles_are_registered()
+    {
+        var mediator = BuildMediator(s => s.AddScoped<IRequestHandler<ToggledRequest, string>, ToggledHandler>());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => mediator.SendAsync(new ToggledRequest()));
+    }
+
+    [Fact]
+    public async Task SendAsync_with_a_wider_response_type_does_not_break_later_calls_for_the_request()
+    {
+        var mediator = BuildMediator(s => s.AddScoped<IRequestHandler<WidenedRequest, string>, WidenedHandler>());
+
+        await Assert.ThrowsAnyAsync<Exception>(() => mediator.SendAsync<object>(new WidenedRequest()));
+
+        Assert.Equal("widened-ok", await mediator.SendAsync(new WidenedRequest()));
+    }
+
+    [Fact]
     public async Task SendAsync_propagates_cancellation_token_to_handler()
     {
         CancellationToken captured = default;
@@ -184,6 +202,14 @@ public class MediatorTests
     }
 
     private sealed record OrphanRequest : IRequest<string>;
+
+    private sealed record WidenedRequest : IRequest<string>;
+
+    private sealed class WidenedHandler : IRequestHandler<WidenedRequest, string>
+    {
+        public Task<string> HandleAsync(WidenedRequest request, CancellationToken cancellationToken)
+            => Task.FromResult("widened-ok");
+    }
 
     private sealed record OrderedRequest : IRequest<string>;
 
