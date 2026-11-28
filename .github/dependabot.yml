@@ -36,6 +36,20 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    # LTS only (owner, 28 November 2026): .NET and Node move to a new major by hand, and only to an LTS
+    # release (.NET even-numbered, Node once its line is Active LTS); Dependabot keeps the current line patched.
+    ignore:
+      - dependency-name: "*dotnet*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "*azure-functions*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+    groups:
+      # One PR moves every .NET image together, since they ship as one release.
+      dotnet-images:
+        patterns:
+          - "*dotnet*"
 
   # The web app. Minor and patch bumps come as one grouped PR a week.
   - package-ecosystem: "npm"

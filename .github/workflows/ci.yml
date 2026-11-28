@@ -24,6 +24,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Dependabot's pull requests are not built on the self-hosted build machine (owner, 28 November 2026);
+    # its jobs that need this one skip too. A person re-running it is the actor, so it then runs.
+    if: ${{ !(vars.RUNS_ON && github.actor == 'dependabot[bot]') }}
     timeout-minutes: 20
 
     steps:
@@ -52,6 +55,9 @@ jobs:
 
   web:
     runs-on: ubuntu-latest
+    # Dependabot's pull requests are not built on the self-hosted build machine (owner, 28 November 2026);
+    # its jobs that need this one skip too. A person re-running it is the actor, so it then runs.
+    if: ${{ !(vars.RUNS_ON && github.actor == 'dependabot[bot]') }}
     timeout-minutes: 20
     defaults:
       run:
@@ -209,6 +215,9 @@ jobs:
 
   docker-build:
     runs-on: ubuntu-latest
+    # Dependabot's pull requests are not built on the self-hosted build machine (owner, 28 November 2026);
+    # its jobs that need this one skip too. A person re-running it is the actor, so it then runs.
+    if: ${{ !(vars.RUNS_ON && github.actor == 'dependabot[bot]') }}
     timeout-minutes: 20
 
     steps:
