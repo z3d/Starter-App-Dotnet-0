@@ -9,6 +9,11 @@ namespace StarterApp.Tests.Infrastructure.Outbox;
 
 public class OutboxProcessorTests
 {
+    // Only stops a test that hangs: every batch here runs in-memory and finishes in milliseconds on an idle
+    // machine, but a build machine running another job beside the gate has taken 5 s over one, and a
+    // deadline that short failed a correct run with OperationCanceledException.
+    private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
+
     private static ApplicationDbContext CreateDbContext(string databaseName)
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -48,7 +53,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(dbName, senderMock.Object);
 
         // Act
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         // Assert
@@ -81,7 +86,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(dbName, senderMock.Object);
 
         // Act
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         // Assert — Type is the runtime type name set by OutboxMessage.Create
@@ -113,7 +118,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(dbName, senderMock.Object, payloadStore: payloadStore);
 
         // Act
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         // Assert
@@ -145,7 +150,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(dbName, senderMock.Object, maxRetries: 3);
 
         // Act — first failure should increment RetryCount but not set Error
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         await using (var verifyContext = CreateDbContext(dbName))
@@ -187,7 +192,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(dbName, senderMock.Object, maxRetries: 1);
 
         // Act
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         // Assert — with maxRetries=1, a single failure should permanently error
@@ -214,7 +219,7 @@ public class OutboxProcessorTests
 
         var processor = CreateProcessor(dbName, senderMock.Object, maxRetries: 1);
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(HangGuard);
         for (var i = 0; i < 5; i++)
             await RunSingleBatchAsync(processor, cts.Token);
 
@@ -248,7 +253,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(dbName, senderMock.Object, maxRetries: 1);
 
         // Act — run the batch many more times than MaxRetries would allow
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(HangGuard);
         for (var i = 0; i < 10; i++)
             await RunSingleBatchAsync(processor, cts.Token);
 
@@ -286,7 +291,7 @@ public class OutboxProcessorTests
             payloadCaptureOptions: new PayloadCaptureOptions { ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed });
 
         // Act — run the batch many more times than MaxRetries would allow
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(HangGuard);
         for (var i = 0; i < 10; i++)
             await RunSingleBatchAsync(processor, cts.Token);
 
@@ -327,7 +332,7 @@ public class OutboxProcessorTests
             payloadStore: new SelectivelyThrowingPayloadArchiveStore("poison", new InvalidOperationException("capture defect for one payload")),
             payloadCaptureOptions: new PayloadCaptureOptions { ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed });
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(HangGuard);
         for (var i = 0; i < 10; i++)
             await RunSingleBatchAsync(processor, cts.Token);
 
@@ -366,7 +371,7 @@ public class OutboxProcessorTests
             payloadStore: new SelectivelyThrowingPayloadArchiveStore("poison", new InvalidOperationException("capture defect for one payload")),
             payloadCaptureOptions: new PayloadCaptureOptions { ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed });
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         senderMock.Verify(s => s.SendMessageAsync(It.IsAny<ServiceBusMessage>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -400,7 +405,7 @@ public class OutboxProcessorTests
             payloadStore: store,
             payloadCaptureOptions: new PayloadCaptureOptions { ServiceBusFailureMode = PayloadCaptureFailureMode.FailClosed });
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         Assert.Equal(1, store.AppendAttempts);
@@ -442,7 +447,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(dbName, senderMock.Object);
 
         // Act
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         // Assert — processor stops after transient error, 3rd message not attempted
@@ -483,7 +488,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(dbName, senderMock.Object);
 
         // Act
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         // Assert
@@ -516,7 +521,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(dbName, senderMock.Object);
 
         // Act
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         // Assert
@@ -550,7 +555,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(dbName, senderMock.Object);
 
         // Act
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         // Assert — only the good message should have been published
@@ -576,7 +581,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(dbName, senderMock.Object, batchSize: 3);
 
         // Act
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         // Assert — only 3 of 5 should be published in one batch
@@ -617,7 +622,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(dbName, senderMock.Object);
 
         // Act — must not throw, and must not lose the first message's outcome
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         // Assert — first outcome persisted; stolen row left to its new owner
@@ -638,7 +643,7 @@ public class OutboxProcessorTests
         var processor = CreateProcessor(dbName, senderMock.Object);
 
         // Act
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var cts = new CancellationTokenSource(HangGuard);
         await RunSingleBatchAsync(processor, cts.Token);
 
         // Assert
@@ -709,7 +714,7 @@ public class OutboxProcessorTests
 
         var processor = CreateProcessor(dbName, senderMock.Object, batchSize: batchSize);
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var cts = new CancellationTokenSource(HangGuard);
         var backlogRemains = await RunSingleBatchAsync(processor, cts.Token);
 
         Assert.Equal(expectBacklog, backlogRemains);
