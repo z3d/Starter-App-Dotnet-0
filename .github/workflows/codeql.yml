@@ -7,6 +7,7 @@ on:
     branches: [ main ]
   schedule:
     - cron: '0 4 * * 1'   # weekly, Monday 04:00 UTC
+  workflow_dispatch:
 
 # Least privilege: CodeQL needs security-events:write to upload results; everything else read.
 permissions:
@@ -20,6 +21,11 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
+    # A private repository on GitHub Free cannot store code-scanning results (that needs GitHub Code
+    # Security), so a run on every push spends the build machine's time for nothing. RUNS_ON is set
+    # only on the private repositories (flock-status docs/OPERATIONS.md, CI): there the analysis runs
+    # weekly and by hand, and its findings go to the job summary and a SARIF artifact.
+    if: ${{ !vars.RUNS_ON || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     timeout-minutes: 30
     permissions:
       security-events: write
@@ -46,3 +52,22 @@ jobs:
       uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
       with:
         category: "/language:${{ matrix.language }}"
+        upload: ${{ vars.RUNS_ON && 'never' || 'always' }}
+        output: sarif-results
+
+    - name: Findings (private repository)
+      if: ${{ vars.RUNS_ON }}
+      run: |
+        n=$(jq '[.runs[].results[]] | length' sarif-results/*.sarif | awk '{s+=$1} END {print s+0}')
+        {
+          echo "### CodeQL ${{ matrix.language }}: $n finding(s)"
+          jq -r '.runs[].results[] | "- \(.ruleId): \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)"' sarif-results/*.sarif | head -100
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Keep the SARIF (private repository)
+      if: ${{ vars.RUNS_ON }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: codeql-${{ matrix.language }}
+        path: sarif-results
+        retention-days: 30
