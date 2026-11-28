@@ -18,6 +18,11 @@ updates:
       # bumping only one fails with "Loaded a configuration file for version X, but
       # running version Y". Group them so they always move in a single commit.
       codeql-action:
+        applies-to: version-updates
+        patterns:
+          - "github/codeql-action*"
+      codeql-action-security:
+        applies-to: security-updates
         patterns:
           - "github/codeql-action*"
 
