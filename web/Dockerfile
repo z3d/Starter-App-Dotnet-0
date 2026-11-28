@@ -5,7 +5,7 @@
 # the browser needs no CORS and the session cookie is the site's own. Sign-in runs through the API's
 # /api/auth routes, so the image knows nothing of the identity provider.
 
-FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS build
+FROM node:24-alpine@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS build
 WORKDIR /src
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
